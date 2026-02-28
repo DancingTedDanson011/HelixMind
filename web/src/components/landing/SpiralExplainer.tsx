@@ -34,7 +34,7 @@ export function SpiralExplainer() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            Memory Architecture
+            {t('sectionLabel')}
           </motion.p>
 
           <motion.h2

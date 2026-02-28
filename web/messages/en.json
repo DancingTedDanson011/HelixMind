@@ -21,7 +21,11 @@
     "cta": "Install App",
     "ctaSecondary": "See it in action",
     "installCommand": "npm install -g helixmind",
-    "requirement": "Requires Node.js 18+"
+    "requirement": "Requires Node.js 18+",
+    "copied": "Copied!",
+    "openSource": "Open Source",
+    "license": "AGPL-3.0",
+    "anyLlm": "Works with any LLM"
   },
   "problem": {
     "title": "The problem with every AI coding tool",
@@ -34,6 +38,7 @@
   },
   "spiral": {
     "title": "Spiral Memory — Context that evolves",
+    "sectionLabel": "Memory Architecture",
     "subtitle": "Six levels of intelligent memory that grows, decays, and adapts with your project.",
     "levels": {
       "l1": { "name": "Focus", "desc": "Hot context — what you're working on right now" },
@@ -107,6 +112,9 @@
     "getStarted": "Get Started Free",
     "subscribe": "Subscribe",
     "contactSales": "Contact Sales",
+    "mostPopular": "Most popular",
+    "sectionLabel": "Pricing",
+    "yearlyBilled": "${amount}/year billed annually",
     "free": {
       "name": "Free",
       "price": "0",
@@ -164,13 +172,22 @@
     "title": "Start building with memory",
     "subtitle": "Install HelixMind in 30 seconds. Free forever for individual use.",
     "button": "Install App",
-    "github": "Star on GitHub"
+    "github": "Star on GitHub",
+    "readyToInstall": "Ready to install",
+    "copied": "Copied!"
   },
   "footer": {
     "product": "Product",
     "resources": "Resources",
     "company": "Company",
     "legal": "Legal",
+    "features": "Features",
+    "pricing": "Pricing",
+    "documentation": "Documentation",
+    "blog": "Blog",
+    "gettingStarted": "Getting Started",
+    "support": "Support",
+    "tagline": "AI Coding CLI with Spiral Memory. Open Source. AGPL-3.0.",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "imprint": "Imprint",
@@ -298,7 +315,11 @@
       "proSubscribers": "Pro Subscribers",
       "teamSubscribers": "Team Subscribers",
       "failedLoad": "Failed to load dashboard stats",
-      "checkDatabase": "Check your database connection and try again"
+      "checkDatabase": "Check your database connection and try again",
+      "planFree": "Free",
+      "planPro": "Pro",
+      "planTeam": "Team",
+      "planEnterprise": "Enterprise"
     },
     "userManagement": {
       "title": "User Management",
@@ -532,6 +553,32 @@
     "agentError": "Agent error",
     "connectCli": "Connect CLI",
     "notConnectedHintShort": "Connect a CLI instance to send messages"
+  },
+  "ticket": {
+    "createTitle": "Create New Ticket",
+    "subjectLabel": "Subject",
+    "subjectPlaceholder": "Brief description of your issue",
+    "subjectRequired": "Subject is required",
+    "subjectMinLength": "Subject must be at least 5 characters",
+    "subjectMaxLength": "Subject must be less than 200 characters",
+    "categoryLabel": "Category",
+    "categoryGeneral": "General",
+    "categoryBug": "Bug Report",
+    "categoryBilling": "Billing",
+    "categoryFeature": "Feature Request",
+    "priorityLabel": "Priority",
+    "priorityLow": "Low",
+    "priorityMedium": "Medium",
+    "priorityHigh": "High",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Describe your issue in detail. Include steps to reproduce, expected behavior, and any error messages...",
+    "descriptionRequired": "Description is required",
+    "descriptionMinLength": "Description must be at least 10 characters",
+    "descriptionMaxLength": "Description must be less than 5000 characters",
+    "submitButton": "Submit Ticket",
+    "cancelButton": "Cancel",
+    "submitFailed": "Failed to create ticket",
+    "networkError": "Network error. Please try again."
   },
   "cliAuth": {
     "title": "Authorize HelixMind CLI",

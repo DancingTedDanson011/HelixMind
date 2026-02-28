@@ -21,7 +21,11 @@
     "cta": "App installieren",
     "ctaSecondary": "In Aktion sehen",
     "installCommand": "npm install -g helixmind",
-    "requirement": "Erfordert Node.js 18+"
+    "requirement": "Erfordert Node.js 18+",
+    "copied": "Kopiert!",
+    "openSource": "Open Source",
+    "license": "AGPL-3.0",
+    "anyLlm": "Kompatibel mit jedem LLM"
   },
   "problem": {
     "title": "Das Problem jedes AI-Coding-Tools",
@@ -34,6 +38,7 @@
   },
   "spiral": {
     "title": "Spiral Memory — Kontext der sich entwickelt",
+    "sectionLabel": "Memory-Architektur",
     "subtitle": "Sechs Ebenen intelligentes Memory, das mit deinem Projekt wächst, altert und sich anpasst.",
     "levels": {
       "l1": { "name": "Focus", "desc": "Heißer Kontext — woran du gerade arbeitest" },
@@ -107,6 +112,9 @@
     "getStarted": "Kostenlos starten",
     "subscribe": "Abonnieren",
     "contactSales": "Vertrieb kontaktieren",
+    "mostPopular": "Beliebteste Wahl",
+    "sectionLabel": "Preise",
+    "yearlyBilled": "${amount}/Jahr, jährlich abgerechnet",
     "free": {
       "name": "Free",
       "price": "0",
@@ -136,6 +144,7 @@
     "team": {
       "name": "Team",
       "price": "39",
+      "yearlyPrice": "390",
       "desc": "Für Teams die zusammen bauen.",
       "features": [
         "Alles aus Pro",
@@ -163,13 +172,22 @@
     "title": "Starte mit Memory zu bauen",
     "subtitle": "Installiere HelixMind in 30 Sekunden. Für immer kostenlos für Einzelnutzer.",
     "button": "App installieren",
-    "github": "Auf GitHub staren"
+    "github": "Auf GitHub staren",
+    "readyToInstall": "Bereit zur Installation",
+    "copied": "Kopiert!"
   },
   "footer": {
     "product": "Produkt",
     "resources": "Ressourcen",
     "company": "Unternehmen",
     "legal": "Rechtliches",
+    "features": "Features",
+    "pricing": "Preise",
+    "documentation": "Dokumentation",
+    "blog": "Blog",
+    "gettingStarted": "Erste Schritte",
+    "support": "Support",
+    "tagline": "AI Coding CLI mit Spiral Memory. Open Source. AGPL-3.0.",
     "privacy": "Datenschutz",
     "terms": "Nutzungsbedingungen",
     "imprint": "Impressum",
@@ -297,7 +315,11 @@
       "proSubscribers": "Pro-Abonnenten",
       "teamSubscribers": "Team-Abonnenten",
       "failedLoad": "Dashboard-Statistiken konnten nicht geladen werden",
-      "checkDatabase": "Überprüfe die Datenbankverbindung und versuche es erneut"
+      "checkDatabase": "Überprüfe die Datenbankverbindung und versuche es erneut",
+      "planFree": "Free",
+      "planPro": "Pro",
+      "planTeam": "Team",
+      "planEnterprise": "Enterprise"
     },
     "userManagement": {
       "title": "Benutzerverwaltung",
@@ -531,6 +553,32 @@
     "agentError": "Agent-Fehler",
     "connectCli": "CLI verbinden",
     "notConnectedHintShort": "Verbinde eine CLI-Instanz um Nachrichten zu senden"
+  },
+  "ticket": {
+    "createTitle": "Neues Ticket erstellen",
+    "subjectLabel": "Betreff",
+    "subjectPlaceholder": "Kurze Beschreibung deines Anliegens",
+    "subjectRequired": "Betreff ist erforderlich",
+    "subjectMinLength": "Betreff muss mindestens 5 Zeichen lang sein",
+    "subjectMaxLength": "Betreff darf maximal 200 Zeichen lang sein",
+    "categoryLabel": "Kategorie",
+    "categoryGeneral": "Allgemein",
+    "categoryBug": "Fehlermeldung",
+    "categoryBilling": "Abrechnung",
+    "categoryFeature": "Feature-Wunsch",
+    "priorityLabel": "Priorität",
+    "priorityLow": "Niedrig",
+    "priorityMedium": "Mittel",
+    "priorityHigh": "Hoch",
+    "descriptionLabel": "Beschreibung",
+    "descriptionPlaceholder": "Beschreibe dein Anliegen im Detail. Füge Schritte zur Reproduktion, erwartetes Verhalten und Fehlermeldungen hinzu...",
+    "descriptionRequired": "Beschreibung ist erforderlich",
+    "descriptionMinLength": "Beschreibung muss mindestens 10 Zeichen lang sein",
+    "descriptionMaxLength": "Beschreibung darf maximal 5000 Zeichen lang sein",
+    "submitButton": "Ticket absenden",
+    "cancelButton": "Abbrechen",
+    "submitFailed": "Ticket konnte nicht erstellt werden",
+    "networkError": "Netzwerkfehler. Bitte versuche es erneut."
   },
   "cliAuth": {
     "title": "HelixMind CLI autorisieren",

@@ -94,7 +94,7 @@ export default function PricingPage() {
                 className={`flex flex-col ${isPro ? 'border-primary/30 glow-primary' : ''}`}
               >
                 {isPro && (
-                  <Badge variant="primary" className="self-start mb-3">Most popular</Badge>
+                  <Badge variant="primary" className="self-start mb-3">{t('mostPopular')}</Badge>
                 )}
 
                 <h3 className="text-xl font-semibold text-white mb-1">{t(`${key}.name`)}</h3>
@@ -110,7 +110,7 @@ export default function PricingPage() {
                       </span>
                       {isPaid && yearly && (
                         <p className="text-xs text-success mt-1">
-                          ${yearlyTotal[key as PaidTier]}/year billed annually
+                          {t('yearlyBilled', { amount: yearlyTotal[key as PaidTier] })}
                         </p>
                       )}
                     </>
@@ -133,7 +133,11 @@ export default function PricingPage() {
                   className="w-full"
                   loading={loading === key}
                   onClick={() => {
-                    if (key === 'free' || key === 'enterprise') return;
+                    if (key === 'free') return;
+                    if (key === 'enterprise') {
+                      window.location.href = 'mailto:contact@helix-mind.ai?subject=Enterprise%20Inquiry';
+                      return;
+                    }
                     handleCheckout(key);
                   }}
                 >

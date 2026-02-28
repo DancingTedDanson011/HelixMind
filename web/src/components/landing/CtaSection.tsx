@@ -36,7 +36,7 @@ export function CtaSection() {
         >
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-4 py-1.5 text-xs font-medium text-primary backdrop-blur-sm mb-8">
             <Terminal size={12} />
-            <span className="tracking-wide">Ready to install</span>
+            <span className="tracking-wide">{t('readyToInstall')}</span>
           </div>
 
           <h2 className="heading-xl text-4xl sm:text-5xl lg:text-6xl mb-6">
@@ -50,7 +50,7 @@ export function CtaSection() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button size="lg" className="font-display font-semibold tracking-wide" onClick={copyInstall}>
               {copied ? (
-                <span className="flex items-center gap-2"><Check size={16} /> Copied!</span>
+                <span className="flex items-center gap-2"><Check size={16} /> {t('copied')}</span>
               ) : (
                 t('button')
               )}

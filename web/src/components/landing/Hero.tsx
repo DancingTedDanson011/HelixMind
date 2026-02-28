@@ -125,7 +125,7 @@ export function Hero() {
             onClick={copyInstall}
           >
             {copied ? (
-              <span className="flex items-center gap-2"><Check size={16} /> Copied!</span>
+              <span className="flex items-center gap-2"><Check size={16} /> {t('copied')}</span>
             ) : (
               t('cta')
             )}
@@ -145,11 +145,11 @@ export function Hero() {
           variants={stagger.item}
           className="mt-8 flex items-center justify-center gap-6 text-xs text-gray-500"
         >
-          <span>Open Source</span>
+          <span>{t('openSource')}</span>
           <span className="w-1 h-1 rounded-full bg-gray-700" />
-          <span>AGPL-3.0</span>
+          <span>{t('license')}</span>
           <span className="w-1 h-1 rounded-full bg-gray-700" />
-          <span>Works with any LLM</span>
+          <span>{t('anyLlm')}</span>
         </motion.div>
       </motion.div>
 

@@ -30,7 +30,7 @@ export function PricingPreview() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            Pricing
+            {t('sectionLabel')}
           </motion.p>
 
           <motion.h2
@@ -79,7 +79,7 @@ export function PricingPreview() {
                   {isPro && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                       <span className="inline-flex items-center rounded-full bg-primary/10 border border-primary/20 px-3 py-0.5 text-[10px] font-semibold text-primary tracking-wider uppercase">
-                        Most popular
+                        {t('mostPopular')}
                       </span>
                     </div>
                   )}
@@ -114,19 +114,27 @@ export function PricingPreview() {
                     ))}
                   </ul>
 
-                  <Link href="/pricing">
-                    <Button
-                      variant={isPro ? 'primary' : 'outline'}
-                      className="w-full font-display font-semibold tracking-wide"
-                      size="sm"
-                    >
-                      {key === 'free'
-                        ? t('getStarted')
-                        : key === 'enterprise'
-                          ? t('contactSales')
-                          : t('subscribe')}
-                    </Button>
-                  </Link>
+                  {key === 'enterprise' ? (
+                    <a href="mailto:contact@helix-mind.ai?subject=Enterprise%20Inquiry">
+                      <Button
+                        variant="outline"
+                        className="w-full font-display font-semibold tracking-wide"
+                        size="sm"
+                      >
+                        {t('contactSales')}
+                      </Button>
+                    </a>
+                  ) : (
+                    <Link href="/pricing">
+                      <Button
+                        variant={isPro ? 'primary' : 'outline'}
+                        className="w-full font-display font-semibold tracking-wide"
+                        size="sm"
+                      >
+                        {key === 'free' ? t('getStarted') : t('subscribe')}
+                      </Button>
+                    </Link>
+                  )}
 
                   {/* Top accent line */}
                   {isPro && (

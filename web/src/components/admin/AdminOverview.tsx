@@ -185,10 +185,10 @@ export function AdminOverview() {
           </div>
           <div className="grid grid-cols-4 gap-4">
             {[
-              { label: 'Free', count: freeUsers, color: 'text-gray-400', bar: 'bg-gray-500', border: '' },
-              { label: 'Pro', count: stats.proUsers, color: 'text-primary', bar: 'bg-primary', border: 'border border-primary/10' },
-              { label: 'Team', count: stats.teamUsers, color: 'text-secondary', bar: 'bg-secondary', border: 'border border-secondary/10' },
-              { label: 'Enterprise', count: 0, color: 'text-accent', bar: 'bg-accent', border: 'border border-accent/10' },
+              { label: t('overview.planFree'), count: freeUsers, color: 'text-gray-400', bar: 'bg-gray-500', border: '' },
+              { label: t('overview.planPro'), count: stats.proUsers, color: 'text-primary', bar: 'bg-primary', border: 'border border-primary/10' },
+              { label: t('overview.planTeam'), count: stats.teamUsers, color: 'text-secondary', bar: 'bg-secondary', border: 'border border-secondary/10' },
+              { label: t('overview.planEnterprise'), count: 0, color: 'text-accent', bar: 'bg-accent', border: 'border border-accent/10' },
             ].map((plan) => {
               const pct = stats.totalUsers > 0 ? (plan.count / stats.totalUsers) * 100 : 0;
               return (

@@ -12,17 +12,17 @@ export function Footer() {
     {
       title: t('product'),
       links: [
-        { href: '/features', label: 'Features' },
-        { href: '/pricing', label: 'Pricing' },
-        { href: '/docs', label: 'Documentation' },
+        { href: '/features', label: t('features') },
+        { href: '/pricing', label: t('pricing') },
+        { href: '/docs', label: t('documentation') },
       ],
     },
     {
       title: t('resources'),
       links: [
-        { href: '/blog', label: 'Blog' },
-        { href: '/docs/getting-started', label: 'Getting Started' },
-        { href: '/support', label: 'Support' },
+        { href: '/blog', label: t('blog') },
+        { href: '/docs/getting-started', label: t('gettingStarted') },
+        { href: '/support', label: t('support') },
       ],
     },
     {
@@ -46,7 +46,7 @@ export function Footer() {
               <span className="gradient-text">HelixMind</span>
             </Link>
             <p className="text-sm text-gray-500 max-w-xs">
-              AI Coding CLI with Spiral Memory. Open Source. AGPL-3.0.
+              {t('tagline')}
             </p>
           </div>
 
