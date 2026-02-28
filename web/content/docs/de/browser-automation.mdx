@@ -1,0 +1,102 @@
+---
+title: Browser Automation & Vision
+description: Wie HelixMind Chrome via Puppeteer steuert für Web-Automatisierung, Screenshots und visuelle Analyse.
+order: 17
+category: Kernkonzepte
+---
+
+# Browser Automation & Vision
+
+HelixMind kann **einen echten Chrome-Browser** via Puppeteer steuern — navigieren, klicken, tippen, Screenshots machen und visuelle Inhalte analysieren.
+
+## Warum Browser Automation?
+
+| Anwendungsfall | Beispiel |
+|:---------|:--------|
+| **Web scraping** | Daten von dynamischen Websites extrahieren |
+| **Visuelles Testing** | UI-Rendering verifizieren, Screenshots vergleichen |
+| **Workflow-Automatisierung** | Einloggen, Formulare ausfüllen, Buttons klicken |
+| **Dokumentation** | Screenshots für Tutorials erfassen |
+| **Debugging** | Live-Web-App-Zustand inspizieren |
+
+## Wie es funktioniert
+
+1. **Chrome-Erkennung** — Findet lokal installiertes Chrome/Chromium
+2. **Puppeteer-Start** — Startet Headless oder mit GUI
+3. **Tool-Ausführung** — Navigieren, klicken, tippen, screenshot
+4. **Visuelle Analyse** — LLM analysiert Screenshots (falls Vision-Model verfügbar)
+5. **Aufräumen** — Browser schließt automatisch
+
+## Verfügbare Tools
+
+| Tool | Beschreibung |
+|:-----|:------------|
+| `browser_open` | Chrome-Browser öffnen (headless/headed) |
+| `browser_navigate` | Zu URL navigieren |
+| `browser_click` | Element per CSS-Selektor klicken |
+| `browser_type` | Text in Eingabefeld tippen |
+| `browser_screenshot` | Screenshot + optionale visuelle Analyse |
+| `browser_close` | Browser schließen |
+
+## Vision-Analyse
+
+Wenn ein **vision-fähiges Modell** (GPT-4o, Claude 3.5 Sonnet) aktiv ist, werden Screenshots automatisch analysiert:
+
+```
+🌐 Browser: Screenshot aufgenommen (1920×1080)
+   Analyse mit Claude 3.5 Sonnet...
+   → "Die Seite zeigt ein Login-Formular mit Benutzername- und Passwort-Feldern."
+```
+
+## Beispiel: Login-Automatisierung
+
+```typescript
+// AI-generierte Tool-Aufrufe für Login-Flow
+browser_open({ headless: false })
+browser_navigate({ url: "https://app.example.com/login" })
+browser_type({ selector: "input[name='email']", text: "user@example.com" })
+browser_type({ selector: "input[name='password']", text: "secret123" })
+browser_click({ selector: "button[type='submit']" })
+browser_screenshot({ prompt: "Überprüfe, ob Login erfolgreich war" })
+```
+
+## CLI-Integration
+
+Browser-Tools sind im **autonomen Modus** verfügbar:
+
+```
+> Gehe zu GitHub, suche nach "HelixMind", und mache einen Screenshot der Ergebnisse
+
+🌐 Browser: Öffne Chrome...
+🌐 Browser: Navigiere zu https://github.com...
+🌐 Browser: Tippe "HelixMind" in die Suchbox...
+🌐 Browser: Klicke Suchbutton...
+🌐 Browser: Screenshot gespeichert unter ./screenshot-2025-06-01.png
+```
+
+## Privacy & Sicherheit
+
+| Aspekt | Detail |
+|:-------|:-------|
+| **Lokal nur** | Browser läuft auf deinem Rechner, keine Fernsteuerung |
+| **Kein Tracking** | Puppeteer sendet keine Daten extern |
+| **Erlaubnis** | Benötigt explizites `allow` für Browser-Operationen |
+| **Sandbox** | Läuft in isoliertem Prozess, wird nach Nutzung bereinigt |
+| **Headless default** | Läuft ohne GUI, außer du spezifizierst `headless: false` |
+
+## Konfiguration
+
+Browser-Automatisierung aktivieren in `.helixmind/config.json`:
+
+```json
+{
+  "permissions": {
+    "browserAutomation": true
+  },
+  "browser": {
+    "headless": true,
+    "timeout": 30000,
+    "userAgent": "HelixMind/1.0"
+  }
+}
+```

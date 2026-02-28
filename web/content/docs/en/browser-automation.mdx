@@ -1,0 +1,102 @@
+---
+title: Browser Automation & Vision
+description: How HelixMind controls Chrome via Puppeteer for web automation, screenshots, and visual analysis.
+order: 17
+category: Core Concepts
+---
+
+# Browser Automation & Vision
+
+HelixMind can **control a real Chrome browser** via Puppeteer — navigate, click, type, take screenshots, and analyze visual content.
+
+## Why Browser Automation?
+
+| Use Case | Example |
+|:---------|:--------|
+| **Web scraping** | Extract data from dynamic websites |
+| **Visual testing** | Verify UI rendering, compare screenshots |
+| **Workflow automation** | Log in, fill forms, click buttons |
+| **Documentation** | Capture screenshots for tutorials |
+| **Debugging** | Inspect live web app state |
+
+## How It Works
+
+1. **Chrome Detection** — Finds locally installed Chrome/Chromium
+2. **Puppeteer Launch** — Starts headless or headed browser
+3. **Tool Execution** — Navigate, click, type, screenshot
+4. **Visual Analysis** — LLM analyzes screenshots (if vision model available)
+5. **Cleanup** — Browser closes automatically
+
+## Available Tools
+
+| Tool | Description |
+|:-----|:------------|
+| `browser_open` | Open Chrome browser (headless/headed) |
+| `browser_navigate` | Navigate to URL |
+| `browser_click` | Click element by CSS selector |
+| `browser_type` | Type text into input field |
+| `browser_screenshot` | Take screenshot + optional visual analysis |
+| `browser_close` | Close browser |
+
+## Vision Analysis
+
+When a **vision-capable model** (GPT-4o, Claude 3.5 Sonnet) is active, screenshots are automatically analyzed:
+
+```
+🌐 Browser: Screenshot taken (1920×1080)
+   Analyzing with Claude 3.5 Sonnet...
+   → "The page shows a login form with username and password fields."
+```
+
+## Example: Login Automation
+
+```typescript
+// AI-generated tool calls for login flow
+browser_open({ headless: false })
+browser_navigate({ url: "https://app.example.com/login" })
+browser_type({ selector: "input[name='email']", text: "user@example.com" })
+browser_type({ selector: "input[name='password']", text: "secret123" })
+browser_click({ selector: "button[type='submit']" })
+browser_screenshot({ prompt: "Verify login succeeded" })
+```
+
+## CLI Integration
+
+Browser tools are available in **autonomous mode**:
+
+```
+> Go to GitHub, search for "HelixMind", and screenshot the results
+
+🌐 Browser: Opening Chrome...
+🌐 Browser: Navigating to https://github.com...
+🌐 Browser: Typing "HelixMind" into search box...
+🌐 Browser: Clicking search button...
+🌐 Browser: Screenshot saved to ./screenshot-2025-06-01.png
+```
+
+## Privacy & Security
+
+| Aspect | Detail |
+|:-------|:-------|
+| **Local only** | Browser runs on your machine, no remote control |
+| **No tracking** | Puppeteer doesn't send data externally |
+| **Permission** | Requires explicit `allow` for browser operations |
+| **Sandbox** | Runs in isolated process, cleaned up after use |
+| **Headless default** | Runs without GUI unless you specify `headless: false` |
+
+## Configuration
+
+Enable browser automation in `.helixmind/config.json`:
+
+```json
+{
+  "permissions": {
+    "browserAutomation": true
+  },
+  "browser": {
+    "headless": true,
+    "timeout": 30000,
+    "userAgent": "HelixMind/1.0"
+  }
+}
+```
