@@ -94,22 +94,28 @@ export class InjectionEngine {
     let level4Tokens = 0;
     let level5Tokens = 0;
 
+    // Dynamic budget: each level passes unused tokens to the next level.
+    let surplus = 0;
+
     // Step 5: Fill Level 1 Focus (direct matches, highest relevance)
+    const l1Budget = budget.level1;
     for (const { node, relevance } of scored) {
       if (!levels.includes(1)) break;
       if (relevance < 0.5) break;
 
       const content = node.content;
       const tokens = estimateTokens(content);
-      if (level1Tokens + tokens > budget.level1) continue;
+      if (level1Tokens + tokens > l1Budget) continue;
 
       level1.push({ id: node.id, type: node.type, content, relevance });
       level1Tokens += tokens;
     }
+    surplus = l1Budget - level1Tokens;
 
     const usedIds = new Set(level1.map(n => n.id));
 
     // Step 6: Fill Level 2 Active (associated context, proactive injection)
+    const l2Budget = budget.level2 + surplus;
     if (levels.includes(2)) {
       const neighborIds = new Set<string>();
       for (const l1Node of level1) {
@@ -134,15 +140,17 @@ export class InjectionEngine {
 
         const content = node.summary ?? node.content;
         const tokens = estimateTokens(content);
-        if (level2Tokens + tokens > budget.level2) continue;
+        if (level2Tokens + tokens > l2Budget) continue;
 
         level2.push({ id: node.id, type: node.type, content, relevance });
         level2Tokens += tokens;
         usedIds.add(node.id);
       }
     }
+    surplus = l2Budget - level2Tokens;
 
     // Step 7: Fill Level 3 Reference (proactively injected context)
+    const l3Budget = budget.level3 + surplus;
     if (levels.includes(3)) {
       const l3Candidates = scored.filter(s => !usedIds.has(s.node.id));
 
@@ -151,37 +159,41 @@ export class InjectionEngine {
 
         const content = node.summary ?? node.content.slice(0, 200);
         const tokens = estimateTokens(content);
-        if (level3Tokens + tokens > budget.level3) continue;
+        if (level3Tokens + tokens > l3Budget) continue;
 
         level3.push({ id: node.id, type: node.type, content, relevance });
         level3Tokens += tokens;
         usedIds.add(node.id);
       }
     }
+    surplus = l3Budget - level3Tokens;
 
     // Step 8: Fill Level 4 Archive (compressed background context)
+    const l4Budget = budget.level4 + surplus;
     if (levels.includes(4)) {
       const l4Candidates = scored.filter(s => !usedIds.has(s.node.id));
 
       for (const { node, relevance } of l4Candidates) {
         const content = node.summary ?? node.content.slice(0, 100);
         const tokens = estimateTokens(content);
-        if (level4Tokens + tokens > budget.level4) continue;
+        if (level4Tokens + tokens > l4Budget) continue;
 
         level4.push({ id: node.id, type: node.type, content, relevance });
         level4Tokens += tokens;
         usedIds.add(node.id);
       }
     }
+    surplus = l4Budget - level4Tokens;
 
     // Step 9: Fill Level 5 Deep Archive (minimal references)
+    const l5Budget = budget.level5 + surplus;
     if (levels.includes(5)) {
       const l5Candidates = scored.filter(s => !usedIds.has(s.node.id));
 
       for (const { node, relevance } of l5Candidates) {
         const content = node.summary ?? node.content.slice(0, 50);
         const tokens = estimateTokens(content);
-        if (level5Tokens + tokens > budget.level5) continue;
+        if (level5Tokens + tokens > l5Budget) continue;
 
         level5.push({ id: node.id, type: node.type, content, relevance });
         level5Tokens += tokens;

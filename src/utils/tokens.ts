@@ -8,7 +8,7 @@ export function estimateTokens(text: string): number {
 }
 
 /**
- * Allocates token budget across 5 spiral levels.
+ * Base token budget percentages per spiral level.
  * L1 Focus: 25%, L2 Active: 20%, L3 Reference: 10%, L4 Archive: 3%, L5 Deep Archive: 2%, Reserved: 40%
  */
 export function allocateTokenBudget(totalTokens: number): {
