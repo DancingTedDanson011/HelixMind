@@ -230,17 +230,20 @@ export class OpenAIProvider implements LLMProvider {
 
     if (choice.message.tool_calls) {
       for (const tc of choice.message.tool_calls) {
+        // v5 types include a union — narrow to function calls
+        const fn = (tc as any).function as { name: string; arguments: string } | undefined;
+        if (!fn) continue;
         let input: Record<string, unknown>;
         try {
-          input = JSON.parse(tc.function.arguments);
+          input = JSON.parse(fn.arguments);
         } catch {
           // Truncated JSON (model hit max_tokens mid-argument) — attempt repair
-          input = repairTruncatedJSON(tc.function.arguments);
+          input = repairTruncatedJSON(fn.arguments);
         }
         content.push({
           type: 'tool_use',
           id: tc.id,
-          name: tc.function.name,
+          name: fn.name,
           input,
         });
       }

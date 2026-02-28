@@ -1,6 +1,6 @@
 {
   "name": "helixmind",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "HelixMind – AI Coding CLI with Persistent Spiral Memory",
   "type": "module",
   "main": "dist/index.js",
@@ -70,7 +70,7 @@
     "marked": "^15.0.0",
     "marked-terminal": "^7.3.0",
     "nanospinner": "^1.2.0",
-    "openai": "^4.73.0",
+    "openai": "^5.23.2",
     "sqlite-vec": "^0.1.7-alpha.2",
     "ws": "^8.19.0",
     "zod": "^3.23.0"
