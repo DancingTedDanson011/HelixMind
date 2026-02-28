@@ -100,9 +100,9 @@ export function validatePath(requestedPath: string, projectRoot: string): string
  * Classify a shell command's danger level.
  */
 export function classifyCommand(cmd: string): 'safe' | 'ask' | 'dangerous' {
-  // Sanitize command: remove shell metacharacters
+  // Sanitize command: remove non-essential shell metacharacters (keep - and / for flags and paths)
   const sanitized = cmd
-    .replace(/[^\w\s|;&<>()]/g, '') // Remove dangerous characters
+    .replace(/[^\w\s|;&<>()\-\/.]/g, '') // Keep hyphens, slashes, dots for flags/paths
     .trim();
 
   if (!sanitized || sanitized.length === 0) {

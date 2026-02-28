@@ -117,6 +117,14 @@ const HELP_CATEGORIES: HelpCategory[] = [
     ],
   },
   {
+    category: 'Bug Journal', color: '#ff4444',
+    items: [
+      { cmd: '/bugs', label: '/bugs', description: 'List all tracked bugs' },
+      { cmd: '/bugs open', label: '/bugs open', description: 'Show only open bugs' },
+      { cmd: '/bugfix', label: '/bugfix', description: 'Review & fix all open bugs' },
+    ],
+  },
+  {
     category: 'Code & Git', color: '#8a2be2',
     items: [
       { cmd: '/undo', label: '/undo', description: 'Undo file changes' },
@@ -1320,6 +1328,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         sessionMgr,
         registerBrainHandlers,
         (active) => { isAtPrompt = active; },
+        bugJournal,
       );
       if (handled === 'exit') {
         spiralEngine?.close();
@@ -1329,6 +1338,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       if (handled === 'drain') {
         // Sub-menu used its own readline — ignore line events for 500ms
         drainUntil = Date.now() + 500;
+      }
+      // If handleSlashCommand returns a prompt string (e.g. from /bugfix),
+      // feed it through as if the user typed it — sends to agent loop.
+      if (handled && handled !== 'exit' && handled !== 'drain') {
+        renderInfo(chalk.hex('#00d4ff')('Bugfix mode: reviewing open bugs...'));
+        // Re-enter processInput with the synthetic agent prompt
+        await processInput(handled);
+        return;
       }
       showPrompt();
       return;
@@ -1964,6 +1981,7 @@ async function handleSlashCommand(
   sessionManager?: SessionManager,
   onRegisterBrainHandlers?: () => Promise<void>,
   onSubPrompt?: (active: boolean) => void,
+  bugJournal?: BugJournal,
 ): Promise<string | void> {
   const parts = input.split(/\s+/);
   const cmd = parts[0].toLowerCase();
@@ -1993,7 +2011,7 @@ async function handleSlashCommand(
           store, rl, permissions, undoStack, checkpointStore, sessionBuffer,
           sessionTokens, sessionToolCalls,
           onProviderSwitch, onBrainSwitch, currentBrainScope, onAutonomous, onValidation,
-          sessionManager, onRegisterBrainHandlers, onSubPrompt,
+          sessionManager, onRegisterBrainHandlers, onSubPrompt, bugJournal,
         );
       }
       break;
@@ -2360,6 +2378,72 @@ async function handleSlashCommand(
         }
       }
       break;
+    }
+
+    case '/bugs': {
+      if (!bugJournal) {
+        renderInfo('Bug journal not available.');
+        break;
+      }
+      const statusFilter = parts[1]?.toLowerCase();
+      const bugs = statusFilter && statusFilter !== 'all'
+        ? bugJournal.getByStatus(statusFilter as any)
+        : bugJournal.getAllBugs();
+
+      if (bugs.length === 0) {
+        renderInfo(statusFilter ? `No ${statusFilter} bugs.` : 'No bugs tracked yet.');
+        break;
+      }
+
+      const statusIcons: Record<string, string> = {
+        open: chalk.red('\u25CF'),
+        investigating: chalk.yellow('\u25CF'),
+        fixed: chalk.green('\u25CF'),
+        verified: chalk.dim('\u25CF'),
+      };
+
+      process.stdout.write('\n');
+      for (const bug of bugs) {
+        const icon = statusIcons[bug.status] || '\u25CF';
+        const loc = bug.file ? chalk.dim(` (${bug.file}${bug.line ? ':' + bug.line : ''})`) : '';
+        process.stdout.write(`  ${icon} ${chalk.bold('#' + bug.id)} ${bug.description}${loc}\n`);
+        if (bug.fixDescription) {
+          process.stdout.write(chalk.dim(`     Fix: ${bug.fixDescription}\n`));
+        }
+      }
+      process.stdout.write('\n');
+      const statusLine = bugJournal.getStatusLine();
+      if (statusLine) renderInfo(statusLine);
+      break;
+    }
+
+    case '/bugfix': {
+      if (!bugJournal) {
+        renderInfo('Bug journal not available.');
+        break;
+      }
+      const openBugs = bugJournal.getOpenBugs();
+      if (openBugs.length === 0) {
+        const fixed = bugJournal.getByStatus('fixed');
+        if (fixed.length > 0) {
+          renderInfo(`All bugs fixed! ${fixed.length} bug(s) awaiting verification.`);
+          renderInfo(chalk.dim('The agent will verify fixes when you send a message.'));
+        } else {
+          renderInfo('No open bugs to fix.');
+        }
+        break;
+      }
+
+      // Build a synthetic prompt for the agent to review all open bugs
+      const bugList = openBugs.map(b => {
+        const loc = b.file ? ` in ${b.file}${b.line ? ':' + b.line : ''}` : '';
+        return `- Bug #${b.id}: ${b.description}${loc}`;
+      }).join('\n');
+
+      const bugfixPrompt = `Review and fix the following open bugs. For each bug, investigate the root cause, apply a fix, and mark it as fixed using the bug_report tool:\n\n${bugList}\n\nAfter fixing all bugs, run relevant tests to verify the fixes work.`;
+
+      // Return the prompt so the caller sends it to the agent
+      return bugfixPrompt;
     }
 
     case '/validation': {

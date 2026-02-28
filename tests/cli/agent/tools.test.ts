@@ -27,9 +27,9 @@ afterEach(() => {
 });
 
 describe('Tool Registry', () => {
-  it('should have all 14 tools registered', () => {
+  it('should have all 16 tools registered', () => {
     const defs = getAllToolDefinitions();
-    expect(defs.length).toBe(14);
+    expect(defs.length).toBe(16);
     expect(defs.map(d => d.name)).toContain('read_file');
     expect(defs.map(d => d.name)).toContain('write_file');
     expect(defs.map(d => d.name)).toContain('edit_file');
@@ -44,6 +44,8 @@ describe('Tool Registry', () => {
     expect(defs.map(d => d.name)).toContain('spiral_query');
     expect(defs.map(d => d.name)).toContain('spiral_store');
     expect(defs.map(d => d.name)).toContain('web_research');
+    expect(defs.map(d => d.name)).toContain('bug_report');
+    expect(defs.map(d => d.name)).toContain('bug_list');
   });
 
   it('should have valid tool definitions with input_schema', () => {

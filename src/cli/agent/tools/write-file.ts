@@ -59,20 +59,15 @@ registerTool({
     // Ensure directory exists and is writable
     const dir = dirname(filePath);
     try {
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
       const dirStats = statSync(dir);
       if (!dirStats.isDirectory()) {
         throw new SecurityError(`Parent path is not a directory: ${dir}`);
       }
-      // Try to write a test file to verify write permissions
-      const testPath = `${dir}/.helixmind-write-test-${Date.now()}`;
-      try {
-        writeFileSync(testPath, 'test', 'utf-8');
-        writeFileSync(testPath, 'test', 'utf-8'); // Verify append works
-        unlinkSync(testPath);
-      } catch (writeErr) {
-        throw new SecurityError(`Cannot write to directory: ${dir}`);
-      }
     } catch (err) {
+      if (err instanceof SecurityError) throw err;
       throw new SecurityError(`Parent directory not accessible: ${dir}`);
     }
 

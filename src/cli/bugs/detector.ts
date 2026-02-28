@@ -23,18 +23,22 @@ const BUG_KEYWORDS_EN = [
 
 // Patterns that strongly indicate a bug report vs. general coding discussion
 const STRONG_BUG_PATTERNS = [
-  // "X doesn't work" / "X funktioniert nicht"
+  // "X doesn't work" / "X funktioniert nicht" / "not working"
   /(?:funktioniert|geht|klappt|works?)\s+(?:nicht|not)/i,
+  /(?:doesn[''\u2019]t|does\s+not|don[''\u2019]t)\s+work/i,
+  /\bnot\s+working\b/i,
   // "there is a bug/error in X"
-  /(?:es gibt|there is|there's|ich hab|i have|i got)\s+(?:ein(?:en?)?\s+)?(?:bug|fehler|error|problem|issue)/i,
+  /(?:es gibt|there is|there[''\u2019]s|ich hab|i have|i got)\s+(?:ein(?:en?)?\s+)?(?:bug|fehler|error|problem|issue)/i,
   // "X crashes" / "X stürzt ab"
-  /(?:crash(?:es|ed|ing)?|stürzt?\s+ab|abgestürzt)/i,
+  /(?:crash(?:es|ed|ing)?|st\u00FCrzt?\s+ab|abgest\u00FCrzt)/i,
   // "X throws an error/exception"
   /(?:throws?|wirft)\s+(?:an?\s+)?(?:error|exception|fehler)/i,
   // "X is broken"
   /(?:is|ist)\s+(?:broken|kaputt|defekt)/i,
   // "fix the/this/X"
   /\bfix\s+(?:the|this|das|den|die|diesen?)\b/i,
+  // "X fails" / "X failing"
+  /\bfails?\b.*\b(?:when|on|at|during|while)\b/i,
 ];
 
 // Patterns to extract file references
