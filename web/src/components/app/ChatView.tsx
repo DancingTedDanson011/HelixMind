@@ -2,14 +2,16 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { MessageSquare, Bot, ArrowDown } from 'lucide-react';
+import { MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import type { ChatMessage } from './AppShell';
+import type { ActiveTool } from '@/hooks/use-cli-chat';
 
 interface ChatViewProps {
   messages: ChatMessage[];
   isAgentRunning: boolean;
   streamingContent: string;
+  activeTools?: ActiveTool[];
   hasChat: boolean;
 }
 
@@ -17,6 +19,7 @@ export function ChatView({
   messages,
   isAgentRunning,
   streamingContent,
+  activeTools = [],
   hasChat,
 }: ChatViewProps) {
   const t = useTranslations('app');
@@ -38,7 +41,7 @@ export function ChatView({
     if (autoScrollRef.current) {
       scrollToBottom();
     }
-  }, [messages.length, streamingContent, scrollToBottom]);
+  }, [messages.length, streamingContent, activeTools.length, scrollToBottom]);
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
@@ -89,6 +92,37 @@ export function ChatView({
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
+
+          {/* Active tool calls */}
+          {activeTools.length > 0 && isAgentRunning && (
+            <div className="space-y-1.5 pl-10">
+              {activeTools.map((tool) => (
+                <div
+                  key={tool.stepNum}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-xs"
+                >
+                  {tool.status === 'running' ? (
+                    <Loader2 size={12} className="text-cyan-400 animate-spin flex-shrink-0" />
+                  ) : tool.status === 'done' ? (
+                    <CheckCircle2 size={12} className="text-emerald-400 flex-shrink-0" />
+                  ) : (
+                    <XCircle size={12} className="text-red-400 flex-shrink-0" />
+                  )}
+                  <span className="text-gray-400 font-mono">{tool.toolName}</span>
+                  {tool.toolInput?.path != null && (
+                    <span className="text-gray-600 truncate max-w-[200px]">
+                      {String(tool.toolInput.path)}
+                    </span>
+                  )}
+                  {tool.status !== 'running' && tool.result != null && (
+                    <span className="text-gray-600 truncate max-w-[300px] ml-auto">
+                      {String(tool.result).slice(0, 80)}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Streaming indicator */}
           {isAgentRunning && (

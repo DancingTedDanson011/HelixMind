@@ -94,10 +94,10 @@ export function PricingPreview() {
                     ) : (
                       <>
                         <span className="font-display text-3xl font-bold text-white">
-                          {t(`${key}.price`)}
+                          ${t(`${key}.price`)}
                         </span>
                         <span className="text-gray-500 text-sm ml-0.5">
-                          {key === 'free' ? '€' : key === 'team' ? `€${t('perUser')}` : `€${t('perMonth')}`}
+                          {key === 'free' ? '' : key === 'team' ? t('perUser') : t('perMonth')}
                         </span>
                       </>
                     )}

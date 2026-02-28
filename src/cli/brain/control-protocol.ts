@@ -88,7 +88,7 @@ export interface StartSecurityRequest extends WSMessage { type: 'start_security'
 export interface AbortSessionRequest extends WSMessage { type: 'abort_session'; sessionId: string }
 export interface SubscribeOutputRequest extends WSMessage { type: 'subscribe_output'; sessionId: string }
 export interface UnsubscribeOutputRequest extends WSMessage { type: 'unsubscribe_output'; sessionId: string }
-export interface SendChatRequest extends WSMessage { type: 'send_chat'; text: string }
+export interface SendChatRequest extends WSMessage { type: 'send_chat'; text: string; chatId?: string; mode?: 'normal' | 'skip-permissions' }
 export interface GetFindingsRequest extends WSMessage { type: 'get_findings' }
 export interface GetBugsRequest extends WSMessage { type: 'get_bugs' }
 export interface PingRequest extends WSMessage { type: 'ping' }
@@ -114,6 +114,14 @@ export interface BugCreatedEvent extends WSMessage { type: 'bug_created'; bug: B
 export interface BugUpdatedEvent extends WSMessage { type: 'bug_updated'; bug: BugInfo }
 export interface BrowserScreenshotEvent extends WSMessage { type: 'browser_screenshot'; screenshot: BrowserScreenshotInfo }
 
+// --- Web Chat Events (CLI → Browser, streamed) ---
+export interface ChatStartedEvent extends WSMessage { type: 'chat_started'; chatId: string }
+export interface ChatTextChunkEvent extends WSMessage { type: 'chat_text_chunk'; chatId: string; text: string }
+export interface ChatToolStartEvent extends WSMessage { type: 'chat_tool_start'; chatId: string; stepNum: number; toolName: string; toolInput: Record<string, unknown> }
+export interface ChatToolEndEvent extends WSMessage { type: 'chat_tool_end'; chatId: string; stepNum: number; toolName: string; status: 'done' | 'error'; result?: string }
+export interface ChatCompleteEvent extends WSMessage { type: 'chat_complete'; chatId: string; text: string; steps: number; tokensUsed: { input: number; output: number } }
+export interface ChatErrorEvent extends WSMessage { type: 'chat_error'; chatId: string; error: string }
+
 // Union of all control request types
 export type ControlRequest =
   | ListSessionsRequest
@@ -136,7 +144,7 @@ export interface ControlHandlers {
   startAuto(goal?: string): string;          // returns sessionId
   startSecurity(): string;                    // returns sessionId
   abortSession(sessionId: string): boolean;
-  sendChat(text: string): void;
+  sendChat(text: string, chatId?: string, mode?: 'normal' | 'skip-permissions'): void;
   getFindings(): Finding[];
   getBugs(): BugInfo[];
 }

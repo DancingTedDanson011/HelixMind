@@ -38,6 +38,10 @@ export interface AgentLoopOptions {
   onThinking?: () => void;
   /** Called before rendering the final answer — use to stop activity */
   onBeforeAnswer?: () => void;
+  /** Called when the LLM produces a text block — used by web chat to stream text */
+  onTextBlock?: (text: string) => void;
+  /** Called when a tool call is about to execute — used by web chat to stream tool details */
+  onToolCallDetail?: (stepNum: number, name: string, input: Record<string, unknown>) => void;
   maxIterations?: number;
 }
 
@@ -78,6 +82,8 @@ export async function runAgentLoop(
     onStepEnd,
     onThinking,
     onBeforeAnswer,
+    onTextBlock,
+    onToolCallDetail,
     maxIterations = 200,
   } = options;
 
@@ -186,6 +192,7 @@ export async function runAgentLoop(
     for (const block of response.content) {
       if (block.type === 'text' && block.text) {
         totalText += block.text;
+        onTextBlock?.(block.text);
       }
       if (block.type === 'tool_use') {
         hasToolUse = true;
@@ -219,6 +226,7 @@ export async function runAgentLoop(
         const stepLabel = summarizeToolForStep(block.name, block.input);
 
         onToolCall?.(block.name);
+        onToolCallDetail?.(stepNum, block.name, block.input);
         onStepStart?.(stepNum, block.name, stepLabel);
         sessionBuffer?.addToolCall(block.name, block.input);
 

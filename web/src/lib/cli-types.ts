@@ -96,6 +96,70 @@ export interface DiscoveredInstance {
 // Connection
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Web Chat Events (CLI → Browser, streamed)
+// ---------------------------------------------------------------------------
+
+export interface ChatStartedEvent {
+  type: 'chat_started';
+  chatId: string;
+  timestamp: number;
+}
+
+export interface ChatTextChunkEvent {
+  type: 'chat_text_chunk';
+  chatId: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface ChatToolStartEvent {
+  type: 'chat_tool_start';
+  chatId: string;
+  stepNum: number;
+  toolName: string;
+  toolInput: Record<string, unknown>;
+  timestamp: number;
+}
+
+export interface ChatToolEndEvent {
+  type: 'chat_tool_end';
+  chatId: string;
+  stepNum: number;
+  toolName: string;
+  status: 'done' | 'error';
+  result?: string;
+  timestamp: number;
+}
+
+export interface ChatCompleteEvent {
+  type: 'chat_complete';
+  chatId: string;
+  text: string;
+  steps: number;
+  tokensUsed: { input: number; output: number };
+  timestamp: number;
+}
+
+export interface ChatErrorEvent {
+  type: 'chat_error';
+  chatId: string;
+  error: string;
+  timestamp: number;
+}
+
+export type ChatEvent =
+  | ChatStartedEvent
+  | ChatTextChunkEvent
+  | ChatToolStartEvent
+  | ChatToolEndEvent
+  | ChatCompleteEvent
+  | ChatErrorEvent;
+
+// ---------------------------------------------------------------------------
+// Connection
+// ---------------------------------------------------------------------------
+
 export type ConnectionState =
   | 'disconnected'
   | 'connecting'

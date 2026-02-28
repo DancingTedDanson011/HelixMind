@@ -11,6 +11,7 @@ interface ChatInputProps {
   mode: 'normal' | 'skip-permissions';
   onModeChange: (mode: 'normal' | 'skip-permissions') => void;
   disabled: boolean;
+  isConnected?: boolean;
 }
 
 export function ChatInput({
@@ -20,6 +21,7 @@ export function ChatInput({
   mode,
   onModeChange,
   disabled,
+  isConnected = true,
 }: ChatInputProps) {
   const t = useTranslations('app');
   const [value, setValue] = useState('');
@@ -147,6 +149,13 @@ export function ChatInput({
           <div className="mt-1.5 text-[10px] text-amber-500/60 flex items-center gap-1">
             <ShieldOff size={10} />
             Skip Permissions mode — tools execute without confirmation
+          </div>
+        )}
+
+        {/* Disconnected hint */}
+        {!isConnected && !disabled && (
+          <div className="mt-1.5 text-[10px] text-gray-600 flex items-center gap-1">
+            {t('notConnected')}
           </div>
         )}
       </div>

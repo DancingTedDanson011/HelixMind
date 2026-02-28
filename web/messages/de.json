@@ -522,7 +522,15 @@
     "toolResult": "Ergebnis",
     "copyCode": "Kopieren",
     "copied": "Kopiert!",
-    "closeBrain": "Brain schließen"
+    "closeBrain": "Brain schließen",
+    "cliConnected": "CLI Verbunden",
+    "cliDisconnected": "CLI Getrennt",
+    "cliConnecting": "Verbinde...",
+    "cliError": "Verbindungsfehler",
+    "toolRunning": "Tool wird ausgeführt...",
+    "agentError": "Agent-Fehler",
+    "connectCli": "CLI verbinden",
+    "notConnectedHintShort": "Verbinde eine CLI-Instanz um Nachrichten zu senden"
   },
   "cliAuth": {
     "title": "HelixMind CLI autorisieren",

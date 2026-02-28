@@ -213,6 +213,12 @@ export function getBrainToken(): string | null {
   return activeBrainServer?.connectionToken ?? null;
 }
 
+/** Push a raw control event to control clients (used by web-chat-handler) */
+export function pushControlEvent(event: Record<string, unknown>): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent(event);
+}
+
 /** Push a session-updated event to control clients */
 export function pushSessionUpdate(session: SessionInfo): void {
   if (!activeBrainServer) return;

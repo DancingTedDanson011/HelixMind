@@ -82,10 +82,10 @@ export default function PricingPage() {
             const features = t.raw(`${key}.features`) as string[];
 
             const displayPrice = (() => {
-              if (key === 'free') return '0€';
+              if (key === 'free') return '$0';
               if (key === 'enterprise') return null;
-              if (isPaid && yearly) return `${yearlyMonthlyRate[key as PaidTier]}€`;
-              return `${t(`${key}.price`)}€`;
+              if (isPaid && yearly) return `$${yearlyMonthlyRate[key as PaidTier]}`;
+              return `$${t(`${key}.price`)}`;
             })();
 
             return (
@@ -110,7 +110,7 @@ export default function PricingPage() {
                       </span>
                       {isPaid && yearly && (
                         <p className="text-xs text-success mt-1">
-                          {yearlyTotal[key as PaidTier]}€/year billed annually
+                          ${yearlyTotal[key as PaidTier]}/year billed annually
                         </p>
                       )}
                     </>

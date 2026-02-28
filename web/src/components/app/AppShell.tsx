@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatView } from './ChatView';
 import { ChatInput } from './ChatInput';
 import { BrainOverlay } from './BrainOverlay';
-import { Brain, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { useCliContext } from './CliConnectionProvider';
+import { Brain, PanelLeftClose, PanelLeft, Wifi, WifiOff } from 'lucide-react';
+import Link from 'next/link';
 
 /* ─── Types ───────────────────────────────────── */
 
@@ -40,15 +42,21 @@ export interface ChatFull {
 
 export function AppShell() {
   const t = useTranslations('app');
+  const { connection, chat: cliChat } = useCliContext();
 
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeChat, setActiveChat] = useState<ChatFull | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [brainOpen, setBrainOpen] = useState(false);
-  const [isAgentRunning, setIsAgentRunning] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
   const [mode, setMode] = useState<'normal' | 'skip-permissions'>('normal');
+
+  const isConnected = connection.connectionState === 'connected';
+  const isAgentRunning = cliChat.state.isProcessing;
+  const streamingContent = cliChat.state.streamingText;
+
+  // Track chat completion to save assistant messages
+  const prevProcessingRef = useRef(false);
 
   // ── Fetch chats ─────────────────────────────
   const fetchChats = useCallback(async () => {
@@ -137,7 +145,7 @@ export function AppShell() {
       messages: [...prev.messages, userMsg],
     } : null);
 
-    // Save user message
+    // Save user message to DB
     try {
       await fetch(`/api/chats/${activeChatId}/messages`, {
         method: 'POST',
@@ -146,17 +154,24 @@ export function AppShell() {
       });
     } catch { /* silent */ }
 
-    // Simulate agent thinking (real WebSocket integration will replace this)
-    setIsAgentRunning(true);
-    setStreamingContent('');
+    // Send to CLI via WebSocket
+    if (isConnected) {
+      cliChat.sendMessage(content.trim(), activeChatId);
+    }
+  }, [activeChatId, isConnected, cliChat]);
 
-    // For now: simulate a response after a short delay
-    // TODO: Replace with WebSocket sendChat() integration
-    setTimeout(async () => {
-      const assistantContent = `I received your message: "${content.trim()}"\n\nTo fully process this, connect a HelixMind CLI instance. The web interface will stream real-time responses once connected via WebSocket.`;
+  // ── Save assistant message when chat_complete fires ──
+  useEffect(() => {
+    const wasProcessing = prevProcessingRef.current;
+    prevProcessingRef.current = cliChat.state.isProcessing;
 
+    // Transition: processing → done, with text available
+    if (wasProcessing && !cliChat.state.isProcessing && cliChat.state.streamingText && activeChatId) {
+      const assistantContent = cliChat.state.streamingText;
+
+      // Add to local messages
       const assistantMsg: ChatMessage = {
-        id: `temp-assistant-${Date.now()}`,
+        id: `assistant-${Date.now()}`,
         chatId: activeChatId,
         role: 'assistant',
         content: assistantContent,
@@ -168,20 +183,26 @@ export function AppShell() {
         messages: [...prev.messages, assistantMsg],
       } : null);
 
-      // Save assistant message
-      try {
-        await fetch(`/api/chats/${activeChatId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role: 'assistant', content: assistantContent }),
-        });
-      } catch { /* silent */ }
+      // Persist to DB
+      fetch(`/api/chats/${activeChatId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'assistant',
+          content: assistantContent,
+          metadata: {
+            tools: cliChat.state.activeTools.map(t => ({ name: t.toolName, status: t.status })),
+          },
+        }),
+      }).catch(() => {});
 
-      setIsAgentRunning(false);
-      setStreamingContent('');
-      await fetchChats();
-    }, 1500);
-  }, [activeChatId, fetchChats]);
+      // Refresh sidebar
+      fetchChats();
+
+      // Reset chat hook state for next round
+      cliChat.reset();
+    }
+  }, [cliChat.state.isProcessing, cliChat.state.streamingText, activeChatId, fetchChats, cliChat]);
 
   // ── Auto-title after first message ──────────
   useEffect(() => {
@@ -199,6 +220,11 @@ export function AppShell() {
       setSidebarOpen(false);
     }
   }, [loadChat]);
+
+  // ── Stop handler ─────────────────────────────
+  const handleStop = useCallback(() => {
+    cliChat.abort();
+  }, [cliChat]);
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -246,6 +272,22 @@ export function AppShell() {
             </h2>
           </div>
 
+          {/* CLI Connection indicator */}
+          {isConnected ? (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] text-emerald-400/80 bg-emerald-500/5 border border-emerald-500/10">
+              <Wifi size={12} />
+              {t('cliConnected')}
+            </div>
+          ) : (
+            <Link
+              href="/dashboard/cli"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] text-gray-500 bg-white/5 border border-white/5 hover:text-gray-300 hover:border-white/10 transition-colors"
+            >
+              <WifiOff size={12} />
+              {t('cliDisconnected')}
+            </Link>
+          )}
+
           <button
             onClick={() => setBrainOpen(true)}
             className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors"
@@ -261,6 +303,7 @@ export function AppShell() {
             messages={activeChat?.messages || []}
             isAgentRunning={isAgentRunning}
             streamingContent={streamingContent}
+            activeTools={cliChat.state.activeTools}
             hasChat={!!activeChat}
           />
         </div>
@@ -269,10 +312,11 @@ export function AppShell() {
         <ChatInput
           onSend={sendMessage}
           isAgentRunning={isAgentRunning}
-          onStop={() => setIsAgentRunning(false)}
+          onStop={handleStop}
           mode={mode}
           onModeChange={setMode}
           disabled={!activeChat}
+          isConnected={isConnected}
         />
       </div>
 

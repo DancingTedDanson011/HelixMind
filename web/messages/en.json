@@ -523,7 +523,15 @@
     "toolResult": "Result",
     "copyCode": "Copy",
     "copied": "Copied!",
-    "closeBrain": "Close Brain"
+    "closeBrain": "Close Brain",
+    "cliConnected": "CLI Connected",
+    "cliDisconnected": "CLI Disconnected",
+    "cliConnecting": "Connecting...",
+    "cliError": "Connection Error",
+    "toolRunning": "Running tool...",
+    "agentError": "Agent error",
+    "connectCli": "Connect CLI",
+    "notConnectedHintShort": "Connect a CLI instance to send messages"
   },
   "cliAuth": {
     "title": "Authorize HelixMind CLI",

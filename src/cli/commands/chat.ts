@@ -472,6 +472,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         pushBugCreated,
         pushBugUpdated,
         pushBrowserScreenshot,
+        pushControlEvent,
         startRelayClient,
       } = await import('../brain/generator.js');
       const { serializeSession, buildInstanceMeta, resetInstanceStartTime } = await import('../brain/control-protocol.js');
@@ -609,9 +610,40 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           return true;
         },
 
-        sendChat: (text) => {
-          // Queue chat text to be processed as if the user typed it
-          typeAheadBuffer.push(text);
+        sendChat: (text, chatId, mode) => {
+          const effectiveChatId = chatId || `web-${Date.now()}`;
+          // Import web chat handler and run asynchronously
+          import('../brain/web-chat-handler.js').then(({ handleWebChat }) => {
+            handleWebChat(text, effectiveChatId, {
+              provider,
+              spiralEngine,
+              project,
+              config,
+              checkpointStore,
+              bugJournal,
+            }, {
+              onStarted: (cid) => {
+                pushControlEvent({ type: 'chat_started', chatId: cid, timestamp: Date.now() });
+              },
+              onTextChunk: (cid, chunk) => {
+                pushControlEvent({ type: 'chat_text_chunk', chatId: cid, text: chunk, timestamp: Date.now() });
+              },
+              onToolStart: (cid, stepNum, toolName, toolInput) => {
+                pushControlEvent({ type: 'chat_tool_start', chatId: cid, stepNum, toolName, toolInput, timestamp: Date.now() });
+              },
+              onToolEnd: (cid, stepNum, toolName, status, result) => {
+                pushControlEvent({ type: 'chat_tool_end', chatId: cid, stepNum, toolName, status, result, timestamp: Date.now() });
+              },
+              onComplete: (cid, fullText, steps, tokensUsed) => {
+                pushControlEvent({ type: 'chat_complete', chatId: cid, text: fullText, steps, tokensUsed, timestamp: Date.now() });
+              },
+              onError: (cid, error) => {
+                pushControlEvent({ type: 'chat_error', chatId: cid, error, timestamp: Date.now() });
+              },
+            }).catch((err) => {
+              pushControlEvent({ type: 'chat_error', chatId: effectiveChatId, error: err?.message || 'Unknown error', timestamp: Date.now() });
+            });
+          }).catch(() => {});
         },
 
         getFindings: () => [...collectedFindings],
@@ -705,7 +737,23 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           startAuto: (goal?) => { /* relay delegates to local handlers — already registered */ return ''; },
           startSecurity: () => '',
           abortSession: (id) => { sessionMgr.abort(id); return true; },
-          sendChat: (text) => { typeAheadBuffer.push(text); },
+          sendChat: (text, chatId, mode) => {
+            const effectiveChatId = chatId || `relay-${Date.now()}`;
+            import('../brain/web-chat-handler.js').then(({ handleWebChat }) => {
+              handleWebChat(text, effectiveChatId, {
+                provider, spiralEngine, project, config, checkpointStore, bugJournal,
+              }, {
+                onStarted: (cid) => { pushControlEvent({ type: 'chat_started', chatId: cid, timestamp: Date.now() }); },
+                onTextChunk: (cid, chunk) => { pushControlEvent({ type: 'chat_text_chunk', chatId: cid, text: chunk, timestamp: Date.now() }); },
+                onToolStart: (cid, sn, tn, ti) => { pushControlEvent({ type: 'chat_tool_start', chatId: cid, stepNum: sn, toolName: tn, toolInput: ti, timestamp: Date.now() }); },
+                onToolEnd: (cid, sn, tn, st, r) => { pushControlEvent({ type: 'chat_tool_end', chatId: cid, stepNum: sn, toolName: tn, status: st, result: r, timestamp: Date.now() }); },
+                onComplete: (cid, ft, s, tu) => { pushControlEvent({ type: 'chat_complete', chatId: cid, text: ft, steps: s, tokensUsed: tu, timestamp: Date.now() }); },
+                onError: (cid, e) => { pushControlEvent({ type: 'chat_error', chatId: cid, error: e, timestamp: Date.now() }); },
+              }).catch((err) => {
+                pushControlEvent({ type: 'chat_error', chatId: effectiveChatId, error: err?.message || 'Unknown error', timestamp: Date.now() });
+              });
+            }).catch(() => {});
+          },
           getFindings: () => [...collectedFindings],
           getBugs: () => bugJournal.getAllBugs().map(b => ({
             id: b.id, description: b.description, file: b.file, line: b.line,

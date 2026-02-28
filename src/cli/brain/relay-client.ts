@@ -134,7 +134,8 @@ export function createRelayClient(
       }
 
       case 'send_chat': {
-        handlers.sendChat(msg.text);
+        const chatMsg = msg as { text: string; chatId?: string; mode?: 'normal' | 'skip-permissions' };
+        handlers.sendChat(chatMsg.text, chatMsg.chatId, chatMsg.mode);
         sendRelay({ type: 'chat_received', requestId, timestamp: Date.now() });
         break;
       }
@@ -142,6 +143,12 @@ export function createRelayClient(
       case 'get_findings': {
         const findings = handlers.getFindings();
         sendRelay({ type: 'findings_list', findings, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'get_bugs': {
+        const bugs = handlers.getBugs();
+        sendRelay({ type: 'bugs_list', bugs, requestId, timestamp: Date.now() });
         break;
       }
     }
@@ -199,6 +206,6 @@ function isControlRequest(type: string): boolean {
   return [
     'list_sessions', 'start_auto', 'start_security',
     'abort_session', 'subscribe_output', 'unsubscribe_output',
-    'send_chat', 'get_findings', 'ping',
+    'send_chat', 'get_findings', 'get_bugs', 'ping',
   ].includes(type);
 }
