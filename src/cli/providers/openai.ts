@@ -109,12 +109,38 @@ export class OpenAIProvider implements LLMProvider {
               }
             }
           } else {
-            // Text content blocks
-            const text = msg.content
-              .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-              .map(b => b.text)
-              .join('');
-            if (text) openaiMessages.push({ role: 'user', content: text });
+            // Content blocks — may include text and image blocks
+            const hasImages = msg.content.some((b: any) => b.type === 'image' || b.type === 'image_url');
+            if (hasImages) {
+              // Build multimodal content array for OpenAI
+              const parts: any[] = [];
+              for (const block of msg.content as any[]) {
+                if (block.type === 'text') {
+                  parts.push({ type: 'text', text: block.text });
+                } else if (block.type === 'image') {
+                  // Convert from Anthropic format to OpenAI format
+                  parts.push({
+                    type: 'image_url',
+                    image_url: {
+                      url: `data:${block.source.media_type};base64,${block.source.data}`,
+                    },
+                  });
+                } else if (block.type === 'image_url') {
+                  // Already in OpenAI format
+                  parts.push(block);
+                }
+              }
+              if (parts.length > 0) {
+                openaiMessages.push({ role: 'user', content: parts } as any);
+              }
+            } else {
+              // Text-only content blocks
+              const text = msg.content
+                .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+                .map(b => b.text)
+                .join('');
+              if (text) openaiMessages.push({ role: 'user', content: text });
+            }
           }
         }
       } else if (msg.role === 'assistant') {

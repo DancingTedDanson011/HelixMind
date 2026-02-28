@@ -51,6 +51,12 @@ const TOOL_TYPE_MAP: Record<string, CheckpointType> = {
   spiral_store: 'tool_write',
   bug_report: 'tool_write',
   bug_list: 'tool_read',
+  browser_open: 'tool_run',
+  browser_navigate: 'tool_run',
+  browser_screenshot: 'tool_read',
+  browser_click: 'tool_run',
+  browser_type: 'tool_run',
+  browser_close: 'tool_run',
 };
 
 /** Icon map for display */

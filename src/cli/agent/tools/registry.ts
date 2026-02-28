@@ -1,12 +1,16 @@
 import type { ToolDefinition } from '../../providers/types.js';
 import type { UndoStack } from '../undo.js';
 import type { BugJournal } from '../../bugs/journal.js';
+import type { BrowserController } from '../../browser/controller.js';
+import type { VisionProcessor } from '../../browser/vision.js';
 
 export interface ToolContext {
   projectRoot: string;
   undoStack: UndoStack;
   spiralEngine?: any;
   bugJournal?: BugJournal;
+  browserController?: BrowserController;
+  visionProcessor?: VisionProcessor;
 }
 
 export interface ToolHandler {
@@ -50,4 +54,16 @@ export async function initializeTools(): Promise<void> {
   await import('./web-research.js');
   await import('./bug-report.js');
   await import('./bug-list.js');
+
+  // Browser tools — conditional (puppeteer-core is optional)
+  try {
+    await import('./browser-open.js');
+    await import('./browser-navigate.js');
+    await import('./browser-screenshot.js');
+    await import('./browser-click.js');
+    await import('./browser-type.js');
+    await import('./browser-close.js');
+  } catch {
+    // puppeteer-core not installed — browser tools not available
+  }
 }

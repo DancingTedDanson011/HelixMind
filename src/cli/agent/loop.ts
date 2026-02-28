@@ -365,6 +365,12 @@ function summarizeToolForStep(name: string, input: Record<string, unknown>): str
     case 'spiral_store': return 'storing in spiral';
     case 'bug_report': return `bug ${input.action || 'update'}`;
     case 'bug_list': return 'listing bugs';
+    case 'browser_open': return `opening browser${input.url ? ': ' + String(input.url).slice(0, 30) : ''}`;
+    case 'browser_navigate': return `navigating to ${String(input.url || '').slice(0, 40)}`;
+    case 'browser_screenshot': return 'taking screenshot';
+    case 'browser_click': return `clicking ${input.selector}`;
+    case 'browser_type': return `typing in ${input.selector}`;
+    case 'browser_close': return 'closing browser';
     default: return name;
   }
 }

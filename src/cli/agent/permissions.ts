@@ -25,6 +25,14 @@ const TOOL_PERMISSIONS: Record<string, PermissionLevel> = {
   bug_report: 'auto',
   bug_list: 'auto',
 
+  // Browser control (ask — opens external browser)
+  browser_open: 'ask',
+  browser_navigate: 'ask',
+  browser_screenshot: 'ask',
+  browser_click: 'ask',
+  browser_type: 'ask',
+  browser_close: 'auto', // Closing is always safe
+
   // Dangerous (shell execution)
   run_command: 'ask', // Upgraded to 'dangerous' based on command content
 };

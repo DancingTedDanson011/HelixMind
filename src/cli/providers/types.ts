@@ -27,7 +27,17 @@ export interface ReasoningBlock {
   text: string;
 }
 
-export type ContentBlock = TextBlock | ToolUseBlock | ReasoningBlock;
+/** Image content for vision-capable models */
+export interface ImageBlock {
+  type: 'image';
+  source: {
+    type: 'base64';
+    media_type: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
+    data: string;
+  };
+}
+
+export type ContentBlock = TextBlock | ToolUseBlock | ReasoningBlock | ImageBlock;
 
 export interface ToolResultBlock {
   type: 'tool_result';

@@ -42,6 +42,8 @@ import { getSuggestions, getBestCompletion, writeSuggestions, clearSuggestions }
 import { selectMenu, type MenuItem } from '../ui/select-menu.js';
 import { BugJournal } from '../bugs/journal.js';
 import { detectBugReport } from '../bugs/detector.js';
+import { BrowserController } from '../browser/controller.js';
+import { VisionProcessor } from '../browser/vision.js';
 import { classifyTask } from '../validation/classifier.js';
 import { generateCriteria } from '../validation/criteria.js';
 import { validationLoop } from '../validation/autofix.js';
@@ -122,6 +124,13 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/bugs', label: '/bugs', description: 'List all tracked bugs' },
       { cmd: '/bugs open', label: '/bugs open', description: 'Show only open bugs' },
       { cmd: '/bugfix', label: '/bugfix', description: 'Review & fix all open bugs' },
+    ],
+  },
+  {
+    category: 'Browser', color: '#ff8800',
+    items: [
+      { cmd: '/browser', label: '/browser [url]', description: 'Open browser (optional URL)' },
+      { cmd: '/browser close', label: '/browser close', description: 'Close the browser' },
     ],
   },
   {
@@ -301,6 +310,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Bug journal (persistent bug tracking)
   const bugJournal = new BugJournal(process.cwd());
 
+  // Browser controller (lazy — instantiated on /browser or agent tool use)
+  let browserController: BrowserController | undefined;
+  let visionProcessor: VisionProcessor | undefined;
+
   // Activity indicator (replaces spinner)
   const activity = new ActivityIndicator();
 
@@ -401,7 +414,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       () => { sessionToolCalls++; },
       undefined,
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-      bugJournal,
+      bugJournal, browserController, visionProcessor,
     );
     spiralEngine?.close();
     return;
@@ -1141,6 +1154,49 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       return;
     }
 
+    // Handle /browser directly (needs access to browserController closure)
+    if (input.startsWith('/browser')) {
+      const browserParts = input.split(/\s+/);
+      const browserArg = browserParts.slice(1).join(' ').trim();
+
+      if (browserArg === 'close') {
+        if (browserController?.isOpen()) {
+          await browserController.close();
+          renderInfo('Browser closed.');
+        } else {
+          renderInfo('Browser is not open.');
+        }
+        showPrompt();
+        return;
+      }
+
+      // Initialize browser controller if needed
+      if (!browserController) {
+        browserController = new BrowserController();
+      }
+
+      if (browserController.isOpen() && !browserArg) {
+        renderInfo(`Browser already open at: ${browserController.getUrl() || 'about:blank'}`);
+        showPrompt();
+        return;
+      }
+
+      try {
+        if (!browserController.isOpen()) {
+          await browserController.launch();
+          renderInfo('Browser opened.');
+        }
+        if (browserArg) {
+          const result = await browserController.navigate(browserArg);
+          renderInfo(`Navigated to: ${result.title} (${result.url})`);
+        }
+      } catch (err) {
+        renderInfo(`Browser error: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      showPrompt();
+      return;
+    }
+
     // Handle slash commands
     if (input.startsWith('/')) {
       const handled = await handleSlashCommand(
@@ -1401,7 +1457,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         isAtPrompt = false;
       },
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-      bugJournal,
+      bugJournal, browserController, visionProcessor,
     );
 
     agentRunning = false;
@@ -1430,7 +1486,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           () => { sessionToolCalls++; roundToolCalls++; },
           () => { isAtPrompt = true; rl.prompt(); },
           { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-          bugJournal,
+          bugJournal, browserController, visionProcessor,
         );
 
         agentRunning = false;
@@ -1588,6 +1644,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       } catch { /* best effort */ }
       spiralEngine.close();
     }
+    // Close browser if open
+    if (browserController?.isOpen()) {
+      try { await browserController.close(); } catch { /* best effort */ }
+    }
     process.stdout.write('\n');
     process.exit(0);
   });
@@ -1661,6 +1721,8 @@ async function sendAgentMessage(
   onAgentStart?: () => void,
   validationOpts?: ValidationOptions,
   bugJournal?: BugJournal,
+  browserController?: BrowserController,
+  visionProcessor?: VisionProcessor,
 ): Promise<void> {
   // User message was rendered by renderUserMessage() in the caller before entering here.
 
@@ -1742,6 +1804,11 @@ async function sendAgentMessage(
   // Notify caller so it can show the readline prompt for type-ahead
   onAgentStart?.();
 
+  // Lazy-init vision processor when browser is available
+  if (browserController && !visionProcessor) {
+    visionProcessor = new VisionProcessor(provider);
+  }
+
   try {
     const result = await runAgentLoop(input, agentHistory, {
       provider,
@@ -1752,6 +1819,8 @@ async function sendAgentMessage(
         undoStack,
         spiralEngine,
         bugJournal,
+        browserController,
+        visionProcessor,
       },
       checkpointStore,
       sessionBuffer,

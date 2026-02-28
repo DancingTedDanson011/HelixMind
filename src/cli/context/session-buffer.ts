@@ -303,6 +303,12 @@ export class SessionBuffer {
       case 'spiral_store': return `spiral store [${input.type}]`;
       case 'bug_report': return `bug ${input.action} ${input.bug_id ? '#' + input.bug_id : ''}`.trim();
       case 'bug_list': return `bugs ${input.status || 'all'}`;
+      case 'browser_open': return `browser open${input.url ? ' ' + input.url : ''}`;
+      case 'browser_navigate': return `browser → ${input.url}`;
+      case 'browser_screenshot': return 'browser screenshot';
+      case 'browser_click': return `browser click ${input.selector}`;
+      case 'browser_type': return `browser type → ${input.selector}`;
+      case 'browser_close': return 'browser close';
       default: return `${tool}(${JSON.stringify(input).slice(0, 50)})`;
     }
   }
