@@ -41,6 +41,8 @@ export class ActivityIndicator {
   private _blockMode = false;
   private _finalElapsed = 0;
   private _restoreContent = '';
+  private _onMute: (() => void) | null = null;
+  private _onUnmute: (() => void) | null = null;
 
   /** Reference to the shared BottomChrome instance */
   private chrome: BottomChrome | null;
@@ -52,6 +54,16 @@ export class ActivityIndicator {
   /** Set the hints content to restore on chrome row 2 when activity stops/pauses */
   setRestoreContent(content: string): void {
     this._restoreContent = content;
+  }
+
+  /**
+   * Set callbacks for muting/unmuting readline echo.
+   * Mute fires when animation starts (LLM streaming — echo would conflict).
+   * Unmute fires when animation pauses (tool execution — user needs to see input).
+   */
+  setMuteCallbacks(onMute: () => void, onUnmute: () => void): void {
+    this._onMute = onMute;
+    this._onUnmute = onUnmute;
   }
 
   start(): void {
@@ -67,6 +79,7 @@ export class ActivityIndicator {
   /** Resume the animation without resetting the timer */
   resumeAnimation(): void {
     if (this.interval) return; // already running
+    this._onMute?.();
     this.interval = setInterval(() => {
       this.frame++;
       this.render();
@@ -80,6 +93,7 @@ export class ActivityIndicator {
       clearInterval(this.interval);
       this.interval = null;
     }
+    this._onUnmute?.();
     // Restore hints on chrome row 2
     if (this.chrome?.isActive) {
       this.chrome.setRow(2, this._restoreContent);
@@ -114,6 +128,7 @@ export class ActivityIndicator {
       clearInterval(this.interval);
       this.interval = null;
     }
+    this._onUnmute?.();
 
     // Restore hints on chrome row 2
     if (this.chrome?.isActive) {

@@ -1064,8 +1064,20 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   permissions.setReadline(rl);
   permissions.setPromptCallback((active) => { isAtPrompt = active; });
 
-  // Activity indicator renders on chrome row 0 (separator/activity row, terminal row N-2).
-  // BottomChrome manages the scroll region and stdout hook for all 3 fixed rows.
+  // Mute readline echo during LLM streaming (animation running) to prevent typed
+  // chars from mixing with agent output. Unmute during tool execution so the user
+  // can answer permission prompts normally at the prompt row.
+  activity.setMuteCallbacks(
+    () => {
+      (rl as any).output = devNull;
+    },
+    () => {
+      (rl as any).output = process.stdout;
+      // Restore clean top border when unmuting (clear any input preview)
+      const w = Math.max(20, (process.stdout.columns || 80) - 2);
+      if (chrome.isActive) chrome.setRow(0, buildTopBorder(w));
+    },
+  );
 
   // Ctrl+C behavior:
   // - If there's text on the line → clear the line (like a normal terminal)
@@ -1846,10 +1858,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         roundToolCalls++;
       },
       () => {
-        // Activity started — readline stays active for type-ahead buffering
-        // but we mute echo so typed chars don't mix with agent output.
+        // Activity started — readline stays active for type-ahead buffering.
+        // Muting is handled by activity.setMuteCallbacks (mute during LLM stream,
+        // unmute during tool execution so user can answer permission prompts).
         isAtPrompt = false;
-        (rl as any).output = devNull;
       },
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
       bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
@@ -2009,13 +2021,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
   }
 
-  // Show user's typing in the top border during agent work.
-  // Readline echo is muted (devNull), so we mirror rl.line into chrome row 0.
+  // Show user's type-ahead in the top border ONLY during LLM streaming
+  // (when readline echo is muted). During tool execution / permission prompts,
+  // readline echo is active and the user sees input at the normal prompt row.
   process.stdin.on('keypress', () => {
-    if (!agentRunning || !chrome.isActive) return;
+    if (!agentRunning || !chrome.isActive || !activity.isAnimating) return;
     // Defer to let readline update rl.line first
     setImmediate(() => {
-      if (!agentRunning || !chrome.isActive) return;
+      if (!agentRunning || !chrome.isActive || !activity.isAnimating) return;
       const userInput = (rl as any).line as string || '';
       const w = Math.max(20, (process.stdout.columns || 80) - 2);
       const dim = chalk.hex('#00d4ff').dim;
