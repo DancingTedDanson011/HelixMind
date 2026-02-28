@@ -10,7 +10,7 @@ import { theme } from '../ui/theme.js';
 import { ConfigStore } from '../config/store.js';
 import { startCallbackServer } from './callback-server.js';
 
-const DEFAULT_WEBAPP_URL = 'https://app.helixmind.dev';
+const DEFAULT_WEBAPP_URL = 'https://helix-mind.ai';
 
 export interface LoginOptions {
   apiKey?: string;

@@ -45,6 +45,9 @@ const COMMANDS: CommandDef[] = [
   { cmd: '/validation verbose', description: 'Toggle verbose validation' },
   { cmd: '/validation strict', description: 'Toggle strict mode' },
   { cmd: '/validation stats', description: 'Show validation statistics' },
+  { cmd: '/login', description: 'Log in to HelixMind web platform' },
+  { cmd: '/logout', description: 'Log out and revoke API key' },
+  { cmd: '/whoami', description: 'Show account & plan info' },
   { cmd: '/exit', description: 'Exit HelixMind' },
   { cmd: '/quit', description: 'Exit HelixMind' },
 ];

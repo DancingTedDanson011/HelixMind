@@ -6,10 +6,22 @@ const program = new Command();
 
 program
   .name('helixmind')
-  .description('HelixMind – AI Coding CLI with Spiral Context Memory')
+  .description('HelixMind \u2013 AI Coding CLI with Spiral Context Memory')
   .version('0.1.0');
 
+// ─── Helper: auth guard wrapper ────────────────────────────────
+// Wraps a command action so it requires login first.
+// login/logout/whoami/config are exempt.
+function guarded<T extends (...args: any[]) => Promise<void>>(fn: T): T {
+  return (async (...args: any[]) => {
+    const { requireAuth } = await import('./auth/guard.js');
+    await requireAuth();
+    return fn(...args);
+  }) as unknown as T;
+}
+
 // Default command: interactive chat
+// (has its own auth gate inside chatCommand for the logo-first flow)
 program
   .command('chat', { isDefault: true })
   .description('Interactive AI coding agent with spiral context')
@@ -24,7 +36,7 @@ program
     await chatCommand(options);
   });
 
-// Config commands
+// Config commands — exempt from auth (needed to configure before login)
 const configCmd = program
   .command('config')
   .description('Manage configuration');
@@ -53,7 +65,7 @@ configCmd
     configListCommand();
   });
 
-// Spiral commands
+// Spiral commands — require auth
 const spiralCmd = program
   .command('spiral')
   .description('Manage spiral context memory');
@@ -61,40 +73,40 @@ const spiralCmd = program
 spiralCmd
   .command('status')
   .description('Show spiral metrics')
-  .action(async () => {
+  .action(guarded(async () => {
     const { spiralStatusCommand } = await import('./commands/spiral.js');
     await spiralStatusCommand();
-  });
+  }));
 
 spiralCmd
   .command('search <query>')
   .description('Search spiral context')
-  .action(async (query) => {
+  .action(guarded(async (query) => {
     const { spiralSearchCommand } = await import('./commands/spiral.js');
     await spiralSearchCommand(query);
-  });
+  }));
 
 spiralCmd
   .command('compact')
   .description('Trigger spiral compaction')
-  .action(async () => {
+  .action(guarded(async () => {
     const { spiralCompactCommand } = await import('./commands/spiral.js');
     await spiralCompactCommand();
-  });
+  }));
 
-// Feed command
+// Feed command — require auth
 program
   .command('feed [paths...]')
   .description('Feed files/directories into the spiral')
   .option('--deep', 'Deep analysis (slower, more thorough)')
   .option('--quick', 'Quick overview only')
   .option('--watch', 'Watch for changes and update live')
-  .action(async (paths, options) => {
+  .action(guarded(async (paths, options) => {
     const { feedCommand } = await import('./commands/feed.js');
     await feedCommand(paths, options);
-  });
+  }));
 
-// Helix command — alias for interactive chat (the main entry point)
+// Helix command — alias for interactive chat (auth gate inside chatCommand)
 program
   .command('helix')
   .description('Start HelixMind interactive session (alias for chat)')
@@ -105,26 +117,26 @@ program
     await chatCommand(options);
   });
 
-// Export/Import commands
+// Export/Import commands — require auth
 program
   .command('export [output-dir]')
   .description('Export spiral data to a .helixmind.zip archive')
   .option('-n, --name <name>', 'Project name', 'HelixMind Project')
-  .action(async (outputDir, options) => {
+  .action(guarded(async (outputDir, options) => {
     const { exportCommand } = await import('./commands/archive.js');
     await exportCommand(outputDir, options);
-  });
+  }));
 
 program
   .command('import <zip-file>')
   .description('Import spiral data from a .helixmind.zip archive')
   .option('--replace', 'Replace existing data (default: merge)')
-  .action(async (zipFile, options) => {
+  .action(guarded(async (zipFile, options) => {
     const { importCommand } = await import('./commands/archive.js');
     await importCommand(zipFile, options);
-  });
+  }));
 
-// Auth commands
+// Auth commands — exempt from auth (obviously)
 program
   .command('login')
   .description('Authenticate with HelixMind web platform')
@@ -153,16 +165,16 @@ program
     await whoamiCommand();
   });
 
-// Init command
+// Init command — require auth
 program
   .command('init')
   .description('Initialize HelixMind in current project')
-  .action(async () => {
+  .action(guarded(async () => {
     const { initCommand } = await import('./commands/init.js');
     initCommand();
-  });
+  }));
 
-// Bench commands — SWE-bench benchmarking
+// Bench commands — require auth
 const benchCmd = program
   .command('bench')
   .description('SWE-bench benchmark suite');
@@ -183,36 +195,36 @@ benchCmd
   .option('--with-spiral', 'Enable Spiral Memory for context-enhanced solving')
   .option('--spiral-mode <mode>', 'Spiral mode: fresh (default) or learning', 'fresh')
   .option('--resume <run-id>', 'Resume a previous run (skip completed tasks)')
-  .action(async (options) => {
+  .action(guarded(async (options) => {
     const { benchRunCommand } = await import('./commands/bench.js');
     await benchRunCommand(options);
-  });
+  }));
 
 benchCmd
   .command('results')
   .description('Show results from latest or specified run')
   .option('--run <id>', 'Specific run ID')
   .option('--format <type>', 'Output format: table or json', 'table')
-  .action(async (options) => {
+  .action(guarded(async (options) => {
     const { benchResultsCommand } = await import('./commands/bench.js');
     await benchResultsCommand(options);
-  });
+  }));
 
 benchCmd
   .command('compare')
   .description('Compare metrics across benchmark runs')
   .option('--runs <ids>', 'Comma-separated run IDs')
-  .action(async (options) => {
+  .action(guarded(async (options) => {
     const { benchCompareCommand } = await import('./commands/bench.js');
     await benchCompareCommand(options);
-  });
+  }));
 
 benchCmd
   .command('list')
   .description('List all past benchmark runs')
-  .action(async () => {
+  .action(guarded(async () => {
     const { benchListCommand } = await import('./commands/bench.js');
     await benchListCommand();
-  });
+  }));
 
 program.parse();

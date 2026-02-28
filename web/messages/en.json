@@ -18,9 +18,10 @@
     "title": "Your AI finally",
     "titleHighlight": "remembers.",
     "subtitle": "The only AI coding tool with persistent spiral memory. Every pattern, every decision, every context — preserved and evolved across sessions.",
-    "cta": "Install Free",
+    "cta": "Install App",
     "ctaSecondary": "See it in action",
-    "installCommand": "npm install -g helixmind"
+    "installCommand": "npm install -g helixmind",
+    "requirement": "Requires Node.js 18+"
   },
   "problem": {
     "title": "The problem with every AI coding tool",
@@ -161,7 +162,7 @@
   "cta": {
     "title": "Start building with memory",
     "subtitle": "Install HelixMind in 30 seconds. Free forever for individual use.",
-    "button": "Install Free",
+    "button": "Install App",
     "github": "Star on GitHub"
   },
   "footer": {

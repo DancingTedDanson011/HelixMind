@@ -119,15 +119,31 @@ export function Hero() {
 
           <span className="text-gray-600 text-sm hidden sm:block">\u2022</span>
 
-          <Button size="lg" className="font-display font-semibold tracking-wide">
-            {t('cta')}
+          <Button
+            size="lg"
+            className="font-display font-semibold tracking-wide"
+            onClick={copyInstall}
+          >
+            {copied ? (
+              <span className="flex items-center gap-2"><Check size={16} /> Copied!</span>
+            ) : (
+              t('cta')
+            )}
           </Button>
         </motion.div>
+
+        {/* Requirement note */}
+        <motion.p
+          variants={stagger.item}
+          className="mt-4 text-xs text-gray-500"
+        >
+          {t('requirement')}
+        </motion.p>
 
         {/* Social proof hint */}
         <motion.div
           variants={stagger.item}
-          className="mt-12 flex items-center justify-center gap-6 text-xs text-gray-500"
+          className="mt-8 flex items-center justify-center gap-6 text-xs text-gray-500"
         >
           <span>Open Source</span>
           <span className="w-1 h-1 rounded-full bg-gray-700" />

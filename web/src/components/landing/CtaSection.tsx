@@ -3,10 +3,18 @@
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
-import { Github, Terminal } from 'lucide-react';
+import { Github, Terminal, Check } from 'lucide-react';
+import { useState } from 'react';
 
 export function CtaSection() {
   const t = useTranslations('cta');
+  const [copied, setCopied] = useState(false);
+
+  const copyInstall = () => {
+    navigator.clipboard.writeText('npm install -g helixmind');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <section className="py-32 sm:py-40 px-4 relative overflow-hidden">
@@ -40,8 +48,12 @@ export function CtaSection() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" className="font-display font-semibold tracking-wide">
-              {t('button')}
+            <Button size="lg" className="font-display font-semibold tracking-wide" onClick={copyInstall}>
+              {copied ? (
+                <span className="flex items-center gap-2"><Check size={16} /> Copied!</span>
+              ) : (
+                t('button')
+              )}
             </Button>
             <Button variant="outline" size="lg" className="font-display font-semibold tracking-wide">
               <Github size={16} />

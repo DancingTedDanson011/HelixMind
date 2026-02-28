@@ -1,0 +1,124 @@
+---
+title: Authentication
+description: Log in to the HelixMind web platform, manage API keys, and understand feature gating by subscription tier.
+order: 2
+category: Getting Started
+---
+
+# Authentication
+
+HelixMind uses a browser-based login flow to connect your CLI to your web platform account. After a one-time login, credentials are cached locally and the CLI works offline.
+
+## Login
+
+```bash
+# Browser-based login (recommended)
+helixmind login
+
+# Direct API key login
+helixmind login --api-key hm_your_key_here
+
+# Custom platform URL
+helixmind login --url https://your-instance.example.com
+
+# Re-authenticate (even if already logged in)
+helixmind login --force
+```
+
+### How the Browser Flow Works
+
+1. The CLI starts a temporary local server on `127.0.0.1`
+2. Your default browser opens the HelixMind authorization page
+3. You log in (or authorize immediately if already signed in)
+4. The webapp redirects back to the CLI with an API key
+5. The CLI stores the key locally at `~/.helixmind/config.json`
+
+The flow uses a cryptographic `state` parameter for CSRF protection. The local callback server accepts exactly one response and times out after 120 seconds.
+
+If the browser cannot be opened automatically, the CLI prints the URL for you to open manually.
+
+## Logout
+
+```bash
+# Logout and revoke the API key on the server
+helixmind logout
+
+# Logout locally only (keep server key valid)
+helixmind logout --no-revoke
+```
+
+## Check Status
+
+```bash
+helixmind whoami
+```
+
+Shows your email, subscription plan, and masked API key. Works offline with cached data.
+
+## Slash Commands
+
+During an interactive chat session, you can also use:
+
+| Command | Description |
+|---------|-------------|
+| `/login` | Start login flow |
+| `/logout` | Log out and revoke key |
+| `/whoami` | Show account info |
+
+## Auth Guard
+
+Most CLI commands require authentication. If you run a command without being logged in, HelixMind will automatically start the login flow. Commands that **do not** require auth:
+
+- `helixmind login`
+- `helixmind logout`
+- `helixmind whoami`
+- `helixmind config`
+- `helixmind --help` / `helixmind --version`
+
+After first login, the CLI uses your cached credentials and verifies them in the background when online.
+
+## Subscription Tiers
+
+| Feature | Free | Pro | Team | Enterprise |
+|---------|------|-----|------|------------|
+| AI Coding Agent | Yes | Yes | Yes | Yes |
+| Spiral Memory | Yes | Yes | Yes | Yes |
+| Web Knowledge Enricher | Yes | Yes | Yes | Yes |
+| Brain Visualization | Yes | Yes | Yes | Yes |
+| All 14 Agent Tools | Yes | Yes | Yes | Yes |
+| Cloud Sync | — | Yes | Yes | Yes |
+| Advanced Spiral | — | Yes | Yes | Yes |
+| Priority Support | — | Yes | Yes | Yes |
+| Team Sessions | — | — | Yes | Yes |
+| Commercial License (AGPL exemption) | — | — | — | Yes |
+
+The Web Knowledge Enricher — HelixMind's core intelligence layer that auto-fetches documentation and web insights — is available on **all tiers**, including Free.
+
+## API Keys
+
+API keys are prefixed with `hm_` and stored hashed (SHA-256) on the server. Each key has scopes (`cli`, `relay`) and a device name.
+
+Key limits by plan:
+
+| Plan | Max API Keys |
+|------|-------------|
+| Free | 3 |
+| Pro | 10 |
+| Team | 25 |
+| Enterprise | Unlimited |
+
+You can manage API keys from your web dashboard at **Dashboard > API Keys**.
+
+## Config Keys
+
+Authentication stores the following keys in `~/.helixmind/config.json`:
+
+| Key | Description |
+|-----|-------------|
+| `relay.apiKey` | Your HelixMind API key |
+| `relay.url` | Web platform URL |
+| `relay.userId` | Your user ID |
+| `relay.userEmail` | Your email address |
+| `relay.plan` | Your subscription plan |
+| `relay.loginAt` | Timestamp of last login |
+| `relay.autoConnect` | Auto-connect to relay on startup |

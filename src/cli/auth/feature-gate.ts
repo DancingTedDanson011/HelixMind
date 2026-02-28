@@ -5,11 +5,13 @@
 import type { ConfigStore } from '../config/store.js';
 
 export type Feature =
-  | 'web_enricher'
   | 'cloud_sync'
   | 'team_sessions'
   | 'advanced_spiral'
   | 'priority_support';
+
+// Web enricher is FREE for all — it's the core intelligence of HelixMind.
+// Gated features are cloud/team/enterprise add-ons.
 
 const PLAN_HIERARCHY: Record<string, number> = {
   FREE: 0,
@@ -19,7 +21,6 @@ const PLAN_HIERARCHY: Record<string, number> = {
 };
 
 const FEATURE_MIN_PLAN: Record<Feature, string> = {
-  web_enricher: 'PRO',
   cloud_sync: 'PRO',
   advanced_spiral: 'PRO',
   team_sessions: 'TEAM',

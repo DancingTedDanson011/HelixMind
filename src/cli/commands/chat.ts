@@ -125,6 +125,14 @@ const HELP_CATEGORIES: HelpCategory[] = [
     ],
   },
   {
+    category: 'Account & Auth', color: '#00d4ff',
+    items: [
+      { cmd: '/login', label: '/login', description: 'Log in to HelixMind web platform' },
+      { cmd: '/logout', label: '/logout', description: 'Log out and revoke API key' },
+      { cmd: '/whoami', label: '/whoami', description: 'Show account & plan info' },
+    ],
+  },
+  {
     category: 'Navigation', color: '#6c757d',
     items: [
       { cmd: '/exit', label: '/exit', description: 'Exit HelixMind' },
@@ -217,7 +225,20 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Show logo early
   process.stdout.write(renderLogo());
 
-  // First-time setup: prompt for API key if none configured
+  // ─── Auth Gate: require login on first use ───────────────────
+  // Once logged in, credentials are cached locally.
+  // Offline use works with cached auth — no server needed.
+  if (!store.isLoggedIn()) {
+    const { requireAuth } = await import('../auth/guard.js');
+    await requireAuth();
+    config = store.getAll();
+  } else {
+    // Background auth check: verify token is still valid when online.
+    // If offline or server unreachable, cached auth stays valid silently.
+    import('../auth/feature-gate.js').then(({ refreshPlanInfo }) => refreshPlanInfo(store)).catch(() => {});
+  }
+
+  // First-time setup: prompt for LLM API key if none configured
   if (!store.hasApiKey()) {
     const success = await runFirstTimeSetup(store);
     if (!success) {
@@ -233,11 +254,6 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   } catch (err) {
     renderError(`Failed to initialize provider: ${err}`);
     process.exit(1);
-  }
-
-  // Refresh plan info in background (non-blocking)
-  if (store.isLoggedIn()) {
-    import('../auth/feature-gate.js').then(({ refreshPlanInfo }) => refreshPlanInfo(store)).catch(() => {});
   }
 
   // Register rate limit handler for user-visible feedback
@@ -1611,18 +1627,9 @@ async function sendAgentMessage(
   // === WEB ENRICHMENT (background) ===
   // Automatically fetch web knowledge about the topic while the agent works.
   // Runs in background — results are stored in spiral brain for this + future queries.
-  // Requires PRO plan or higher when logged in.
+  // Available for ALL tiers — this is the core intelligence that makes HelixMind useful.
   let enrichmentPromise: Promise<any> | null = null;
-  let webEnricherAllowed = true;
-  try {
-    const { ConfigStore } = await import('../config/store.js');
-    const { isFeatureAvailable } = await import('../auth/feature-gate.js');
-    const tmpStore = new ConfigStore(join(homedir(), '.helixmind'));
-    if (tmpStore.isLoggedIn()) {
-      webEnricherAllowed = isFeatureAvailable(tmpStore, 'web_enricher');
-    }
-  } catch { /* feature gate module not available, allow */ }
-  if (spiralEngine && webEnricherAllowed) {
+  if (spiralEngine) {
     try {
       const { enrichFromWeb } = await import('../../spiral/cloud/web-enricher.js');
       const { pushWebKnowledge, isBrainServerRunning } = await import('../brain/generator.js');
@@ -2362,6 +2369,24 @@ async function handleSlashCommand(
         renderInfo('Spiral engine not available.');
       }
       break;
+    }
+
+    case '/login': {
+      const { loginCommand } = await import('./auth.js');
+      await loginCommand({});
+      return 'drain';
+    }
+
+    case '/logout': {
+      const { logoutCommand } = await import('./auth.js');
+      await logoutCommand({});
+      return 'drain';
+    }
+
+    case '/whoami': {
+      const { whoamiCommand } = await import('./auth.js');
+      await whoamiCommand();
+      return;
     }
 
     case '/exit':
