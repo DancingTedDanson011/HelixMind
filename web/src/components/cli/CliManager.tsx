@@ -41,6 +41,7 @@ export function CliManager() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
   const [pendingInstance, setPendingInstance] = useState<DiscoveredInstance | null>(null);
+  const [authToken, setAuthToken] = useState<string | undefined>(undefined);
 
   // ── Hooks ───────────────────────────────────────
 
@@ -49,7 +50,7 @@ export function CliManager() {
   const connection = useCliConnection({
     mode: connectionMode,
     port: pendingInstance?.port,
-    token: undefined,
+    token: authToken,
   });
 
   const output = useCliOutput({
@@ -91,15 +92,22 @@ export function CliManager() {
   }, [connection]);
 
   const handleTokenSubmit = useCallback(
-    (token: string, _remember: boolean) => {
+    (token: string, remember: boolean) => {
       setTokenDialogOpen(false);
+      setAuthToken(token);
 
-      if (pendingInstance) {
-        connection.disconnect();
-        setTimeout(() => {
-          connection.connect();
-        }, 100);
+      // Store token if user wants to remember it
+      if (remember && pendingInstance) {
+        try {
+          sessionStorage.setItem(`hx-token-${pendingInstance.port}`, token);
+        } catch { /* ignore storage errors */ }
       }
+
+      // Reconnect with the new token (needs brief delay for state to settle)
+      connection.disconnect();
+      setTimeout(() => {
+        connection.connect();
+      }, 100);
     },
     [pendingInstance, connection],
   );
