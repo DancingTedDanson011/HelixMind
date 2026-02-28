@@ -40,13 +40,9 @@ jobs:
 
             set -a && source .env && set +a
 
-            echo "=== Clean node_modules ==="
-            if [ -d node_modules ]; then
-              find node_modules -type f -delete 2>/dev/null || true
-              find node_modules -type d -empty -delete 2>/dev/null || true
-              rm -rf node_modules 2>/dev/null || true
-            fi
-            rm -rf node_modules_old_* 2>/dev/null || true
+            echo "=== Clean node_modules + npm cache ==="
+            rm -rf node_modules node_modules_old_* 2>/dev/null || true
+            npm cache clean --force 2>/dev/null || true
 
             echo "=== NPM Install ==="
             npm ci --include=dev
