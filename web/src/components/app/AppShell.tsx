@@ -10,6 +10,7 @@ import { useCliContext } from './CliConnectionProvider';
 import { useCliOutput } from '@/hooks/use-cli-output';
 import { useBrainstormChat } from '@/hooks/use-brainstorm-chat';
 import { TerminalViewer } from '@/components/cli/TerminalViewer';
+import { BugJournal } from './BugJournal';
 import type { DiscoveredInstance } from '@/lib/cli-types';
 import {
   Brain, PanelLeftClose, PanelLeft, Menu,
@@ -17,6 +18,7 @@ import {
   Cpu, Clock, Plug, Shield, Zap, Sparkles,
   AlertTriangle, Activity, X, MessageSquare,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
+  Bug,
 } from 'lucide-react';
 
 /* ─── Types ───────────────────────────────────── */
@@ -71,7 +73,7 @@ export function AppShell() {
     }
   }, []);
   const [mode, setMode] = useState<'normal' | 'skip-permissions'>('normal');
-  const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor' | 'journal'>('chat');
   const [consoleSessionId, setConsoleSessionId] = useState<string | null>(null);
   const [showInstancePicker, setShowInstancePicker] = useState(false);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
@@ -222,6 +224,100 @@ export function AppShell() {
     setActiveTab('console');
   }, []);
 
+  // ── Bug fix handlers ────────────────────────
+  const sendBugFixMessage = useCallback(async (fixPrompt: string) => {
+    if (!isConnected) return;
+
+    let chatId = activeChatId;
+    if (!chatId) {
+      try {
+        const res = await fetch('/api/chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode }),
+        });
+        if (res.ok) {
+          const newChat = await res.json();
+          chatId = newChat.id;
+          await fetchChats();
+          await loadChat(chatId!);
+        }
+      } catch { return; }
+    }
+    if (!chatId) return;
+
+    if (activeTab !== 'chat') setActiveTab('chat');
+
+    const userMsg: ChatMessage = {
+      id: `temp-${Date.now()}`,
+      chatId,
+      role: 'user',
+      content: fixPrompt,
+      createdAt: new Date().toISOString(),
+    };
+    setActiveChat(prev => prev ? { ...prev, messages: [...prev.messages, userMsg] } : null);
+
+    try {
+      await fetch(`/api/chats/${chatId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user', content: fixPrompt }),
+      });
+    } catch { /* silent */ }
+
+    cliChat.sendMessage(fixPrompt, chatId, mode);
+  }, [activeChatId, isConnected, cliChat, mode, fetchChats, loadChat, activeTab]);
+
+  const handleFixBug = useCallback((bugId: number) => {
+    const bug = connection.bugs.find(b => b.id === bugId);
+    if (!bug) return;
+    const fixPrompt = `Fix bug #${bug.id}: ${bug.description}${bug.file ? `\nFile: ${bug.file}${bug.line ? `:${bug.line}` : ''}` : ''}\n\nInvestigate the root cause, implement the fix, and verify it's resolved.`;
+    sendBugFixMessage(fixPrompt);
+  }, [connection.bugs, sendBugFixMessage]);
+
+  const handleFixAllBugs = useCallback(() => {
+    const openBugs = connection.bugs.filter(b => b.status === 'open');
+    if (openBugs.length === 0) return;
+    const bugSummary = openBugs
+      .map(b => `#${b.id}: ${b.description}${b.file ? ` (${b.file}${b.line ? `:${b.line}` : ''})` : ''}`)
+      .join('\n');
+    const fixPrompt = `Fix ALL of the following open bugs:\n\n${bugSummary}\n\nInvestigate each bug, implement fixes, and verify they are resolved.`;
+    sendBugFixMessage(fixPrompt);
+  }, [connection.bugs, sendBugFixMessage]);
+
+  // ── Fetch bugs on connect ──────────────────
+  useEffect(() => {
+    if (isConnected) {
+      connection.getBugs().catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
+
+  // ── Bug notifications in chat ──────────────
+  const prevBugCountRef = useRef(0);
+  useEffect(() => {
+    const prevCount = prevBugCountRef.current;
+    const currentCount = connection.bugs.length;
+    prevBugCountRef.current = currentCount;
+
+    // New bug added
+    if (currentCount > prevCount && prevCount > 0 && activeChatId && activeChat) {
+      const newBug = connection.bugs[connection.bugs.length - 1];
+      if (newBug) {
+        const notifMsg: ChatMessage = {
+          id: `bug-notif-${Date.now()}`,
+          chatId: activeChatId,
+          role: 'assistant',
+          content: `🐛 **${t('bugNewDetected')}** #${newBug.id}: ${newBug.description}${newBug.file ? `\n📄 \`${newBug.file}${newBug.line ? `:${newBug.line}` : ''}\`` : ''}`,
+          metadata: { isBugNotification: true },
+          createdAt: new Date().toISOString(),
+        };
+        setActiveChat(prev => prev ? { ...prev, messages: [...prev.messages, notifMsg] } : null);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection.bugs.length]);
+
   // ── Send message (with slash command support) ──
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -264,6 +360,21 @@ export function AppShell() {
         case 'chat':
           setActiveTab('chat');
           return;
+        case 'journal':
+        case 'bugs':
+          // Fetch bugs if connected, then show journal
+          if (isConnected) {
+            connection.getBugs().catch(() => {});
+          }
+          setActiveTab('journal');
+          return;
+        case 'bugfix': {
+          // Fix all open bugs via CLI
+          if (isConnected && connection.bugs.filter(b => b.status === 'open').length > 0) {
+            handleFixAllBugs();
+          }
+          return;
+        }
         case 'disconnect':
           disconnectCli();
           return;
@@ -639,6 +750,21 @@ export function AppShell() {
                 </div>
               )}
 
+              {/* Bug badge */}
+              {connection.bugs.filter(b => b.status === 'open').length > 0 && (
+                <button
+                  onClick={() => { setActiveTab('journal'); connection.getBugs().catch(() => {}); }}
+                  className="w-full px-2 py-1.5 rounded-md bg-red-500/5 border border-red-500/10 text-left hover:bg-red-500/10 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    <Bug size={10} className="text-red-400" />
+                    <p className="text-[10px] text-red-400 font-medium">
+                      {connection.bugs.filter(b => b.status === 'open').length} Bugs
+                    </p>
+                  </div>
+                </button>
+              )}
+
               {/* Threat badge */}
               {threatCount > 0 && (
                 <div className="px-2 py-1.5 rounded-md bg-red-500/5 border border-red-500/10">
@@ -758,6 +884,22 @@ export function AppShell() {
                 {t('monitorTab')}
                 {(threatCount > 0 || connection.approvals.length > 0) && (
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                )}
+              </button>
+              <button
+                onClick={() => { setActiveTab('journal'); connection.getBugs().catch(() => {}); }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                  activeTab === 'journal'
+                    ? 'bg-white/10 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <Bug size={11} />
+                {t('bugJournal')}
+                {connection.bugs.filter(b => b.status === 'open').length > 0 && (
+                  <span className="min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
+                    {connection.bugs.filter(b => b.status === 'open').length}
+                  </span>
                 )}
               </button>
             </div>
@@ -959,7 +1101,7 @@ export function AppShell() {
               )}
             </div>
           </>
-        ) : (
+        ) : activeTab === 'monitor' ? (
           /* ─── Monitor Tab ─── */
           <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             <div className="max-w-3xl mx-auto space-y-4">
@@ -1121,7 +1263,18 @@ export function AppShell() {
               )}
             </div>
           </div>
-        )}
+        ) : activeTab === 'journal' ? (
+          /* ─── Bug Journal Tab ─── */
+          <div className="flex-1 overflow-hidden">
+            <BugJournal
+              bugs={connection.bugs}
+              isConnected={isConnected}
+              onFixBug={handleFixBug}
+              onFixAll={handleFixAllBugs}
+              onClose={() => setActiveTab('chat')}
+            />
+          </div>
+        ) : null}
 
         {/* Input — always visible */}
         <ChatInput

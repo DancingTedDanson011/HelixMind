@@ -599,7 +599,21 @@
     "newSession": "New Session",
     "executing": "Executing agent prompt...",
     "noApiKey": "Add your API key in Settings to brainstorm without CLI",
-    "promptReady": "Prompt ready"
+    "promptReady": "Prompt ready",
+    "bugJournal": "Bug Journal",
+    "bugOpen": "open",
+    "bugInvestigating": "investigating",
+    "bugFixed": "fixed",
+    "bugFixAll": "Fix All Bugs",
+    "bugFilterAll": "All",
+    "bugNoBugs": "No bugs found",
+    "bugNoBugsHint": "Bugs are automatically detected from conversations.",
+    "bugFixDescription": "Fix",
+    "bugFixedAt": "Fixed at",
+    "bugUpdatedAt": "Updated at",
+    "bugConnectToFix": "Connect a CLI instance to fix bugs",
+    "bugNewDetected": "New bug detected",
+    "bugStatusUpdated": "Bug status updated"
   },
   "ticket": {
     "createTitle": "Create New Ticket",

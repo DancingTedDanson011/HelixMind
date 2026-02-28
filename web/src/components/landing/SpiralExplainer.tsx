@@ -22,7 +22,7 @@ export function SpiralExplainer() {
     <section className="py-24 sm:py-32 px-4 overflow-hidden relative">
       {/* Ambient glow */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[700px] h-[400px] rounded-full bg-accent/[0.04] blur-[120px]" />
+        <div className="w-[700px] max-w-[100vw] h-[400px] rounded-full bg-accent/[0.04] blur-[120px]" />
       </div>
 
       <div className="mx-auto max-w-5xl relative">

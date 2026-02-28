@@ -165,7 +165,7 @@ export function TerminalShowcase() {
     <section className="py-12 sm:py-20 px-4 relative" ref={containerRef}>
       {/* Ambient glow behind terminal */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[800px] h-[500px] rounded-full bg-primary/[0.03] blur-[100px]" />
+        <div className="w-[800px] max-w-[100vw] h-[500px] rounded-full bg-primary/[0.03] blur-[100px]" />
       </div>
 
       <div className="mx-auto max-w-4xl relative">

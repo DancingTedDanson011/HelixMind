@@ -599,7 +599,21 @@
     "newSession": "Neue Session",
     "executing": "Agent-Prompt wird ausgeführt...",
     "noApiKey": "Hinterlege deinen API-Key in den Einstellungen für Brainstorming ohne CLI",
-    "promptReady": "Prompt bereit"
+    "promptReady": "Prompt bereit",
+    "bugJournal": "Bug-Journal",
+    "bugOpen": "offen",
+    "bugInvestigating": "wird untersucht",
+    "bugFixed": "behoben",
+    "bugFixAll": "Alle Bugs fixen",
+    "bugFilterAll": "Alle",
+    "bugNoBugs": "Keine Bugs gefunden",
+    "bugNoBugsHint": "Bugs werden automatisch aus Gespraechen erkannt.",
+    "bugFixDescription": "Fix",
+    "bugFixedAt": "Behoben am",
+    "bugUpdatedAt": "Aktualisiert am",
+    "bugConnectToFix": "CLI-Instanz verbinden um Bugs zu fixen",
+    "bugNewDetected": "Neuer Bug erkannt",
+    "bugStatusUpdated": "Bug-Status aktualisiert"
   },
   "ticket": {
     "createTitle": "Neues Ticket erstellen",
