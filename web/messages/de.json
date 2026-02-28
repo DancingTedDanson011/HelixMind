@@ -320,7 +320,11 @@
       "planFree": "Free",
       "planPro": "Pro",
       "planTeam": "Team",
-      "planEnterprise": "Enterprise"
+      "planEnterprise": "Enterprise",
+      "monthlyBilling": "Monatliche Abrechnung",
+      "yearlyBilling": "Jährliche Abrechnung",
+      "pastDue": "Überfällig",
+      "trialing": "Testphase"
     },
     "userManagement": {
       "title": "Benutzerverwaltung",

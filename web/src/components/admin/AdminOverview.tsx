@@ -13,7 +13,15 @@ interface Stats {
   totalUsers: number;
   proUsers: number;
   teamUsers: number;
+  proMonthly: number;
+  proYearly: number;
+  teamMonthly: number;
+  teamYearly: number;
   mrr: number;
+  arr: number;
+  pastDue: number;
+  trialing: number;
+  canceled: number;
   openTickets: number;
   totalTickets: number;
   recentSignups: number;
@@ -95,12 +103,12 @@ export function AdminOverview() {
     },
     {
       label: t('overview.monthlyRevenue'),
-      value: `${stats.mrr.toLocaleString()}`,
+      value: `$${stats.mrr.toLocaleString()}`,
       icon: DollarSign,
       color: 'text-success',
       bgColor: 'bg-success/10',
       borderColor: 'border-success/20',
-      trend: `${(stats.mrr * 12).toLocaleString()}/yr`,
+      trend: `$${stats.arr.toLocaleString()}/yr`,
       trendUp: true,
       trendLabel: t('overview.estimated'),
     },
@@ -231,8 +239,10 @@ export function AdminOverview() {
                 { label: t('overview.totalUsers'), value: stats.totalUsers.toLocaleString(), color: 'text-white' },
                 { label: t('overview.activeSubscriptions'), value: (stats.proUsers + stats.teamUsers).toLocaleString(), color: 'text-primary' },
                 { label: t('overview.freeUsers'), value: freeUsers.toLocaleString(), color: 'text-gray-400' },
-                { label: t('overview.monthlyRevenue'), value: `${stats.mrr.toLocaleString()}`, color: 'text-success' },
-                { label: t('overview.annualRevenue'), value: `${(stats.mrr * 12).toLocaleString()}`, color: 'text-success' },
+                { label: t('overview.monthlyBilling'), value: `${stats.proMonthly + stats.teamMonthly}`, color: 'text-white' },
+                { label: t('overview.yearlyBilling'), value: `${stats.proYearly + stats.teamYearly}`, color: 'text-white' },
+                { label: t('overview.monthlyRevenue'), value: `$${stats.mrr.toLocaleString()}`, color: 'text-success' },
+                { label: t('overview.annualRevenue'), value: `$${stats.arr.toLocaleString()}`, color: 'text-success' },
                 { label: t('overview.conversionRate'), value: stats.totalUsers > 0 ? `${(((stats.proUsers + stats.teamUsers) / stats.totalUsers) * 100).toFixed(1)}%` : '0%', color: 'text-accent' },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
@@ -259,9 +269,11 @@ export function AdminOverview() {
                 { label: t('overview.openTickets'), value: stats.openTickets.toString(), color: stats.openTickets > 0 ? 'text-warning' : 'text-success' },
                 { label: t('overview.totalTickets'), value: stats.totalTickets.toString(), color: 'text-white' },
                 { label: t('overview.resolutionRate'), value: stats.totalTickets > 0 ? `${(((stats.totalTickets - stats.openTickets) / stats.totalTickets) * 100).toFixed(0)}%` : 'N/A', color: 'text-success' },
+                { label: t('overview.pastDue'), value: stats.pastDue.toString(), color: stats.pastDue > 0 ? 'text-error' : 'text-success' },
+                { label: t('overview.trialing'), value: stats.trialing.toString(), color: 'text-accent' },
                 { label: t('overview.signups30d'), value: stats.recentSignups.toString(), color: 'text-accent' },
-                { label: t('overview.proSubscribers'), value: stats.proUsers.toString(), color: 'text-primary' },
-                { label: t('overview.teamSubscribers'), value: stats.teamUsers.toString(), color: 'text-secondary' },
+                { label: t('overview.proSubscribers'), value: `${stats.proUsers} (${stats.proMonthly}m / ${stats.proYearly}y)`, color: 'text-primary' },
+                { label: t('overview.teamSubscribers'), value: `${stats.teamUsers} (${stats.teamMonthly}m / ${stats.teamYearly}y)`, color: 'text-secondary' },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
                   <span className="text-sm text-gray-500">{item.label}</span>
