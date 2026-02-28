@@ -26,8 +26,8 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            echo "=== Stop PM2 ==="
-            pm2 stop helixmind-web 2>/dev/null || true
+            echo "=== Stop PM2 (all) ==="
+            pm2 stop all 2>/dev/null || true
 
             echo "=== Enter web directory ==="
             cd /opt/helixmind/web/web
@@ -63,6 +63,7 @@ jobs:
             echo "=== PM2 Restart ==="
             pm2 delete helixmind-web 2>/dev/null || true
             pm2 start ecosystem.config.cjs
+            pm2 start helixmind-webhook 2>/dev/null || true
             sleep 3
 
             echo "=== PM2 Status ==="
