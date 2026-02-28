@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -23,11 +24,11 @@ interface SystemSetting {
   updatedAt: string;
 }
 
-const categoryConfig: Record<string, { label: string; color: string; icon: typeof Settings }> = {
-  auth: { label: 'Authentication', color: 'text-accent', icon: Shield },
-  payments: { label: 'Payments', color: 'text-success', icon: CreditCard },
-  email: { label: 'Email', color: 'text-primary', icon: Mail },
-  general: { label: 'General', color: 'text-gray-400', icon: Settings },
+const categoryConfig: Record<string, { labelKey: string; color: string; icon: typeof Settings }> = {
+  auth: { labelKey: 'settings.categories.auth', color: 'text-accent', icon: Shield },
+  payments: { labelKey: 'settings.categories.payments', color: 'text-success', icon: CreditCard },
+  email: { labelKey: 'settings.categories.email', color: 'text-primary', icon: Mail },
+  general: { labelKey: 'settings.categories.general', color: 'text-gray-400', icon: Settings },
 };
 
 const sectionVariants = {
@@ -40,6 +41,7 @@ const sectionVariants = {
 };
 
 export function AdminSettings() {
+  const t = useTranslations('admin');
   const [settings, setSettings] = useState<SystemSetting[]>([]);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
@@ -143,13 +145,13 @@ export function AdminSettings() {
         <div className="flex items-center gap-2">
           <Settings size={18} className="text-primary" />
           <div>
-            <h2 className="text-lg font-semibold text-white">System Settings</h2>
-            <p className="text-sm text-gray-500">Manage API keys, secrets, and configuration</p>
+            <h2 className="text-lg font-semibold text-white">{t('settings.title')}</h2>
+            <p className="text-sm text-gray-500">{t('settings.subtitle')}</p>
           </div>
         </div>
         <Button onClick={() => setShowAddForm(!showAddForm)} size="sm">
           <Plus size={14} />
-          Add Setting
+          {t('settings.addSetting')}
         </Button>
       </div>
 
@@ -165,39 +167,39 @@ export function AdminSettings() {
             <GlassPanel className="space-y-4 border border-primary/10">
               <div className="flex items-center gap-2 mb-2">
                 <Plus size={14} className="text-primary" />
-                <h3 className="font-medium text-white">New Setting</h3>
+                <h3 className="font-medium text-white">{t('settings.newSetting')}</h3>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Input
                   value={newKey}
                   onChange={(e) => setNewKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
-                  label="Key"
+                  label={t('settings.key')}
                   placeholder="MY_API_KEY"
                 />
                 <Input
                   value={newLabel}
                   onChange={(e) => setNewLabel(e.target.value)}
-                  label="Display Name"
+                  label={t('settings.displayName')}
                   placeholder="My API Key"
                 />
                 <Input
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}
-                  label="Value"
+                  label={t('settings.value')}
                   placeholder="Enter value..."
                   type={newIsSecret ? 'password' : 'text'}
                 />
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-gray-300">Category</label>
+                  <label className="block text-sm font-medium text-gray-300">{t('settings.category')}</label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
                     className="w-full rounded-lg border border-white/10 bg-surface px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
-                    <option value="auth">Authentication</option>
-                    <option value="payments">Payments</option>
-                    <option value="email">Email</option>
-                    <option value="general">General</option>
+                    <option value="auth">{t('settings.categories.auth')}</option>
+                    <option value="payments">{t('settings.categories.payments')}</option>
+                    <option value="email">{t('settings.categories.email')}</option>
+                    <option value="general">{t('settings.categories.general')}</option>
                   </select>
                 </div>
               </div>
@@ -209,7 +211,7 @@ export function AdminSettings() {
                   className="rounded border-white/10 bg-surface text-primary"
                 />
                 <Lock size={12} className="text-warning" />
-                Secret value (will be masked in UI)
+                {t('settings.secretValue')}
               </label>
               <div className="flex gap-3">
                 <Button onClick={addSetting} loading={saving === 'new'} size="sm">
@@ -263,7 +265,7 @@ export function AdminSettings() {
                   <Icon size={14} className={config.color} />
                 </div>
                 <h3 className="font-semibold text-white">
-                  {config.label}
+                  {t(config.labelKey)}
                 </h3>
                 <Badge>{items.length}</Badge>
               </div>
@@ -298,7 +300,7 @@ export function AdminSettings() {
                           type={setting.isSecret && !showSecrets[setting.key] ? 'password' : 'text'}
                           value={editValues[setting.key] ?? (setting.isSecret ? '' : setting.value)}
                           onChange={(e) => setEditValues((prev) => ({ ...prev, [setting.key]: e.target.value }))}
-                          placeholder={setting.hasValue ? (setting.isSecret ? setting.value : setting.value) : 'Not configured'}
+                          placeholder={setting.hasValue ? (setting.isSecret ? setting.value : setting.value) : t('settings.notConfigured')}
                           className="w-full rounded-lg border border-white/10 bg-surface px-3 py-2 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-primary/50 hover:border-white/20 transition-colors"
                         />
                       </div>
@@ -348,8 +350,8 @@ export function AdminSettings() {
       {!loading && settings.length === 0 && (
         <GlassPanel className="text-center py-16">
           <KeyRound size={48} className="text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400 font-medium">No settings configured yet</p>
-          <p className="text-xs text-gray-600 mt-1">Click "Add Setting" above or run the seed script to initialize defaults</p>
+          <p className="text-gray-400 font-medium">{t('settings.noSettings')}</p>
+          <p className="text-xs text-gray-600 mt-1">{t('settings.noSettingsHint')}</p>
         </GlassPanel>
       )}
     </motion.div>

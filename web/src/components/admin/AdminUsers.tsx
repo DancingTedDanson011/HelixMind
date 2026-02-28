@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { AdminUserDetail } from './AdminUserDetail';
 import {
-  Search, ChevronLeft, ChevronRight, Save, Users,
+  Search, ChevronLeft, ChevronRight, Users,
   UserCog, Mail, Calendar, TicketIcon,
 } from 'lucide-react';
 
@@ -44,17 +46,19 @@ const tableRowVariants = {
   }),
 };
 
-export function AdminUsers() {
+interface AdminUsersProps {
+  userRole?: string;
+}
+
+export function AdminUsers({ userRole = 'ADMIN' }: AdminUsersProps) {
+  const t = useTranslations('admin');
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
-  const [editingUser, setEditingUser] = useState<string | null>(null);
-  const [editRole, setEditRole] = useState('');
-  const [editPlan, setEditPlan] = useState('');
-  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const fetchUsers = async (p = page, s = search) => {
     setLoading(true);
@@ -79,23 +83,16 @@ export function AdminUsers() {
     fetchUsers(1, search);
   };
 
-  const startEdit = (user: User) => {
-    setEditingUser(user.id);
-    setEditRole(user.role);
-    setEditPlan(user.subscription?.plan || 'FREE');
-  };
-
-  const saveEdit = async (userId: string) => {
-    setSaving(true);
-    await fetch(`/api/admin/users/${userId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: editRole, plan: editPlan }),
-    });
-    setSaving(false);
-    setEditingUser(null);
-    fetchUsers();
-  };
+  // Show user detail when selected
+  if (selectedUserId) {
+    return (
+      <AdminUserDetail
+        userId={selectedUserId}
+        userRole={userRole}
+        onBack={() => setSelectedUserId(null)}
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -108,9 +105,9 @@ export function AdminUsers() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users size={18} className="text-primary" />
-          <h2 className="text-lg font-semibold text-white">User Management</h2>
+          <h2 className="text-lg font-semibold text-white">{t('userManagement.title')}</h2>
         </div>
-        <span className="text-sm text-gray-500">{total} users total</span>
+        <span className="text-sm text-gray-500">{t('userManagement.totalCount', { count: total })}</span>
       </div>
 
       {/* Search */}
@@ -118,13 +115,13 @@ export function AdminUsers() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by email or name..."
+          placeholder={t('userManagement.searchPlaceholder')}
           className="flex-1"
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
         />
         <Button onClick={handleSearch}>
           <Search size={16} />
-          Search
+          {t('userManagement.search')}
         </Button>
       </div>
 
@@ -136,24 +133,23 @@ export function AdminUsers() {
               <th className="text-left py-3.5 px-5 text-gray-400 font-medium text-xs uppercase tracking-wider">
                 <div className="flex items-center gap-1.5">
                   <UserCog size={12} />
-                  User
+                  {t('userManagement.user')}
                 </div>
               </th>
-              <th className="text-left py-3.5 px-5 text-gray-400 font-medium text-xs uppercase tracking-wider">Role</th>
-              <th className="text-left py-3.5 px-5 text-gray-400 font-medium text-xs uppercase tracking-wider">Plan</th>
+              <th className="text-left py-3.5 px-5 text-gray-400 font-medium text-xs uppercase tracking-wider">{t('userManagement.role')}</th>
+              <th className="text-left py-3.5 px-5 text-gray-400 font-medium text-xs uppercase tracking-wider">{t('userManagement.plan')}</th>
               <th className="text-left py-3.5 px-5 text-gray-400 font-medium text-xs uppercase tracking-wider">
                 <div className="flex items-center gap-1.5">
                   <Calendar size={12} />
-                  Joined
+                  {t('userManagement.joined')}
                 </div>
               </th>
               <th className="text-left py-3.5 px-5 text-gray-400 font-medium text-xs uppercase tracking-wider">
                 <div className="flex items-center gap-1.5">
                   <TicketIcon size={12} />
-                  Tickets
+                  {t('userManagement.tickets')}
                 </div>
               </th>
-              <th className="text-right py-3.5 px-5 text-gray-400 font-medium text-xs uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -161,7 +157,7 @@ export function AdminUsers() {
               {loading && users.length === 0 ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={`skeleton-${i}`} className="border-b border-white/5">
-                    <td className="py-3.5 px-5" colSpan={6}>
+                    <td className="py-3.5 px-5" colSpan={5}>
                       <div className="h-5 bg-white/5 rounded animate-pulse" />
                     </td>
                   </tr>
@@ -175,7 +171,8 @@ export function AdminUsers() {
                     initial="hidden"
                     animate="visible"
                     exit={{ opacity: 0, x: -10 }}
-                    className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
+                    className="border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer"
+                    onClick={() => setSelectedUserId(user.id)}
                   >
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-3">
@@ -183,7 +180,7 @@ export function AdminUsers() {
                           {(user.name || user.email).charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-white font-medium">{user.name || 'Unnamed'}</p>
+                          <p className="text-white font-medium">{user.name || t('userManagement.unnamed')}</p>
                           <div className="flex items-center gap-1 text-xs text-gray-500">
                             <Mail size={10} />
                             {user.email}
@@ -192,37 +189,12 @@ export function AdminUsers() {
                       </div>
                     </td>
                     <td className="py-3.5 px-5">
-                      {editingUser === user.id ? (
-                        <select
-                          value={editRole}
-                          onChange={(e) => setEditRole(e.target.value)}
-                          className="bg-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary/50"
-                        >
-                          <option value="USER">USER</option>
-                          <option value="SUPPORT">SUPPORT</option>
-                          <option value="ADMIN">ADMIN</option>
-                        </select>
-                      ) : (
-                        <Badge variant={roleBadgeVariant[user.role] || 'default'}>{user.role}</Badge>
-                      )}
+                      <Badge variant={roleBadgeVariant[user.role] || 'default'}>{user.role}</Badge>
                     </td>
                     <td className="py-3.5 px-5">
-                      {editingUser === user.id ? (
-                        <select
-                          value={editPlan}
-                          onChange={(e) => setEditPlan(e.target.value)}
-                          className="bg-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary/50"
-                        >
-                          <option value="FREE">FREE</option>
-                          <option value="PRO">PRO</option>
-                          <option value="TEAM">TEAM</option>
-                          <option value="ENTERPRISE">ENTERPRISE</option>
-                        </select>
-                      ) : (
-                        <Badge variant={planBadgeVariant[user.subscription?.plan || 'FREE'] || 'default'}>
-                          {user.subscription?.plan || 'FREE'}
-                        </Badge>
-                      )}
+                      <Badge variant={planBadgeVariant[user.subscription?.plan || 'FREE'] || 'default'}>
+                        {user.subscription?.plan || 'FREE'}
+                      </Badge>
                     </td>
                     <td className="py-3.5 px-5 text-gray-400 text-xs">
                       {new Date(user.createdAt).toLocaleDateString()}
@@ -231,23 +203,6 @@ export function AdminUsers() {
                       <span className={`text-xs font-mono ${(user._count?.tickets || 0) > 0 ? 'text-warning' : 'text-gray-600'}`}>
                         {user._count?.tickets || 0}
                       </span>
-                    </td>
-                    <td className="py-3.5 px-5 text-right">
-                      {editingUser === user.id ? (
-                        <div className="flex gap-2 justify-end">
-                          <Button size="sm" onClick={() => saveEdit(user.id)} loading={saving}>
-                            <Save size={12} />
-                            Save
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingUser(null)}>
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button size="sm" variant="ghost" onClick={() => startEdit(user)}>
-                          Edit
-                        </Button>
-                      )}
                     </td>
                   </motion.tr>
                 ))
@@ -259,8 +214,8 @@ export function AdminUsers() {
         {!loading && users.length === 0 && (
           <div className="text-center py-12">
             <Users size={40} className="text-gray-600 mx-auto mb-3" />
-            <p className="text-gray-500">No users found</p>
-            <p className="text-xs text-gray-600 mt-1">Try adjusting your search criteria</p>
+            <p className="text-gray-500">{t('userManagement.noUsers')}</p>
+            <p className="text-xs text-gray-600 mt-1">{t('userManagement.adjustSearch')}</p>
           </div>
         )}
       </GlassPanel>

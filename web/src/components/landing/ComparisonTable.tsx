@@ -11,33 +11,34 @@ interface Row {
   helixmind: Support;
   claudeCode: Support;
   cursor: Support;
+  codexCli: Support;
   aider: Support;
   copilot: Support;
 }
 
 const rows: Row[] = [
-  { key: 'persistentMemory', helixmind: 'yes', claudeCode: 'partial', cursor: 'no', aider: 'no', copilot: 'no' },
-  { key: 'brainViz', helixmind: 'yes', claudeCode: 'no', cursor: 'no', aider: 'no', copilot: 'no' },
-  { key: 'validation', helixmind: 'yes', claudeCode: 'no', cursor: 'no', aider: 'no', copilot: 'no' },
-  { key: 'webEnricher', helixmind: 'yes', claudeCode: 'no', cursor: 'partial', aider: 'no', copilot: 'no' },
-  { key: 'offlineMode', helixmind: 'yes', claudeCode: 'no', cursor: 'no', aider: 'yes', copilot: 'no' },
-  { key: 'multiSession', helixmind: 'yes', claudeCode: 'no', cursor: 'no', aider: 'no', copilot: 'no' },
-  { key: 'openSource', helixmind: 'yes', claudeCode: 'no', cursor: 'no', aider: 'yes', copilot: 'no' },
-  { key: 'mcpServer', helixmind: 'yes', claudeCode: 'yes', cursor: 'yes', aider: 'no', copilot: 'no' },
+  { key: 'persistentMemory', helixmind: 'yes', claudeCode: 'partial', cursor: 'no', codexCli: 'no', aider: 'no', copilot: 'no' },
+  { key: 'brainViz', helixmind: 'yes', claudeCode: 'no', cursor: 'no', codexCli: 'no', aider: 'no', copilot: 'no' },
+  { key: 'validation', helixmind: 'yes', claudeCode: 'no', cursor: 'no', codexCli: 'no', aider: 'no', copilot: 'no' },
+  { key: 'webEnricher', helixmind: 'yes', claudeCode: 'no', cursor: 'partial', codexCli: 'partial', aider: 'no', copilot: 'no' },
+  { key: 'offlineMode', helixmind: 'yes', claudeCode: 'no', cursor: 'no', codexCli: 'no', aider: 'yes', copilot: 'no' },
+  { key: 'multiSession', helixmind: 'yes', claudeCode: 'no', cursor: 'no', codexCli: 'no', aider: 'no', copilot: 'no' },
+  { key: 'openSource', helixmind: 'yes', claudeCode: 'no', cursor: 'no', codexCli: 'yes', aider: 'yes', copilot: 'no' },
+  { key: 'mcpServer', helixmind: 'yes', claudeCode: 'yes', cursor: 'yes', codexCli: 'no', aider: 'no', copilot: 'no' },
 ];
 
-const SupportIcon = ({ support }: { support: Support }) => {
+const SupportIcon = ({ support, size = 15 }: { support: Support; size?: number }) => {
   switch (support) {
     case 'yes':
-      return <Check size={15} className="text-success" />;
+      return <Check size={size} className="text-success" />;
     case 'no':
-      return <X size={15} className="text-gray-700" />;
+      return <X size={size} className="text-gray-700" />;
     case 'partial':
-      return <Minus size={15} className="text-warning" />;
+      return <Minus size={size} className="text-warning" />;
   }
 };
 
-const competitors = ['helixmind', 'claudeCode', 'cursor', 'aider', 'copilot'] as const;
+const competitors = ['helixmind', 'claudeCode', 'cursor', 'codexCli', 'aider', 'copilot'] as const;
 
 export function ComparisonTable() {
   const t = useTranslations('comparison');
@@ -49,7 +50,7 @@ export function ComparisonTable() {
         <div className="w-[600px] h-[300px] rounded-full bg-secondary/[0.03] blur-[120px]" />
       </div>
 
-      <div className="mx-auto max-w-5xl relative">
+      <div className="mx-auto max-w-6xl relative">
         <div className="text-center mb-16">
           <motion.p
             className="font-display text-sm font-semibold tracking-[0.2em] uppercase text-secondary/60 mb-3"
@@ -82,8 +83,9 @@ export function ComparisonTable() {
           </motion.p>
         </div>
 
+        {/* Desktop table — hidden on mobile */}
         <motion.div
-          className="rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden"
+          className="hidden md:block rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden"
           initial={{ opacity: 0, y: 24, filter: 'blur(4px)' }}
           whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           viewport={{ once: true }}
@@ -139,6 +141,47 @@ export function ComparisonTable() {
             </table>
           </div>
         </motion.div>
+
+        {/* Mobile card layout — visible only on mobile */}
+        <div className="md:hidden space-y-3">
+          {rows.map((row, i) => (
+            <motion.div
+              key={row.key}
+              className="rounded-xl border border-white/[0.06] bg-white/[0.015] p-4"
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 + i * 0.04, duration: 0.5 }}
+            >
+              {/* Feature name */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-white">
+                  {t(`rows.${row.key}`)}
+                </span>
+                {/* HelixMind status prominent */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-primary font-semibold uppercase tracking-wider">HelixMind</span>
+                  <SupportIcon support={row.helixmind} size={14} />
+                </div>
+              </div>
+
+              {/* Competitor grid */}
+              <div className="grid grid-cols-5 gap-1">
+                {(['claudeCode', 'cursor', 'codexCli', 'aider', 'copilot'] as const).map((c) => (
+                  <div
+                    key={c}
+                    className="flex flex-col items-center gap-1 py-1.5 rounded-lg bg-white/[0.02]"
+                  >
+                    <SupportIcon support={row[c]} size={12} />
+                    <span className="text-[9px] text-gray-600 leading-tight text-center">
+                      {t(`headers.${c}`)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </section>
   );

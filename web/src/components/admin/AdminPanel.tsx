@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import {
   LayoutDashboard, Users, Settings, CreditCard,
@@ -15,15 +16,27 @@ import { AdminTickets } from './AdminTickets';
 
 type Tab = 'overview' | 'users' | 'settings' | 'plans' | 'tickets';
 
-const tabs: { key: Tab; icon: typeof LayoutDashboard; label: string }[] = [
-  { key: 'overview', icon: LayoutDashboard, label: 'Overview' },
-  { key: 'users', icon: Users, label: 'Users' },
-  { key: 'plans', icon: CreditCard, label: 'Plans & Tokens' },
-  { key: 'tickets', icon: Ticket, label: 'Tickets' },
-  { key: 'settings', icon: Settings, label: 'System Settings' },
-];
+interface AdminPanelProps {
+  userRole?: string;
+}
 
-export function AdminPanel() {
+export function AdminPanel({ userRole = 'ADMIN' }: AdminPanelProps) {
+  const t = useTranslations('admin');
+  const isSupport = userRole === 'SUPPORT';
+
+  const allTabs: { key: Tab; icon: typeof LayoutDashboard; labelKey: string }[] = [
+    { key: 'overview', icon: LayoutDashboard, labelKey: 'tabs.overview' },
+    { key: 'users', icon: Users, labelKey: 'tabs.users' },
+    { key: 'plans', icon: CreditCard, labelKey: 'tabs.plans' },
+    { key: 'tickets', icon: Ticket, labelKey: 'tabs.tickets' },
+    { key: 'settings', icon: Settings, labelKey: 'tabs.settings' },
+  ];
+
+  // SUPPORT: only overview, users (read-only), tickets
+  const tabs = isSupport
+    ? allTabs.filter((tab) => ['overview', 'users', 'tickets'].includes(tab.key))
+    : allTabs;
+
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
   return (
@@ -40,8 +53,8 @@ export function AdminPanel() {
             <Shield size={22} className="text-error" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">Admin Panel</h1>
-            <p className="text-sm text-gray-500 mt-0.5">System management and monitoring</p>
+            <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{t('subtitle')}</p>
           </div>
         </motion.div>
 
@@ -72,7 +85,7 @@ export function AdminPanel() {
                     />
                   )}
                   <tab.icon size={16} className="relative z-10" />
-                  <span className="relative z-10">{tab.label}</span>
+                  <span className="relative z-10">{t(tab.labelKey)}</span>
                 </button>
               ))}
             </GlassPanel>
@@ -89,9 +102,9 @@ export function AdminPanel() {
                 transition={{ duration: 0.25 }}
               >
                 {activeTab === 'overview' && <AdminOverview />}
-                {activeTab === 'users' && <AdminUsers />}
-                {activeTab === 'settings' && <AdminSettings />}
-                {activeTab === 'plans' && <AdminPlans />}
+                {activeTab === 'users' && <AdminUsers userRole={userRole} />}
+                {activeTab === 'settings' && !isSupport && <AdminSettings />}
+                {activeTab === 'plans' && !isSupport && <AdminPlans />}
                 {activeTab === 'tickets' && <AdminTickets />}
               </motion.div>
             </AnimatePresence>

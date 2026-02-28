@@ -100,7 +100,7 @@ export function Hero() {
           {/* Install command — animated border */}
           <button
             onClick={copyInstall}
-            className="group relative flex items-center gap-3 rounded-xl px-6 py-3.5 font-mono text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] bg-white/[0.04] border border-white/[0.08] hover:border-primary/30 hover:bg-primary/[0.04]"
+            className="group relative flex items-center gap-2 sm:gap-3 rounded-xl px-4 sm:px-6 py-3 sm:py-3.5 font-mono text-xs sm:text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] bg-white/[0.04] border border-white/[0.08] hover:border-primary/30 hover:bg-primary/[0.04]"
           >
             <span className="text-primary font-bold">$</span>
             <span className="text-gray-200">{t('installCommand')}</span>

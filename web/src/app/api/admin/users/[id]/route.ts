@@ -7,21 +7,21 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
   try {
-    const session = await requireRole('ADMIN');
+    const session = await requireRole('ADMIN', 'SUPPORT');
     if (!session) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { id } = await params;
+    const isSupport = session.user.role === 'SUPPORT';
 
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
         subscription: true,
-        apiKeys: {
-          where: { revokedAt: null },
-          select: { id: true, name: true, keyPrefix: true, scopes: true, createdAt: true },
-        },
+        apiKeys: isSupport
+          ? { where: { revokedAt: null }, select: { id: true, name: true, createdAt: true } }
+          : { where: { revokedAt: null }, select: { id: true, name: true, keyPrefix: true, scopes: true, createdAt: true } },
         _count: { select: { tickets: true, usageLogs: true } },
       },
     });

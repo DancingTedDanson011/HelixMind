@@ -43,6 +43,43 @@ helixmind chat -m "Fehlerbehandlung zu den API-Endpoints hinzufügen"
 helixmind --yolo --no-validation
 ```
 
+### `helixmind login`
+
+Authentifizierung mit der HelixMind Web-Plattform.
+
+| Flag | Beschreibung |
+|------|-------------|
+| `--api-key <key>` | API-Key direkt verwenden (Browser-Flow ueberspringen) |
+| `--url <url>` | Eigene Web-Plattform-URL |
+| `--force` | Erneut authentifizieren (auch wenn bereits eingeloggt) |
+
+```bash
+helixmind login                          # Browser-basierter Login
+helixmind login --api-key hm_abc123      # Direkter Key-Eintrag
+helixmind login --force                  # Erneut authentifizieren
+```
+
+### `helixmind logout`
+
+Gespeicherte Authentifizierung entfernen.
+
+| Flag | Beschreibung |
+|------|-------------|
+| `--no-revoke` | API-Key nicht auf dem Server widerrufen |
+
+```bash
+helixmind logout                # Logout + Key widerrufen
+helixmind logout --no-revoke    # Nur lokal ausloggen
+```
+
+### `helixmind whoami`
+
+Aktuellen Authentifizierungsstatus anzeigen (E-Mail, Plan, maskierter API-Key).
+
+```bash
+helixmind whoami
+```
+
 ### `helixmind init`
 
 Initialisiert HelixMind im aktuellen Projektverzeichnis.

@@ -293,10 +293,26 @@ body {
 
 .terminal-body {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: clamp(10px, 2.5vw, 13px);
   line-height: 1.6;
-  padding: 20px 24px;
+  padding: 12px 12px;
   overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .terminal-body {
+    padding: 20px 24px;
+  }
+}
+
+.terminal-titlebar {
+  padding: 10px 14px;
+}
+
+@media (min-width: 640px) {
+  .terminal-titlebar {
+    padding: 14px 18px;
+  }
 }
 
 .terminal-cursor {

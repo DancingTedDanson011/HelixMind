@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
 import {
@@ -38,13 +39,13 @@ interface DashboardLayoutProps {
 
 /* ─── Navigation ──────────────────────────────── */
 
-const navItems: NavItem[] = [
-  { key: 'home', label: 'Home', href: '/dashboard', icon: LayoutDashboard },
-  { key: 'profile', label: 'Profile', href: '/dashboard/profile', icon: User },
-  { key: 'billing', label: 'Billing', href: '/dashboard/billing', icon: CreditCard },
-  { key: 'api-keys', label: 'API Keys', href: '/dashboard/api-keys', icon: Key },
-  { key: 'cli', label: 'CLI', href: '/dashboard/cli', icon: Terminal },
-  { key: 'support', label: 'Support', href: '/support/tickets', icon: LifeBuoy },
+const navItemDefs: { key: string; labelKey: string; href: string; icon: typeof LayoutDashboard }[] = [
+  { key: 'home', labelKey: 'nav.home', href: '/dashboard', icon: LayoutDashboard },
+  { key: 'cli', labelKey: 'nav.cli', href: '/dashboard/cli', icon: Terminal },
+  { key: 'profile', labelKey: 'nav.profile', href: '/dashboard/profile', icon: User },
+  { key: 'billing', labelKey: 'nav.billing', href: '/dashboard/billing', icon: CreditCard },
+  { key: 'api-keys', labelKey: 'nav.apiKeys', href: '/dashboard/api-keys', icon: Key },
+  { key: 'support', labelKey: 'nav.support', href: '/support/tickets', icon: LifeBuoy },
 ];
 
 /* ─── Plan Badge Variant ──────────────────────── */
@@ -61,8 +62,16 @@ function planBadgeVariant(plan: string): 'default' | 'primary' | 'spiral' | 'war
 /* ─── Component ───────────────────────────────── */
 
 export function DashboardLayout({ children, user }: DashboardLayoutProps) {
+  const t = useTranslations('dashboard');
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navItems: NavItem[] = navItemDefs.map((item) => ({
+    key: item.key,
+    label: t(item.labelKey),
+    href: item.href,
+    icon: item.icon,
+  }));
 
   // Strip locale prefix for matching (e.g., /en/dashboard -> /dashboard)
   const normalizedPath = pathname.replace(/^\/[a-z]{2}(?=\/)/, '');

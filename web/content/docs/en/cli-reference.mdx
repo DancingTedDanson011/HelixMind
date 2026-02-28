@@ -33,6 +33,43 @@ helixmind -s --validation-strict         # Skip permissions, strict validation
 
 Alias for `helixmind chat`.
 
+### `helixmind login`
+
+Authenticate with the HelixMind web platform.
+
+| Flag | Description |
+|------|-------------|
+| `--api-key <key>` | Use API key directly (skip browser flow) |
+| `--url <url>` | Custom web platform URL |
+| `--force` | Re-authenticate even if already logged in |
+
+```bash
+helixmind login                          # Browser-based login
+helixmind login --api-key hm_abc123      # Direct key entry
+helixmind login --force                  # Re-authenticate
+```
+
+### `helixmind logout`
+
+Remove stored authentication.
+
+| Flag | Description |
+|------|-------------|
+| `--no-revoke` | Do not revoke the API key on the server |
+
+```bash
+helixmind logout                # Logout + revoke key
+helixmind logout --no-revoke    # Local logout only
+```
+
+### `helixmind whoami`
+
+Show current authentication status (email, plan, masked API key).
+
+```bash
+helixmind whoami
+```
+
 ### `helixmind init`
 
 Initialize HelixMind in the current project:

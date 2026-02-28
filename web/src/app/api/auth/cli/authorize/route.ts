@@ -23,7 +23,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
-    // Check API key limit based on plan
+    const deviceName = parsed.data.deviceName || 'CLI Device';
+    const keyName = `CLI: ${deviceName} (${parsed.data.deviceOs || 'unknown'})`;
+
+    // Revoke existing key for the SAME device — so re-login doesn't waste a slot
+    await prisma.apiKey.updateMany({
+      where: {
+        userId: session.user.id,
+        name: keyName,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+
+    // Check API key limit based on plan (after revoking same-device key)
     const sub = await prisma.subscription.findUnique({
       where: { userId: session.user.id },
     });
@@ -50,13 +63,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate API key
+    // Generate new API key
     const rawKey = `hm_${randomBytes(32).toString('hex')}`;
     const keyHash = createHash('sha256').update(rawKey).digest('hex');
     const keyPrefix = rawKey.substring(0, 10);
-
-    const deviceName = parsed.data.deviceName || 'CLI Device';
-    const keyName = `CLI: ${deviceName} (${parsed.data.deviceOs || 'unknown'})`;
 
     await prisma.apiKey.create({
       data: {

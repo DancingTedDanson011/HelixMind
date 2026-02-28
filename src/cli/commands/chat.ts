@@ -1081,7 +1081,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Paste detection — collects rapid-fire line events into a buffer
   let pasteBuffer: string[] = [];
   let pasteTimer: ReturnType<typeof setTimeout> | null = null;
-  const PASTE_THRESHOLD_MS = 50; // Lines arriving faster than this = paste
+  const PASTE_THRESHOLD_MS = 100; // Lines arriving faster than this = paste (100ms for Windows compat)
 
   // Show full prompt area on startup (separator + status + > prompt)
   showPrompt();
@@ -1428,12 +1428,21 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     // If paste buffer has content and user pressed Enter on empty line → send it
     if (!trimmed && pasteBuffer.length > 0) {
-      const assembled = pasteBuffer.join('\n');
+      const assembled = pasteBuffer.join('\n').trim();
       pasteBuffer = [];
       if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
-      // Show full pasted text as user message
       process.stdout.write(`\x1b[2K\r`);
-      processInput(assembled);
+      if (agentRunning) {
+        // Queue the entire paste as a single type-ahead entry
+        if (assembled) {
+          typeAheadBuffer.push(assembled);
+          const lineCount = assembled.split('\n').length;
+          process.stdout.write(`  ${theme.dim('\u23F3 Queued:')} ${chalk.cyan(`[${lineCount} Zeilen]`)} ${theme.dim(assembled.split('\n')[0].slice(0, 50))}\n`);
+        }
+        rl.prompt();
+      } else {
+        processInput(assembled);
+      }
       return;
     }
 
@@ -1443,16 +1452,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       return;
     }
 
-    // If agent is running, buffer for type-ahead (no paste detection needed)
-    if (agentRunning) {
-      typeAheadBuffer.push(trimmed);
-      process.stdout.write(`  ${theme.dim('\u23F3 Queued:')} ${theme.dim(trimmed)}\n`);
-      // Re-show prompt for further type-ahead input
-      rl.prompt();
-      return;
-    }
-
     // Paste detection: if a timer is already running, this is a continuation
+    // (works both when agent is running and when idle)
     if (pasteTimer) {
       pasteBuffer.push(line);
       clearTimeout(pasteTimer);
@@ -1460,13 +1461,26 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       const count = pasteBuffer.length;
       process.stdout.write(`\x1b[2K\r  ${chalk.dim(`(${count} Zeilen eingefuegt — Enter zum Senden, Esc zum Verwerfen)`)}`);
       pasteTimer = setTimeout(() => {
-        // Paste ended — show final preview and wait for Enter
+        // Paste ended
         pasteTimer = null;
-        const count = pasteBuffer.length;
-        const preview = pasteBuffer[0].slice(0, 60);
-        process.stdout.write(`\x1b[2K\r  ${chalk.cyan(`[${count} Zeilen]`)} ${chalk.dim(preview + (pasteBuffer[0].length > 60 ? '...' : ''))}\n`);
-        process.stdout.write(`  ${chalk.dim('Enter = senden | Esc = verwerfen')}\n`);
-        rl.prompt();
+        if (agentRunning) {
+          // Queue the entire paste as a single type-ahead entry
+          const assembled = pasteBuffer.join('\n').trim();
+          pasteBuffer = [];
+          if (assembled) {
+            typeAheadBuffer.push(assembled);
+            const lineCount = assembled.split('\n').length;
+            process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${chalk.cyan(`[${lineCount} Zeilen]`)} ${theme.dim(assembled.split('\n')[0].slice(0, 50) + (assembled.split('\n')[0].length > 50 ? '...' : ''))}\n`);
+          }
+          rl.prompt();
+        } else {
+          // Show final preview and wait for Enter
+          const count = pasteBuffer.length;
+          const preview = pasteBuffer[0].slice(0, 60);
+          process.stdout.write(`\x1b[2K\r  ${chalk.cyan(`[${count} Zeilen]`)} ${chalk.dim(preview + (pasteBuffer[0].length > 60 ? '...' : ''))}\n`);
+          process.stdout.write(`  ${chalk.dim('Enter = senden | Esc = verwerfen')}\n`);
+          rl.prompt();
+        }
       }, PASTE_THRESHOLD_MS);
       return;
     }
@@ -1479,7 +1493,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       const singleInput = pasteBuffer.join('\n').trim();
       pasteBuffer = [];
       if (singleInput) {
-        processInput(singleInput);
+        if (agentRunning) {
+          // Single-line type-ahead while agent works
+          typeAheadBuffer.push(singleInput);
+          process.stdout.write(`  ${theme.dim('\u23F3 Queued:')} ${theme.dim(singleInput)}\n`);
+          rl.prompt();
+        } else {
+          processInput(singleInput);
+        }
       } else {
         isAtPrompt = true;
         rl.prompt();
@@ -1492,7 +1513,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     const origKeypress = process.stdin.listeners('keypress') as Array<(...args: any[]) => void>;
     // Insert paste-cancel before the existing ESC handler
     process.stdin.prependListener('keypress', (_str: string, key: any) => {
-      if (key?.name === 'escape' && pasteBuffer.length > 0 && !agentRunning) {
+      if (key?.name === 'escape' && pasteBuffer.length > 0) {
         pasteBuffer = [];
         if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
         process.stdout.write(`\x1b[2K\r  ${chalk.dim('Paste verworfen.')}\n`);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import {
   Users, DollarSign, Ticket, TrendingUp,
@@ -28,6 +29,7 @@ const cardVariants = {
 };
 
 export function AdminOverview() {
+  const t = useTranslations('admin');
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState(false);
 
@@ -45,8 +47,8 @@ export function AdminOverview() {
     return (
       <GlassPanel className="text-center py-12">
         <Activity size={48} className="text-error/40 mx-auto mb-4" />
-        <p className="text-gray-400">Failed to load dashboard stats</p>
-        <p className="text-xs text-gray-600 mt-1">Check your database connection and try again</p>
+        <p className="text-gray-400">{t('overview.failedLoad')}</p>
+        <p className="text-xs text-gray-600 mt-1">{t('overview.checkDatabase')}</p>
       </GlassPanel>
     );
   }
@@ -81,7 +83,7 @@ export function AdminOverview() {
 
   const cards = [
     {
-      label: 'Total Users',
+      label: t('overview.totalUsers'),
       value: stats.totalUsers.toLocaleString(),
       icon: Users,
       color: 'text-primary',
@@ -89,10 +91,10 @@ export function AdminOverview() {
       borderColor: 'border-primary/20',
       trend: stats.recentSignups > 0 ? `+${stats.recentSignups}` : '0',
       trendUp: stats.recentSignups > 0,
-      trendLabel: 'last 30d',
+      trendLabel: t('overview.last30d'),
     },
     {
-      label: 'Monthly Revenue',
+      label: t('overview.monthlyRevenue'),
       value: `${stats.mrr.toLocaleString()}`,
       icon: DollarSign,
       color: 'text-success',
@@ -100,21 +102,21 @@ export function AdminOverview() {
       borderColor: 'border-success/20',
       trend: `${(stats.mrr * 12).toLocaleString()}/yr`,
       trendUp: true,
-      trendLabel: 'estimated',
+      trendLabel: t('overview.estimated'),
     },
     {
-      label: 'Open Tickets',
+      label: t('overview.openTickets'),
       value: stats.openTickets.toString(),
       icon: Ticket,
       color: 'text-warning',
       bgColor: 'bg-warning/10',
       borderColor: 'border-warning/20',
-      trend: `${stats.totalTickets} total`,
+      trend: `${stats.totalTickets} ${t('overview.total')}`,
       trendUp: stats.openTickets === 0,
       trendLabel: '',
     },
     {
-      label: 'New Signups',
+      label: t('overview.newSignups'),
       value: stats.recentSignups.toString(),
       icon: TrendingUp,
       color: 'text-accent',
@@ -122,7 +124,7 @@ export function AdminOverview() {
       borderColor: 'border-accent/20',
       trend: stats.totalUsers > 0 ? `${((stats.recentSignups / stats.totalUsers) * 100).toFixed(1)}%` : '0%',
       trendUp: stats.recentSignups > 0,
-      trendLabel: 'growth',
+      trendLabel: t('overview.growth'),
     },
   ];
 
@@ -179,7 +181,7 @@ export function AdminOverview() {
         <GlassPanel>
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 size={16} className="text-primary" />
-            <h2 className="text-lg font-semibold text-white">Plan Distribution</h2>
+            <h2 className="text-lg font-semibold text-white">{t('overview.planDistribution')}</h2>
           </div>
           <div className="grid grid-cols-4 gap-4">
             {[
@@ -222,16 +224,16 @@ export function AdminOverview() {
           <GlassPanel>
             <div className="flex items-center gap-2 mb-4">
               <Activity size={16} className="text-success" />
-              <h2 className="text-lg font-semibold text-white">Key Metrics</h2>
+              <h2 className="text-lg font-semibold text-white">{t('overview.keyMetrics')}</h2>
             </div>
             <div className="space-y-3">
               {[
-                { label: 'Total Users', value: stats.totalUsers.toLocaleString(), color: 'text-white' },
-                { label: 'Active Subscriptions', value: (stats.proUsers + stats.teamUsers).toLocaleString(), color: 'text-primary' },
-                { label: 'Free Users', value: freeUsers.toLocaleString(), color: 'text-gray-400' },
-                { label: 'Monthly Revenue', value: `${stats.mrr.toLocaleString()}`, color: 'text-success' },
-                { label: 'Annual Revenue (est.)', value: `${(stats.mrr * 12).toLocaleString()}`, color: 'text-success' },
-                { label: 'Conversion Rate', value: stats.totalUsers > 0 ? `${(((stats.proUsers + stats.teamUsers) / stats.totalUsers) * 100).toFixed(1)}%` : '0%', color: 'text-accent' },
+                { label: t('overview.totalUsers'), value: stats.totalUsers.toLocaleString(), color: 'text-white' },
+                { label: t('overview.activeSubscriptions'), value: (stats.proUsers + stats.teamUsers).toLocaleString(), color: 'text-primary' },
+                { label: t('overview.freeUsers'), value: freeUsers.toLocaleString(), color: 'text-gray-400' },
+                { label: t('overview.monthlyRevenue'), value: `${stats.mrr.toLocaleString()}`, color: 'text-success' },
+                { label: t('overview.annualRevenue'), value: `${(stats.mrr * 12).toLocaleString()}`, color: 'text-success' },
+                { label: t('overview.conversionRate'), value: stats.totalUsers > 0 ? `${(((stats.proUsers + stats.teamUsers) / stats.totalUsers) * 100).toFixed(1)}%` : '0%', color: 'text-accent' },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
                   <span className="text-sm text-gray-500">{item.label}</span>
@@ -250,16 +252,16 @@ export function AdminOverview() {
           <GlassPanel>
             <div className="flex items-center gap-2 mb-4">
               <Ticket size={16} className="text-warning" />
-              <h2 className="text-lg font-semibold text-white">Support Overview</h2>
+              <h2 className="text-lg font-semibold text-white">{t('overview.supportOverview')}</h2>
             </div>
             <div className="space-y-3">
               {[
-                { label: 'Open Tickets', value: stats.openTickets.toString(), color: stats.openTickets > 0 ? 'text-warning' : 'text-success' },
-                { label: 'Total Tickets', value: stats.totalTickets.toString(), color: 'text-white' },
-                { label: 'Resolution Rate', value: stats.totalTickets > 0 ? `${(((stats.totalTickets - stats.openTickets) / stats.totalTickets) * 100).toFixed(0)}%` : 'N/A', color: 'text-success' },
-                { label: 'Signups (30d)', value: stats.recentSignups.toString(), color: 'text-accent' },
-                { label: 'Pro Subscribers', value: stats.proUsers.toString(), color: 'text-primary' },
-                { label: 'Team Subscribers', value: stats.teamUsers.toString(), color: 'text-secondary' },
+                { label: t('overview.openTickets'), value: stats.openTickets.toString(), color: stats.openTickets > 0 ? 'text-warning' : 'text-success' },
+                { label: t('overview.totalTickets'), value: stats.totalTickets.toString(), color: 'text-white' },
+                { label: t('overview.resolutionRate'), value: stats.totalTickets > 0 ? `${(((stats.totalTickets - stats.openTickets) / stats.totalTickets) * 100).toFixed(0)}%` : 'N/A', color: 'text-success' },
+                { label: t('overview.signups30d'), value: stats.recentSignups.toString(), color: 'text-accent' },
+                { label: t('overview.proSubscribers'), value: stats.proUsers.toString(), color: 'text-primary' },
+                { label: t('overview.teamSubscribers'), value: stats.teamUsers.toString(), color: 'text-secondary' },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
                   <span className="text-sm text-gray-500">{item.label}</span>

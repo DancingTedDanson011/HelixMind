@@ -26,7 +26,7 @@ interface UseCliOutputParams {
   sessionId: string | null;
 }
 
-interface UseCliOutputReturn {
+export interface UseCliOutputReturn {
   lines: string[];
   lineCount: number;
   containerRef: React.RefObject<HTMLDivElement | null>;

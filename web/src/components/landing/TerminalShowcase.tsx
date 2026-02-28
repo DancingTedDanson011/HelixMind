@@ -115,32 +115,30 @@ function AnimatedLine({ line, delay }: { line: TermLine; delay: number }) {
 
 function StatusBar() {
   return (
-    <div className="flex items-center justify-between px-5 py-2.5 font-mono text-[11px] border-t border-white/[0.06] bg-white/[0.015] select-none">
-      <div className="flex items-center gap-1.5">
+    <div className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-2.5 font-mono text-[10px] sm:text-[11px] border-t border-white/[0.06] bg-white/[0.015] select-none overflow-hidden">
+      <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
         <span>\uD83C\uDF00</span>
         <span style={{ color: '#00ffff' }}>L1</span><span className="text-gray-600">:12</span>
         <span className="text-gray-700">\u00B7</span>
         <span style={{ color: '#00ff88' }}>L2</span><span className="text-gray-600">:45</span>
-        <span className="text-gray-700">\u00B7</span>
-        <span style={{ color: '#4169e1' }}>L3</span><span className="text-gray-600">:128</span>
-        <span className="text-gray-700">\u00B7</span>
-        <span style={{ color: '#8a2be2' }}>L4</span><span className="text-gray-600">:23</span>
-        <span className="text-gray-700">\u00B7</span>
-        <span style={{ color: '#ffaa00' }}>L6</span><span className="text-gray-600">:14</span>
+        <span className="hidden sm:inline text-gray-700">\u00B7</span>
+        <span className="hidden sm:inline" style={{ color: '#4169e1' }}>L3</span><span className="hidden sm:inline text-gray-600">:128</span>
+        <span className="hidden sm:inline text-gray-700">\u00B7</span>
+        <span className="hidden sm:inline" style={{ color: '#8a2be2' }}>L4</span><span className="hidden sm:inline text-gray-600">:23</span>
       </div>
-      <div className="flex items-center gap-2.5 text-gray-500">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 text-gray-500 shrink-0">
+        <div className="hidden sm:flex items-center gap-1.5">
           <div className="w-14 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
             <div className="h-full rounded-full w-[35%]" style={{ background: 'linear-gradient(90deg, #00d4ff, #4169e1)' }} />
           </div>
           <span className="text-gray-600">665k</span>
         </div>
-        <span className="text-gray-700">\u2502</span>
+        <span className="hidden sm:inline text-gray-700">\u2502</span>
         <span style={{ color: '#00ff88' }}>\uD83D\uDEE1 safe</span>
         <span className="text-gray-700">\u2502</span>
         <span>opus-4.6</span>
-        <span className="text-gray-700">\u2502</span>
-        <span style={{ color: '#00ff88' }}>main</span>
+        <span className="hidden sm:inline text-gray-700">\u2502</span>
+        <span className="hidden sm:inline" style={{ color: '#00ff88' }}>main</span>
       </div>
     </div>
   );
@@ -209,7 +207,7 @@ export function TerminalShowcase() {
           </div>
 
           {/* Terminal content — NO SCROLL */}
-          <div className="terminal-body" style={{ height: '520px' }}>
+          <div className="terminal-body" style={{ height: 'clamp(380px, 60vw, 520px)' }}>
             {isInView && LINES.map((line, i) => (
               <AnimatedLine key={i} line={line} delay={lineDelays[i]} />
             ))}

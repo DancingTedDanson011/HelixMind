@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -61,12 +62,12 @@ const priorityDots: Record<string, string> = {
   CRITICAL: 'bg-error animate-pulse',
 };
 
-const statusFilterLabels: { value: string; label: string; icon: typeof Ticket }[] = [
-  { value: '', label: 'All', icon: Filter },
-  { value: 'OPEN', label: 'Open', icon: Ticket },
-  { value: 'IN_PROGRESS', label: 'In Progress', icon: Clock },
-  { value: 'RESOLVED', label: 'Resolved', icon: CheckCircle2 },
-  { value: 'CLOSED', label: 'Closed', icon: XCircle },
+const statusFilterKeys: { value: string; labelKey: string; icon: typeof Ticket }[] = [
+  { value: '', labelKey: 'ticketManagement.all', icon: Filter },
+  { value: 'OPEN', labelKey: 'ticketManagement.open', icon: Ticket },
+  { value: 'IN_PROGRESS', labelKey: 'ticketManagement.inProgress', icon: Clock },
+  { value: 'RESOLVED', labelKey: 'ticketManagement.resolved', icon: CheckCircle2 },
+  { value: 'CLOSED', labelKey: 'ticketManagement.closed', icon: XCircle },
 ];
 
 const ticketVariants = {
@@ -79,6 +80,7 @@ const ticketVariants = {
 };
 
 export function AdminTickets() {
+  const t = useTranslations('admin');
   const [tickets, setTickets] = useState<TicketData[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
@@ -160,7 +162,7 @@ export function AdminTickets() {
           className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors group"
         >
           <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-          Back to tickets
+          {t('ticketManagement.backToTickets')}
         </button>
 
         <GlassPanel>
@@ -200,19 +202,19 @@ export function AdminTickets() {
               {selectedTicket.status !== 'IN_PROGRESS' && (
                 <Button size="sm" variant="outline" onClick={() => updateStatus('IN_PROGRESS')}>
                   <Clock size={12} />
-                  In Progress
+                  {t('ticketManagement.inProgress')}
                 </Button>
               )}
               {selectedTicket.status !== 'RESOLVED' && (
                 <Button size="sm" onClick={() => updateStatus('RESOLVED')}>
                   <CheckCircle2 size={12} />
-                  Resolve
+                  {t('ticketManagement.resolve')}
                 </Button>
               )}
               {selectedTicket.status !== 'CLOSED' && (
                 <Button size="sm" variant="ghost" onClick={() => updateStatus('CLOSED')}>
                   <XCircle size={12} />
-                  Close
+                  {t('ticketManagement.close')}
                 </Button>
               )}
             </div>
@@ -256,7 +258,7 @@ export function AdminTickets() {
                     {msg.isInternal && (
                       <Badge variant="warning" className="text-[10px]">
                         <AlertTriangle size={8} className="mr-0.5" />
-                        Internal
+                        {t('ticketManagement.internalNote')}
                       </Badge>
                     )}
                     <span className="text-[10px] text-gray-600 ml-auto">
@@ -271,7 +273,7 @@ export function AdminTickets() {
             {(selectedTicket.messages || []).length === 0 && (
               <div className="text-center py-8 text-gray-600">
                 <MessageSquare size={24} className="mx-auto mb-2 opacity-50" />
-                <p className="text-xs">No messages yet</p>
+                <p className="text-xs">{t('ticketManagement.noMessages')}</p>
               </div>
             )}
           </div>
@@ -282,7 +284,7 @@ export function AdminTickets() {
               value={reply}
               onChange={(e) => setReply(e.target.value)}
               rows={3}
-              placeholder={isInternal ? 'Write an internal note...' : 'Write a reply to the user...'}
+              placeholder={isInternal ? t('ticketManagement.writeNotePlaceholder') : t('ticketManagement.writeReplyPlaceholder')}
               className="w-full rounded-lg border border-white/10 bg-surface px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 hover:border-white/20 resize-none mb-3 transition-colors"
             />
             <div className="flex items-center justify-between">
@@ -294,11 +296,11 @@ export function AdminTickets() {
                   className="rounded border-white/10 bg-surface text-warning"
                 />
                 <AlertTriangle size={12} className={isInternal ? 'text-warning' : ''} />
-                Internal note (not visible to user)
+                {t('ticketManagement.internalNote')}
               </label>
               <Button onClick={sendReply} loading={sending} size="sm" disabled={!reply.trim()}>
                 <Send size={14} />
-                {isInternal ? 'Add Note' : 'Send Reply'}
+                {isInternal ? t('ticketManagement.addNote') : t('ticketManagement.sendReply')}
               </Button>
             </div>
           </div>
@@ -319,10 +321,10 @@ export function AdminTickets() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Ticket size={18} className="text-primary" />
-          <h2 className="text-lg font-semibold text-white">Support Tickets</h2>
+          <h2 className="text-lg font-semibold text-white">{t('ticketManagement.title')}</h2>
         </div>
         <div className="flex gap-1.5 bg-white/[0.02] p-1 rounded-lg border border-white/5">
-          {statusFilterLabels.map((s) => {
+          {statusFilterKeys.map((s) => {
             const Icon = s.icon;
             return (
               <button
@@ -342,7 +344,7 @@ export function AdminTickets() {
                   />
                 )}
                 <Icon size={12} className="relative z-10" />
-                <span className="relative z-10">{s.label}</span>
+                <span className="relative z-10">{t(s.labelKey)}</span>
               </button>
             );
           })}
@@ -444,9 +446,9 @@ export function AdminTickets() {
           >
             <GlassPanel className="text-center py-16">
               <MessageSquare size={48} className="text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400 font-medium">No tickets found</p>
+              <p className="text-gray-400 font-medium">{t('ticketManagement.noTickets')}</p>
               <p className="text-xs text-gray-600 mt-1">
-                {statusFilter ? `No ${statusFilter.replace('_', ' ').toLowerCase()} tickets` : 'All clear -- no support tickets yet'}
+                {statusFilter ? t('ticketManagement.noTicketsFiltered', { status: statusFilter.replace('_', ' ').toLowerCase() }) : t('ticketManagement.allClear')}
               </p>
             </GlassPanel>
           </motion.div>
