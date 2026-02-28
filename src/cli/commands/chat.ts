@@ -375,18 +375,55 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let roundToolCalls = 0;
 
   // Brain scope: project-local if .helixmind/ exists, else global
-  // Auto-create .helixmind/ for new projects (opt-in for local brain)
+  // Requires directory trust before creating .helixmind/
   const { detectBrainScope, resolveDataDir: resolveSpiralDir, loadConfig: loadSpiralConfig } = await import('../../utils/config.js');
   const { mkdirSync, existsSync } = await import('node:fs');
+  const { isSystemDirectory, isDirectoryTrusted, trustDirectory } = await import('../config/trust.js');
   type BrainScope = 'project' | 'global';
   let brainScope: BrainScope = detectBrainScope(process.cwd());
-  
-  // Auto-create .helixmind/ if it doesn't exist (local brain by default for projects)
-  const helixDir = join(process.cwd(), '.helixmind');
+
+  // Determine if we can create .helixmind/ in this directory
+  const cwd = process.cwd();
+  const helixDir = join(cwd, '.helixmind');
   if (!existsSync(helixDir)) {
-    mkdirSync(helixDir, { recursive: true });
-    renderInfo(chalk.dim('  Created .helixmind/ directory for local brain'));
-    brainScope = 'project';
+    if (isSystemDirectory(cwd)) {
+      // System directory — never create .helixmind/, use global brain silently
+      brainScope = 'global';
+    } else if (isDirectoryTrusted(cwd)) {
+      // Already trusted — create .helixmind/
+      try {
+        mkdirSync(helixDir, { recursive: true });
+        renderInfo(chalk.dim('  Created .helixmind/ directory for local brain'));
+        brainScope = 'project';
+      } catch {
+        // Permission error — fall back to global brain
+        brainScope = 'global';
+      }
+    } else {
+      // New directory — ask for trust
+      const { confirmMenu } = await import('../ui/select-menu.js');
+      process.stdout.write('\n');
+      renderInfo(chalk.hex('#ff6600').bold('  New directory detected'));
+      renderInfo(chalk.dim(`  ${cwd}`));
+      const trusted = await confirmMenu(
+        `Do you trust this directory? ${chalk.dim('(HelixMind will create .helixmind/ for local brain data)')}`,
+        false,
+      );
+      if (trusted) {
+        trustDirectory(cwd);
+        try {
+          mkdirSync(helixDir, { recursive: true });
+          renderInfo(chalk.dim('  Created .helixmind/ directory for local brain'));
+          brainScope = 'project';
+        } catch {
+          renderInfo(chalk.yellow('  Could not create .helixmind/ — using global brain'));
+          brainScope = 'global';
+        }
+      } else {
+        renderInfo(chalk.dim('  Using global brain (no local data)'));
+        brainScope = 'global';
+      }
+    }
   }
   let spiralEngine: any = null;
 
@@ -2363,6 +2400,7 @@ async function sendAgentMessage(
     // Track assistant response in session buffer
     if (result.text) {
       sessionBuffer.addAssistantSummary(result.text);
+      sessionBuffer.addTopicFromResponse(result.text);
     }
 
     // Create checkpoint for agent response

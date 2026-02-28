@@ -107,4 +107,50 @@ describe('SessionBuffer', () => {
     buffer.addAssistantSummary('I fixed the bug by updating the import');
     expect(buffer.eventCount).toBe(1);
   });
+
+  describe('topic tracking', () => {
+    it('extracts topics from assistant responses', () => {
+      buffer.addTopicFromResponse(
+        'The AGPL license requires that any modified version of the software must also be released under AGPL when distributed. This means commercial forks must share their source code.',
+      );
+      const topics = buffer.getTopicsCovered();
+      expect(topics.length).toBe(1);
+      expect(topics[0]).toBeTruthy();
+    });
+
+    it('avoids duplicate topics', () => {
+      buffer.addTopicFromResponse(
+        'The AGPL license requires source code sharing for all distributed modifications.',
+      );
+      buffer.addTopicFromResponse(
+        'The AGPL license also mandates that network users can request the source code.',
+      );
+      const topics = buffer.getTopicsCovered();
+      // Both mention AGPL license — should deduplicate
+      expect(topics.length).toBe(1);
+    });
+
+    it('includes topics in context output', () => {
+      buffer.addTopicFromResponse(
+        'Docker containers provide process isolation using Linux namespaces and cgroups.',
+      );
+      const ctx = buffer.buildContext();
+      expect(ctx).toContain('Topics already covered');
+      expect(ctx).toContain('DO NOT repeat');
+    });
+
+    it('skips very short responses', () => {
+      buffer.addTopicFromResponse('OK done.');
+      expect(buffer.getTopicsCovered().length).toBe(0);
+    });
+
+    it('limits topic count', () => {
+      for (let i = 0; i < 20; i++) {
+        buffer.addTopicFromResponse(
+          `Unique topic number ${i}: explanation about completely different subject matter ${i * 1000}`,
+        );
+      }
+      expect(buffer.getTopicsCovered().length).toBeLessThanOrEqual(15);
+    });
+  });
 });

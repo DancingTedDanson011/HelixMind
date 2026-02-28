@@ -98,10 +98,16 @@ export function trimConversation(
     }
   }
 
+  // Build a trimmed marker that tells the model what was already discussed
+  const coveredTopics = sessionBuffer?.getTopicsCovered() ?? [];
+  const topicHint = coveredTopics.length > 0
+    ? ` Topics already discussed: ${coveredTopics.slice(-8).join('; ')}.`
+    : '';
+
   // Insert trimmed marker at the start (always a 'user' message)
   history.unshift({
     role: 'user',
-    content: `[System: ${dropCount} earlier messages were trimmed to fit the context window. The session buffer contains a summary of the conversation so far.]`,
+    content: `[System: ${dropCount} earlier messages were trimmed to fit the context window. The session buffer contains a summary of the conversation so far.${topicHint} IMPORTANT: Do NOT repeat explanations for topics already covered — reference them briefly and ask what needs clarification.]`,
   });
 
   renderInfo(`  Context trimmed: ${dropCount} old messages removed to free space.`);
@@ -123,7 +129,7 @@ function hasToolResultContent(msg: ToolMessage): boolean {
 
 /**
  * Extract key information from dropped messages into the session buffer.
- * Preserves goals, entities, and assistant decisions that would otherwise be lost.
+ * Preserves goals, entities, topics, and assistant decisions that would otherwise be lost.
  */
 function summarizeDropped(dropped: ToolMessage[], sessionBuffer: SessionBuffer): void {
   for (const msg of dropped) {
@@ -134,10 +140,12 @@ function summarizeDropped(dropped: ToolMessage[], sessionBuffer: SessionBuffer):
       sessionBuffer.extractGoals(msg.content);
       sessionBuffer.extractEntities(msg.content);
     } else if (msg.role === 'assistant') {
-      // Save a condensed version of the assistant response as a decision
       const text = msg.content.trim();
       if (text.length > 30) {
+        // Save a condensed decision
         sessionBuffer.addDecision(text.slice(0, 300));
+        // Also extract topic so the model knows what was already discussed
+        sessionBuffer.addTopicFromResponse(text);
       }
     }
   }

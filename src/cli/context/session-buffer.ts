@@ -31,6 +31,10 @@ export class SessionBuffer {
   private decisions: string[] = [];
   private static readonly MAX_DECISIONS = 5;
 
+  /** Topics already covered — prevents repetitive responses */
+  private topicsCovered: string[] = [];
+  private static readonly MAX_TOPICS = 15;
+
   addUserMessage(message: string): void {
     this.push({
       type: 'user_message',
@@ -80,11 +84,45 @@ export class SessionBuffer {
   }
 
   /**
+   * Extract and record the main topic from an assistant response.
+   * This builds a "topics already covered" list that prevents repetitive answers.
+   */
+  addTopicFromResponse(text: string): void {
+    const topic = extractTopic(text);
+    if (!topic) return;
+    // Skip if we already have a very similar topic (shared first 15 chars or significant word overlap)
+    const lowerTopic = topic.toLowerCase();
+    const topicWords = new Set(lowerTopic.split(/\s+/).filter(w => w.length > 3));
+    if (this.topicsCovered.some(existing => {
+      const lowerExisting = existing.toLowerCase();
+      // Same prefix (first 15 chars)
+      if (lowerTopic.slice(0, 15) === lowerExisting.slice(0, 15)) return true;
+      // Substring match
+      if (lowerExisting.includes(lowerTopic.slice(0, 20)) || lowerTopic.includes(lowerExisting.slice(0, 20))) return true;
+      // High word overlap (>50% of words in common)
+      const existingWords = new Set(lowerExisting.split(/\s+/).filter(w => w.length > 3));
+      const overlap = [...topicWords].filter(w => existingWords.has(w)).length;
+      return overlap >= Math.min(topicWords.size, existingWords.size) * 0.5;
+    })) {
+      return;
+    }
+    if (this.topicsCovered.length >= SessionBuffer.MAX_TOPICS) {
+      this.topicsCovered.shift();
+    }
+    this.topicsCovered.push(topic);
+  }
+
+  /** Get covered topics list */
+  getTopicsCovered(): string[] {
+    return [...this.topicsCovered];
+  }
+
+  /**
    * Build a concise context string for the system prompt.
    * Budget: ~1500 tokens. Goals and entities are never trimmed.
    */
   buildContext(): string {
-    if (this.events.length === 0 && this.goals.length === 0) return '';
+    if (this.events.length === 0 && this.goals.length === 0 && this.topicsCovered.length === 0) return '';
 
     const lines: string[] = ['## Session Working Memory'];
 
@@ -123,6 +161,14 @@ export class SessionBuffer {
       lines.push('\nRecent user requests:');
       for (const ev of recentUser) {
         lines.push(`- ${ev.summary}`);
+      }
+    }
+
+    // Topics already covered — CRITICAL for anti-repetition
+    if (this.topicsCovered.length > 0) {
+      lines.push('\nTopics already covered (DO NOT repeat these — reference them instead):');
+      for (const topic of this.topicsCovered) {
+        lines.push(`- ${topic}`);
       }
     }
 
@@ -312,4 +358,46 @@ export class SessionBuffer {
       default: return `${tool}(${JSON.stringify(input).slice(0, 50)})`;
     }
   }
+}
+
+/**
+ * Extract a concise topic summary (max ~80 chars) from an assistant response.
+ * Uses heuristics: first sentence, heading, or key phrase extraction.
+ */
+function extractTopic(text: string): string | null {
+  if (!text || text.length < 30) return null;
+
+  // Strip markdown formatting
+  const clean = text
+    .replace(/```[\s\S]*?```/g, '[code]')       // code blocks → [code]
+    .replace(/\*\*([^*]+)\*\*/g, '$1')           // bold
+    .replace(/\*([^*]+)\*/g, '$1')               // italic
+    .replace(/#{1,4}\s*/g, '')                    // headings
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')     // links
+    .trim();
+
+  // Try to find the first meaningful sentence (skip meta-phrases)
+  const skipPhrases = [
+    /^(ja|nein|ok|klar|genau|absolut|natürlich|sicher|gerne|hier|also|gut|alright|sure|yes|no|of course|certainly|let me|i'll|i will|i can)/i,
+    /^(deine sorge|das ist|das war|ich verstehe|ich habe|ich werde)/i,
+    /^(great question|good point|that's a|you're right)/i,
+  ];
+
+  const sentences = clean.split(/[.!?\n]/).map(s => s.trim()).filter(s => s.length > 10);
+
+  for (const sentence of sentences.slice(0, 5)) {
+    // Skip meta/filler sentences
+    const isSkip = skipPhrases.some(p => p.test(sentence));
+    if (isSkip) continue;
+
+    // Found a meaningful sentence — truncate to ~80 chars
+    if (sentence.length <= 80) return sentence;
+    // Cut at word boundary
+    const cut = sentence.slice(0, 80).replace(/\s+\S*$/, '');
+    return cut || sentence.slice(0, 80);
+  }
+
+  // Fallback: use first 80 chars of cleaned text
+  const fallback = clean.slice(0, 80).replace(/\s+\S*$/, '');
+  return fallback || null;
 }
