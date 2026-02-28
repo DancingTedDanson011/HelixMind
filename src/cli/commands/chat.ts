@@ -1210,8 +1210,16 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         if (newScope === 'project') {
           const { mkdirSync, existsSync } = await import('node:fs');
           const { join } = await import('node:path');
-          const helixDir = join(process.cwd(), '.helixmind');
-          if (!existsSync(helixDir)) mkdirSync(helixDir, { recursive: true });
+          const { isSystemDirectory: isSysDir } = await import('../config/trust.js');
+          const hlxDir = join(process.cwd(), '.helixmind');
+          if (!existsSync(hlxDir)) {
+            if (isSysDir(process.cwd())) {
+              throw new Error('Cannot create .helixmind/ in system directory');
+            }
+            try { mkdirSync(hlxDir, { recursive: true }); } catch {
+              throw new Error('Cannot create .helixmind/ — permission denied');
+            }
+          }
         }
         spiralEngine = await initSpiralEngine(newScope);
 
@@ -1529,10 +1537,21 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           // Create .helixmind/ dir if switching to project and it doesn't exist
           if (newScope === 'project') {
             const { mkdirSync, existsSync } = await import('node:fs');
+            const { isSystemDirectory: isSysDir2 } = await import('../config/trust.js');
             const projDir = join(process.cwd(), '.helixmind');
             if (!existsSync(projDir)) {
-              mkdirSync(projDir, { recursive: true });
-              renderInfo(chalk.dim('  Created .helixmind/ directory'));
+              if (isSysDir2(process.cwd())) {
+                renderInfo(chalk.yellow('  Cannot create .helixmind/ in system directory'));
+                brainScope = 'global';
+              } else {
+                try {
+                  mkdirSync(projDir, { recursive: true });
+                  renderInfo(chalk.dim('  Created .helixmind/ directory'));
+                } catch {
+                  renderInfo(chalk.yellow('  Could not create .helixmind/ — using global brain'));
+                  brainScope = 'global';
+                }
+              }
             }
           }
           spiralEngine = await initSpiralEngine(newScope);
@@ -2677,12 +2696,16 @@ async function handleSlashCommand(
     case '/helixlocal':
       // Always use local brain for /helix and /helixlocal
       if (onBrainSwitch && currentBrainScope !== 'project') {
-        await onBrainSwitch('project');
-        renderInfo(chalk.cyan('\u{1F4C1} Switched to project-local brain (.helixmind/)'));
         try {
-          const { pushScopeChange, isBrainServerRunning } = await import('../brain/generator.js');
-          if (isBrainServerRunning()) pushScopeChange('project');
-        } catch { /* optional */ }
+          await onBrainSwitch('project');
+          renderInfo(chalk.cyan('\u{1F4C1} Switched to project-local brain (.helixmind/)'));
+          try {
+            const { pushScopeChange, isBrainServerRunning } = await import('../brain/generator.js');
+            if (isBrainServerRunning()) pushScopeChange('project');
+          } catch { /* optional */ }
+        } catch {
+          renderInfo(chalk.yellow('  Cannot use local brain here — using global'));
+        }
       }
       // Auto-start brain visualization
       if (spiralEngine) {
@@ -2754,13 +2777,17 @@ async function handleSlashCommand(
         if (currentBrainScope === 'project') {
           renderInfo('Already using project-local brain.');
         } else if (onBrainSwitch) {
-          await onBrainSwitch('project');
-          renderInfo(chalk.cyan('\u{1F4C1} Switched to project-local brain (.helixmind/)'));
-          // Update browser if open
           try {
-            const { pushScopeChange, isBrainServerRunning } = await import('../brain/generator.js');
-            if (isBrainServerRunning()) pushScopeChange('project');
-          } catch { /* optional */ }
+            await onBrainSwitch('project');
+            renderInfo(chalk.cyan('\u{1F4C1} Switched to project-local brain (.helixmind/)'));
+            // Update browser if open
+            try {
+              const { pushScopeChange, isBrainServerRunning } = await import('../brain/generator.js');
+              if (isBrainServerRunning()) pushScopeChange('project');
+            } catch { /* optional */ }
+          } catch {
+            renderInfo(chalk.yellow('  Cannot use local brain here — using global'));
+          }
         }
         break;
       }
