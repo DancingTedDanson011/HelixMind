@@ -1,0 +1,89 @@
+---
+title: Bug Tracking & Journal
+description: How HelixMind automatically detects bugs, tracks them across sessions, and maintains a persistent bug journal.
+order: 16
+category: Core Concepts
+---
+
+# Bug Tracking & Journal
+
+HelixMind **automatically detects bugs** in code and maintains a **persistent bug journal** that tracks issues across sessions with evidence and status updates.
+
+## Automatic Bug Detection
+
+The bug detector scans AI-generated code for common issues:
+
+| Bug Type | What It Catches |
+|:---------|:----------------|
+| **Security** | SQL injection, XSS, path traversal, hardcoded secrets |
+| **Performance** | N+1 queries, memory leaks, inefficient loops |
+| **Correctness** | Null dereferences, type mismatches, race conditions |
+| **Maintainability** | Code duplication, circular dependencies, dead code |
+| **Style** | Inconsistent formatting, naming violations |
+
+Detection runs **after validation** and before changes are applied.
+
+## Bug Journal
+
+Every detected bug is stored in the persistent journal:
+
+| Field | Description |
+|:------|:------------|
+| `id` | Unique identifier |
+| `description` | Human-readable bug description |
+| `file` | File path (if applicable) |
+| `line` | Line number (if applicable) |
+| `type` | Bug category (security, performance, etc.) |
+| `status` | `open` → `investigating` → `fixed` → `verified` |
+| `evidence` | Screenshots, error messages, stack traces |
+| `created_at` | When the bug was first detected |
+| `updated_at` | Last status change |
+
+## CLI Commands
+
+| Command | Description |
+|:--------|:------------|
+| `/bug list` | Show all bugs with status |
+| `/bug show <id>` | Show details for a specific bug |
+| `/bug fix <id>` | Mark bug as fixed (with fix description) |
+| `/bug verify <id>` | Mark bug as verified |
+| `/bug add-evidence <id>` | Add evidence (screenshot, error) |
+
+## Web Dashboard Integration
+
+The web dashboard includes a **bug management interface**:
+
+- **Bug list view** with filters (status, type, file)
+- **Bug detail page** with evidence gallery
+- **Timeline** of status changes
+- **Assign bugs** to team members
+- **Export bugs** as CSV/JSON
+
+## Example Workflow
+
+```
+1. AI suggests code with potential SQL injection
+2. Bug detector flags it as security issue
+3. Bug journal entry created (status: open)
+4. Developer reviews bug in web dashboard
+5. Bug marked as fixed after code review
+6. Evidence added (screenshot of fixed code)
+7. Status updated to verified
+```
+
+## Configuration
+
+Enable/disable bug detection in `.helixmind/config.json`:
+
+```json
+{
+  "bugDetection": {
+    "enabled": true,
+    "security": true,
+    "performance": true,
+    "correctness": true,
+    "maintainability": true,
+    "style": false
+  }
+}
+```

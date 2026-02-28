@@ -76,6 +76,34 @@ AI can **edit files, run commands, commit changes, and browse the web** — with
 
 </td>
 </tr>
+<tr>
+<td width="50%">
+
+### 🐛 Bug Tracking
+**Automatic bug detection** and persistent journal — track bugs across sessions with evidence and status.
+
+</td>
+<td width="50%">
+
+### 💾 Checkpoints & Sessions
+**Save and revert** to any checkpoint, multi-session tab view, session lifecycle management.
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🌐 Browser Automation
+**Puppeteer-based browser control** — navigate, click, type, screenshot, visual analysis with Chrome integration.
+
+</td>
+<td width="50%">
+
+### 🔐 Authentication & Security
+**OAuth login, API keys, feature gating** — secure access control with subscription tier enforcement.
+
+</td>
+</tr>
 </table>
 
 ---
@@ -131,7 +159,9 @@ npx helixmind feed src/ --watch
 | `helixmind chat --yolo` | 🚀 Auto-approve all operations |
 | `helixmind chat --no-validation` | 🔇 Disable output validation |
 | `helixmind chat --validation-verbose` | 🔍 Detailed validation output |
+| `helixmind chat --validation-strict` | 🚫 Treat validation warnings as errors |
 | `helixmind feed [paths...]` | 📂 Feed files/dirs into spiral |
+| `helixmind feed --deep` | 🔍 Deep analysis with intent detection |
 | `helixmind feed --watch` | 👁️ Watch and auto-update spiral |
 | `helixmind spiral status` | 📊 Show spiral metrics |
 | `helixmind spiral search <query>` | 🔎 Search spiral context |

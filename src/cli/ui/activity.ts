@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import type { BottomChrome } from './bottom-chrome.js';
+import { visibleLength } from './statusbar.js';
 
 /**
  * Glowing activity indicator with color-wave animation across "HelixMind" text.
@@ -189,19 +190,25 @@ export class ActivityIndicator {
     const elapsed = Date.now() - this.startTime;
     const timeStr = chalk.dim(formatElapsed(elapsed));
 
-    const pfx = this._blockMode ? `  ${chalk.dim('\u2502')} ` : '  ';
-    let line = `${pfx}${symbol} ${coloredText} working${dots} ${timeStr}`;
+    let inner = `${symbol} ${coloredText} working${dots} ${timeStr}`;
 
     // Step indicator
     if (this.stepNum > 0) {
       const stepColor = this.errors > 0 ? chalk.yellow : chalk.dim;
-      line += `  ${stepColor(`[Step ${this.stepNum}]`)}`;
+      inner += `  ${stepColor(`[Step ${this.stepNum}]`)}`;
       if (this.stepLabel) {
-        line += ` ${chalk.dim(this.stepLabel.slice(0, 40))}`;
+        inner += ` ${chalk.dim(this.stepLabel.slice(0, 40))}`;
       }
     }
 
-    // Write to chrome row 0 (separator/activity row)
+    // Wrap in top-border box format: ┌── activity ──────────┐
+    const w = Math.max(20, (process.stdout.columns || 80) - 2);
+    const dim = chalk.hex('#00d4ff').dim;
+    const innerVis = visibleLength(inner);
+    const fill = Math.max(0, w - 4 - innerVis - 1); // 4 = "┌── " prefix, 1 = " ┐" suffix
+    const line = `${dim('\u250C\u2500\u2500')} ${inner} ${dim('\u2500'.repeat(fill) + '\u2510')}`;
+
+    // Write to chrome row 0 (top border / activity row)
     if (this.chrome?.isActive) {
       this.chrome.setRow(0, line);
     }

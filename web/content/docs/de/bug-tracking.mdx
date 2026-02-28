@@ -1,0 +1,89 @@
+---
+title: Bug-Tracking & Journal
+description: Wie HelixMind automatisch Bugs erkennt, sie über Sitzungen hinweg trackt und ein persistentes Bug-Journal führt.
+order: 16
+category: Kernkonzepte
+---
+
+# Bug-Tracking & Journal
+
+HelixMind **erkennt automatisch Bugs** im Code und führt ein **persistentes Bug-Journal**, das Probleme über Sitzungen hinweg mit Beweisen und Statusupdates trackt.
+
+## Automatische Bug-Erkennung
+
+Der Bug-Detektor scannt AI-generierten Code auf häufige Probleme:
+
+| Bug-Typ | Was erkannt wird |
+|:---------|:----------------|
+| **Sicherheit** | SQL-Injection, XSS, Path Traversal, hartkodierte Secrets |
+| **Performance** | N+1 Queries, Memory Leaks, ineffiziente Schleifen |
+| **Korrektheit** | Null-Dereferenzierungen, Typenkonflikte, Race Conditions |
+| **Wartbarkeit** | Code-Duplikation, zirkuläre Abhängigkeiten, Dead Code |
+| **Stil** | Inkonsistente Formatierung, Namensverletzungen |
+
+Die Erkennung läuft **nach der Validierung** und bevor Änderungen angewandt werden.
+
+## Bug-Journal
+
+Jeder erkannte Bug wird im persistenten Journal gespeichert:
+
+| Feld | Beschreibung |
+|:------|:------------|
+| `id` | Eindeutiger Identifier |
+| `description` | Menschenlesbare Bug-Beschreibung |
+| `file` | Dateipfad (falls zutreffend) |
+| `line` | Zeilennummer (falls zutreffend) |
+| `type` | Bug-Kategorie (Sicherheit, Performance, etc.) |
+| `status` | `open` → `investigating` → `fixed` → `verified` |
+| `evidence` | Screenshots, Fehlermeldungen, Stack Traces |
+| `created_at` | Wann der Bug erstmals erkannt wurde |
+| `updated_at` | Letzte Statusänderung |
+
+## CLI-Befehle
+
+| Befehl | Beschreibung |
+|:--------|:------------|
+| `/bug list` | Zeige alle Bugs mit Status |
+| `/bug show <id>` | Zeige Details für einen spezifischen Bug |
+| `/bug fix <id>` | Markiere Bug als gefixt (mit Fix-Beschreibung) |
+| `/bug verify <id>` | Markiere Bug als verifiziert |
+| `/bug add-evidence <id>` | Füge Beweis hinzu (Screenshot, Fehler) |
+
+## Web-Dashboard-Integration
+
+Das Web-Dashboard enthält eine **Bug-Management-Oberfläche**:
+
+- **Bug-Listenansicht** mit Filtern (Status, Typ, Datei)
+- **Bug-Detailseite** mit Beweis-Galerie
+- **Timeline** der Statusänderungen
+- **Bugs zuweisen** an Teammitglieder
+- **Bugs exportieren** als CSV/JSON
+
+## Beispiel-Workflow
+
+```
+1. AI schlägt Code mit möglicher SQL-Injection vor
+2. Bug-Detektor markiert es als Sicherheitsproblem
+3. Bug-Journal-Eintrag erstellt (Status: open)
+4. Entwickler überprüft Bug im Web-Dashboard
+5. Bug nach Code-Review als gefixt markiert
+6. Beweis hinzugefügt (Screenshot des gefixten Codes)
+7. Status auf verified aktualisiert
+```
+
+## Konfiguration
+
+Bug-Erkennung aktivieren/deaktivieren in `.helixmind/config.json`:
+
+```json
+{
+  "bugDetection": {
+    "enabled": true,
+    "security": true,
+    "performance": true,
+    "correctness": true,
+    "maintainability": true,
+    "style": false
+  }
+}
+```

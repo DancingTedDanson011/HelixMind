@@ -29,7 +29,7 @@ import { initializeTools } from '../agent/tools/registry.js';
 import { runAgentLoop, AgentController, AgentAbortError } from '../agent/loop.js';
 import { PermissionManager } from '../agent/permissions.js';
 import { UndoStack } from '../agent/undo.js';
-import { writeStatusBar, renderStatusBar, getGitInfo, truncateBar, type StatusBarData } from '../ui/statusbar.js';
+import { writeStatusBar, renderStatusBar, getGitInfo, truncateBar, visibleLength, type StatusBarData } from '../ui/statusbar.js';
 import { CheckpointStore } from '../checkpoints/store.js';
 import { createKeybindingState, processKeypress } from '../checkpoints/keybinding.js';
 import { runCheckpointBrowser } from '../checkpoints/browser.js';
@@ -800,17 +800,29 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     const ansiStart = '\x01'; // RL_PROMPT_START_IGNORE
     const ansiEnd = '\x02';   // RL_PROMPT_END_IGNORE
     // Wrap each ANSI escape sequence so readline ignores it for width calculation
-    const gt = chalk.hex('#00d4ff').bold('>');
-    const escaped = gt.replace(/(\x1b\[[0-9;]*m)/g, `${ansiStart}$1${ansiEnd}`);
-    return `${escaped} `;
+    const pipe = chalk.hex('#00d4ff').dim('\u2502');
+    const gt = chalk.hex('#00d4ff').bold('\u276F');
+    const escapedPipe = pipe.replace(/(\x1b\[[0-9;]*m)/g, `${ansiStart}$1${ansiEnd}`);
+    const escapedGt = gt.replace(/(\x1b\[[0-9;]*m)/g, `${ansiStart}$1${ansiEnd}`);
+    return `${escapedPipe} ${escapedGt} `;
   }
 
-  /** Build separator content for chrome row 0 */
-  function buildSeparator(w: number): string {
-    return chalk.hex('#00d4ff').dim('\u2500'.repeat(w));
+  /** Build top border for input box: ┌──────────────────┐ */
+  function buildTopBorder(w: number): string {
+    const dim = chalk.hex('#00d4ff').dim;
+    return dim('\u250C' + '\u2500'.repeat(w - 2) + '\u2510');
   }
 
-  /** Build hint line content for chrome row 1 */
+  /** Build bottom border with embedded statusbar: └─ ◉ L1:7020 | ⚡ 636 tok ──┘ */
+  function buildBottomBorder(w: number, statusText: string): string {
+    const dim = chalk.hex('#00d4ff').dim;
+    const prefix = dim('\u2514\u2500 ');
+    const statusVis = visibleLength(statusText);
+    const fill = Math.max(0, w - 4 - statusVis - 1); // 4 = "└─ " + space, 1 = "┘"
+    return `${prefix}${statusText} ${dim('\u2500'.repeat(fill) + '\u2518')}`;
+  }
+
+  /** Build hint line content for chrome row 2 */
   function buildHintLine(): string {
     const data = getStatusBarData();
     const hints: string[] = [];
@@ -823,34 +835,33 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   }
 
   /**
-   * Show the full prompt area using sticky bottom chrome:
-   *   > _                    ← cursor here (bottom of scroll region, row N-3)
-   *   ──────────────────     ← row N-2: separator (fixed chrome row 0)
-   *   ▸▸ safe · esc = stop   ← row N-1: hints (fixed chrome row 1)
-   *   🌀 L1:... | statusbar  ← row N:   statusbar (fixed chrome row 2)
+   * Show the full prompt area using sticky bottom chrome with input box:
+   *   ┌──────────────────────────────────────┐  ← row N-2: top border (chrome row 0)
+   *   │ ❯ input here_                            ← cursor here (bottom of scroll region, row N-3)
+   *   └─ ◉ L1:7020 | ⚡ 636 tok | safe ──────┘  ← row N-1: bottom border + status (chrome row 1)
+   *   ▸▸ safe permissions · shift+tab · esc      ← row N:   hints (chrome row 2)
    */
   function showPrompt(): void {
     const w = Math.max(20, (process.stdout.columns || 80) - 2);
 
-    // Update chrome row content
-    const sep = buildSeparator(w);
-    const hintLine = buildHintLine();
+    // Build chrome row content
+    const topBorder = buildTopBorder(w);
     const data = getStatusBarData();
-    const bar = renderStatusBar(data, w);
-
-    // Set separator content on activity indicator (for restore after agent work)
-    activity.setSeparatorContent(sep);
-
-    // Combine tab bar into statusbar row when sessions exist
-    let statusContent = bar;
+    const bar = renderStatusBar(data, w - 6); // narrower to fit in border frame
+    let statusText = bar;
     if (sessionMgr.all.length > 1) {
-      const tabBar = truncateBar(sessionMgr.renderTabs(), w);
-      statusContent = `${tabBar}  ${bar}`;
+      const tabBar = truncateBar(sessionMgr.renderTabs(), Math.floor(w / 2));
+      statusText = `${tabBar}  ${bar}`;
     }
+    const bottomBorder = buildBottomBorder(w, statusText);
+    const hintLine = buildHintLine();
 
-    chrome.setRow(0, sep);
-    chrome.setRow(1, hintLine);
-    chrome.setRow(2, statusContent);
+    // Set top border content on activity indicator (for restore after agent work)
+    activity.setSeparatorContent(topBorder);
+
+    chrome.setRow(0, topBorder);
+    chrome.setRow(1, bottomBorder);
+    chrome.setRow(2, hintLine);
 
     // Activate chrome if not already (sets scroll region + hooks stdout)
     if (!chrome.isActive && !chrome.isInlineMode) {
@@ -865,7 +876,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       rl.prompt();
     } else {
       // Inline fallback for small terminals
-      process.stdout.write(`\n${sep}\n ${hintLine}\n ${bar}\n`);
+      const dim = chalk.hex('#00d4ff').dim;
+      process.stdout.write(`\n${dim('\u250C' + '\u2500'.repeat(w - 2) + '\u2510')}\n`);
+      process.stdout.write(`${dim('\u2502')} `);
       rl.prompt();
     }
   }
@@ -1158,23 +1171,23 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
   }
 
-  // Update statusbar via BottomChrome row 2.
+  // Update statusbar via BottomChrome row 1 (bottom border with embedded status).
   // Called during agent work by the footer timer to update token counts etc.
   function updateStatusBar(): void {
     if (!process.stdout.isTTY) return;
     const data = getStatusBarData();
     const w = (process.stdout.columns || 80) - 2;
-    const bar = renderStatusBar(data, w);
+    const bar = renderStatusBar(data, w - 6); // narrower to fit in border frame
 
-    // Combine tab bar into statusbar row when background sessions exist
-    let statusContent = bar;
+    // Combine tab bar into status text when background sessions exist
+    let statusText = bar;
     if (sessionMgr.all.length > 1) {
-      const tabBar = truncateBar(sessionMgr.renderTabs(), w);
-      statusContent = `${tabBar}  ${bar}`;
+      const tabBar = truncateBar(sessionMgr.renderTabs(), Math.floor(w / 2));
+      statusText = `${tabBar}  ${bar}`;
     }
 
     if (chrome.isActive) {
-      chrome.setRow(2, statusContent);
+      chrome.setRow(1, buildBottomBorder(w, statusText));
     } else {
       // Inline fallback
       writeStatusBar(data);
