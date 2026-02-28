@@ -1611,8 +1611,18 @@ async function sendAgentMessage(
   // === WEB ENRICHMENT (background) ===
   // Automatically fetch web knowledge about the topic while the agent works.
   // Runs in background — results are stored in spiral brain for this + future queries.
+  // Requires PRO plan or higher when logged in.
   let enrichmentPromise: Promise<any> | null = null;
-  if (spiralEngine) {
+  let webEnricherAllowed = true;
+  try {
+    const { ConfigStore } = await import('../config/store.js');
+    const { isFeatureAvailable } = await import('../auth/feature-gate.js');
+    const tmpStore = new ConfigStore(join(homedir(), '.helixmind'));
+    if (tmpStore.isLoggedIn()) {
+      webEnricherAllowed = isFeatureAvailable(tmpStore, 'web_enricher');
+    }
+  } catch { /* feature gate module not available, allow */ }
+  if (spiralEngine && webEnricherAllowed) {
     try {
       const { enrichFromWeb } = await import('../../spiral/cloud/web-enricher.js');
       const { pushWebKnowledge, isBrainServerRunning } = await import('../brain/generator.js');

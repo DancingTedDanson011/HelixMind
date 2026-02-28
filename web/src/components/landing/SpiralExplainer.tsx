@@ -19,63 +19,80 @@ export function SpiralExplainer() {
   const t = useTranslations('spiral');
 
   return (
-    <section className="py-24 px-4 overflow-hidden">
-      <div className="mx-auto max-w-5xl">
+    <section className="py-24 sm:py-32 px-4 overflow-hidden relative">
+      {/* Ambient glow */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="w-[700px] h-[400px] rounded-full bg-accent/[0.04] blur-[120px]" />
+      </div>
+
+      <div className="mx-auto max-w-5xl relative">
         <div className="text-center mb-16">
+          <motion.p
+            className="font-display text-sm font-semibold tracking-[0.2em] uppercase text-accent/60 mb-3"
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            Memory Architecture
+          </motion.p>
+
           <motion.h2
-            className="text-3xl sm:text-4xl font-bold mb-4 text-white"
+            className="heading-lg text-3xl sm:text-4xl text-white mb-4"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.05 }}
           >
             {t('title')}
           </motion.h2>
+
           <motion.p
-            className="text-gray-300 text-lg"
-            initial={{ opacity: 0, y: 20 }}
+            className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto font-light"
+            initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
           >
             {t('subtitle')}
           </motion.p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {levelKeys.map((key, i) => {
             const color = levelColors[i];
-            const width = 100 - i * 15; // L1 widest, L5 narrowest (inverted funnel)
+            const width = 100 - i * 12;
 
             return (
               <motion.div
                 key={key}
                 className="flex items-center gap-4"
-                initial={{ opacity: 0, x: -30 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, x: -24, filter: 'blur(3px)' }}
+                whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: 0.1 + i * 0.08, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               >
                 <div
-                  className="rounded-xl py-4 px-6 flex-shrink-0 transition-all duration-300 hover:scale-[1.02]"
+                  className="group rounded-xl py-4 px-6 flex-shrink-0 transition-all duration-300 hover:scale-[1.01] cursor-default"
                   style={{
                     width: `${width}%`,
-                    background: `rgba(${hexToRgb(color)}, 0.06)`,
+                    background: `rgba(${hexToRgb(color)}, 0.04)`,
                     borderLeft: `3px solid ${color}`,
-                    borderTop: `1px solid rgba(${hexToRgb(color)}, 0.1)`,
-                    borderBottom: `1px solid rgba(${hexToRgb(color)}, 0.1)`,
-                    borderRight: `1px solid rgba(${hexToRgb(color)}, 0.1)`,
+                    borderTop: `1px solid rgba(${hexToRgb(color)}, 0.08)`,
+                    borderBottom: `1px solid rgba(${hexToRgb(color)}, 0.08)`,
+                    borderRight: `1px solid rgba(${hexToRgb(color)}, 0.08)`,
                   }}
                 >
                   <div className="flex items-center gap-3 mb-1">
                     <span
-                      className="inline-block w-2.5 h-2.5 rounded-full"
-                      style={{ background: color, boxShadow: `0 0 8px ${color}` }}
+                      className="inline-block w-2 h-2 rounded-full"
+                      style={{ background: color, boxShadow: `0 0 8px ${color}60` }}
                     />
-                    <span className="font-semibold text-sm" style={{ color }}>
+                    <span className="font-display font-semibold text-sm tracking-wide" style={{ color }}>
                       L{i + 1} — {t(`levels.${key}.name`)}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 ml-5">{t(`levels.${key}.desc`)}</p>
+                  <p className="text-xs text-gray-500 ml-5 leading-relaxed">{t(`levels.${key}.desc`)}</p>
                 </div>
               </motion.div>
             );

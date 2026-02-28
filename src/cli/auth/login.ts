@@ -7,7 +7,7 @@ import { platform, hostname, release } from 'node:os';
 import { exec } from 'node:child_process';
 import chalk from 'chalk';
 import { theme } from '../ui/theme.js';
-import type { ConfigStore } from '../config/store.js';
+import { ConfigStore } from '../config/store.js';
 import { startCallbackServer } from './callback-server.js';
 
 const DEFAULT_WEBAPP_URL = 'https://app.helixmind.dev';
