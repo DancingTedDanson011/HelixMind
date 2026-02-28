@@ -16,6 +16,10 @@ export const colors = {
   spiralL5: '#6c757d',    // Deep Archive — Gray
   spiralL6: '#ffaa00',    // Web Knowledge — Orange
 
+  // Monitor
+  threat: '#ff4444',
+  defense: '#4488ff',
+
   // Semantic
   success: '#00ff88',
   error: '#ff4444',
@@ -57,14 +61,20 @@ export const LEVEL_COLORS = {
   4: 0x8a2be2,
   5: 0x6c757d,
   6: 0xffaa00,
+  // Monitor node types
+  7: 0xff4444,   // Security Threat — Red
+  8: 0x4488ff,   // Defense Action — Blue
+  9: 0x00ff88,   // Monitor Baseline — Green
 } as const;
 
 export const LEVEL_SIZES = {
   1: 8, 2: 7, 3: 5.5, 4: 4.5, 5: 3.5, 6: 9,
+  7: 10, 8: 7, 9: 6,  // Monitor nodes
 } as const;
 
 export const LEVEL_GLOW = {
   1: 1.2, 2: 0.9, 3: 0.6, 4: 0.4, 5: 0.2, 6: 1.5,
+  7: 2.0, 8: 1.0, 9: 0.8,  // Monitor nodes
 } as const;
 
 export const LEVEL_NAMES = {
@@ -74,6 +84,9 @@ export const LEVEL_NAMES = {
   4: 'Archive',
   5: 'Deep Archive',
   6: 'Web Knowledge',
+  7: 'Security Threat',
+  8: 'Defense Action',
+  9: 'Monitor Baseline',
 } as const;
 
 // ─── Plans ───────────────────────────────────

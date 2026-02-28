@@ -92,6 +92,10 @@ export interface SendChatRequest extends WSMessage { type: 'send_chat'; text: st
 export interface GetFindingsRequest extends WSMessage { type: 'get_findings' }
 export interface GetBugsRequest extends WSMessage { type: 'get_bugs' }
 export interface PingRequest extends WSMessage { type: 'ping' }
+export interface StartMonitorRequest extends WSMessage { type: 'start_monitor'; mode: 'passive' | 'defensive' | 'active' }
+export interface StopMonitorRequest extends WSMessage { type: 'stop_monitor' }
+export interface MonitorCommandRequest extends WSMessage { type: 'monitor_command'; command: 'set_mode' | 'rescan' | 'unblock_ip' | 'stop_monitor'; params?: Record<string, string> }
+export interface ApprovalResponseRequest extends WSMessage { type: 'approval_response'; requestId: string; approved: boolean }
 
 // --- Responses (CLI → Browser) ---
 export interface SessionsListResponse extends WSMessage { type: 'sessions_list'; sessions: SessionInfo[] }
@@ -103,6 +107,7 @@ export interface ChatReceivedResponse extends WSMessage { type: 'chat_received' 
 export interface FindingsListResponse extends WSMessage { type: 'findings_list'; findings: Finding[] }
 export interface BugsListResponse extends WSMessage { type: 'bugs_list'; bugs: BugInfo[] }
 export interface PongResponse extends WSMessage { type: 'pong' }
+export interface MonitorStartedResponse extends WSMessage { type: 'monitor_started'; sessionId: string; mode: string }
 
 // --- Server-Push Events (CLI → Browser, async) ---
 export interface SessionUpdatedEvent extends WSMessage { type: 'session_updated'; session: SessionInfo }
@@ -113,6 +118,12 @@ export interface InstanceMetaEvent extends WSMessage { type: 'instance_meta'; in
 export interface BugCreatedEvent extends WSMessage { type: 'bug_created'; bug: BugInfo }
 export interface BugUpdatedEvent extends WSMessage { type: 'bug_updated'; bug: BugInfo }
 export interface BrowserScreenshotEvent extends WSMessage { type: 'browser_screenshot'; screenshot: BrowserScreenshotInfo }
+
+// --- Monitor Events (CLI → Browser, async) ---
+export interface ThreatDetectedEvent extends WSMessage { type: 'threat_detected'; threat: Record<string, unknown> }
+export interface DefenseActivatedEvent extends WSMessage { type: 'defense_activated'; defense: Record<string, unknown> }
+export interface ApprovalRequestEvent extends WSMessage { type: 'approval_request'; request: Record<string, unknown> }
+export interface MonitorStatusEvent extends WSMessage { type: 'monitor_status'; mode: string; uptime: number; threatCount: number; defenseCount: number; lastScan: number }
 
 // --- Web Chat Events (CLI → Browser, streamed) ---
 export interface ChatStartedEvent extends WSMessage { type: 'chat_started'; chatId: string }
@@ -127,6 +138,10 @@ export type ControlRequest =
   | ListSessionsRequest
   | StartAutoRequest
   | StartSecurityRequest
+  | StartMonitorRequest
+  | StopMonitorRequest
+  | MonitorCommandRequest
+  | ApprovalResponseRequest
   | AbortSessionRequest
   | SubscribeOutputRequest
   | UnsubscribeOutputRequest
@@ -143,6 +158,10 @@ export interface ControlHandlers {
   listSessions(): SessionInfo[];
   startAuto(goal?: string): string;          // returns sessionId
   startSecurity(): string;                    // returns sessionId
+  startMonitor(mode: 'passive' | 'defensive' | 'active'): string; // returns sessionId
+  stopMonitor(): boolean;
+  handleMonitorCommand(command: string, params?: Record<string, string>): void;
+  handleApprovalResponse(requestId: string, approved: boolean): void;
   abortSession(sessionId: string): boolean;
   sendChat(text: string, chatId?: string, mode?: 'normal' | 'skip-permissions'): void;
   getFindings(): Finding[];

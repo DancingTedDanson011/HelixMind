@@ -250,6 +250,7 @@
       "billing": "Abrechnung",
       "apiKeys": "API-Schlüssel",
       "cli": "CLI",
+      "monitor": "Monitor",
       "support": "Support"
     }
   },
@@ -591,5 +592,61 @@
     "error": "Autorisierung fehlgeschlagen. Bitte versuche es erneut.",
     "invalidRequest": "Ungültige Anfrage",
     "invalidRequestDesc": "Dieser Autorisierungslink ist ungültig oder abgelaufen. Bitte führe 'helixmind login' erneut aus."
+  },
+  "monitor": {
+    "title": "Sicherheitsmonitor",
+    "subtitle": "Echtzeit-Sicherheitsüberwachung und Bedrohungserkennung",
+    "connectFirst": "Verbinde dich mit einer HelixMind CLI-Instanz, um Monitor-Daten zu sehen.",
+    "scanning": "Suche nach CLI-Instanzen...",
+    "noInstances": "Keine CLI-Instanzen gefunden. Starte HelixMind CLI mit /monitor zuerst.",
+    "uptime": "Laufzeit",
+    "status": {
+      "disconnected": "Nicht verbunden",
+      "idle": "Leerlauf",
+      "running": "Aktiv",
+      "stopped": "Gestoppt"
+    },
+    "modes": {
+      "passive": "Passiv",
+      "defensive": "Defensiv",
+      "active": "Aktiv"
+    },
+    "threats": {
+      "detected": "Bedrohungen",
+      "timeline": "Bedrohungs-Timeline",
+      "detail": "Bedrohungsdetails",
+      "source": "Quelle",
+      "noThreats": "Keine Bedrohungen erkannt"
+    },
+    "defenses": {
+      "activated": "Verteidigungen",
+      "active": "Aktive Verteidigungen",
+      "blocked": "Blockiert",
+      "killed": "Beendet",
+      "isolated": "Isoliert",
+      "rotated": "Rotiert",
+      "noDefenses": "Keine aktiven Verteidigungen"
+    },
+    "approvals": {
+      "pending": "Ausstehende Genehmigungen",
+      "noPending": "Keine ausstehenden Genehmigungen",
+      "approve": "Genehmigen",
+      "deny": "Ablehnen",
+      "remember": "Genehmigen & Merken",
+      "countdown": "Auto-Genehmigung in"
+    },
+    "actions": {
+      "stop": "Monitor stoppen",
+      "rescan": "Erneut scannen",
+      "changeMode": "Modus ändern",
+      "undo": "Rückgängig"
+    },
+    "severity": {
+      "critical": "Kritisch",
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig",
+      "info": "Info"
+    }
   }
 }

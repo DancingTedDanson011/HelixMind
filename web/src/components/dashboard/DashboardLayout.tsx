@@ -14,6 +14,7 @@ import {
   Key,
   LifeBuoy,
   Terminal,
+  Shield,
   Menu,
   X,
   ChevronRight,
@@ -42,6 +43,7 @@ interface DashboardLayoutProps {
 const navItemDefs: { key: string; labelKey: string; href: string; icon: typeof LayoutDashboard }[] = [
   { key: 'home', labelKey: 'nav.home', href: '/dashboard', icon: LayoutDashboard },
   { key: 'cli', labelKey: 'nav.cli', href: '/dashboard/cli', icon: Terminal },
+  { key: 'monitor', labelKey: 'nav.monitor', href: '/dashboard/monitor', icon: Shield },
   { key: 'profile', labelKey: 'nav.profile', href: '/dashboard/profile', icon: User },
   { key: 'billing', labelKey: 'nav.billing', href: '/dashboard/billing', icon: CreditCard },
   { key: 'api-keys', labelKey: 'nav.apiKeys', href: '/dashboard/api-keys', icon: Key },

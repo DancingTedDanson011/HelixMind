@@ -250,6 +250,7 @@
       "billing": "Billing",
       "apiKeys": "API Keys",
       "cli": "CLI",
+      "monitor": "Monitor",
       "support": "Support"
     }
   },
@@ -591,5 +592,61 @@
     "error": "Authorization failed. Please try again.",
     "invalidRequest": "Invalid Request",
     "invalidRequestDesc": "This authorization link is invalid or expired. Please run 'helixmind login' again."
+  },
+  "monitor": {
+    "title": "Security Monitor",
+    "subtitle": "Real-time security monitoring and threat detection",
+    "connectFirst": "Connect to a HelixMind CLI instance to view monitor data.",
+    "scanning": "Scanning for CLI instances...",
+    "noInstances": "No CLI instances found. Start HelixMind CLI with /monitor first.",
+    "uptime": "Uptime",
+    "status": {
+      "disconnected": "Not connected",
+      "idle": "Idle",
+      "running": "Running",
+      "stopped": "Stopped"
+    },
+    "modes": {
+      "passive": "Passive",
+      "defensive": "Defensive",
+      "active": "Active"
+    },
+    "threats": {
+      "detected": "Threats",
+      "timeline": "Threat Timeline",
+      "detail": "Threat Details",
+      "source": "Source",
+      "noThreats": "No threats detected"
+    },
+    "defenses": {
+      "activated": "Defenses",
+      "active": "Active Defenses",
+      "blocked": "Blocked",
+      "killed": "Killed",
+      "isolated": "Isolated",
+      "rotated": "Rotated",
+      "noDefenses": "No active defenses"
+    },
+    "approvals": {
+      "pending": "Pending Approvals",
+      "noPending": "No pending approvals",
+      "approve": "Approve",
+      "deny": "Deny",
+      "remember": "Approve & Remember",
+      "countdown": "Auto-approve in"
+    },
+    "actions": {
+      "stop": "Stop Monitor",
+      "rescan": "Rescan",
+      "changeMode": "Change Mode",
+      "undo": "Undo"
+    },
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "info": "Info"
+    }
   }
 }

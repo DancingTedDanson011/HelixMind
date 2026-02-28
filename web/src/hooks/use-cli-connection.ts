@@ -9,6 +9,10 @@ import type {
   BrowserScreenshotInfo,
   InstanceMeta,
   SessionInfo,
+  ThreatEvent,
+  DefenseRecord,
+  ApprovalRequest,
+  MonitorStatus,
 } from '@/lib/cli-types';
 import { registerConnectionWs, unregisterConnectionWs } from '@/lib/cli-ws-registry';
 
@@ -52,12 +56,22 @@ export interface UseCliConnectionReturn {
   instanceMeta: InstanceMeta | null;
   error: string | null;
 
+  // Monitor state
+  threats: ThreatEvent[];
+  defenses: DefenseRecord[];
+  approvals: ApprovalRequest[];
+  monitorStatus: MonitorStatus | null;
+
   connect: () => void;
   disconnect: () => void;
   sendRequest: (type: string, payload?: Record<string, unknown>) => Promise<unknown>;
   listSessions: () => Promise<SessionInfo[]>;
   startAuto: (goal?: string) => Promise<string>;
   startSecurity: () => Promise<string>;
+  startMonitor: (mode: string) => Promise<string>;
+  stopMonitor: () => Promise<void>;
+  respondApproval: (requestId: string, approved: boolean) => Promise<void>;
+  sendMonitorCommand: (command: string, params?: Record<string, string>) => Promise<void>;
   abortSession: (sessionId: string) => Promise<void>;
   sendChat: (text: string) => Promise<void>;
   getFindings: () => Promise<Finding[]>;
@@ -82,6 +96,12 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [lastScreenshot, setLastScreenshot] = useState<BrowserScreenshotInfo | null>(null);
   const [instanceMeta, setInstanceMeta] = useState<InstanceMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Monitor state
+  const [threats, setThreats] = useState<ThreatEvent[]>([]);
+  const [defenses, setDefenses] = useState<DefenseRecord[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
+  const [monitorStatus, setMonitorStatus] = useState<MonitorStatus | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const mountedRef = useRef(true);
@@ -254,6 +274,38 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
       const screenshot = msg.screenshot as BrowserScreenshotInfo;
       if (mountedRef.current) {
         setLastScreenshot(screenshot);
+      }
+      return;
+    }
+
+    // Monitor events
+    if (msg.type === 'threat_detected') {
+      const threat = msg.threat as ThreatEvent;
+      if (mountedRef.current) {
+        setThreats((prev) => [...prev, threat]);
+      }
+      return;
+    }
+
+    if (msg.type === 'defense_activated') {
+      const defense = msg.defense as DefenseRecord;
+      if (mountedRef.current) {
+        setDefenses((prev) => [...prev, defense]);
+      }
+      return;
+    }
+
+    if (msg.type === 'approval_request') {
+      const request = msg.request as ApprovalRequest;
+      if (mountedRef.current) {
+        setApprovals((prev) => [...prev, request]);
+      }
+      return;
+    }
+
+    if (msg.type === 'monitor_status') {
+      if (mountedRef.current) {
+        setMonitorStatus(msg as unknown as MonitorStatus);
       }
       return;
     }
@@ -437,6 +489,35 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     return list;
   }, [sendRequest]);
 
+  const startMonitor = useCallback(
+    async (mode: string): Promise<string> => {
+      const res = (await sendRequest('start_monitor', { mode })) as { sessionId: string };
+      return res.sessionId;
+    },
+    [sendRequest],
+  );
+
+  const stopMonitor = useCallback(async (): Promise<void> => {
+    await sendRequest('stop_monitor');
+  }, [sendRequest]);
+
+  const respondApproval = useCallback(
+    async (requestId: string, approved: boolean): Promise<void> => {
+      await sendRequest('approval_response', { requestId, approved });
+      if (mountedRef.current) {
+        setApprovals((prev) => prev.filter((a) => a.id !== requestId));
+      }
+    },
+    [sendRequest],
+  );
+
+  const sendMonitorCommand = useCallback(
+    async (command: string, params?: Record<string, string>): Promise<void> => {
+      await sendRequest('monitor_command', { command, params });
+    },
+    [sendRequest],
+  );
+
   // ---------------------------------------------------------------------------
   // Cleanup on unmount
   // ---------------------------------------------------------------------------
@@ -459,12 +540,22 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     instanceMeta,
     error,
 
+    // Monitor state
+    threats,
+    defenses,
+    approvals,
+    monitorStatus,
+
     connect,
     disconnect,
     sendRequest,
     listSessions,
     startAuto,
     startSecurity,
+    startMonitor,
+    stopMonitor,
+    respondApproval,
+    sendMonitorCommand,
     abortSession,
     sendChat,
     getFindings,

@@ -104,6 +104,7 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/auto', label: '/auto', description: 'Autonomous mode' },
       { cmd: '/stop', label: '/stop', description: 'Stop autonomous mode' },
       { cmd: '/security', label: '/security', description: 'Run security audit (background)' },
+      { cmd: '/monitor', label: '/monitor', description: 'Continuous security monitoring' },
       { cmd: '/sessions', label: '/sessions', description: 'List all sessions & tabs' },
       { cmd: '/local', label: '/local', description: 'Local LLM setup (Ollama)' },
     ],
@@ -650,6 +651,114 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           }).catch(() => {});
         },
 
+        startMonitor: (mode) => {
+          const existingMonitor = sessionMgr.background.find(
+            s => s.name.includes('Monitor') && s.status === 'running',
+          );
+          if (existingMonitor) return existingMonitor.id;
+
+          const modeIcons: Record<string, string> = { passive: '\u{1F50D}', defensive: '\u{1F6E1}\uFE0F', active: '\u2694\uFE0F' };
+          const icon = modeIcons[mode] || '\u{1F6E1}\uFE0F';
+          const bgSession = sessionMgr.create(`${icon} Monitor`, icon, agentHistory);
+          bgSession.start();
+          wireSessionOutput(bgSession);
+          pushSessionCreated(serializeSession(bgSession));
+
+          // Start monitor in background (same as /monitor command)
+          (async () => {
+            try {
+              const { scanSystem } = await import('../agent/monitor/scanner.js');
+              const { buildBaseline } = await import('../agent/monitor/baseline.js');
+              const { runMonitorLoop } = await import('../agent/monitor/watcher.js');
+              const { pushMonitorStatus: pushStatus } = await import('../brain/generator.js');
+
+              const scanResult = await scanSystem({
+                sendMessage: async (prompt) => {
+                  bgSession.controller.reset();
+                  const rth = { text: '' };
+                  const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
+                  bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+                  await sendAgentMessage(
+                    prompt, bgSession.history, provider, project, spiralEngine, config,
+                    permissions, bgSession.undoStack, checkpointStore,
+                    bgSession.controller, new ActivityIndicator(), bgSession.buffer,
+                    (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                    () => { sessionToolCalls++; },
+                    undefined, { enabled: false, verbose: false, strict: false },
+                  );
+                  bgSession.buffer.addAssistantSummary = orig;
+                  return rth.text;
+                },
+                isAborted: () => bgSession.controller.isAborted,
+                onThreat: () => {}, onDefense: () => {},
+                onScanComplete: (p) => bgSession.capture(`Scan: ${p}`),
+                onStatusUpdate: () => {}, updateStatus: () => {},
+              });
+              if (bgSession.controller.isAborted) return;
+
+              const baseline = buildBaseline(scanResult);
+              if (bgSession.controller.isAborted) return;
+
+              await runMonitorLoop({
+                sendMessage: async (prompt) => {
+                  bgSession.controller.reset();
+                  const rth = { text: '' };
+                  const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
+                  bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+                  await sendAgentMessage(
+                    prompt, bgSession.history, provider, project, spiralEngine, config,
+                    permissions, bgSession.undoStack, checkpointStore,
+                    bgSession.controller, new ActivityIndicator(), bgSession.buffer,
+                    (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                    () => { sessionToolCalls++; },
+                    undefined, { enabled: false, verbose: false, strict: false },
+                  );
+                  bgSession.buffer.addAssistantSummary = orig;
+                  return rth.text;
+                },
+                isAborted: () => bgSession.controller.isAborted,
+                onThreat: (t) => bgSession.capture(`THREAT [${t.severity}]: ${t.title}`),
+                onDefense: (d) => bgSession.capture(`DEFENSE: ${d.action} \u2192 ${d.target}`),
+                onScanComplete: (p) => bgSession.capture(`Check: ${p}`),
+                onStatusUpdate: (state) => {
+                  pushStatus({ mode: state.mode, uptime: state.uptime, threatCount: state.threats.length, defenseCount: state.defenses.length, lastScan: state.lastScan });
+                },
+                updateStatus: () => updateStatusBar(),
+              }, mode, baseline);
+            } catch (err) {
+              if (!(err instanceof AgentAbortError)) bgSession.capture(`Monitor error: ${err}`);
+            }
+            sessionMgr.complete(bgSession.id, { text: 'Monitor ended', steps: [], errors: bgSession.controller.isAborted ? ['Stopped'] : [], durationMs: bgSession.elapsed });
+            pushSessionUpdate(serializeSession(bgSession));
+          })();
+
+          return bgSession.id;
+        },
+
+        stopMonitor: () => {
+          const monitorSession = sessionMgr.background.find(
+            s => s.name.includes('Monitor') && s.status === 'running',
+          );
+          if (!monitorSession) return false;
+          monitorSession.abort();
+          pushSessionUpdate(serializeSession(monitorSession));
+          return true;
+        },
+
+        handleMonitorCommand: (command, params) => {
+          if (command === 'stop_monitor') {
+            const ms = sessionMgr.background.find(s => s.name.includes('Monitor') && s.status === 'running');
+            if (ms) { ms.abort(); pushSessionUpdate(serializeSession(ms)); }
+          }
+          // Other commands (set_mode, rescan, unblock_ip) can be extended here
+        },
+
+        handleApprovalResponse: (requestId, approved) => {
+          import('../agent/monitor/alerter.js').then(({ resolveApproval }) => {
+            resolveApproval(requestId, approved);
+          }).catch(() => {});
+        },
+
         getFindings: () => [...collectedFindings],
 
         getBugs: () => bugJournal.getAllBugs().map(b => ({
@@ -758,6 +867,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               });
             }).catch(() => {});
           },
+          startMonitor: () => '',
+          stopMonitor: () => false,
+          handleMonitorCommand: () => {},
+          handleApprovalResponse: () => {},
           getFindings: () => [...collectedFindings],
           getBugs: () => bugJournal.getAllBugs().map(b => ({
             id: b.id, description: b.description, file: b.file, line: b.line,
@@ -1410,6 +1523,132 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 });
               }
             });
+            return;
+          }
+
+          if (action === 'monitor') {
+            // Monitor mode — runs as background session with continuous watch loop
+            const monitorMode = (goal as 'passive' | 'defensive' | 'active') || 'passive';
+            const existingMonitor = sessionMgr.background.find(
+              s => s.name.includes('Monitor') && s.status === 'running',
+            );
+            if (existingMonitor) {
+              renderInfo('Monitor already running. Use /stop to stop it first.');
+              return;
+            }
+
+            const modeIcons = { passive: '\u{1F50D}', defensive: '\u{1F6E1}\uFE0F', active: '\u2694\uFE0F' };
+            const icon = modeIcons[monitorMode] || '\u{1F6E1}\uFE0F';
+            const bgSession = sessionMgr.create(`${icon} Monitor`, icon, agentHistory);
+            bgSession.start();
+            renderInfo(`${chalk.hex('#ff6600')(icon)} Monitor started (${monitorMode}) ${chalk.dim(`[session ${bgSession.id}]`)}`);
+            updateStatusBar();
+
+            // Run monitor loop in background — user keeps prompt
+            (async () => {
+              try {
+                const { scanSystem } = await import('../agent/monitor/scanner.js');
+                const { buildBaseline } = await import('../agent/monitor/baseline.js');
+                const { runMonitorLoop } = await import('../agent/monitor/watcher.js');
+                const { pushMonitorStatus } = await import('../brain/generator.js');
+
+                // Phase 1: Full system scan
+                bgSession.capture('Phase 1: Scanning system...');
+                const scanResult = await scanSystem({
+                  sendMessage: async (prompt) => {
+                    bgSession.controller.reset();
+                    const resultTextHolder = { text: '' };
+                    const origAddSummary = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
+                    bgSession.buffer.addAssistantSummary = (t: string) => {
+                      resultTextHolder.text = t;
+                      origAddSummary(t);
+                    };
+                    await sendAgentMessage(
+                      prompt, bgSession.history, provider, project, spiralEngine, config,
+                      permissions, bgSession.undoStack, checkpointStore,
+                      bgSession.controller, new ActivityIndicator(), bgSession.buffer,
+                      (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                      () => { sessionToolCalls++; },
+                      undefined,
+                      { enabled: false, verbose: false, strict: false },
+                    );
+                    bgSession.buffer.addAssistantSummary = origAddSummary;
+                    return resultTextHolder.text;
+                  },
+                  isAborted: () => bgSession.controller.isAborted,
+                  onThreat: () => {},
+                  onDefense: () => {},
+                  onScanComplete: (phase) => bgSession.capture(`Scan: ${phase}`),
+                  onStatusUpdate: () => updateStatusBar(),
+                  updateStatus: () => updateStatusBar(),
+                });
+
+                if (bgSession.controller.isAborted) return;
+
+                // Phase 2: Build baseline
+                bgSession.capture('Phase 2: Building security baseline...');
+                const baseline = buildBaseline(scanResult);
+                bgSession.capture(`Baseline: ${baseline.processes.length} processes, ${baseline.ports.length} ports`);
+
+                if (bgSession.controller.isAborted) return;
+
+                // Phase 3: Continuous watching
+                bgSession.capture(`Phase 3: Monitoring (${monitorMode} mode)...`);
+                await runMonitorLoop({
+                  sendMessage: async (prompt) => {
+                    bgSession.controller.reset();
+                    const resultTextHolder = { text: '' };
+                    const origAddSummary = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
+                    bgSession.buffer.addAssistantSummary = (t: string) => {
+                      resultTextHolder.text = t;
+                      origAddSummary(t);
+                    };
+                    await sendAgentMessage(
+                      prompt, bgSession.history, provider, project, spiralEngine, config,
+                      permissions, bgSession.undoStack, checkpointStore,
+                      bgSession.controller, new ActivityIndicator(), bgSession.buffer,
+                      (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                      () => { sessionToolCalls++; },
+                      undefined,
+                      { enabled: false, verbose: false, strict: false },
+                    );
+                    bgSession.buffer.addAssistantSummary = origAddSummary;
+                    return resultTextHolder.text;
+                  },
+                  isAborted: () => bgSession.controller.isAborted,
+                  onThreat: (threat) => {
+                    bgSession.capture(`THREAT [${threat.severity}]: ${threat.title}`);
+                  },
+                  onDefense: (defense) => {
+                    bgSession.capture(`DEFENSE: ${defense.action} \u2192 ${defense.target}`);
+                  },
+                  onScanComplete: (phase) => bgSession.capture(`Check: ${phase}`),
+                  onStatusUpdate: (state) => {
+                    pushMonitorStatus({
+                      mode: state.mode,
+                      uptime: state.uptime,
+                      threatCount: state.threats.length,
+                      defenseCount: state.defenses.length,
+                      lastScan: state.lastScan,
+                    });
+                    updateStatusBar();
+                  },
+                  updateStatus: () => updateStatusBar(),
+                }, monitorMode, baseline);
+              } catch (err) {
+                if (!(err instanceof AgentAbortError)) {
+                  bgSession.capture(`Monitor error: ${err}`);
+                }
+              }
+
+              sessionMgr.complete(bgSession.id, {
+                text: 'Monitor session ended',
+                steps: [],
+                errors: bgSession.controller.isAborted ? ['Stopped by user'] : [],
+                durationMs: bgSession.elapsed,
+              });
+              updateStatusBar();
+            })();
             return;
           }
 
@@ -2188,7 +2427,7 @@ async function handleSlashCommand(
   onProviderSwitch?: (provider: LLMProvider) => void,
   onBrainSwitch?: (scope: 'project' | 'global') => Promise<void>,
   currentBrainScope?: 'project' | 'global',
-  onAutonomous?: (action: 'start' | 'stop' | 'security', goal?: string) => Promise<void>,
+  onAutonomous?: (action: 'start' | 'stop' | 'security' | 'monitor', goal?: string) => Promise<void>,
   onValidation?: (action: string) => void,
   sessionManager?: SessionManager,
   onRegisterBrainHandlers?: () => Promise<void>,
@@ -2790,6 +3029,62 @@ async function handleSlashCommand(
         await onAutonomous('security');
       }
       break;
+
+    case '/monitor': {
+      if (!onAutonomous) break;
+      const { MONITOR_MODES, MONITOR_WARNINGS } = await import('../agent/autonomous.js');
+
+      // Interactive setup: show banner + mode selection
+      rl.pause();
+      process.stdout.write('\n');
+
+      const monitorMenuItems: MenuItem[] = [
+        ...MONITOR_MODES.map(m => ({ label: chalk.hex('#ff6600').bold(m.label), description: m.description })),
+        { label: chalk.dim('\u2715 Cancel'), description: 'Go back' },
+      ];
+
+      const modeIdx = await selectMenu(monitorMenuItems, {
+        title: chalk.hex('#ff6600').bold('\u{1F6E1}\uFE0F MONITOR MODE'),
+        cancelLabel: 'Cancel',
+      });
+
+      if (modeIdx < 0 || modeIdx >= MONITOR_MODES.length) {
+        rl.resume();
+        renderInfo('Monitor cancelled.');
+        break;
+      }
+
+      const selectedMode = MONITOR_MODES[modeIdx].key;
+
+      // Defensive/Active modes: show warning + confirm
+      if (selectedMode !== 'passive') {
+        const warnings = MONITOR_WARNINGS[selectedMode] || [];
+        process.stdout.write('\n');
+        process.stdout.write(chalk.yellow(`  \u26A0\uFE0F  ${selectedMode.charAt(0).toUpperCase() + selectedMode.slice(1)} mode will:\n`));
+        for (const w of warnings) {
+          process.stdout.write(chalk.dim(`  \u2022 ${w}\n`));
+        }
+        process.stdout.write('\n');
+
+        const confirmIdx = await selectMenu(
+          [
+            { label: chalk.hex('#ff6600').bold('Yes, activate'), description: `Start ${selectedMode} monitor` },
+            { label: 'No, go back', description: 'Cancel' },
+          ],
+          { title: chalk.yellow(`Activate ${selectedMode} monitor?`), cancelLabel: 'Cancel' },
+        );
+
+        if (confirmIdx !== 0) {
+          rl.resume();
+          renderInfo('Monitor cancelled.');
+          break;
+        }
+      }
+
+      rl.resume();
+      await onAutonomous('monitor', selectedMode);
+      break;
+    }
 
     case '/sessions':
     case '/session': {

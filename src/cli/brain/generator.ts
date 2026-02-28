@@ -291,6 +291,46 @@ export function pushBrowserScreenshot(screenshot: BrowserScreenshotInfo): void {
   });
 }
 
+/** Push a threat-detected event to control clients */
+export function pushThreatDetected(threat: Record<string, unknown>): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'threat_detected',
+    threat,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a defense-activated event to control clients */
+export function pushDefenseActivated(defense: Record<string, unknown>): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'defense_activated',
+    defense,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push an approval request event to control clients */
+export function pushApprovalRequest(request: Record<string, unknown>): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'approval_request',
+    request,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a monitor status event to control clients */
+export function pushMonitorStatus(status: { mode: string; uptime: number; threatCount: number; defenseCount: number; lastScan: number }): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'monitor_status',
+    ...status,
+    timestamp: Date.now(),
+  });
+}
+
 /**
  * Start the relay client (outbound connection to Web Server).
  * Only connects if relay.url + relay.apiKey are configured.

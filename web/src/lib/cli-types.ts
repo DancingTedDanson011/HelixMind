@@ -157,6 +157,52 @@ export type ChatEvent =
   | ChatErrorEvent;
 
 // ---------------------------------------------------------------------------
+// Monitor Types
+// ---------------------------------------------------------------------------
+
+export type MonitorMode = 'passive' | 'defensive' | 'active';
+export type ThreatSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
+
+export interface ThreatEvent {
+  id: string;
+  severity: ThreatSeverity;
+  category: string;
+  title: string;
+  details: string;
+  source: string;
+  timestamp: number;
+  relatedEvents: string[];
+}
+
+export interface DefenseRecord {
+  id: string;
+  action: string;
+  target: string;
+  reason: string;
+  autoApproved: boolean;
+  reversible: boolean;
+  timestamp: number;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  action: string;
+  target: string;
+  reason: string;
+  severity: ThreatSeverity;
+  timestamp: number;
+  expiresAt: number;
+}
+
+export interface MonitorStatus {
+  mode: MonitorMode;
+  uptime: number;
+  threatCount: number;
+  defenseCount: number;
+  lastScan: number;
+}
+
+// ---------------------------------------------------------------------------
 // Connection
 // ---------------------------------------------------------------------------
 

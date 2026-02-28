@@ -180,6 +180,31 @@ export async function runAutonomousLoop(
   return completed.length;
 }
 
+// ---------------------------------------------------------------------------
+// Monitor mode helpers
+// ---------------------------------------------------------------------------
+
+export const MONITOR_MODES = [
+  { key: 'passive' as const, label: '\u{1F50D} Passive', description: 'Read-only, alerts only' },
+  { key: 'defensive' as const, label: '\u{1F6E1}\uFE0F Defensive', description: 'Auto-block attacks, rotate secrets' },
+  { key: 'active' as const, label: '\u2694\uFE0F Active', description: '+ Honeypots, counter-intel, deception' },
+] as const;
+
+export const MONITOR_WARNINGS: Record<string, string[]> = {
+  defensive: [
+    'Block attacking IPs via iptables/fail2ban',
+    'Kill suspicious processes',
+    'Rotate compromised secrets',
+    'Write firewall rules',
+  ],
+  active: [
+    'All defensive actions, plus:',
+    'Deploy honeypot services',
+    'Attacker profiling & counter-intel',
+    'Deception infrastructure',
+  ],
+};
+
 function extractSummary(text: string): string {
   // Look for "DONE: ..." line
   const doneMatch = text.match(/DONE:\s*(.+)/i);
