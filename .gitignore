@@ -1,0 +1,47 @@
+# Private notes
+AGENT-RESEARCH.md
+ARCHITECTURE.md
+CLI-ARCHITECTURE.md
+CLI-RESEARCH.md
+RESEARCH.md
+test_brain_fix.js
+test_model_activation.js
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Local HelixMind data
+.helixmind/
+.spiral-context/
+*.db
+*.sqlite
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temp files
+*.tmp
+*.temp

@@ -1,0 +1,93 @@
+{
+  "name": "helixmind",
+  "version": "0.2.14",
+  "description": "HelixMind – AI Coding CLI with Persistent Spiral Memory",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "helixmind": "dist/cli/index.js",
+    "helix": "dist/cli/index.js",
+    "hx": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit",
+    "setup": "tsx scripts/setup.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "coding",
+    "cli",
+    "assistant",
+    "memory",
+    "context",
+    "spiral",
+    "claude",
+    "openai",
+    "ollama",
+    "embeddings",
+    "developer-tools",
+    "code-generation",
+    "helixmind"
+  ],
+  "author": "DancingTedDanson",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DancingTedDanson011/HelixMind.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DancingTedDanson011/HelixMind/issues"
+  },
+  "homepage": "https://github.com/DancingTedDanson011/HelixMind#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@huggingface/transformers": "^3.8.1",
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "adm-zip": "^0.5.16",
+    "better-sqlite3": "^11.0.0",
+    "chalk": "^5.4.0",
+    "cli-highlight": "^2.1.0",
+    "commander": "^13.0.0",
+    "fast-glob": "^3.3.0",
+    "figlet": "^1.8.0",
+    "gradient-string": "^3.0.0",
+    "ignore": "^7.0.0",
+    "marked": "^15.0.0",
+    "marked-terminal": "^7.3.0",
+    "nanospinner": "^1.2.0",
+    "openai": "^5.23.2",
+    "sqlite-vec": "^0.1.7-alpha.2",
+    "ws": "^8.19.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/figlet": "^1.7.0",
+    "@types/gradient-string": "^1.1.0",
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "^2.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "optionalDependencies": {
+    "puppeteer-core": "^24.37.5"
+  }
+}
