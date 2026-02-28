@@ -1,4 +1,5 @@
 import * as readline from 'node:readline';
+import { Writable } from 'node:stream';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigStore } from '../config/store.js';
@@ -889,6 +890,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // when this is true to prevent cursor-jumping from interfering with readline.
   let isAtPrompt = false;
 
+  // Muted stream to suppress readline echo during agent work.
+  // Prevents typed characters from mixing with agent output in the scroll area.
+  const devNull = new Writable({ write: (_chunk, _enc, cb) => cb() });
+
   // Flag: true while inline progress (\r\x1b[K) is actively writing.
   // Suppresses the footer timer to prevent cursor-jumping flicker.
   let inlineProgressActive = false;
@@ -969,8 +974,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     const bottomBorder = buildBottomBorder(w, statusText);
     const hintLine = buildHintLine();
 
-    // Set top border content on activity indicator (for restore after agent work)
-    activity.setSeparatorContent(topBorder);
+    // Set hints content on activity indicator (for restore on chrome row 2 after agent work)
+    activity.setRestoreContent(hintLine);
 
     chrome.setRow(0, topBorder);
     chrome.setRow(1, bottomBorder);
@@ -982,6 +987,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
 
     isAtPrompt = true;
+
+    // Restore readline echo (may have been muted during agent work)
+    (rl as any).output = process.stdout;
 
     if (chrome.isActive) {
       // Position cursor at the bottom of the scroll region, then prompt
@@ -1839,8 +1847,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       },
       () => {
         // Activity started — readline stays active for type-ahead buffering
-        // but we do NOT show a visible prompt (it would collide with tool output)
+        // but we mute echo so typed chars don't mix with agent output.
         isAtPrompt = false;
+        (rl as any).output = devNull;
       },
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
       bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
@@ -3044,6 +3053,7 @@ async function handleSlashCommand(
       // Interactive setup: show banner + mode selection
       rl.pause();
       process.stdout.write('\n');
+      renderInfo(chalk.dim('  Docs: https://helixmind.dev/docs/security-monitor'));
 
       const monitorMenuItems: MenuItem[] = [
         ...MONITOR_MODES.map(m => ({ label: chalk.hex('#ff6600').bold(m.label), description: m.description })),

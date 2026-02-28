@@ -65,6 +65,8 @@ export const DOCS_NAVIGATION: DocCategory[] = [
       { slug: 'validation-matrix', title: 'Validation Matrix' },
       { slug: 'web-knowledge', title: 'Web Knowledge Enricher' },
       { slug: 'sessions', title: 'Sessions & Background Tasks' },
+      { slug: 'security-monitor', title: 'Security Monitor' },
+      { slug: 'browser-automation', title: 'Browser Automation' },
       { slug: 'checkpoints', title: 'Checkpoints & Undo' },
       { slug: 'export-import', title: 'Export & Import' },
     ],

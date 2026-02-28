@@ -185,9 +185,9 @@ export async function runAutonomousLoop(
 // ---------------------------------------------------------------------------
 
 export const MONITOR_MODES = [
-  { key: 'passive' as const, label: '\u{1F50D} Passive', description: 'Read-only, alerts only' },
-  { key: 'defensive' as const, label: '\u{1F6E1}\uFE0F Defensive', description: 'Auto-block attacks, rotate secrets' },
-  { key: 'active' as const, label: '\u2694\uFE0F Active', description: '+ Honeypots, counter-intel, deception' },
+  { key: 'passive' as const, label: '\u{1F50D} Passive', description: 'Read-only scan \u2014 alerts only, no changes' },
+  { key: 'defensive' as const, label: '\u{1F6E1}\uFE0F Defensive', description: 'Auto-block threats \u2014 IP blocks, port closes, secret rotation' },
+  { key: 'active' as const, label: '\u2694\uFE0F Active', description: 'Full control \u2014 honeypots, counter-intel, approval required' },
 ] as const;
 
 export const MONITOR_WARNINGS: Record<string, string[]> = {

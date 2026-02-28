@@ -42,9 +42,9 @@ describe('ActivityIndicator', () => {
     activity.start();
     expect(activity.isRunning).toBe(true);
 
-    // Should render to chrome row 0 immediately
+    // Should render to chrome row 2 (hints row) immediately
     expect(chrome.setRow).toHaveBeenCalled();
-    const content = chrome.rows[0];
+    const content = chrome.rows[2];
     expect(content).toContain('HelixMind');
     expect(content).toContain('working');
 
@@ -73,7 +73,7 @@ describe('ActivityIndicator', () => {
     activity.setStep(3, 'editing main.ts');
     vi.advanceTimersByTime(80);
 
-    const content = chrome.rows[0];
+    const content = chrome.rows[2];
     expect(content).toContain('Step 3');
     expect(content).toContain('editing main.ts');
 
@@ -93,27 +93,27 @@ describe('ActivityIndicator', () => {
     expect(output).toContain('Done');
   });
 
-  it('restores separator on stop', () => {
+  it('restores hints on stop', () => {
     const chrome = createMockChrome();
     const activity = new ActivityIndicator(chrome);
-    activity.setSeparatorContent('───separator───');
+    activity.setRestoreContent('▸▸ safe · esc');
     activity.start();
     chrome.setRow.mockClear();
 
     activity.stop();
-    // Should restore separator on chrome row 0
-    expect(chrome.setRow).toHaveBeenCalledWith(0, '───separator───');
+    // Should restore hints on chrome row 2
+    expect(chrome.setRow).toHaveBeenCalledWith(2, '▸▸ safe · esc');
   });
 
-  it('restores separator on pause', () => {
+  it('restores hints on pause', () => {
     const chrome = createMockChrome();
     const activity = new ActivityIndicator(chrome);
-    activity.setSeparatorContent('───separator───');
+    activity.setRestoreContent('▸▸ safe · esc');
     activity.start();
     chrome.setRow.mockClear();
 
     activity.pauseAnimation();
-    expect(chrome.setRow).toHaveBeenCalledWith(0, '───separator───');
+    expect(chrome.setRow).toHaveBeenCalledWith(2, '▸▸ safe · esc');
     expect(activity.isAnimating).toBe(false);
     // Timer still runs
     expect(activity.isRunning).toBe(true);

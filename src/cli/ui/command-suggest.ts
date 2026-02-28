@@ -35,6 +35,7 @@ const COMMANDS: CommandDef[] = [
   { cmd: '/auto', description: 'Autonomous mode \u2014 find & fix issues' },
   { cmd: '/stop', description: 'Stop autonomous mode' },
   { cmd: '/security', description: 'Run security audit (background)' },
+  { cmd: '/monitor', description: 'Security monitor (background)' },
   { cmd: '/sessions', description: 'List all sessions & tabs' },
   { cmd: '/session close', description: 'Close a session by ID' },
   { cmd: '/session stop', description: 'Stop a running session' },

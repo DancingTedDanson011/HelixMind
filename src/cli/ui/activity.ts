@@ -40,7 +40,7 @@ export class ActivityIndicator {
   private startTime = 0;
   private _blockMode = false;
   private _finalElapsed = 0;
-  private _separatorContent = '';
+  private _restoreContent = '';
 
   /** Reference to the shared BottomChrome instance */
   private chrome: BottomChrome | null;
@@ -49,9 +49,9 @@ export class ActivityIndicator {
     this.chrome = chrome ?? null;
   }
 
-  /** Set the separator content to restore when activity stops/pauses */
-  setSeparatorContent(content: string): void {
-    this._separatorContent = content;
+  /** Set the hints content to restore on chrome row 2 when activity stops/pauses */
+  setRestoreContent(content: string): void {
+    this._restoreContent = content;
   }
 
   start(): void {
@@ -80,9 +80,9 @@ export class ActivityIndicator {
       clearInterval(this.interval);
       this.interval = null;
     }
-    // Restore separator on chrome row 0
+    // Restore hints on chrome row 2
     if (this.chrome?.isActive) {
-      this.chrome.setRow(0, this._separatorContent);
+      this.chrome.setRow(2, this._restoreContent);
     }
   }
 
@@ -103,7 +103,7 @@ export class ActivityIndicator {
 
   /**
    * Stop the activity indicator and write a final status line.
-   * Restores separator on chrome row 0 and writes "Done" as inline scrolling content.
+   * Restores hints on chrome row 2 and writes "Done" as inline scrolling content.
    */
   stop(message: string = 'Done'): void {
     if (this.startTime > 0) {
@@ -115,9 +115,9 @@ export class ActivityIndicator {
       this.interval = null;
     }
 
-    // Restore separator on chrome row 0
+    // Restore hints on chrome row 2
     if (this.chrome?.isActive) {
-      this.chrome.setRow(0, this._separatorContent);
+      this.chrome.setRow(2, this._restoreContent);
     }
 
     if (this.startTime > 0 && wasAnimating) {
@@ -190,27 +190,20 @@ export class ActivityIndicator {
     const elapsed = Date.now() - this.startTime;
     const timeStr = chalk.dim(formatElapsed(elapsed));
 
-    let inner = `${symbol} ${coloredText} working${dots} ${timeStr}`;
+    let line = `${symbol} ${coloredText} working${dots} ${timeStr}`;
 
     // Step indicator
     if (this.stepNum > 0) {
       const stepColor = this.errors > 0 ? chalk.yellow : chalk.dim;
-      inner += `  ${stepColor(`[Step ${this.stepNum}]`)}`;
+      line += `  ${stepColor(`[Step ${this.stepNum}]`)}`;
       if (this.stepLabel) {
-        inner += ` ${chalk.dim(this.stepLabel.slice(0, 40))}`;
+        line += ` ${chalk.dim(this.stepLabel.slice(0, 40))}`;
       }
     }
 
-    // Wrap in top-border box format: ┌── activity ──────────┐
-    const w = Math.max(20, (process.stdout.columns || 80) - 2);
-    const dim = chalk.hex('#00d4ff').dim;
-    const innerVis = visibleLength(inner);
-    const fill = Math.max(0, w - 4 - innerVis - 1); // 4 = "┌── " prefix, 1 = " ┐" suffix
-    const line = `${dim('\u250C\u2500\u2500')} ${inner} ${dim('\u2500'.repeat(fill) + '\u2510')}`;
-
-    // Write to chrome row 0 (top border / activity row)
+    // Write to chrome row 2 (hints row) — top border stays untouched
     if (this.chrome?.isActive) {
-      this.chrome.setRow(0, line);
+      this.chrome.setRow(2, line);
     }
   }
 }
