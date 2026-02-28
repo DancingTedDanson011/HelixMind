@@ -144,6 +144,24 @@ export class BottomChrome {
     this._rawWrite(`\x1b[${this.promptRow};1H`);
   }
 
+  /**
+   * Write content at the prompt row (bottom of scroll region) without
+   * disturbing the current cursor position. Used for type-ahead previews
+   * during agent work when readline echo is muted.
+   */
+  writeAtPromptRow(content: string): void {
+    if (this._inlineMode || !this._active) return;
+    this._rawWrite(
+      '\x1b[?25l' +                           // hide cursor
+      '\x1b7' +                                 // save cursor
+      `\x1b[${this.promptRow};1H` +            // move to prompt row
+      '\x1b[2K' +                              // clear entire line
+      content +                                // write content
+      '\x1b8' +                                 // restore cursor
+      '\x1b[?25h',                             // show cursor
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Private: Scroll region management
   // ---------------------------------------------------------------------------

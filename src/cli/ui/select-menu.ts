@@ -89,6 +89,10 @@ export function selectMenu(
     }
 
     function cleanup(result: number): void {
+      // Erase the rendered menu from the terminal
+      const linesToClear = (title ? 1 : 0) + visibleCount + (items.length > visibleCount ? 1 : 0) + 2;
+      process.stdout.write(`\x1b[${linesToClear}A\x1b[J`);
+
       stdin.removeListener('data', onData);
       if (stdin.isTTY && wasRaw !== undefined) {
         stdin.setRawMode(wasRaw);

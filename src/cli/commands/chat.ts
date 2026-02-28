@@ -1073,9 +1073,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     },
     () => {
       (rl as any).output = process.stdout;
-      // Restore clean top border when unmuting (clear any input preview)
-      const w = Math.max(20, (process.stdout.columns || 80) - 2);
-      if (chrome.isActive) chrome.setRow(0, buildTopBorder(w));
+      // Clear type-ahead preview from prompt row when unmuting
+      if (chrome.isActive) chrome.writeAtPromptRow('');
     },
   );
 
@@ -2021,7 +2020,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
   }
 
-  // Show user's type-ahead in the top border ONLY during LLM streaming
+  // Show user's type-ahead at the prompt row (N-3) during LLM streaming
   // (when readline echo is muted). During tool execution / permission prompts,
   // readline echo is active and the user sees input at the normal prompt row.
   process.stdin.on('keypress', () => {
@@ -2030,21 +2029,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     setImmediate(() => {
       if (!agentRunning || !chrome.isActive || !activity.isAnimating) return;
       const userInput = (rl as any).line as string || '';
-      const w = Math.max(20, (process.stdout.columns || 80) - 2);
-      const dim = chalk.hex('#00d4ff').dim;
       if (userInput) {
-        const maxLen = w - 14;
+        const maxLen = Math.max(20, (process.stdout.columns || 80) - 8);
         const display = userInput.length > maxLen
           ? '\u2026' + userInput.slice(-(maxLen - 1))
           : userInput;
-        const pipe = chalk.hex('#00d4ff').dim('\u2502');
         const gt = chalk.hex('#00d4ff').bold('\u276F');
-        const inner = `${pipe} ${gt} ${display}`;
-        const innerVis = visibleLength(inner);
-        const fill = Math.max(0, w - 4 - innerVis - 1);
-        chrome.setRow(0, dim('\u250C\u2500\u2500') + ' ' + inner + ' ' + dim('\u2500'.repeat(fill) + '\u2510'));
+        chrome.writeAtPromptRow(`  ${gt} ${chalk.dim(display)}`);
       } else {
-        chrome.setRow(0, buildTopBorder(w));
+        chrome.writeAtPromptRow('');
       }
     });
   });
