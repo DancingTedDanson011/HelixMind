@@ -1,0 +1,96 @@
+---
+title: CLI Reference
+description: Complete reference for all HelixMind CLI commands, flags, and options.
+order: 3
+category: CLI Usage
+---
+
+# CLI Reference
+
+## Main Commands
+
+### `helixmind` / `helixmind chat`
+
+Start an interactive AI coding session (default command).
+
+| Flag | Description |
+|------|-------------|
+| `-m, --message <text>` | Send a single message instead of interactive mode |
+| `--yolo` | Auto-approve ALL operations (including dangerous) |
+| `-s, --skip-permissions` | Skip safe/ask prompts (still asks for dangerous) |
+| `--no-validation` | Disable Validation Matrix |
+| `--validation-verbose` | Show detailed validation results |
+| `--validation-strict` | Treat warnings as errors |
+
+```bash
+helixmind                                # Interactive chat
+helixmind chat -m "Add error handling"   # Single message
+helixmind --yolo --no-validation         # Full auto, no checks
+helixmind -s --validation-strict         # Skip permissions, strict validation
+```
+
+### `helixmind helix`
+
+Alias for `helixmind chat`.
+
+### `helixmind init`
+
+Initialize HelixMind in the current project:
+
+```bash
+cd your-project && helixmind init
+```
+
+Creates: `.helixmind/` directory with `context.md` + `spiral.db`.
+
+### `helixmind config`
+
+```bash
+helixmind config set <key> <value>    # Set a value
+helixmind config get <key>            # Get a value
+helixmind config list                 # List all settings
+```
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `provider` | LLM provider | `anthropic` |
+| `apiKey` | API key (masked) | — |
+| `model` | Model name | Provider default |
+| `logLevel` | Debug level | `info` |
+| `dataDir` | Data directory | `~/.helixmind/` |
+| `maxTokens` | Max context window | Provider default |
+| `validationEnabled` | Validation Matrix | `true` |
+| `brainScope` | Brain scope | `local` |
+
+### `helixmind spiral`
+
+```bash
+helixmind spiral status    # Nodes, levels, storage
+helixmind spiral search    # Semantic search
+helixmind spiral compact   # Trigger compaction
+```
+
+### `helixmind feed`
+
+```bash
+helixmind feed README.md src/     # Specific files/dirs
+helixmind feed --deep src/        # Deep analysis
+helixmind feed --watch src/       # Watch for changes
+```
+
+### `helixmind export` / `helixmind import`
+
+```bash
+helixmind export ./backups                # Export to ZIP
+helixmind export -n my-project            # With name
+helixmind import backup.zip              # Merge import
+helixmind import --replace backup.zip    # Replace import
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | General error |
+| `130` | Interrupted (Ctrl+C) |

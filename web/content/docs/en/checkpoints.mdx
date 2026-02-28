@@ -1,0 +1,67 @@
+---
+title: Checkpoints & Undo
+description: Automatic snapshots at every operation — browse, compare, and revert any change the AI makes.
+order: 14
+category: Core Concepts
+---
+
+# Checkpoints & Undo
+
+HelixMind automatically creates **checkpoints** at every tool call and chat message. Revert to any previous state instantly.
+
+## When Checkpoints Are Created
+
+| Trigger | What's Captured |
+|---------|----------------|
+| Session start | Initial state |
+| Chat message | Conversation snapshot |
+| File read/edit/write | Before + after file content |
+| Command execution | Pre-command state |
+| Git commit | Pre-commit state |
+| File search | Search context |
+| Feed / config change | Pre-change state |
+
+Each checkpoint stores: conversation history, file snapshots, tool call details, and timestamp.
+
+## Storage Limits
+
+| Limit | Value |
+|-------|-------|
+| Max snapshots per session | 200 |
+| Max total storage | 50MB |
+| Old snapshots | Pruned automatically |
+
+## Browsing Checkpoints
+
+### Via Slash Command
+
+```bash
+/undo
+```
+
+Opens the interactive checkpoint browser:
+
+| Key | Action |
+|-----|--------|
+| **Up/Down** | Navigate between checkpoints |
+| **Enter** | Select checkpoint to revert |
+| **ESC** | Cancel |
+
+### Via Emergency Stop
+
+**ESC ESC** (double-tap) → stops all operations → opens checkpoint browser.
+
+## Revert Options
+
+| Option | What It Reverts |
+|--------|----------------|
+| **Chat Only** | Conversation history (files unchanged) |
+| **Code Only** | File changes (conversation unchanged) |
+| **Both** | Full state rewind — conversation + all files |
+
+## Key Points
+
+- Even with 10 sequential edits, you can go back to any point
+- Checkpoints are **per-session** — gone when you close the session
+- For permanent safety, use git commits as long-term snapshots
+- Don't worry about the AI breaking things — you can always revert

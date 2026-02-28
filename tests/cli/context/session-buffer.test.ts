@@ -23,11 +23,11 @@ describe('SessionBuffer', () => {
   });
 
   it('truncates long user messages', () => {
-    const long = 'a'.repeat(200);
+    const long = 'a'.repeat(300);
     buffer.addUserMessage(long);
     const ctx = buffer.buildContext();
     expect(ctx).toContain('...');
-    expect(ctx).not.toContain('a'.repeat(200));
+    expect(ctx).not.toContain('a'.repeat(300));
   });
 
   it('tracks tool calls', () => {

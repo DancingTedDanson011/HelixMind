@@ -1,0 +1,66 @@
+---
+title: Troubleshooting
+description: Common issues and solutions when using HelixMind.
+order: 40
+category: Advanced
+---
+
+# Troubleshooting
+
+## Installation
+
+**npm Permission Error:**
+```bash
+sudo npm install -g helixmind
+# Or better: set npm prefix to a local directory
+```
+
+**Node.js Version:** HelixMind requires Node.js 18+. Check with `node --version`.
+
+## API Key Issues
+
+**"Invalid API Key":**
+```bash
+helixmind config get apiKey    # Check
+helixmind config set apiKey sk-ant-...  # Re-set
+```
+
+Key formats: Anthropic `sk-ant-...`, OpenAI `sk-...`, Groq `gsk_...`
+
+**Rate Limiting:** HelixMind uses automatic exponential backoff. For persistent errors: check API plan limits or switch to Ollama for unlimited local inference.
+
+## Spiral Memory
+
+**"Database Locked":** Close multiple HelixMind instances. Only one instance per database.
+
+**Slow Embeddings:** First start downloads the model (~22MB). Cached afterwards.
+
+**Large Database:** Check with `helixmind spiral status`, compact with `helixmind spiral compact`.
+
+## Brain Visualization
+
+**Not Opening:** Check port with `/brain`. If busy, HelixMind picks a random port.
+
+**WebSocket Error:** Browser extensions (ad blockers, privacy tools) can block WebSocket to localhost.
+
+## Ollama
+
+**"Connection Refused":** Start `ollama serve`. Check: `curl http://localhost:11434/api/version`
+
+**Out of Memory:** Use a smaller model: `helixmind config set model qwen2.5-coder:7b`
+
+## Windows
+
+**SQLite EBUSY:** Close all HelixMind instances, delete `.helixmind/spiral.db-wal` and `-shm` files.
+
+## MCP Server
+
+**Server Not Starting:** Test `npx -y spiral-context-mcp` directly. Ensure Node.js 18+.
+
+**Editor Not Connecting:** Check MCP config location, restart editor, check editor MCP logs.
+
+## Help
+
+1. Check [GitHub Issues](https://github.com/helixmind/helixmind/issues)
+2. Open new issue with OS, Node.js version, error message, and reproduction steps
+3. In-app support: [Support](/support/tickets)

@@ -1,0 +1,68 @@
+---
+title: Permission System
+description: HelixMind's 3-tier permission system — safe, ask, dangerous — and how to control what the AI can do.
+order: 13
+category: Core Concepts
+---
+
+# Permission System
+
+HelixMind uses a **3-tier permission system** to control what the AI agent can do.
+
+## The 3 Tiers
+
+| Tier | Behavior | Tools |
+|------|----------|-------|
+| **Safe** (auto) | Runs without asking | `read_file`, `list_directory`, `search_files`, `find_files`, `git_status`, `git_log`, `git_diff`, `spiral_query`, `spiral_store` |
+| **Ask** (prompt) | Asks for permission | `edit_file`, `write_file`, `git_commit`, `run_command` (non-destructive), `web_research` |
+| **Dangerous** (always ask) | Always requires approval | `run_command` with `rm -rf`, `dd`, `format`, `DROP TABLE`, `curl \| sh`, etc. |
+
+## Permission Modes
+
+| Mode | Flag | Behavior |
+|------|------|----------|
+| **Default** | — | Safe = auto, Ask = prompt, Dangerous = prompt |
+| **Skip-Permissions** | `--skip-permissions` or `/skip-permissions` | Safe + Ask = auto, Dangerous = prompt |
+| **YOLO** | `--yolo` or `/yolo` | Everything auto-approved (⚠️ use with caution) |
+
+## Permission Prompts
+
+When a tool requires permission:
+
+```
+🔒 edit_file: src/middleware/auth.ts (line 42)
+   Allow? [y/n/always]:
+```
+
+| Response | Effect |
+|----------|--------|
+| **y** | Allow this one time |
+| **n** | Deny this operation |
+| **always** | Allow this tool type for the rest of the session |
+
+## Command Classification
+
+The `run_command` tool classifies every command:
+
+| Category | Examples |
+|----------|---------|
+| **Auto-approve** | `ls`, `cat`, `echo`, `npm test`, `tsc`, `eslint`, `git status` |
+| **Ask** | `npm install`, `docker`, `make`, `python`, `mkdir`, `cp`, `mv` |
+| **Dangerous** | `rm -rf`, `dd`, `mkfs`, `chmod 777`, `DROP`, `DELETE`, `TRUNCATE`, `curl \| sh` |
+
+## Emergency Stop
+
+Press **ESC ESC** (double-tap) to:
+
+1. Immediately abort all running operations (main + background)
+2. Open the checkpoint browser
+3. Choose a state to revert to
+
+Works in **all modes** — including YOLO.
+
+## Tips
+
+1. **Start with default mode** until comfortable
+2. **Skip-permissions** when actively watching the AI work
+3. **YOLO only** in safe, isolated environments (containers, test projects)
+4. Use `/undo` immediately if an operation doesn't look right

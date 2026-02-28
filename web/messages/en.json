@@ -1,0 +1,382 @@
+{
+  "meta": {
+    "title": "HelixMind — AI Coding CLI with Spiral Memory",
+    "description": "The only AI coding tool that remembers everything. Persistent spiral memory, 3D brain visualization, and intelligent context that grows with your project."
+  },
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "docs": "Docs",
+    "blog": "Blog",
+    "support": "Support",
+    "login": "Log in",
+    "getStarted": "Get Started",
+    "dashboard": "Dashboard"
+  },
+  "hero": {
+    "badge": "Open Source AI Coding CLI",
+    "title": "Your AI finally",
+    "titleHighlight": "remembers.",
+    "subtitle": "The only AI coding tool with persistent spiral memory. Every pattern, every decision, every context — preserved and evolved across sessions.",
+    "cta": "Install Free",
+    "ctaSecondary": "See it in action",
+    "installCommand": "npm install -g helixmind"
+  },
+  "problem": {
+    "title": "The problem with every AI coding tool",
+    "subtitle": "Every session starts from zero. Your AI forgets everything.",
+    "points": {
+      "forget": "Re-explain your architecture every session",
+      "context": "Lost context costs hours of debugging",
+      "patterns": "Your coding patterns are never learned"
+    }
+  },
+  "spiral": {
+    "title": "Spiral Memory — Context that evolves",
+    "subtitle": "Six levels of intelligent memory that grows, decays, and adapts with your project.",
+    "levels": {
+      "l1": { "name": "Focus", "desc": "Hot context — what you're working on right now" },
+      "l2": { "name": "Active", "desc": "Recent patterns and decisions still in play" },
+      "l3": { "name": "Reference", "desc": "Stable knowledge — architecture, conventions" },
+      "l4": { "name": "Archive", "desc": "Historical context, accessible when needed" },
+      "l5": { "name": "Deep Archive", "desc": "Compressed summaries of old knowledge" },
+      "l6": { "name": "Web Knowledge", "desc": "Auto-fetched documentation and web insights, always up to date" }
+    }
+  },
+  "features": {
+    "title": "Built for developers who ship",
+    "subtitle": "Everything you need to code faster with persistent AI context.",
+    "memory": {
+      "title": "Spiral Memory",
+      "desc": "5-level memory system that evolves. Context promotes on use, decays when stale."
+    },
+    "brain": {
+      "title": "3D Brain Visualization",
+      "desc": "See your AI's knowledge as a living 3D helix. Watch connections form in real-time."
+    },
+    "validation": {
+      "title": "Validation Matrix",
+      "desc": "3-phase validation catches bugs before they exist. Static, dynamic, and knowledge checks."
+    },
+    "web": {
+      "title": "Web Knowledge Enricher",
+      "desc": "Auto-fetches relevant documentation and stores it in your brain. Always up to date."
+    },
+    "offline": {
+      "title": "Fully Offline Capable",
+      "desc": "Run with Ollama locally. Your data never leaves your machine. Zero cloud dependency."
+    },
+    "sessions": {
+      "title": "Multi-Session Agent",
+      "desc": "Background security audits, parallel code analysis. Each with its own context."
+    }
+  },
+  "comparison": {
+    "title": "How HelixMind compares",
+    "subtitle": "The only tool with persistent, evolving memory.",
+    "headers": {
+      "feature": "Feature",
+      "helixmind": "HelixMind",
+      "claudeCode": "Claude Code",
+      "cursor": "Cursor",
+      "aider": "Aider",
+      "copilot": "Copilot"
+    },
+    "rows": {
+      "persistentMemory": "Persistent Memory",
+      "brainViz": "3D Brain Visualization",
+      "validation": "Built-in Validation",
+      "webEnricher": "Web Knowledge Enricher",
+      "offlineMode": "Fully Offline (Ollama)",
+      "multiSession": "Multi-Session Agent",
+      "openSource": "Open Source",
+      "mcpServer": "MCP Server"
+    }
+  },
+  "pricing": {
+    "title": "Simple, transparent pricing",
+    "subtitle": "Start free. Upgrade when you need cloud sync and team features.",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "yearlyDiscount": "Save 2 months",
+    "perMonth": "/month",
+    "perUser": "/user/month",
+    "custom": "Custom",
+    "getStarted": "Get Started Free",
+    "subscribe": "Subscribe",
+    "contactSales": "Contact Sales",
+    "free": {
+      "name": "Free",
+      "price": "0",
+      "desc": "For solo developers and open source.",
+      "features": [
+        "Full CLI with all features",
+        "Unlimited local spiral memory",
+        "Ollama integration",
+        "3D Brain visualization",
+        "Community support"
+      ]
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "19",
+      "yearlyPrice": "190",
+      "desc": "For power users who want more.",
+      "features": [
+        "Everything in Free",
+        "Cloud brain sync",
+        "Web Knowledge Enricher",
+        "Priority support",
+        "API access",
+        "Usage analytics"
+      ]
+    },
+    "team": {
+      "name": "Team",
+      "price": "39",
+      "yearlyPrice": "390",
+      "desc": "For teams building together.",
+      "features": [
+        "Everything in Pro",
+        "Shared team brain",
+        "Team analytics dashboard",
+        "Role-based access",
+        "Dedicated support",
+        "Custom integrations"
+      ]
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "desc": "For organizations with compliance needs.",
+      "features": [
+        "Everything in Team",
+        "Self-hosted deployment",
+        "SSO / SAML",
+        "SOC 2 compliance",
+        "SLA guarantee",
+        "Custom training"
+      ]
+    }
+  },
+  "cta": {
+    "title": "Start building with memory",
+    "subtitle": "Install HelixMind in 30 seconds. Free forever for individual use.",
+    "button": "Install Free",
+    "github": "Star on GitHub"
+  },
+  "footer": {
+    "product": "Product",
+    "resources": "Resources",
+    "company": "Company",
+    "legal": "Legal",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "imprint": "Imprint",
+    "cookieSettings": "Cookie Settings",
+    "copyright": "HelixMind. All rights reserved."
+  },
+  "cookieConsent": {
+    "title": "We value your privacy",
+    "description": "We use cookies to ensure our website functions properly. Essential cookies are required for core functionality. You can choose to enable additional cookies below.",
+    "acceptAll": "Accept All",
+    "rejectAll": "Reject All",
+    "customize": "Customize",
+    "savePreferences": "Save Preferences",
+    "settingsTitle": "Cookie Preferences",
+    "settingsDescription": "Choose which cookies you want to allow. You can change these settings at any time.",
+    "essential": "Essential",
+    "essentialDesc": "Required for the website to function. These cookies enable core functionality like authentication and session management.",
+    "alwaysOn": "Always on",
+    "analytics": "Analytics",
+    "analyticsDesc": "Help us understand how visitors interact with our website. All data is anonymized.",
+    "marketing": "Marketing",
+    "marketingDesc": "Used to deliver relevant advertisements and track campaign effectiveness.",
+    "optional": "Optional",
+    "learnMore": "Learn more in our",
+    "privacyPolicyLink": "Privacy Policy"
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Create account",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "orContinueWith": "Or with email",
+    "github": "Continue with GitHub",
+    "google": "Continue with Google",
+    "verifyEmail": "Check your email",
+    "verifyEmailDesc": "We sent a verification link to your email.",
+    "invalidCredentials": "Invalid email or password",
+    "registrationFailed": "Registration failed",
+    "accountCreatedLoginFailed": "Account created but login failed. Please try logging in.",
+    "staffLogin": "Staff Login",
+    "staffLoginDesc": "Admin & Support access only",
+    "staffLoginError": "Invalid credentials",
+    "staffNoAccess": "This account does not have staff access",
+    "staffOnlyNotice": "This login is restricted to authorized staff members."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "subscription": "Subscription",
+    "apiKeys": "API Keys",
+    "settings": "Settings",
+    "usage": "Usage"
+  },
+  "support": {
+    "title": "Support",
+    "faq": "FAQ",
+    "tickets": "My Tickets",
+    "newTicket": "New Ticket",
+    "subject": "Subject",
+    "category": "Category",
+    "priority": "Priority",
+    "status": "Status",
+    "submit": "Submit Ticket"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "users": "Users",
+    "subscriptions": "Subscriptions",
+    "tickets": "Tickets",
+    "analytics": "Analytics"
+  },
+  "pwa": {
+    "installTitle": "Install HelixMind",
+    "installDescription": "Add HelixMind to your home screen for quick access and an app-like experience.",
+    "iosInstructions": "Tap the Share button, then \"Add to Home Screen\" to install HelixMind.",
+    "install": "Install",
+    "notNow": "Not now"
+  },
+  "offline": {
+    "title": "You are offline",
+    "description": "HelixMind needs an internet connection. Please check your network and try again.",
+    "retry": "Try Again"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search...",
+    "noResults": "No results found",
+    "error": "Something went wrong",
+    "success": "Success"
+  },
+  "cli": {
+    "title": "CLI Manager",
+    "description": "Connect and control your HelixMind CLI instances",
+    "scanning": "Scanning for local instances...",
+    "noInstances": "No CLI instances found",
+    "noInstancesHint": "Start HelixMind CLI with 'helixmind chat' to see it here",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "connecting": "Connecting...",
+    "authenticating": "Authenticating...",
+    "connectionError": "Connection failed",
+    "tokenTitle": "Enter Connection Token",
+    "tokenDescription": "Enter the token shown in your CLI terminal to authenticate",
+    "tokenPlaceholder": "Paste token here...",
+    "tokenRemember": "Remember this token",
+    "tokenHint": "Token ends with: {hint}",
+    "project": "Project",
+    "port": "Port",
+    "model": "Model",
+    "provider": "Provider",
+    "uptime": "Uptime",
+    "version": "Version",
+    "sessions": "Sessions",
+    "noSessions": "No active sessions",
+    "startAuto": "Start Auto",
+    "startSecurity": "Security Audit",
+    "stopAll": "Stop All",
+    "abort": "Abort",
+    "autoGoalPlaceholder": "Describe the goal (optional)...",
+    "chatPlaceholder": "Send a message to CLI...",
+    "send": "Send",
+    "findings": "Findings",
+    "noFindings": "No findings yet",
+    "output": "Output",
+    "noOutput": "No output available",
+    "scan": "Scan",
+    "rescan": "Rescan",
+    "local": "Local",
+    "remote": "Remote",
+    "active": "Active",
+    "elapsed": "Elapsed",
+    "lines": "lines",
+    "steps": "steps",
+    "errors": "errors",
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "info": "Info"
+    },
+    "status": {
+      "idle": "Idle",
+      "running": "Running",
+      "done": "Done",
+      "error": "Error",
+      "paused": "Paused"
+    },
+    "remote_tab": {
+      "title": "Remote Instances",
+      "description": "CLI instances connected via relay",
+      "noInstances": "No remote instances connected",
+      "noInstancesHint": "Configure relay in CLI: helixmind config set relay.url wss://your-server.com"
+    },
+    "mixedContentWarning": "Mixed content: HTTPS page cannot connect to local WS. Use the relay instead."
+  },
+  "app": {
+    "title": "HelixMind App",
+    "newChat": "New Chat",
+    "deleteChat": "Delete chat",
+    "renameChat": "Rename",
+    "sendMessage": "Send a message...",
+    "thinking": "Thinking...",
+    "stopAgent": "Stop",
+    "modeNormal": "Normal",
+    "modeSkipPermissions": "Skip Permissions",
+    "brain": "Brain",
+    "noMessages": "Start a conversation with HelixMind",
+    "noMessagesHint": "Ask anything about your code, debug issues, or explore ideas.",
+    "chatDeleted": "Chat deleted",
+    "connecting": "Connecting to HelixMind...",
+    "notConnected": "Not connected",
+    "notConnectedHint": "Start HelixMind CLI locally or connect via relay to begin.",
+    "exitApp": "Exit App",
+    "untitled": "Untitled Chat",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "previous": "Previous",
+    "confirmDelete": "Delete this chat?",
+    "confirmDeleteDesc": "This will permanently delete all messages in this chat.",
+    "toolCall": "Tool Call",
+    "toolResult": "Result",
+    "copyCode": "Copy",
+    "copied": "Copied!",
+    "closeBrain": "Close Brain"
+  },
+  "cliAuth": {
+    "title": "Authorize HelixMind CLI",
+    "description": "A CLI instance is requesting access to your account.",
+    "deviceName": "Device",
+    "deviceOs": "Operating System",
+    "loggedInAs": "Logged in as",
+    "authorize": "Authorize",
+    "cancel": "Cancel",
+    "error": "Authorization failed. Please try again.",
+    "invalidRequest": "Invalid Request",
+    "invalidRequestDesc": "This authorization link is invalid or expired. Please run 'helixmind login' again."
+  }
+}

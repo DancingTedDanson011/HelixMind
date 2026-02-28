@@ -1,0 +1,45 @@
+---
+title: Checkpoints & Undo
+description: Automatische Snapshots bei jeder Operation — durchsuchen, vergleichen und jede AI-Änderung rückgängig machen.
+order: 14
+category: Kernkonzepte
+---
+
+# Checkpoints & Undo
+
+HelixMind erstellt automatisch **Checkpoints** bei jedem Tool-Call und jeder Chat-Nachricht.
+
+## Wann Checkpoints erstellt werden
+
+- Session-Start, jede Chat-Nachricht, jeder Tool-Call
+- Jedes Feed- und Config-Event
+- Max **200 Snapshots**, **50MB** Gesamtgröße
+
+## Checkpoints durchsuchen
+
+```bash
+/undo          # Checkpoint-Browser öffnen
+ESC ESC        # Notfall-Stopp + Checkpoint-Browser
+```
+
+Navigation: **Pfeiltasten** hoch/runter, **Enter** zum Auswählen, **ESC** zum Abbrechen.
+
+## Rücksetzen-Optionen
+
+| Option | Was wird zurückgesetzt |
+|--------|----------------------|
+| **Nur Chat** | Gesprächsverlauf zurück zum Checkpoint |
+| **Nur Code** | Dateiänderungen zurücksetzen |
+| **Beides** | Vollständiger State-Rewind |
+
+## Checkpoint-Typen
+
+| Typ | Auslöser |
+|-----|----------|
+| `session_start` | Session beginnt |
+| `chat` | Nachricht gesendet |
+| `tool_edit` / `tool_write` | AI ändert/erstellt Datei |
+| `tool_run` | AI führt Befehl aus |
+| `tool_commit` | AI committet |
+
+Für datei-ändernde Operationen wird der **komplette Dateiinhalt** vor der Änderung gespeichert — du kannst einzelne Dateien unabhängig zurücksetzen.

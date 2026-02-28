@@ -17,10 +17,19 @@ export interface HelixMindConfig {
     autoStore: boolean;
     maxTokensBudget: number;
   };
+  relay?: {
+    url?: string;
+    apiKey?: string;
+    autoConnect?: boolean;
+    userId?: string;
+    userEmail?: string;
+    plan?: string;
+    loginAt?: string;
+  };
 }
 
-// Dynamic import would be circular, so inline the defaults
-// These are synced with KNOWN_PROVIDERS in providers/registry.ts
+// Keep in sync with KNOWN_PROVIDERS in providers/registry.ts
+// Auto-merge in load() ensures existing configs get new models automatically
 const DEFAULT_MODELS: Record<string, string[]> = {
   anthropic: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001'],
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o1', 'o1-mini', 'o3-mini'],
@@ -29,7 +38,12 @@ const DEFAULT_MODELS: Record<string, string[]> = {
   together: ['meta-llama/Llama-3.3-70B-Instruct-Turbo', 'mistralai/Mixtral-8x22B-Instruct-v0.1'],
   ollama: ['qwen3-coder:30b', 'qwen2.5-coder:32b', 'qwen2.5-coder:14b', 'qwen2.5-coder:7b', 'deepseek-r1:32b', 'deepseek-r1:14b', 'deepseek-coder-v2:16b', 'llama3.3', 'codellama:34b'],
   openrouter: ['anthropic/claude-sonnet-4', 'openai/gpt-4o', 'google/gemini-2.0-flash-exp'],
-  zai: ['glm-5', 'glm-4.7', 'glm-4.6', 'glm-4.5'],
+  zai: [
+    'glm-5', 'glm-5-code',
+    'glm-4.7', 'glm-4.7-flashx', 'glm-4.7-flash',
+    'glm-4.6',
+    'glm-4.5', 'glm-4.5-x', 'glm-4.5-air', 'glm-4.5-airx', 'glm-4.5-flash',
+  ],
 };
 
 const DEFAULT_BASE_URLS: Record<string, string> = {
@@ -70,11 +84,26 @@ export class ConfigStore {
     }
     try {
       const raw = JSON.parse(readFileSync(this.configPath, 'utf-8'));
+
+      // Auto-merge: add new default models to existing providers
+      if (raw.providers) {
+        for (const [name, defaults] of Object.entries(DEFAULT_MODELS)) {
+          const stored = raw.providers[name] as ProviderEntry | undefined;
+          if (stored?.models) {
+            const existing = new Set(stored.models);
+            for (const m of defaults) {
+              if (!existing.has(m)) stored.models.push(m);
+            }
+          }
+        }
+      }
+
       return {
         ...DEFAULT_CONFIG,
         ...raw,
         providers: raw.providers ?? {},
         spiral: { ...DEFAULT_CONFIG.spiral, ...(raw.spiral ?? {}) },
+        relay: raw.relay ?? undefined,
       };
     } catch {
       return { ...DEFAULT_CONFIG, providers: {}, spiral: { ...DEFAULT_CONFIG.spiral } };
@@ -106,10 +135,11 @@ export class ConfigStore {
       record[key] = value;
     } else if (parts.length === 2) {
       const [section, prop] = parts;
-      const obj = record[section];
-      if (obj && typeof obj === 'object') {
-        (obj as Record<string, unknown>)[prop] = value;
+      // Auto-create section objects (e.g. relay.url when relay doesn't exist yet)
+      if (!record[section] || typeof record[section] !== 'object') {
+        record[section] = {};
       }
+      (record[section] as Record<string, unknown>)[prop] = value;
     }
     this.save(this.config);
   }
@@ -201,6 +231,35 @@ export class ConfigStore {
   static maskKey(key: string): string {
     if (key.length <= 12) return '***';
     return key.slice(0, 8) + '...' + key.slice(-4);
+  }
+
+  /** Check if authenticated with HelixMind web platform */
+  isLoggedIn(): boolean {
+    return !!this.config.relay?.apiKey;
+  }
+
+  /** Get auth info or null if not logged in */
+  getAuthInfo(): { apiKey: string; url: string; userId?: string; email?: string; plan?: string } | null {
+    if (!this.config.relay?.apiKey) return null;
+    return {
+      apiKey: this.config.relay.apiKey,
+      url: this.config.relay.url ?? '',
+      userId: this.config.relay.userId,
+      email: this.config.relay.userEmail,
+      plan: this.config.relay.plan,
+    };
+  }
+
+  /** Clear auth data (logout) */
+  clearAuth(): void {
+    if (this.config.relay) {
+      delete this.config.relay.apiKey;
+      delete this.config.relay.userId;
+      delete this.config.relay.userEmail;
+      delete this.config.relay.plan;
+      delete this.config.relay.loginAt;
+    }
+    this.save(this.config);
   }
 
   listFlat(): Array<{ key: string; value: unknown }> {

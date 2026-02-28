@@ -1,0 +1,64 @@
+---
+title: Brain-Visualisierung
+description: Echtzeit-3D-Visualisierung deines Spiral-Gedächtnisses — Knoten, Kanten und Live-Updates.
+order: 11
+category: Kernkonzepte
+---
+
+# Brain-Visualisierung
+
+HelixMind enthält eine **Echtzeit-3D-Brain-Visualisierung**, die dein Spiral-Gedächtnis als interaktive Helix im Browser rendert.
+
+## Öffnen
+
+```bash
+/brain
+```
+
+Startet einen lokalen WebSocket-Server und öffnet die Visualisierung im Browser (`http://127.0.0.1:9420`).
+
+## Was du siehst
+
+### Die Helix
+
+Knoten sind in einem **3D-Doppelhelix-Muster** angeordnet:
+
+| Element | Bedeutung |
+|---------|-----------|
+| **Knotengröße** | Skaliert mit Relevanz |
+| **Cyan** Knoten | L1 Focus |
+| **Grüne** Knoten | L2 Active |
+| **Blaue** Knoten | L3 Reference |
+| **Violette** Knoten | L4 Archive |
+| **Graue** Knoten | L5 Deep Archive |
+| **Orange** Knoten | L6 Web Knowledge |
+| **Leuchtende Linien** | Kanten (Beziehungen) |
+
+### Live-Updates
+
+Während die AI arbeitet, aktualisiert sich das Brain in Echtzeit:
+
+- **Neue Knoten** erscheinen mit Partikel-Burst-Animation
+- **Web Knowledge** Popups bei neuen Erkenntnissen
+- **Kanten** bilden sich bei entdeckten Beziehungen
+
+### Findings-Panel
+
+Bei laufenden Hintergrund-Sessions (`/security`, `/auto`) zeigt ein **Findings-Panel** links:
+- Entdeckte Issues und Schweregrad
+- Analysierte Dateien
+- Angewandte Fixes
+
+## Scope umschalten
+
+```bash
+/brain local   # Nur projekt-lokale Knoten
+/brain global  # Alle Knoten über alle Projekte
+```
+
+## Maus-Interaktion
+
+- **Drehen** — Klicken und Ziehen
+- **Zoom** — Scrollrad
+- **Hover** — Über Knoten für Vorschau
+- **Auto-Rotation** — Helix dreht sich langsam

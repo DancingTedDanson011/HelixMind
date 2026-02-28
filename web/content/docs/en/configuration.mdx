@@ -1,0 +1,54 @@
+---
+title: Configuration
+description: All HelixMind configuration options — global settings, project context, and environment variables.
+order: 33
+category: Integrations
+---
+
+# Configuration
+
+HelixMind uses a layered configuration system: global config, project context, and environment variables.
+
+## Global Configuration
+
+Stored at `~/.helixmind/config.json`:
+
+```bash
+helixmind config set provider anthropic
+helixmind config get provider
+helixmind config list
+```
+
+### Config Keys
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `provider` | LLM provider | `anthropic` |
+| `apiKey` | API key (masked when displayed) | — |
+| `model` | Model name | Provider default |
+| `logLevel` | Debug level | `info` |
+| `dataDir` | Data directory | `~/.helixmind/` |
+| `maxTokens` | Max context window | Provider default |
+| `validationEnabled` | Validation Matrix | `true` |
+| `brainScope` | Brain scope | `local` |
+
+## Project Context (`.helixmind/context.md`)
+
+Included in **every conversation**. Describe your tech stack, architecture, conventions, and important rules.
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Overrides config |
+| `OPENAI_API_KEY` | Overrides config |
+| `HELIXMIND_DATA_DIR` | Override data directory |
+| `HELIXMIND_LOG_LEVEL` | Override log level |
+
+## Priority Order
+
+1. **CLI flags** (`--yolo`, `--no-validation`)
+2. **Environment variables**
+3. **Project config** (`.helixmind/config.json`)
+4. **Global config** (`~/.helixmind/config.json`)
+5. **Defaults**

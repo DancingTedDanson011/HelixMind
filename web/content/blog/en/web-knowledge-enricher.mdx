@@ -1,0 +1,51 @@
+---
+title: "Web Knowledge Enricher: Your AI's Connection to the Internet"
+description: "How HelixMind automatically fetches relevant web knowledge during coding sessions and stores it in spiral memory for future reference."
+date: "2025-02-25"
+author: "HelixMind Team"
+tags: ["web-knowledge", "ai-coding", "features"]
+---
+
+# Web Knowledge Enricher: Your AI's Connection to the Internet
+
+LLMs have a knowledge cutoff. They don't know about the library version you released last week, the breaking change in the latest framework update, or the Stack Overflow answer that solves your exact problem. HelixMind's Web Knowledge Enricher bridges this gap automatically.
+
+## How It Works
+
+When you describe a task or ask a question, the enricher analyzes your message for topics that would benefit from current web information. It detects three categories:
+
+**Technology topics** -- references to specific libraries, frameworks, APIs, or tools. If you mention "Next.js 15 App Router" or "Prisma client extensions", the enricher recognizes these as topics where up-to-date documentation matters.
+
+**Pattern topics** -- architectural patterns, design approaches, and best practices. Questions about "repository pattern in TypeScript" or "event sourcing with SQLite" trigger searches for current implementations and recommendations.
+
+**Error topics** -- error messages, stack traces, and debugging scenarios. When you paste an error, the enricher searches for solutions, known issues, and workarounds.
+
+## The Pipeline
+
+Once topics are detected, the enricher follows a straightforward pipeline:
+
+1. **Search** -- DuckDuckGo queries are constructed from the detected topics. Multiple queries may run in parallel for different aspects of the same problem.
+
+2. **Extract** -- Relevant pages are fetched and their HTML content is processed. The content extractor pulls out code examples, key technical points, and concise summaries while discarding navigation, ads, and boilerplate.
+
+3. **Store** -- Extracted knowledge is stored as L2 nodes in spiral memory. These nodes include the source URL, extraction date, and relevance metadata. They participate in the normal evolution and decay cycle.
+
+4. **Assemble** -- On the next context assembly, the freshly stored web knowledge is available alongside your existing spiral memory. The AI can reference current documentation, recent solutions, and up-to-date examples.
+
+## Live Brain Visualization
+
+When the Web Knowledge Enricher finds relevant information, you see it in real time. The 3D brain visualization (accessible via `/brain`) shows pop-up animations and particle bursts when new web knowledge nodes are created. The findings panel in the left sidebar lists what was found, where it came from, and how it relates to your current task.
+
+This transparency is intentional. You always know what information your AI is working with and where it came from.
+
+## Explicit Research with `web_research`
+
+Beyond automatic enrichment, the agent has access to a dedicated `web_research` tool. When you explicitly ask the AI to research something ("look up the latest Tailwind v4 migration guide"), the agent invokes this tool to perform targeted web searches, extract information, and present findings directly in the conversation.
+
+The difference: automatic enrichment runs in the background and feeds context silently. The `web_research` tool is an explicit action that returns results you can see and discuss.
+
+## Staying Current
+
+Web knowledge nodes carry timestamps and decay like any other spiral memory node. Fresh information from today's search ranks higher than a cached result from two weeks ago. If you search for the same topic again, the enricher fetches current results rather than relying solely on cached knowledge.
+
+This means your AI stays current. Framework migrations, security advisories, and API changes are picked up naturally as you work. The spiral brain becomes not just a memory of your project, but a living knowledge base that grows with the ecosystem around it.

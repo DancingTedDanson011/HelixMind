@@ -56,7 +56,22 @@ export const KNOWN_PROVIDERS: Record<string, {
   zai: {
     type: 'openai-compatible',
     baseURL: 'https://api.z.ai/api/paas/v4',
-    models: ['glm-5', 'glm-4.7', 'glm-4.6', 'glm-4.5'],
+    models: [
+      // Premium
+      'glm-5',
+      'glm-5-code',
+      // Standard
+      'glm-4.7',
+      'glm-4.7-flashx',
+      'glm-4.6',
+      'glm-4.5',
+      'glm-4.5-x',
+      'glm-4.5-air',
+      'glm-4.5-airx',
+      // Free
+      'glm-4.7-flash',
+      'glm-4.5-flash',
+    ],
     defaultModel: 'glm-5',
   },
   openrouter: {
@@ -87,4 +102,15 @@ export function createProvider(
 /** Get all known provider names */
 export function getProviderNames(): string[] {
   return Object.keys(KNOWN_PROVIDERS);
+}
+
+/** Models that are completely free to use (no cost per token) */
+export const FREE_MODELS = new Set([
+  'glm-4.7-flash',
+  'glm-4.5-flash',
+]);
+
+/** Check if a model is free */
+export function isModelFree(model: string): boolean {
+  return FREE_MODELS.has(model);
 }

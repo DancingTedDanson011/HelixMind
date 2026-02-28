@@ -1,0 +1,50 @@
+---
+title: "Wie Spiral Memory funktioniert: Ein tiefer Einblick"
+description: "Die fuenf Ebenen des Spiral Context Memory verstehen -- wie Wissen sich entwickelt, verfaellt und warum es KI-gestuetztes Programmieren grundlegend verbessert."
+date: "2025-01-20"
+author: "HelixMind Team"
+tags: ["spiral-memory", "deep-dive", "architektur"]
+---
+
+# Wie Spiral Memory funktioniert: Ein tiefer Einblick
+
+Herkoemmliche KI-Coding-Tools behandeln jede Sitzung als unbeschriebenes Blatt. Du erklaerst deine Projektstruktur, beschreibst deine Patterns und lieferst Kontext -- nur um beim naechsten Mal alles von vorne zu machen. Spiral Memory aendert das.
+
+## Die fuenf Ebenen
+
+HelixMind organisiert Projektwissen in fuenf hierarchische Ebenen, die jeweils einen bestimmten Zweck erfuellen:
+
+**L1 -- Focus** ist dein Arbeitsspeicher. Er enthaelt die Dateien, die du bearbeitest, die Aufgabe, die du beschrieben hast, und den unmittelbaren Kontext deiner aktuellen Sitzung. L1-Knoten werden automatisch erstellt und hochgestuft, waehrend du arbeitest. Sie haben die hoechste Prioritaet bei der Kontextassemblierung fuer die KI.
+
+**L2 -- Active** haelt kuerzlich verwendete Patterns, Entscheidungen und Loesungen. Wenn du ein kniffliges TypeScript-Type-Problem loest oder ein neues API-Pattern etablierst, lebt dieses Wissen auf L2. Es bleibt aktiv, solange du es regelmaessig referenzierst.
+
+**L3 -- Reference** ist deine stabile Architekturschicht. Projektstruktur, Coding-Konventionen, Datenbank-Schemata und Deployment-Konfigurationen siedeln sich hier ueber die Zeit an. L3-Wissen wird seltener abgerufen, hat aber erhebliches Gewicht, wenn es relevant ist.
+
+**L4 -- Archive** speichert historischen Kontext. Vergangene Entscheidungen, veraltete Ansaetze und geloeste Bugs wandern hierher. Sie stehen nicht im Weg, sind aber abrufbar, wenn du verstehen musst, warum etwas auf eine bestimmte Weise gemacht wurde.
+
+**L5 -- Deep Archive** enthaelt komprimierte Zusammenfassungen alten Wissens. Wenn L4-Knoten veralten, werden sie zu Zusammenfassungsknoten auf L5 verdichtet, die das Wesentliche ohne die Details bewahren.
+
+## Evolution und Verfall
+
+Was Spiral Memory grundlegend von einer flachen Wissensdatenbank unterscheidet, ist sein dynamisches Verhalten. Knoten **evolvieren** nach oben, wenn sie abgerufen werden: Ein Stueck Architekturwissen, das auf L3 liegt, wird auf L2 befoerdert, wenn du es waehrend der aktiven Entwicklung referenzierst. Umgekehrt **verfallen** Knoten nach unten, wenn sie veralten. Das haeufig genutzte Pattern von letzter Woche, das du seitdem nicht mehr angefasst hast, sinkt allmaehlich von L2 Richtung L3 und schliesslich L4.
+
+Das spiegelt wider, wie menschliches Gedaechtnis funktioniert. Haeufig genutztes Wissen bleibt scharf und zugaenglich. Selten genutztes Wissen verblasst, bleibt aber abrufbar.
+
+## Kontextassemblierung
+
+Wenn du ein Gespraech startest, kippt HelixMind nicht einfach alles in den Prompt. Der Context-Assembler waehlt die relevantesten Knoten anhand einer Kombination aus:
+
+- **Ebenen-Prioritaet** -- L1- und L2-Knoten haben Vorrang
+- **Semantische Aehnlichkeit** -- Embedding-basierte Suche (MiniLM-L6-v2) gleicht deine Anfrage mit gespeichertem Wissen ab
+- **Aktualitaet** -- Kuerzlich abgerufene Knoten erhalten hoehere Wertungen
+- **Token-Budget** -- Der Assembler passt so viel relevanten Kontext wie moeglich in die Grenzen des Modells
+
+Das Ergebnis ist eine KI, die sich anfuehlt, als wuerde sie dein Projekt wirklich kennen. Sie erinnert sich an deine Namenskonventionen, deine bevorzugten Patterns und die Bugs, die du bereits behoben hast.
+
+## Kompaktierung
+
+Mit der Zeit kann Spiral Memory wachsen. Der `/compact`-Befehl loest intelligente Kompaktierung aus: Verwandte Knoten werden zusammengefuehrt, redundante Informationen dedupliziert und alte Zusammenfassungen aktualisiert. Stell es dir vor wie eine Defragmentierung des KI-Gehirns.
+
+## Warum es wichtig ist
+
+Jede KI-Coding-Sitzung baut auf der letzten auf. Deine KI wird ueber Wochen und Monate der Nutzung immer schlauer in Bezug auf dein spezifisches Projekt. Das ist kein Feature -- es ist ein fundamentaler Wandel in der Art und Weise, wie KI-gestuetzte Entwicklung funktioniert.

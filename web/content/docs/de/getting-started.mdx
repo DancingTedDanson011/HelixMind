@@ -1,0 +1,135 @@
+---
+title: Erste Schritte
+description: Installiere HelixMind und starte in unter 2 Minuten mit persistentem AI-Gedächtnis.
+order: 1
+category: Erste Schritte
+---
+
+# Erste Schritte
+
+HelixMind ist ein Open-Source AI Coding CLI mit **Spiral Context Memory** — das einzige AI-Coding-Tool, das sich wirklich an deine Codebase, deine Muster und deine Entscheidungen über Sessions hinweg erinnert.
+
+## Voraussetzungen
+
+- **Node.js 18+** (LTS empfohlen)
+- Ein API-Key von: Anthropic, OpenAI, Groq, DeepSeek, Together AI oder OpenRouter
+- Oder **Ollama** lokal installiert für vollständig offline Nutzung
+
+## Installation
+
+```bash
+npm install -g helixmind
+```
+
+Installation überprüfen:
+
+```bash
+helixmind --version
+```
+
+## Schnellstart
+
+```bash
+# Interaktiven Chat starten (Standard-Befehl)
+helixmind
+
+# Oder explizit
+helixmind chat
+
+# Eine einzelne Nachricht senden
+helixmind chat -m "Erkläre den Auth-Flow in diesem Projekt"
+
+# YOLO-Modus — alle Bestätigungen überspringen
+helixmind chat --yolo
+
+# Berechtigungen überspringen (aber bei gefährlichen Operationen nachfragen)
+helixmind chat --skip-permissions
+```
+
+## Projekt einrichten
+
+Initialisiere HelixMind in deinem Projekt für projekt-lokales Gedächtnis:
+
+```bash
+cd dein-projekt
+helixmind init
+```
+
+Dies erstellt ein `.helixmind/` Verzeichnis mit:
+- `spiral.db` — Die Spiral-Memory-Datenbank deines Projekts
+- `context.md` — Eigene Anweisungen für die AI über dein Projekt
+
+Bearbeite `.helixmind/context.md`, um HelixMind über die Konventionen, Architektur und Präferenzen deines Projekts zu informieren. Diese Datei wird in jeden Gesprächskontext eingebunden.
+
+## Provider konfigurieren
+
+Stelle deinen bevorzugten LLM-Provider ein:
+
+```bash
+# Anthropic (Standard, empfohlen)
+helixmind config set provider anthropic
+helixmind config set apiKey sk-ant-...
+
+# OpenAI
+helixmind config set provider openai
+helixmind config set apiKey sk-...
+
+# Ollama (vollständig offline, kein API-Key nötig)
+helixmind config set provider ollama
+
+# Groq (schnelle Inferenz)
+helixmind config set provider groq
+helixmind config set apiKey gsk_...
+
+# DeepSeek
+helixmind config set provider deepseek
+helixmind config set apiKey sk-...
+```
+
+Siehe [Provider](/docs/providers) für die vollständige Liste unterstützter Modelle pro Provider.
+
+## Deine erste Session
+
+1. Navigiere zu deinem Projektverzeichnis
+2. Starte `helixmind` für einen Chat
+3. Frage die AI, deine Codebase zu erkunden: *"Was macht dieses Projekt?"*
+4. Die AI liest Dateien, analysiert Code und baut Spiral-Memory auf
+5. In deiner **nächsten** Session kennt die AI dein Projekt bereits
+
+## Was HelixMind anders macht
+
+Anders als andere AI-Coding-Tools, die jede Session bei null anfangen, pflegt HelixMind ein **6-stufiges Spiral-Gedächtnis**:
+
+| Level | Name | Was gespeichert wird |
+|-------|------|---------------------|
+| **L1** | Focus | Woran du gerade arbeitest |
+| **L2** | Active | Aktuelle Muster und Entscheidungen |
+| **L3** | Reference | Stabiles Architektur-Wissen |
+| **L4** | Archive | Historischer Kontext |
+| **L5** | Deep Archive | Komprimierte Zusammenfassungen |
+| **L6** | Web Knowledge | Automatisch geholte Dokumentation und Web-Insights |
+
+Dein Kontext wird **promoted** bei häufigem Zugriff und **decayed** bei Nichtnutzung — genau wie menschliches Gedächtnis.
+
+## MCP-Server-Modus
+
+HelixMind funktioniert auch als MCP-Server und gibt anderen AI-Tools Zugriff auf dein Spiral-Gedächtnis:
+
+```bash
+# Claude Code
+claude mcp add spiral-context -- npx -y spiral-context-mcp
+
+# Cursor — in .cursor/mcp.json eintragen
+# VS Code — in .vscode/mcp.json eintragen
+# Windsurf — in ~/.codeium/windsurf/mcp_config.json eintragen
+```
+
+Siehe [MCP-Integration](/docs/mcp-integration) für vollständige Setup-Anleitungen.
+
+## Nächste Schritte
+
+- [Spiral Memory](/docs/spiral-memory) — Deep Dive in das 6-Level-Memory-System
+- [CLI-Referenz](/docs/cli-reference) — Alle Befehle, Flags und Optionen
+- [Agent-Tools](/docs/agent-tools) — Die 14 Tools des AI-Agenten
+- [Brain-Visualisierung](/docs/brain-visualization) — Echtzeit-3D-Brain-Viewer
+- [Provider](/docs/providers) — Anthropic, OpenAI, Ollama und mehr konfigurieren

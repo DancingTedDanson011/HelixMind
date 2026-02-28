@@ -1,0 +1,135 @@
+---
+title: Getting Started
+description: Install HelixMind and start coding with persistent AI memory in under 2 minutes.
+order: 1
+category: Getting Started
+---
+
+# Getting Started
+
+HelixMind is an open-source AI coding CLI with **spiral context memory** — the only AI coding tool that truly remembers your codebase, your patterns, and your decisions across sessions.
+
+## Prerequisites
+
+- **Node.js 18+** (LTS recommended)
+- An API key from one of: Anthropic, OpenAI, Groq, DeepSeek, Together AI, OpenRouter
+- Or **Ollama** installed locally for fully offline use
+
+## Installation
+
+```bash
+npm install -g helixmind
+```
+
+Verify the installation:
+
+```bash
+helixmind --version
+```
+
+## Quick Start
+
+```bash
+# Start interactive chat (default command)
+helixmind
+
+# Or explicitly
+helixmind chat
+
+# Send a single message
+helixmind chat -m "Explain the auth flow in this project"
+
+# YOLO mode — skip ALL permission prompts
+helixmind chat --yolo
+
+# Skip permission prompts (but still ask for dangerous operations)
+helixmind chat --skip-permissions
+```
+
+## Project Setup
+
+Initialize HelixMind in your project for project-local memory:
+
+```bash
+cd your-project
+helixmind init
+```
+
+This creates a `.helixmind/` directory containing:
+- `spiral.db` — Your project's spiral memory database
+- `context.md` — Custom instructions for the AI about your project
+
+Edit `.helixmind/context.md` to tell HelixMind about your project conventions, architecture, and preferences. This file is included in every conversation context.
+
+## Provider Configuration
+
+Set your preferred LLM provider:
+
+```bash
+# Anthropic (default, recommended)
+helixmind config set provider anthropic
+helixmind config set apiKey sk-ant-...
+
+# OpenAI
+helixmind config set provider openai
+helixmind config set apiKey sk-...
+
+# Ollama (fully offline, no API key needed)
+helixmind config set provider ollama
+
+# Groq (fast inference)
+helixmind config set provider groq
+helixmind config set apiKey gsk_...
+
+# DeepSeek
+helixmind config set provider deepseek
+helixmind config set apiKey sk-...
+```
+
+See [Providers](/docs/providers) for the full list of supported models per provider.
+
+## Your First Session
+
+1. Navigate to your project directory
+2. Run `helixmind` to start a chat
+3. Ask the AI to explore your codebase: *"What does this project do?"*
+4. The AI reads files, analyzes code, and builds spiral memory
+5. In your **next** session, the AI already knows your project
+
+## What Makes HelixMind Different
+
+Unlike other AI coding tools that start fresh every session, HelixMind maintains a **6-level spiral memory**:
+
+| Level | Name | What It Stores |
+|-------|------|----------------|
+| **L1** | Focus | What you're working on right now |
+| **L2** | Active | Recent patterns and decisions |
+| **L3** | Reference | Stable architecture knowledge |
+| **L4** | Archive | Historical context |
+| **L5** | Deep Archive | Compressed summaries |
+| **L6** | Web Knowledge | Auto-fetched documentation and web insights |
+
+Your context **promotes** when accessed frequently and **decays** when unused — just like human memory.
+
+## MCP Server Mode
+
+HelixMind also works as an MCP server, giving other AI tools access to your spiral memory:
+
+```bash
+# Claude Code
+claude mcp add spiral-context -- npx -y spiral-context-mcp
+
+# Cursor — add to .cursor/mcp.json
+# VS Code — add to .vscode/mcp.json
+# Windsurf — add to ~/.codeium/windsurf/mcp_config.json
+```
+
+See [MCP Integration](/docs/mcp-integration) for complete setup instructions.
+
+## Next Steps
+
+- [Spiral Memory](/docs/spiral-memory) — Deep dive into the 6-level memory system
+- [CLI Reference](/docs/cli-reference) — All commands, flags, and options
+- [Agent Tools](/docs/agent-tools) — The 14 tools the AI agent uses
+- [Brain Visualization](/docs/brain-visualization) — Real-time 3D brain viewer
+- [Providers](/docs/providers) — Configure Anthropic, OpenAI, Ollama, and more

@@ -1,0 +1,84 @@
+---
+title: Provider
+description: HelixMind mit Anthropic, OpenAI, Ollama, Groq, DeepSeek, Together AI oder OpenRouter konfigurieren.
+order: 31
+category: Integrationen
+---
+
+# Provider
+
+HelixMind unterstützt **7 LLM-Provider** über eine einheitliche Provider-Abstraktion.
+
+## Unterstützte Provider
+
+### Anthropic (Standard)
+
+```bash
+helixmind config set provider anthropic
+helixmind config set apiKey sk-ant-...
+```
+
+| Modell | Bestes für |
+|--------|-----------|
+| `claude-opus-4-6` | Komplexe Analyse, Architektur |
+| `claude-sonnet-4-6` | Allgemeines Coding (Standard) |
+| `claude-haiku-4-5` | Schnelle Antworten |
+
+### OpenAI
+
+```bash
+helixmind config set provider openai
+helixmind config set apiKey sk-...
+```
+
+`gpt-4o` (Standard), `gpt-4o-mini`, `o1`, `o3-mini`
+
+### Ollama (Offline)
+
+```bash
+helixmind config set provider ollama
+```
+
+`qwen2.5-coder:32b` (Standard), `qwen3-coder:30b`, `deepseek-r1`, `codellama`
+
+Siehe [Ollama & Offline](/docs/ollama-offline) für Details.
+
+### Groq
+
+```bash
+helixmind config set provider groq
+helixmind config set apiKey gsk_...
+```
+
+`llama-3.3-70b-versatile` (Standard), `llama-3.1-8b-instant`
+
+### DeepSeek
+
+```bash
+helixmind config set provider deepseek
+helixmind config set apiKey sk-...
+```
+
+`deepseek-chat` (Standard), `deepseek-reasoner`
+
+### Together AI / OpenRouter
+
+Ähnliche Konfiguration mit jeweiligem API-Key.
+
+## Modell wechseln
+
+```bash
+helixmind config set model claude-opus-4-6   # Via Config
+/model                                        # Interaktiver Picker im Chat
+```
+
+## Provider-Features
+
+| Feature | Anthropic | OpenAI | Ollama | Groq |
+|---------|-----------|--------|--------|------|
+| Streaming | Ja | Ja | Ja | Ja |
+| Tool Calling | Ja | Ja | Ja | Begrenzt |
+| Rate Limiting | Auto-Retry | Auto-Retry | N/A | Auto-Retry |
+| Offline | Nein | Nein | **Ja** | Nein |
+
+Alle Provider implementieren die gleiche `LLMProvider`-Schnittstelle — Wechsel ohne Workflow-Änderung.

@@ -21,7 +21,7 @@ describe('ActivityIndicator', () => {
     activity.start();
     expect(activity.isRunning).toBe(true);
 
-    // Should render immediately
+    // Should render immediately (writeToBottomRow is called)
     expect(writeSpy).toHaveBeenCalled();
     const output = writeSpy.mock.calls.map(c => String(c[0])).join('');
     expect(output).toContain('HelixMind');
@@ -57,14 +57,19 @@ describe('ActivityIndicator', () => {
     activity.stop();
   });
 
-  it('clears line on stop', () => {
+  it('writes Done inline and uses cursor save/restore', () => {
     const activity = new ActivityIndicator();
     activity.start();
     writeSpy.mockClear();
 
     activity.stop();
     const output = writeSpy.mock.calls.map(c => String(c[0])).join('');
-    expect(output).toContain('\r\x1b[K');
+    // Uses cursor save/restore for clearing bottom row
+    expect(output).toContain('\x1b7');
+    expect(output).toContain('\x1b8');
+    // Writes "Done" inline (part of conversation flow)
+    expect(output).toContain('HelixMind');
+    expect(output).toContain('Done');
   });
 });
 

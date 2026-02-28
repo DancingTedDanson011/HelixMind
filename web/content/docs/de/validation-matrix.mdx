@@ -1,0 +1,61 @@
+---
+title: Validation Matrix
+description: Wie HelixMind AI-Output mit einer 3-Phasen-Pipeline validiert — klassifizieren, arbeiten, validieren.
+order: 12
+category: Kernkonzepte
+---
+
+# Validation Matrix
+
+Die Validation Matrix ist eine **3-Phasen-Pipeline**, die jeden AI-Output prüft, bevor er auf deine Codebase angewandt wird.
+
+## Die 3 Phasen
+
+### Phase 1: Klassifizieren
+
+**Task-Kategorien** (11 Typen): ui_component, api_endpoint, data_processing, refactoring, bug_fix, configuration, documentation, testing, architecture, general_code, chat_only
+
+**Komplexitätslevel:** trivial, simple, medium, complex
+
+### Phase 2: Arbeiten
+
+Die AI produziert ihren Output.
+
+### Phase 3: Validieren
+
+Drei parallele Check-Systeme:
+
+| System | Was es prüft |
+|--------|-------------|
+| **Statische Checks** (15+) | HTML, SQL-Sicherheit, Imports, Secrets, Typen, Best Practices |
+| **Dynamische Checks** | Mini-LLM prüft auf logische Fehler |
+| **Spiral-Checks** | Style-Patterns, bekannte Bugs, Projekt-Konventionen |
+
+### Autofix-Schleife
+
+Bei fehlgeschlagenen Checks: AI generiert Fixes → Re-Validierung → bis zu **3 Iterationen**.
+
+## Validierungs-Report
+
+```
+╭─── ✅ Validation Matrix ── 12 checks ── 1 loop ── 340ms ───╮
+│   Structural  : ✅✅✅  3/3
+│   Completeness: ✅✅    2/2
+│   Consistency : ✅✅✅  3/3
+│   Security    : ✅✅    2/2
+│   Style       : ✅✅    2/2
+│   12/12 passed │ 0 warnings │ 0 errors
+╰──────────────────────────────────────────────────────────────╯
+```
+
+## Steuerung
+
+```bash
+# Flags
+helixmind --no-validation           # Deaktivieren
+helixmind --validation-verbose      # Detaillierte Ergebnisse
+helixmind --validation-strict       # Warnungen = Fehler
+
+# Slash-Befehle
+/validation on|off|verbose|strict|stats
+```

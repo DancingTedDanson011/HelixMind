@@ -1,0 +1,71 @@
+---
+title: Brain Visualization
+description: Real-time 3D visualization of your spiral memory — nodes, edges, and live updates as the AI works.
+order: 11
+category: Core Concepts
+---
+
+# Brain Visualization
+
+HelixMind includes a **real-time 3D brain visualization** that renders your spiral memory as an interactive helix in your browser.
+
+## Quick Start
+
+```bash
+/brain          # Open in default browser
+/brain local    # Project-local scope only
+/brain global   # All projects, cross-project view
+```
+
+Opens at `http://127.0.0.1:9420` (auto-selects another port if busy).
+
+## The Helix
+
+Nodes are arranged in a **3D double-helix** pattern:
+
+| Visual | Meaning |
+|--------|---------|
+| **Node size** | Scales with relevance — important nodes are larger |
+| **Cyan nodes** | L1 Focus |
+| **Green nodes** | L2 Active |
+| **Blue nodes** | L3 Reference |
+| **Violet nodes** | L4 Archive |
+| **Gray nodes** | L5 Deep Archive |
+| **Orange nodes** | L6 Web Knowledge |
+| **Glowing lines** | Edges connecting related nodes |
+
+## Live Updates
+
+When the AI is working, the brain updates in real-time:
+
+| Event | Visual |
+|-------|--------|
+| New node created | Particle burst animation |
+| Web knowledge found | Popup notification with topic + source |
+| Edge connection formed | Glowing line appears |
+| Level change | Node shifts position in helix |
+
+## Findings Panel
+
+When `/security` or `/auto` are running, a **left sidebar** shows:
+
+- Discovered issues + severity
+- Files analyzed
+- Fixes applied
+- Agent progress
+
+## Interaction
+
+| Action | How |
+|--------|-----|
+| **Rotate** | Click + drag |
+| **Zoom** | Scroll wheel |
+| **Hover** | Mouse over node → content preview |
+| **Auto-rotate** | Enabled by default |
+
+## Technical
+
+- **Renderer**: Three.js + WebGL + Bloom post-processing
+- **Transport**: WebSocket for real-time push updates
+- **Performance**: Instanced rendering for hundreds of nodes
+- **Background**: Star field particle system for depth

@@ -1,0 +1,129 @@
+---
+title: Projekt einrichten
+description: Initialisiere HelixMind in deinem Projekt — lokales Gedächtnis erstellen, Kontext konfigurieren und Codebase einspeisen.
+order: 2
+category: Erste Schritte
+---
+
+# Projekt einrichten
+
+Initialisiere HelixMind in deinem Projekt, um **projekt-lokales Gedächtnis** zu aktivieren — die AI erinnert sich an alles über dieses spezifische Projekt über Sessions hinweg.
+
+## Initialisierung
+
+```bash
+cd dein-projekt
+helixmind init
+```
+
+Dies erstellt das `.helixmind/` Verzeichnis:
+
+```
+dein-projekt/
+├── .helixmind/
+│   ├── context.md    # Eigene AI-Anweisungen
+│   └── spiral.db     # Projekt-Memory-Datenbank
+├── src/
+├── package.json
+└── ...
+```
+
+## Das `.helixmind/` Verzeichnis
+
+### `context.md` — Eigene Anweisungen
+
+Diese Datei wird **in jedes Gespräch** mit der AI eingebunden. Nutze sie, um HelixMind über dein Projekt zu informieren:
+
+```markdown
+# Projekt: E-Commerce-Plattform
+
+## Tech-Stack
+- Next.js 15 mit App Router
+- PostgreSQL + Prisma ORM
+- Redis für Caching
+- Stripe für Zahlungen
+
+## Architektur
+- Monorepo mit packages/
+- Geteilte Typen in packages/types
+- API-Routes folgen RESTful-Konventionen
+
+## Coding-Standards
+- TypeScript Strict Mode
+- Funktionale Komponenten mit Hooks
+- Alle async Operationen in try/catch
+- Zod für Input-Validierung
+
+## Wichtige Hinweise
+- Migrationsdateien nie direkt ändern
+- Auth-System nutzt NextAuth mit JWT
+- Environment-Variablen in .env.local (nicht committet)
+```
+
+### `spiral.db` — Projekt-Memory
+
+SQLite-Datenbank mit:
+- Allen Spiral-Memory-Knoten (L1-L6)
+- Kanten (Beziehungen zwischen Knoten)
+- Embeddings (384-dimensionale Vektoren)
+- Zugriffs-Timestamps und Zähler
+
+Diese Datei wächst mit der Nutzung. Ein typisches Projekt nach einigen Wochen: 5-50MB.
+
+## Codebase einspeisen
+
+Nach der Initialisierung speise wichtige Dateien in die Spiral ein:
+
+```bash
+# Wichtige Dateien einspeisen
+helixmind feed README.md ARCHITECTURE.md
+
+# Ganze Verzeichnisse einspeisen
+helixmind feed src/
+
+# Tiefenanalyse (langsamer, gründlicher)
+helixmind feed --deep src/core/
+
+# Änderungen beobachten
+helixmind feed --watch src/
+```
+
+### Was einspeisen
+
+| Priorität | Dateien | Warum |
+|-----------|---------|-------|
+| **Hoch** | README, ARCHITECTURE.md | Projektübersicht |
+| **Hoch** | Wichtige Config-Dateien | Framework-Setup |
+| **Mittel** | Kern-Geschäftslogik | Domain-Verständnis |
+| **Mittel** | API-Route-Definitionen | Endpoint-Wissen |
+| **Niedrig** | Test-Dateien | Test-Muster |
+| **Überspringen** | node_modules, dist, build | Generierter Code |
+
+## `.gitignore`
+
+Füge `.helixmind/` zu deiner `.gitignore` hinzu — Spiral-Memory ist entwicklerspezifisch:
+
+```
+# HelixMind lokales Gedächtnis
+.helixmind/
+```
+
+Du kannst aber `.helixmind/context.md` **committen**, wenn du die Projekt-Anweisungen im Team teilen willst.
+
+## Mehrere Projekte
+
+Jedes Projekt hat sein eigenes isoliertes Spiral-Gedächtnis. Wissen aus Projekt A fließt nicht in Projekt B.
+
+Zum Teilen von Wissen zwischen Projekten:
+
+```bash
+# Aus Projekt A exportieren
+cd projekt-a
+helixmind export
+
+# In Projekt B importieren
+cd projekt-b
+helixmind import projekt-a-spiral.zip
+```
+
+Siehe [Export & Import](/docs/export-import) für Details.

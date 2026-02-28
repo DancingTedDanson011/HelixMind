@@ -1,0 +1,68 @@
+---
+title: "Coding Offline: Using HelixMind with Ollama"
+description: "How to set up HelixMind for fully offline AI coding with local models, including model recommendations and workflow tips."
+date: "2025-02-15"
+author: "HelixMind Team"
+tags: ["ollama", "offline", "local-models"]
+---
+
+# Coding Offline: Using HelixMind with Ollama
+
+Not every developer wants to send their code to the cloud. Whether you're working on proprietary software, operating in an air-gapped environment, or simply prefer to keep your data local, HelixMind has you covered. Full offline operation is a first-class feature, not an afterthought.
+
+## Setting Up Ollama
+
+Ollama is a local model runner that makes it straightforward to run LLMs on your own hardware. HelixMind integrates with it natively.
+
+First, install Ollama from [ollama.com](https://ollama.com) and pull a model:
+
+```bash
+ollama pull qwen2.5-coder:14b
+```
+
+Then configure HelixMind to use it:
+
+```bash
+helixmind config set provider ollama
+helixmind config set model qwen2.5-coder:14b
+```
+
+That's it. HelixMind auto-detects your running Ollama instance and connects to it. No API keys, no cloud accounts, no network required.
+
+## Model Recommendations
+
+The right model depends on your hardware and needs:
+
+**For 8 GB RAM:** `qwen2.5-coder:7b` provides solid coding assistance. It handles most tasks but may struggle with complex multi-file refactors.
+
+**For 16 GB RAM:** `qwen2.5-coder:14b` is the sweet spot. Fast enough for interactive use, capable enough for real development work. This is our default recommendation.
+
+**For 32+ GB RAM:** `qwen2.5-coder:32b` or `deepseek-coder-v2:16b` deliver near-cloud quality for most tasks. Larger models handle architectural questions and complex debugging significantly better.
+
+**For Apple Silicon (M1/M2/M3):** Metal acceleration makes local inference surprisingly fast. A 14B model on an M2 Pro delivers tokens at a comfortable interactive speed.
+
+## The Offline Workflow
+
+When you run HelixMind offline, everything works exactly as it does with a cloud provider:
+
+- Spiral memory stores and retrieves context locally (SQLite + sqlite-vec)
+- The agent loop processes tool calls and responses
+- File operations, git integration, and search all function normally
+- The Validation Matrix runs static checks (dynamic checks require a model, which Ollama provides locally)
+
+The only difference is latency. Cloud models respond in 1-2 seconds. Local models vary depending on hardware, but a 14B model on modern hardware typically generates 20-40 tokens per second -- fast enough for productive use.
+
+## Auto-Detection
+
+HelixMind's Ollama integration includes auto-detection. When you select the Ollama provider, the CLI:
+
+1. Scans for a running Ollama instance on the default port
+2. Lists all available models
+3. Lets you select one interactively or via config
+4. Offers to pull recommended models if none are installed
+
+You can also switch between providers mid-session using the `/model` slash command, making it easy to use a local model for routine tasks and switch to a cloud model for complex ones.
+
+## Privacy by Default
+
+With Ollama, your code never leaves your machine. Spiral memory is stored in local SQLite databases. Embeddings are generated locally using the bundled MiniLM model. There is zero network traffic. This makes HelixMind suitable for classified projects, regulated industries, and anyone who values data sovereignty.

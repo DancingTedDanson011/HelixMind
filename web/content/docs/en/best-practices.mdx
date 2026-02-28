@@ -1,0 +1,60 @@
+---
+title: Best Practices
+description: Tips and workflows for getting the most out of HelixMind's spiral memory and AI agent.
+order: 41
+category: Advanced
+---
+
+# Best Practices
+
+## Getting Started Right
+
+1. **Initialize every project** — `helixmind init` for project-local memory
+2. **Write good context** — `.helixmind/context.md` with tech stack, architecture, conventions
+3. **Feed key files early** — `helixmind feed README.md --deep src/core/`
+
+## Daily Workflow
+
+| When | What |
+|------|------|
+| **Start of day** | `helixmind` — the AI knows your project from yesterday |
+| **During development** | Let AI explain code, write tests first, check `/spiral` |
+| **End of day** | Run `/security` in the background |
+
+## Spiral Memory Tips
+
+- **Let it learn naturally** — Don't front-load everything at once
+- **Use semantic search** — `helixmind spiral search "how we handle auth"`
+- **Check periodically** — `/spiral` shows what the AI knows
+
+## Agent Interaction
+
+- **Be specific** — Instead of "Fix the bug" say "Fix the auth middleware — JWT tokens expire too early"
+- **Let it explore first** — "Read the auth module and explain the token refresh"
+- **Skip-permissions for flow** — `/skip-permissions` when actively watching
+- **Review before committing** — `/diff`, Validation Matrix, run tests
+
+## Choosing the Right Model
+
+| Task | Recommended |
+|------|------------|
+| Quick fixes | Haiku / GPT-4o-mini |
+| General coding | Sonnet / GPT-4o |
+| Complex architecture | Opus |
+| Offline / privacy | Ollama (qwen2.5-coder:32b) |
+
+Switch models with `/model`.
+
+## Team Workflows
+
+- **Shared context** — Commit `.helixmind/context.md` for same project instructions
+- **Knowledge transfer** — Senior exports, new member imports
+- **Code review with AI** — `helixmind chat -m "Review the changes in the last 3 commits"`
+
+## Security
+
+1. Run `/security` regularly (at least weekly)
+2. Never commit API keys — use environment variables
+3. Start with safe permissions, only escalate when needed
+4. Review YOLO mode output carefully
+5. Use checkpoint system — revert unwanted changes immediately

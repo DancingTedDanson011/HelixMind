@@ -3,6 +3,20 @@ import chalk from 'chalk';
 /**
  * Glowing activity indicator with color-wave animation across "HelixMind" text.
  * Shows elapsed time, step info, and error count during agent work.
+ *
+ * TWO-LAYER protection keeps the bottom row reserved at all costs:
+ *
+ * Layer 1 — SCROLL REGION (best-effort, terminal-dependent)
+ *   Sets DECSTBM so rows 1..(N-1) scroll normally, row N is untouchable.
+ *   Works on Windows Terminal, iTerm, GNOME Terminal, xterm, etc.
+ *   May not work fully on legacy cmd.exe / conhost.
+ *
+ * Layer 2 — STDOUT HOOK (bulletproof, works everywhere)
+ *   Monkey-patches process.stdout.write. After every normal write,
+ *   a process.nextTick redraws the bar on the bottom row. This catches
+ *   any content that leaks past the scroll region (or when scroll regions
+ *   aren't supported). The nextTick batching avoids interrupting
+ *   multi-part ANSI sequences.
  */
 
 const GRADIENT = [
@@ -13,7 +27,7 @@ const GRADIENT = [
   '#0aace0', '#00c0f0',
 ];
 
-const PULSE_SYMBOLS = ['⟡', '◆', '⟡', '◇'];
+const PULSE_SYMBOLS = ['\u27E1', '\u25C6', '\u27E1', '\u25C7'];
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -34,15 +48,12 @@ export class ActivityIndicator {
   private errors = 0;
   private startTime = 0;
   private _blockMode = false;
-  private _prompt = '';
-  private _getInput: (() => string) | null = null;
-  private _twoLineMode = false;
+  private _finalElapsed = 0;
 
-  /** Set the readline prompt + input getter so activity can preserve user input */
-  setReadline(prompt: string, getInput: () => string): void {
-    this._prompt = prompt;
-    this._getInput = getInput;
-  }
+  // ─── stdout hook state ────────────────────────────────────
+  private _originalWrite: ((...args: any[]) => boolean) | null = null;
+  private _lastBarContent = '';
+  private _redrawScheduled = false;
 
   start(): void {
     this.frame = 0;
@@ -51,11 +62,8 @@ export class ActivityIndicator {
     this.totalSteps = 0;
     this.errors = 0;
     this.startTime = Date.now();
-    this._twoLineMode = !!this._getInput;
-    if (this._twoLineMode) {
-      // Create space: activity line above, prompt line below
-      process.stdout.write('\n');
-    }
+    this._hookStdout();
+    this._setScrollRegion();
     this.resumeAnimation();
   }
 
@@ -69,21 +77,17 @@ export class ActivityIndicator {
     this.render();
   }
 
-  /** Pause the animation but keep the timer running */
+  /** Pause the animation but keep the timer running (hook stays active) */
   pauseAnimation(): void {
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;
     }
-    if (this._twoLineMode) {
-      // Clear activity line above, keep prompt below
-      process.stdout.write('\x1b[1A\r\x1b[K\x1b[1B');
-    } else {
-      process.stdout.write('\r\x1b[K');
-    }
+    this._lastBarContent = '';
+    this._writeToBottomRow('');
   }
 
-  /** Toggle block mode — shows │ prefix when inside a tool block */
+  /** Toggle block mode — shows | prefix when inside a tool block */
   setBlockMode(on: boolean): void {
     this._blockMode = on;
   }
@@ -98,11 +102,9 @@ export class ActivityIndicator {
     this.errors++;
   }
 
-  private _finalElapsed = 0;
-
   /**
    * Stop the activity indicator and write a final status line.
-   * The colorful "HelixMind working..." transforms into "HelixMind Done" (or "Stopped").
+   * Resets scroll region, unhooks stdout, clears bottom row, writes "Done" inline.
    */
   stop(message: string = 'Done'): void {
     if (this.startTime > 0) {
@@ -113,8 +115,15 @@ export class ActivityIndicator {
       clearInterval(this.interval);
       this.interval = null;
     }
+
+    // Clear the bar, remove all protections
+    this._lastBarContent = '';
+    this._writeToBottomRow('');
+    this._resetScrollRegion();
+    this._unhookStdout();
+
     if (this.startTime > 0 && wasAnimating) {
-      // Replace animated line with colorful final status
+      // Write colorful final status inline (part of conversation flow)
       const text = 'HelixMind';
       let coloredText = '';
       for (let i = 0; i < text.length; i++) {
@@ -124,25 +133,12 @@ export class ActivityIndicator {
       const pfx = this._blockMode ? `  ${chalk.dim('\u2502')} ` : '  ';
       const icon = message === 'Done' ? chalk.green('\u2713') : chalk.red('\u2717');
       const msgColor = message === 'Done' ? chalk.green(message) : chalk.red(message);
-
-      if (this._twoLineMode) {
-        // Write Done on the activity line (above prompt), keep prompt below
-        process.stdout.write('\x1b[1A\r\x1b[K');
-        process.stdout.write(`${pfx}${icon} ${coloredText} ${msgColor} ${timeStr}`);
-        process.stdout.write('\x1b[1B\r');
-      } else {
-        process.stdout.write(`\r\x1b[K${pfx}${icon} ${coloredText} ${msgColor} ${timeStr}\n`);
-      }
-    } else if (wasAnimating) {
-      if (this._twoLineMode) {
-        process.stdout.write('\x1b[1A\r\x1b[K\x1b[1B');
-      } else {
-        process.stdout.write('\r\x1b[K');
-      }
+      const finalLine = `${pfx}${icon} ${coloredText} ${msgColor} ${timeStr}`;
+      process.stdout.write(`${finalLine}\n`);
     }
+
     this.startTime = 0;
     this._blockMode = false;
-    this._twoLineMode = false;
   }
 
   get isRunning(): boolean {
@@ -158,6 +154,109 @@ export class ActivityIndicator {
     if (this.startTime > 0) return Date.now() - this.startTime;
     return this._finalElapsed;
   }
+
+  /**
+   * Called on terminal resize to update protections while active.
+   */
+  handleResize(): void {
+    if (this.isRunning) {
+      this._setScrollRegion();
+      if (this._lastBarContent) {
+        this._writeToBottomRow(this._lastBarContent);
+      }
+    }
+  }
+
+  // ─── Layer 2: stdout write hook ───────────────────────────
+
+  /**
+   * Monkey-patch process.stdout.write so that after every normal write,
+   * a nextTick redraws the bar. This guarantees the bottom row is never
+   * left showing stale content — even if the terminal ignores scroll regions.
+   *
+   * nextTick batching prevents interrupting multi-part ANSI sequences
+   * (e.g. a write of "\x1b[" followed by "31m" won't have a bar redraw
+   * injected between them).
+   */
+  private _hookStdout(): void {
+    if (!process.stdout.isTTY || this._originalWrite) return;
+    this._originalWrite = process.stdout.write.bind(process.stdout);
+    const self = this;
+    (process.stdout as any).write = function (...args: any[]): boolean {
+      const result = self._originalWrite!(...args);
+      // Schedule a single bar redraw after current synchronous writes finish
+      if (self._lastBarContent && !self._redrawScheduled) {
+        self._redrawScheduled = true;
+        process.nextTick(() => {
+          self._redrawScheduled = false;
+          if (self._lastBarContent) {
+            self._writeToBottomRow(self._lastBarContent);
+          }
+        });
+      }
+      return result;
+    };
+  }
+
+  /** Restore the original stdout.write */
+  private _unhookStdout(): void {
+    if (this._originalWrite) {
+      process.stdout.write = this._originalWrite as typeof process.stdout.write;
+      this._originalWrite = null;
+    }
+    this._redrawScheduled = false;
+  }
+
+  // ─── Low-level rendering ──────────────────────────────────
+
+  /** Write directly to the real stdout, bypassing the hook */
+  private _rawWrite(data: string): void {
+    const write = this._originalWrite || process.stdout.write.bind(process.stdout);
+    write(data);
+  }
+
+  /**
+   * Write content to the bottom terminal row.
+   * Uses cursor save/restore so the caller's position is preserved.
+   * Empty string = clear the row.
+   */
+  private _writeToBottomRow(content: string): void {
+    const row = process.stdout.rows || 24;
+    this._rawWrite(
+      '\x1b[?25l' +          // Hide cursor (prevents flash)
+      '\x1b7' +              // Save cursor position
+      `\x1b[${row};1H` +    // Move to bottom row, col 1
+      '\x1b[2K' +            // Clear entire line
+      content +              // Write content (or nothing to just clear)
+      '\x1b8' +              // Restore cursor position
+      '\x1b[?25h',           // Show cursor
+    );
+  }
+
+  // ─── Layer 1: scroll region (best-effort) ─────────────────
+
+  /**
+   * Set scroll region to rows 1..(N-1), reserving row N for the bar.
+   * Move cursor into the region so readline/prompt don't land on row N.
+   */
+  private _setScrollRegion(): void {
+    if (!process.stdout.isTTY) return;
+    const rows = process.stdout.rows || 24;
+    if (rows < 4) return;
+    const regionEnd = rows - 1;
+    this._rawWrite(
+      `\x1b[1;${regionEnd}r` +     // Set scroll region
+      `\x1b[${regionEnd};1H`,      // Move cursor into region
+    );
+  }
+
+  /** Reset scroll region to full screen */
+  private _resetScrollRegion(): void {
+    if (!process.stdout.isTTY) return;
+    this._rawWrite('\x1b[r');
+  }
+
+  // ─── Animation rendering ──────────────────────────────────
 
   private render(): void {
     if (!this.interval) return;
@@ -195,16 +294,8 @@ export class ActivityIndicator {
       }
     }
 
-    if (this._twoLineMode) {
-      // Two-line render: activity above, prompt + input below
-      const input = this._getInput?.() || '';
-      process.stdout.write('\x1b[1A\r\x1b[K');   // Move up, clear activity line
-      process.stdout.write(line);                  // Write activity
-      process.stdout.write('\n\r\x1b[K');          // Move down, clear prompt line
-      process.stdout.write(this._prompt + input);  // Write prompt + user input
-    } else {
-      process.stdout.write(`\r\x1b[K${line}`);
-    }
+    this._lastBarContent = ` ${line}`;
+    this._writeToBottomRow(this._lastBarContent);
   }
 }
 
@@ -226,16 +317,16 @@ export function renderTaskSummary(steps: TaskStep[], durationMs?: number): void 
   const errors = steps.filter(s => s.status === 'error').length;
 
   process.stdout.write('\n');
-  process.stdout.write(chalk.dim('  ┌─ Task Summary ─────────────────────\n'));
+  process.stdout.write(chalk.dim('  \u250C\u2500 Task Summary \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n'));
 
   for (const step of steps) {
     const icon = step.status === 'done'
-      ? chalk.green('✓')
-      : chalk.red('✗');
+      ? chalk.green('\u2713')
+      : chalk.red('\u2717');
     const label = step.status === 'error'
       ? `${step.label} ${chalk.red(`(${step.error?.slice(0, 40) || 'error'})`)}`
       : step.label;
-    process.stdout.write(chalk.dim(`  │ `) + `${icon} ${chalk.dim(`Step ${step.num}:`)} ${label}\n`);
+    process.stdout.write(chalk.dim(`  \u2502 `) + `${icon} ${chalk.dim(`Step ${step.num}:`)} ${label}\n`);
   }
 
   const summaryText = errors > 0
@@ -246,8 +337,8 @@ export function renderTaskSummary(steps: TaskStep[], durationMs?: number): void 
     ? chalk.dim(` in ${formatElapsed(durationMs)}`)
     : '';
 
-  process.stdout.write(chalk.dim(`  │\n  │ ${summaryText}${durationText}\n`));
-  process.stdout.write(chalk.dim('  └─────────────────────────────────────\n'));
+  process.stdout.write(chalk.dim(`  \u2502\n  \u2502 ${summaryText}${durationText}\n`));
+  process.stdout.write(chalk.dim('  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n'));
 }
 
 /**
@@ -255,9 +346,9 @@ export function renderTaskSummary(steps: TaskStep[], durationMs?: number): void 
  */
 export function renderCompletion(durationMs: number, tokenCount?: number): void {
   const timeStr = formatElapsed(durationMs);
-  const tokenStr = tokenCount ? ` · ${formatTokens(tokenCount)} tokens` : '';
+  const tokenStr = tokenCount ? ` \u00B7 ${formatTokens(tokenCount)} tokens` : '';
   process.stdout.write(
-    `  ${chalk.green('✓')} ${chalk.dim(`Done in ${timeStr}${tokenStr}`)}\n`,
+    `  ${chalk.green('\u2713')} ${chalk.dim(`Done in ${timeStr}${tokenStr}`)}\n`,
   );
 }
 

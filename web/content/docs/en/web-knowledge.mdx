@@ -1,0 +1,58 @@
+---
+title: Web Knowledge Enricher
+description: How HelixMind automatically fetches relevant documentation and web knowledge while you work.
+order: 15
+category: Core Concepts
+---
+
+# Web Knowledge Enricher
+
+HelixMind **automatically searches the internet** for relevant documentation while you work — no manual searching needed.
+
+## How It Works
+
+| Step | What Happens |
+|------|-------------|
+| **1. Topic Detection** | Analyzes your message for technology, pattern, or error topics |
+| **2. Web Search** | Searches DuckDuckGo for relevant results |
+| **3. Knowledge Extraction** | Extracts code examples, key points, and summaries from pages |
+| **4. Spiral Storage** | Stored as L6 Web Knowledge nodes with quality scores + embeddings |
+| **5. Brain Update** | Popup notification + particle burst in 3D Brain visualization |
+
+## CLI Notification
+
+```
+🌐 Web Knowledge: JWT best practices for production
+   Source: https://auth0.com/docs/tokens
+   Quality: 0.94 │ Stored in L6 (Web Knowledge)
+```
+
+## Explicit Web Research
+
+Besides automatic detection, you can explicitly trigger research:
+
+```
+> Search the web for Next.js 15 server actions migration guide
+```
+
+The AI uses the `web_research` tool to fetch, extract, and store findings.
+
+## What Gets Stored
+
+| Field | Description |
+|-------|-------------|
+| `content` | Extracted knowledge (code, key points, summary) |
+| `source` | Original URL |
+| `quality` | Quality score (0.0 – 1.0) |
+| `topic` | Detected topic that triggered the search |
+| `embedding` | 384d vector for semantic search |
+
+## Privacy
+
+| Aspect | Detail |
+|--------|--------|
+| Search engine | DuckDuckGo (no tracking) |
+| Processing | All content processed locally |
+| Storage | Only extracted knowledge stored (not raw HTML) |
+| External data | Only the search query is sent externally |
+| Offline | Automatically disabled with Ollama |

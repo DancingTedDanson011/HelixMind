@@ -1,0 +1,54 @@
+---
+title: Konfiguration
+description: Alle HelixMind-Konfigurationsoptionen — globale Einstellungen, Projektkontext und Umgebungsvariablen.
+order: 33
+category: Integrationen
+---
+
+# Konfiguration
+
+HelixMind nutzt ein geschichtetes Konfigurationssystem: globale Config, Projektkontext und Umgebungsvariablen.
+
+## Globale Konfiguration
+
+Gespeichert in `~/.helixmind/config.json`:
+
+```bash
+helixmind config set provider anthropic
+helixmind config get provider
+helixmind config list
+```
+
+### Config-Keys
+
+| Key | Beschreibung | Standard |
+|-----|-------------|---------|
+| `provider` | LLM-Provider | `anthropic` |
+| `apiKey` | API-Key (maskiert angezeigt) | — |
+| `model` | Modellname | Provider-Standard |
+| `logLevel` | Debug-Level | `info` |
+| `dataDir` | Datenverzeichnis | `~/.helixmind/` |
+| `maxTokens` | Max Kontextfenster | Provider-Standard |
+| `validationEnabled` | Validation Matrix | `true` |
+| `brainScope` | Brain-Scope | `local` |
+
+## Projektkontext (`.helixmind/context.md`)
+
+Wird in **jedes Gespräch** eingebunden. Beschreibe hier Tech-Stack, Architektur, Konventionen und wichtige Regeln deines Projekts.
+
+## Umgebungsvariablen
+
+| Variable | Beschreibung |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Überschreibt Config |
+| `OPENAI_API_KEY` | Überschreibt Config |
+| `HELIXMIND_DATA_DIR` | Datenverzeichnis überschreiben |
+| `HELIXMIND_LOG_LEVEL` | Log-Level überschreiben |
+
+## Prioritätsreihenfolge
+
+1. **CLI-Flags** (`--yolo`, `--no-validation`)
+2. **Umgebungsvariablen**
+3. **Projekt-Config** (`.helixmind/config.json`)
+4. **Globale Config** (`~/.helixmind/config.json`)
+5. **Standards**

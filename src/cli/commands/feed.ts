@@ -1,9 +1,49 @@
-import { resolve } from 'node:path';
+import { resolve, normalize, sep } from 'node:path';
+import { existsSync } from 'node:fs';
 import { theme } from '../ui/theme.js';
 import { renderFeedProgress, renderFeedSummary } from '../ui/progress.js';
 import { renderError, renderInfo } from '../ui/chat-view.js';
 import { runFeedPipeline } from '../feed/pipeline.js';
 import { FeedWatcher } from '../feed/watcher.js';
+import { SecurityError } from '../agent/sandbox.js';
+
+/** Maximum path depth to prevent traversal attacks */
+const MAX_PATH_DEPTH = 10;
+
+/**
+ * Validate that a target path is within the project root and safe to scan
+ */
+function validateFeedPath(targetPath: string, rootDir: string): string {
+  // Normalize the path to handle . and .. sequences
+  let normalizedPath = normalize(targetPath);
+
+  // Resolve against project root
+  const resolved = resolve(rootDir, normalizedPath);
+
+  // Ensure the resolved path starts with the normalized project root
+  const normalizedRoot = normalize(rootDir);
+  if (!resolved.startsWith(normalizedRoot)) {
+    throw new SecurityError(`Access denied: ${targetPath} is outside the project directory`);
+  }
+
+  // Check for path traversal attempts (multiple consecutive separators)
+  if (normalizedPath.split(sep).length > MAX_PATH_DEPTH) {
+    throw new SecurityError(`Access denied: Path too deep: ${targetPath}`);
+  }
+
+  // Check if the path exists
+  if (!existsSync(resolved)) {
+    throw new SecurityError(`Path not found: ${targetPath}`);
+  }
+
+  // Check if it's a directory or a file
+  const stats = require('node:fs').statSync(resolved);
+  if (!stats.isDirectory() && !stats.isFile()) {
+    throw new SecurityError(`Path is not a file or directory: ${targetPath}`);
+  }
+
+  return resolved;
+}
 
 async function getSpiralEngine() {
   try {
@@ -33,7 +73,8 @@ export async function feedCommand(
 
   try {
     for (const target of targetPaths) {
-      const resolvedTarget = target === '.' ? undefined : target;
+      // Validate path before processing
+      const resolvedTarget = target === '.' ? undefined : validateFeedPath(target, rootDir);
 
       renderInfo(`  Feeding: ${target}`);
       process.stdout.write('\n');

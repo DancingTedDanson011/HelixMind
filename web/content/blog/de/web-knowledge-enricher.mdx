@@ -1,0 +1,51 @@
+---
+title: "Web Knowledge Enricher: Die Internetverbindung deiner KI"
+description: "Wie HelixMind automatisch relevantes Web-Wissen waehrend Coding-Sessions abruft und in Spiral Memory fuer zukuenftige Referenz speichert."
+date: "2025-02-25"
+author: "HelixMind Team"
+tags: ["web-knowledge", "ai-coding", "features"]
+---
+
+# Web Knowledge Enricher: Die Internetverbindung deiner KI
+
+LLMs haben einen Wissens-Cutoff. Sie wissen nichts ueber die Library-Version, die du letzte Woche veroeffentlicht hast, den Breaking Change im neuesten Framework-Update oder die Stack-Overflow-Antwort, die genau dein Problem loest. HelixMinds Web Knowledge Enricher schliesst diese Luecke automatisch.
+
+## Wie es funktioniert
+
+Wenn du eine Aufgabe beschreibst oder eine Frage stellst, analysiert der Enricher deine Nachricht auf Themen, die von aktuellen Web-Informationen profitieren wuerden. Er erkennt drei Kategorien:
+
+**Technologie-Themen** -- Referenzen auf bestimmte Libraries, Frameworks, APIs oder Tools. Wenn du "Next.js 15 App Router" oder "Prisma Client Extensions" erwahnst, erkennt der Enricher diese als Themen, bei denen aktuelle Dokumentation wichtig ist.
+
+**Pattern-Themen** -- Architekturmuster, Design-Ansaetze und Best Practices. Fragen ueber "Repository Pattern in TypeScript" oder "Event Sourcing mit SQLite" loesen Suchen nach aktuellen Implementierungen und Empfehlungen aus.
+
+**Error-Themen** -- Fehlermeldungen, Stack Traces und Debugging-Szenarien. Wenn du einen Fehler einfuegst, sucht der Enricher nach Loesungen, bekannten Problemen und Workarounds.
+
+## Die Pipeline
+
+Sobald Themen erkannt wurden, folgt der Enricher einer klaren Pipeline:
+
+1. **Suche** -- DuckDuckGo-Queries werden aus den erkannten Themen konstruiert. Mehrere Queries koennen parallel fuer verschiedene Aspekte desselben Problems laufen.
+
+2. **Extraktion** -- Relevante Seiten werden abgerufen und ihr HTML-Inhalt verarbeitet. Der Content-Extractor zieht Code-Beispiele, wichtige technische Punkte und praegnante Zusammenfassungen heraus, waehrend er Navigation, Werbung und Boilerplate verwirft.
+
+3. **Speicherung** -- Extrahiertes Wissen wird als L2-Knoten in Spiral Memory gespeichert. Diese Knoten enthalten die Quell-URL, das Extraktionsdatum und Relevanz-Metadaten. Sie nehmen am normalen Evolutions- und Verfallszyklus teil.
+
+4. **Assemblierung** -- Bei der naechsten Kontextassemblierung steht das frisch gespeicherte Web-Wissen neben deinem bestehenden Spiral Memory zur Verfuegung. Die KI kann aktuelle Dokumentation, neue Loesungen und aktuelle Beispiele referenzieren.
+
+## Live-Brain-Visualisierung
+
+Wenn der Web Knowledge Enricher relevante Informationen findet, siehst du es in Echtzeit. Die 3D-Brain-Visualisierung (zugaenglich ueber `/brain`) zeigt Pop-up-Animationen und Partikel-Bursts, wenn neue Web-Knowledge-Knoten erstellt werden. Das Findings-Panel in der linken Seitenleiste listet auf, was gefunden wurde, woher es stammt und wie es mit deiner aktuellen Aufgabe zusammenhaengt.
+
+Diese Transparenz ist beabsichtigt. Du weisst immer, mit welchen Informationen deine KI arbeitet und woher sie stammen.
+
+## Explizite Recherche mit `web_research`
+
+Ueber die automatische Anreicherung hinaus hat der Agent Zugriff auf ein dediziertes `web_research`-Tool. Wenn du die KI explizit bittest, etwas zu recherchieren ("such den neuesten Tailwind v4 Migration Guide"), ruft der Agent dieses Tool auf, um gezielte Web-Suchen durchzufuehren, Informationen zu extrahieren und Ergebnisse direkt im Gespraech zu praesentieren.
+
+Der Unterschied: Automatische Anreicherung laeuft im Hintergrund und fuettert den Kontext unauffaellig. Das `web_research`-Tool ist eine explizite Aktion, die Ergebnisse liefert, die du sehen und diskutieren kannst.
+
+## Aktuell bleiben
+
+Web-Knowledge-Knoten tragen Zeitstempel und verfallen wie jeder andere Spiral-Memory-Knoten. Frische Informationen aus der heutigen Suche ranken hoeher als ein gecachtes Ergebnis von vor zwei Wochen. Wenn du nach demselben Thema erneut suchst, ruft der Enricher aktuelle Ergebnisse ab, statt sich ausschliesslich auf gecachtes Wissen zu verlassen.
+
+Das bedeutet, deine KI bleibt aktuell. Framework-Migrationen, Sicherheitshinweise und API-Aenderungen werden natuerlich aufgegriffen, waehrend du arbeitest. Das Spiral Brain wird nicht nur zu einem Gedaechtnis deines Projekts, sondern zu einer lebendigen Wissensbasis, die mit dem Oekosystem um es herum waechst.

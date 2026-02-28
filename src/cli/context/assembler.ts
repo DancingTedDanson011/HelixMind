@@ -43,12 +43,23 @@ You help developers write, debug, and understand code. You are direct, concise, 
 - If you encountered errors, confirm they have been addressed.
 - After multi-step operations, briefly summarize what was done and any remaining steps.`;
 
+export interface ModelIdentity {
+  provider: string;
+  model: string;
+}
+
 export function assembleSystemPrompt(
   project: ProjectInfo | null,
   spiralContext: SpiralQueryResult,
   sessionContext?: string,
+  identity?: ModelIdentity,
 ): string {
   const sections: string[] = [BASE_INSTRUCTIONS];
+
+  // Dynamic model identity — so the agent knows what it is
+  if (identity) {
+    sections.push(`## Identity\nYou are running as **${identity.model}** via the **${identity.provider}** provider.\nWhen asked who or what you are, say you are HelixMind powered by ${identity.model}. Do NOT claim to be a different model or provider.`);
+  }
 
   // Environment context (OS, CWD, shell)
   sections.push(buildEnvironmentSection());

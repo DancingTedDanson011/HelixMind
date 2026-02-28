@@ -1,0 +1,66 @@
+---
+title: Fehlerbehebung
+description: Häufige Probleme und Lösungen bei der Nutzung von HelixMind.
+order: 40
+category: Fortgeschritten
+---
+
+# Fehlerbehebung
+
+## Installation
+
+**npm Permission Error:**
+```bash
+sudo npm install -g helixmind
+# Oder besser: npm prefix auf lokales Verzeichnis setzen
+```
+
+**Node.js Version:** HelixMind erfordert Node.js 18+. Prüfe mit `node --version`.
+
+## API-Key Probleme
+
+**"Invalid API Key":**
+```bash
+helixmind config get apiKey    # Prüfen
+helixmind config set apiKey sk-ant-...  # Neu setzen
+```
+
+Key-Formate: Anthropic `sk-ant-...`, OpenAI `sk-...`, Groq `gsk_...`
+
+**Rate Limiting:** HelixMind nutzt automatisches exponentielles Backoff. Bei persistenten Fehlern: API-Plan-Limits prüfen oder auf Ollama für unbegrenzte lokale Inferenz wechseln.
+
+## Spiral-Memory
+
+**"Database Locked":** Mehrere HelixMind-Instanzen schließen. Nur eine Instanz pro Datenbank.
+
+**Langsame Embeddings:** Erster Start lädt das Modell (~22MB). Danach gecached.
+
+**Große Datenbank:** `helixmind spiral status` prüfen, `helixmind spiral compact` ausführen.
+
+## Brain-Visualisierung
+
+**Öffnet nicht:** Port prüfen mit `/brain`. Bei belegtem Port wählt HelixMind einen zufälligen.
+
+**WebSocket-Fehler:** Browser-Extensions (Adblocker, Privacy-Tools) können WebSocket zu localhost blockieren.
+
+## Ollama
+
+**"Connection Refused":** `ollama serve` starten. Prüfen: `curl http://localhost:11434/api/version`
+
+**Out of Memory:** Kleineres Modell nutzen: `helixmind config set model qwen2.5-coder:7b`
+
+## Windows
+
+**SQLite EBUSY:** Alle HelixMind-Instanzen schließen, `.helixmind/spiral.db-wal` und `-shm` Dateien löschen.
+
+## MCP-Server
+
+**Server startet nicht:** `npx -y spiral-context-mcp` direkt testen. Node.js 18+ sicherstellen.
+
+**Editor verbindet nicht:** MCP-Config prüfen, Editor neu starten, Editor-MCP-Logs prüfen.
+
+## Hilfe
+
+1. [GitHub Issues](https://github.com/helixmind/helixmind/issues) prüfen
+2. Neues Issue mit OS, Node.js-Version, Fehlermeldung und Reproduktionsschritten öffnen
+3. In-App Support: [Support](/support/tickets)

@@ -1,0 +1,95 @@
+---
+title: MCP-Integration
+description: HelixMinds Spiral-Memory in Claude Code, Cursor, VS Code, Windsurf, Codex und JetBrains nutzen.
+order: 30
+category: Integrationen
+---
+
+# MCP-Integration
+
+HelixMind enthält einen **MCP-Server (Model Context Protocol)**, der dein Spiral-Gedächtnis anderen AI-Tools zugänglich macht.
+
+## Verfügbare MCP-Tools
+
+| Tool | Beschreibung |
+|------|-------------|
+| `spiral_context` | Spiral-Memory L1-L3 abfragen |
+| `spiral_store` | Neuen Kontext speichern |
+| `spiral_status` | Memory-Metriken abrufen |
+| `spiral_compact` | Manuelle Kompaktierung |
+| `spiral_relate` | Manuelle Beziehungen erstellen |
+
+## Setup nach Editor
+
+### Claude Code
+
+```bash
+claude mcp add spiral-context -- npx -y spiral-context-mcp
+```
+
+### Cursor
+
+`.cursor/mcp.json` im Projekt-Root:
+
+```json
+{
+  "mcpServers": {
+    "spiral-context": {
+      "command": "npx",
+      "args": ["-y", "spiral-context-mcp"]
+    }
+  }
+}
+```
+
+### VS Code
+
+`.vscode/mcp.json` im Projekt-Root:
+
+```json
+{
+  "mcpServers": {
+    "spiral-context": {
+      "command": "npx",
+      "args": ["-y", "spiral-context-mcp"]
+    }
+  }
+}
+```
+
+### Windsurf
+
+`~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "spiral-context": {
+      "command": "npx",
+      "args": ["-y", "spiral-context-mcp"]
+    }
+  }
+}
+```
+
+### JetBrains IDEs
+
+Settings → Tools → AI Assistant → MCP Servers → Server mit Befehl `npx -y spiral-context-mcp` hinzufügen.
+
+## Geteiltes Gedächtnis
+
+MCP-Server und HelixMind CLI teilen sich die **gleiche Spiral-Datenbank**. Wissen aus einem Tool ist sofort im anderen verfügbar:
+
+- Tiefenanalyse mit HelixMind CLI → Wissen in Cursor/VS Code via MCP nutzbar
+- Neuer Kontext aus Cursor gespeichert → nächstes Mal in HelixMind verfügbar
+
+## Fehlerbehebung
+
+```bash
+# MCP-Server direkt testen
+npx -y spiral-context-mcp
+```
+
+- **Server verbindet nicht:** Editor-MCP-Konfiguration prüfen und Editor neu starten
+- **Langsame Initialisierung:** Embedding-Modell (~22MB) wird beim ersten Start heruntergeladen
+- **Database Locked:** Sicherstellen, dass nur eine MCP-Server-Instanz pro Projekt läuft

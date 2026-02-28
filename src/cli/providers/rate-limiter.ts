@@ -156,6 +156,30 @@ export function isRateLimitError(error: unknown): boolean {
     msg.includes('too many requests');
 }
 
+/**
+ * Check if an error indicates exhausted credits/balance (402/403).
+ * Returns a human-readable reason if detected, null otherwise.
+ */
+export function detectCreditsExhausted(error: unknown): string | null {
+  if (!(error instanceof Error)) return null;
+  const msg = error.message.toLowerCase();
+
+  // HTTP 402 Payment Required
+  if (msg.includes('402')) return 'Credits balance is 0 — payment required';
+
+  // Common API error patterns for exhausted credits
+  if (msg.includes('insufficient') && (msg.includes('balance') || msg.includes('credit') || msg.includes('quota') || msg.includes('fund')))
+    return 'Insufficient credits balance';
+  if (msg.includes('quota') && msg.includes('exceed'))
+    return 'API quota exceeded';
+  if (msg.includes('billing') || msg.includes('payment'))
+    return 'Billing/payment issue — check your account';
+  if (msg.includes('403') && (msg.includes('denied') || msg.includes('forbidden')))
+    return 'Access denied — API key may be invalid or credits exhausted';
+
+  return null;
+}
+
 /** Get current rate limiter stats */
 export function getRateLimitStats(): { callsInWindow: number; backoffLevel: number; totalRetries: number } {
   const now = Date.now();

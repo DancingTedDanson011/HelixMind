@@ -1,0 +1,39 @@
+---
+title: Export & Import
+description: Back up, share, and migrate your spiral memory with ZIP archives.
+order: 35
+category: Integrations
+---
+
+# Export & Import
+
+Export your spiral memory as a ZIP archive for backup, sharing, or migration.
+
+## Export
+
+```bash
+helixmind export                      # Current directory
+helixmind export ./backups            # Specific directory
+helixmind export -n my-project        # With project name
+```
+
+Includes: All nodes (L1–L6), metadata, edges. Embeddings are re-generated on import.
+
+## Import
+
+```bash
+helixmind import backup.zip           # Merge (default)
+helixmind import --replace backup.zip  # Replace all
+```
+
+| Mode | Behavior |
+|------|----------|
+| **Merge** | Adds imported nodes alongside existing ones |
+| **Replace** | Wipes existing data and replaces with archive |
+
+## Use Cases
+
+- **Backup**: `helixmind export ~/backups/`
+- **Team sharing**: Export on Dev A → Import on Dev B
+- **Machine migration**: Export on old → Import on new machine
+- **In chat**: `/export` exports to the project root

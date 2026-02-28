@@ -1,0 +1,60 @@
+---
+title: Best Practices
+description: Tipps und Workflows für das Beste aus HelixMinds Spiral-Memory und AI-Agent.
+order: 41
+category: Fortgeschritten
+---
+
+# Best Practices
+
+## Richtig starten
+
+1. **Jedes Projekt initialisieren** — `helixmind init` für projekt-lokales Gedächtnis
+2. **Guten Kontext schreiben** — `.helixmind/context.md` mit Tech-Stack, Architektur, Konventionen
+3. **Key-Dateien früh einspeisen** — `helixmind feed README.md --deep src/core/`
+
+## Täglicher Workflow
+
+| Wann | Was |
+|------|-----|
+| **Tagesstart** | `helixmind` — die AI kennt dein Projekt von gestern |
+| **Während Entwicklung** | Code erklären lassen, Tests zuerst schreiben, `/spiral` checken |
+| **Tagesende** | `/security` im Hintergrund laufen lassen |
+
+## Spiral-Memory Tipps
+
+- **Natürlich lernen lassen** — Nicht alles auf einmal einspeisen
+- **Semantische Suche nutzen** — `helixmind spiral search "wie wir auth handeln"`
+- **Regelmäßig prüfen** — `/spiral` zeigt was die AI weiß
+
+## Agent-Interaktion
+
+- **Spezifisch sein** — Statt "Fix den Bug" besser "Fix die Auth-Middleware — JWT-Tokens laufen zu früh ab"
+- **Erst erkunden lassen** — "Lies das Auth-Modul durch und erkläre den Token-Refresh"
+- **Skip-Permissions für Flow** — `/skip-permissions` wenn du aktiv zuschaust
+- **Vor Commit prüfen** — `/diff`, Validation Matrix, Tests laufen lassen
+
+## Richtiges Modell wählen
+
+| Task | Empfohlen |
+|------|-----------|
+| Schnelle Fixes | Haiku / GPT-4o-mini |
+| Allgemeines Coding | Sonnet / GPT-4o |
+| Komplexe Architektur | Opus |
+| Offline / Privacy | Ollama (qwen2.5-coder:32b) |
+
+Modell wechseln mit `/model`.
+
+## Team-Workflows
+
+- **Shared Context** — `.helixmind/context.md` committen für gleiche Projekt-Anweisungen
+- **Wissenstransfer** — Senior exportiert, Neue importieren
+- **Code Review mit AI** — `helixmind chat -m "Prüfe die Änderungen der letzten 3 Commits"`
+
+## Sicherheit
+
+1. `/security` regelmäßig ausführen (mindestens wöchentlich)
+2. Keine API-Keys committen — Umgebungsvariablen nutzen
+3. Mit Safe-Permissions starten, nur bei Bedarf eskalieren
+4. YOLO-Modus Output sorgfältig prüfen
+5. Checkpoint-System nutzen — ungewollte Änderungen sofort rückgängig machen

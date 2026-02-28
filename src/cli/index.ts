@@ -124,6 +124,35 @@ program
     await importCommand(zipFile, options);
   });
 
+// Auth commands
+program
+  .command('login')
+  .description('Authenticate with HelixMind web platform')
+  .option('--api-key <key>', 'Use API key directly (skip browser flow)')
+  .option('--url <url>', 'Web platform URL')
+  .option('--force', 'Re-authenticate even if already logged in')
+  .action(async (options) => {
+    const { loginCommand } = await import('./commands/auth.js');
+    await loginCommand(options);
+  });
+
+program
+  .command('logout')
+  .description('Remove stored authentication')
+  .option('--no-revoke', 'Do not revoke the API key on the server')
+  .action(async (options) => {
+    const { logoutCommand } = await import('./commands/auth.js');
+    await logoutCommand(options);
+  });
+
+program
+  .command('whoami')
+  .description('Show current authentication status')
+  .action(async () => {
+    const { whoamiCommand } = await import('./commands/auth.js');
+    await whoamiCommand();
+  });
+
 // Init command
 program
   .command('init')

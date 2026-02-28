@@ -1,0 +1,85 @@
+---
+title: Spiral Memory
+description: Deep dive into HelixMind's 6-level spiral memory — how context promotes, decays, compresses, and evolves across sessions.
+order: 10
+category: Core Concepts
+---
+
+# Spiral Memory
+
+HelixMind's spiral memory is a **6-level hierarchical system** that stores, evolves, and retrieves context intelligently — the core innovation that makes HelixMind different from every other AI coding tool.
+
+## The 6 Levels
+
+| Level | Name | Purpose | Token Budget | Color |
+|-------|------|---------|-------------|-------|
+| **L1** | Focus | Current working context (files, bugs, features) | 30% | Cyan |
+| **L2** | Active | Recent patterns, decisions, web enricher findings | 25% | Green |
+| **L3** | Reference | Stable architecture knowledge (schemas, APIs) | 20% | Blue |
+| **L4** | Archive | Historical context (old sessions, resolved issues) | 15% | Violet |
+| **L5** | Deep Archive | Compressed summaries of old context | 10% | Gray |
+| **L6** | Web Knowledge | Auto-fetched docs and web insights | Bonus | Orange |
+
+## How Memory Evolves
+
+| Process | Direction | Trigger |
+|---------|-----------|---------|
+| **Promotion** | L4 → L3 → L2 → L1 | Accessed frequently |
+| **Decay** | L1 → L2 → L3 → L4 → L5 | Not accessed over time |
+| **Compression** | At L5 | Code → summaries, details → key patterns |
+| **Relations** | Between nodes | AI detects connections automatically |
+| **Web Enrichment** | External → L6 | AI detects tech topics → auto-fetches web docs |
+
+## Embeddings & Semantic Search
+
+Every node gets a **384-dimensional embedding** (`all-MiniLM-L6-v2`, runs locally):
+
+```bash
+helixmind spiral search "JWT authentication pattern"
+```
+
+| Capability | How It Works |
+|-----------|-------------|
+| **Semantic search** | KNN across all levels — finds concepts, not just keywords |
+| **Relevance scoring** | Embedding similarity + recency + access count |
+| **Smart retrieval** | Related nodes are pulled in together |
+
+## Context Assembly
+
+When you start a chat, context is assembled from all 6 levels:
+
+1. **Semantic relevance** — Embedding similarity to your conversation
+2. **Level priority** — L1 gets 30% of tokens, L2 gets 25%, etc.
+3. **Recency** — Recently accessed nodes score higher
+4. **Relations** — Connected nodes are injected together
+
+## Storage
+
+| Location | Scope |
+|----------|-------|
+| `.helixmind/spiral.db` | Project-local memory |
+| `~/.helixmind/spiral.db` | Cross-project global memory |
+
+Each node stores: content, level, embeddings, timestamps, access counts, and metadata.
+
+## CLI Commands
+
+```bash
+helixmind spiral status    # Nodes per level, storage size
+helixmind spiral search    # Semantic search across all levels
+helixmind spiral compact   # Trigger evolution (compress, rebalance)
+```
+
+| Slash Command | Action |
+|--------------|--------|
+| `/spiral` | Quick status view |
+| `/compact` | Trigger evolution |
+| `/context` | Show assembled context |
+| `/tokens` | Token usage per level |
+
+## Tips
+
+1. **Let it learn naturally** — The spiral builds over time, don't front-load everything
+2. **Feed early** — `helixmind feed README.md` right after `helixmind init`
+3. **Check periodically** — `/spiral` shows what the AI remembers
+4. **Project-local for specifics** — Global memory for cross-project patterns

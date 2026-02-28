@@ -1,0 +1,48 @@
+---
+title: Feed-Pipeline
+description: Dateien und Verzeichnisse in HelixMinds Spiral-Memory einspeisen.
+order: 34
+category: Integrationen
+---
+
+# Feed-Pipeline
+
+Die Feed-Pipeline importiert **Dateien in Masse** in das Spiral-Gedächtnis.
+
+## Nutzung
+
+```bash
+helixmind feed README.md src/architecture.md   # Bestimmte Dateien
+helixmind feed src/                             # Verzeichnis (rekursiv)
+/feed                                           # Im Chat interaktiv
+```
+
+## Feed-Modi
+
+| Modus | Flag | Beschreibung |
+|-------|------|-------------|
+| **Quick** (Standard) | — | Schnelle Übersicht, Key-Patterns |
+| **Deep** | `--deep` | Gründliche Analyse jeder Datei |
+| **Watch** | `--watch` | Kontinuierliche Überwachung bei Änderungen |
+
+## Was extrahiert wird
+
+| Dateityp | Extraktion |
+|----------|-----------|
+| `.ts`, `.js` | Funktionen, Klassen, Exports, Imports |
+| `.json` | Config-Struktur, Keys |
+| `.md` | Abschnitte, Konzepte |
+| Config-Dateien | Framework-Einstellungen |
+
+Automatisch ignoriert: `node_modules/`, `dist/`, `.git/`, Binärdateien, Lock-Dateien.
+
+## Memory-Auswirkung
+
+Eingespeister Content startet auf **L2 Active**. Über die Zeit: häufig genutztes Wissen wird zu L1 promoted, ungenutztes decayed zu L3-L5. Web-geholtes Wissen kommt separat in L6.
+
+## Tipps
+
+1. **Früh einspeisen** — `helixmind feed README.md` direkt nach `helixmind init`
+2. **Deep-Feed für Kerncode** — `--deep` für die wichtigsten Verzeichnisse
+3. **Nicht übertreiben** — Qualität vor Quantität
+4. **Nach großen Änderungen neu einspeisen** — Nach Refactoring die geänderten Verzeichnisse erneut einspeisen

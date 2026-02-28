@@ -1,0 +1,83 @@
+---
+title: Agent-Tools
+description: Die 14 Tools, die HelixMinds AI-Agent nutzt, um deine Codebase zu lesen, schreiben, suchen und verwalten.
+order: 5
+category: CLI-Nutzung
+---
+
+# Agent-Tools
+
+HelixMinds AI-Agent hat Zugriff auf **14 Tools**. Jedes Tool hat ein Berechtigungslevel.
+
+## Berechtigungslevel
+
+| Level | Verhalten | Tools |
+|-------|-----------|-------|
+| **Safe** | Automatisch | read_file, search_files, git_status |
+| **Ask** | Fragt nach | edit_file, write_file, git_commit |
+| **Dangerous** | Immer fragen | run_command mit `rm`, `dd`, etc. |
+
+## Datei-Operationen
+
+| Tool | Berechtigung | Beschreibung |
+|------|-------------|-------------|
+| `read_file` | Safe | Dateiinhalt lesen |
+| `write_file` | Ask | Datei erstellen oder überschreiben |
+| `edit_file` | Ask | Bestimmte Zeilen in einer Datei bearbeiten |
+| `list_directory` | Safe | Verzeichnisinhalt rekursiv auflisten |
+
+## Suche & Finden
+
+| Tool | Berechtigung | Beschreibung |
+|------|-------------|-------------|
+| `search_files` | Safe | Dateiinhalte mit Regex durchsuchen |
+| `find_files` | Safe | Dateien nach Namensmuster finden |
+
+## Befehlsausführung
+
+### `run_command`
+
+Berechtigung variiert je nach Befehl:
+
+- **Auto** — `ls`, `cat`, `npm test`, `tsc`, `eslint`
+- **Ask** — `npm install`, `docker`, `make`
+- **Dangerous** — `rm -rf`, `dd`, `format`, `DROP TABLE`
+
+## Git-Operationen
+
+| Tool | Berechtigung | Beschreibung |
+|------|-------------|-------------|
+| `git_status` | Safe | Aktuellen Git-Status anzeigen |
+| `git_diff` | Safe | Diffs für staged/unstaged Änderungen |
+| `git_commit` | Ask | Git-Commit erstellen |
+| `git_log` | Safe | Commit-History anzeigen |
+
+## Spiral-Memory
+
+| Tool | Berechtigung | Beschreibung |
+|------|-------------|-------------|
+| `spiral_query` | Safe | Spiral-Memory semantisch durchsuchen |
+| `spiral_store` | Safe | Neuen Kontext im Spiral-Memory speichern |
+
+## Web-Recherche
+
+### `web_research` (Ask)
+
+Sucht im Internet, fetcht Webseiten, extrahiert Wissen und speichert es in der Spiral.
+
+1. Sucht bei DuckDuckGo
+2. Fetcht und parst die Top-Ergebnisse
+3. Extrahiert Code-Beispiele und Key-Points
+4. Speichert als L6 Web Knowledge Knoten
+5. Aktualisiert Brain-Visualisierung in Echtzeit
+
+## Tool-Ausführungsablauf
+
+1. **Agent entscheidet** welches Tool basierend auf dem Gespräch
+2. **Berechtigungsprüfung** — Safe läuft sofort, andere fragen nach
+3. **Sandbox-Validierung** — Befehle werden auf Sicherheit geprüft
+4. **Ausführung** — Tool läuft und produziert Output
+5. **Checkpoint** — Snapshot wird automatisch erstellt
+6. **Ergebnis** — Output wird an den Agenten zurückgegeben
+
+Der Agent kann bis zu **25 Tool-Calls** in einer Antwort verketten.

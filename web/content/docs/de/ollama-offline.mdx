@@ -1,0 +1,58 @@
+---
+title: Ollama & Offline-Modus
+description: HelixMind vollständig offline mit Ollama nutzen — kein API-Key, keine Daten verlassen deinen Rechner.
+order: 32
+category: Integrationen
+---
+
+# Ollama & Offline-Modus
+
+HelixMind funktioniert **vollständig offline** mit Ollama. Kein API-Key nötig, keine Daten verlassen deinen Rechner.
+
+## Setup
+
+1. Ollama installieren: [ollama.ai](https://ollama.ai)
+2. Server starten: `ollama serve`
+3. Provider setzen:
+
+```bash
+helixmind config set provider ollama
+helixmind config set model qwen2.5-coder:32b
+```
+
+## Empfohlene Modelle
+
+| Modell | Größe | Qualität | Geschwindigkeit |
+|--------|-------|----------|----------------|
+| `qwen2.5-coder:32b` | 19GB | Exzellent | Moderat |
+| `qwen3-coder:30b` | 17GB | Exzellent | Moderat |
+| `qwen2.5-coder:14b` | 8.5GB | Gut | Schnell |
+| `qwen2.5-coder:7b` | 4.4GB | Ordentlich | Sehr schnell |
+| `deepseek-r1:14b` | 8.5GB | Gut (Reasoning) | Moderat |
+
+Empfehlung: Mindestens 14B Parameter für gute Ergebnisse.
+
+## Modell-Verwaltung
+
+```bash
+/local         # Ollama-Konfiguration im Chat
+/model         # Modell interaktiv wechseln
+ollama list    # Installierte Modelle auflisten
+ollama pull qwen2.5-coder:32b   # Neues Modell laden
+```
+
+## Was offline funktioniert
+
+**Alles** — außer dem Web Knowledge Enricher (der Internet benötigt).
+
+Chat, Agent-Tools, Spiral-Memory, Brain, Validation Matrix, Checkpoints, Permissions, Sessions, MCP-Server — alles läuft lokal.
+
+## Hardware-Anforderungen
+
+| Modellgröße | RAM | GPU VRAM |
+|------------|-----|----------|
+| 7B | 8GB | 4GB |
+| 14B | 16GB | 8GB |
+| 32B | 32GB | 16GB |
+
+GPU-Beschleunigung wird automatisch genutzt (NVIDIA CUDA, Apple Metal).

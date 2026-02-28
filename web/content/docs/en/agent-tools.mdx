@@ -1,0 +1,85 @@
+---
+title: Agent Tools
+description: The 14 tools HelixMind's AI agent uses to read, write, search, and manage your codebase.
+order: 5
+category: CLI Usage
+---
+
+# Agent Tools
+
+HelixMind's AI agent has access to **14 tools** for interacting with your codebase. Each tool has a permission level.
+
+## Permission Levels
+
+| Level | Behavior | When |
+|-------|----------|------|
+| **Safe** | Runs without asking | Read-only operations |
+| **Ask** | Prompts for permission | File modifications, git commits |
+| **Dangerous** | Always requires approval | Destructive commands (`rm -rf`, `DROP TABLE`) |
+
+In **YOLO mode** (`--yolo`), everything runs without asking. In **skip-permissions** (`-s`), safe + ask auto-approve, dangerous still prompts.
+
+## All 14 Tools
+
+### File Operations
+
+| Tool | Permission | Description |
+|------|-----------|-------------|
+| `read_file` | Safe | Read file contents |
+| `write_file` | Ask | Create or overwrite a file |
+| `edit_file` | Ask | Edit specific lines in an existing file |
+| `list_directory` | Safe | List directory contents recursively |
+
+### Search & Find
+
+| Tool | Permission | Description |
+|------|-----------|-------------|
+| `search_files` | Safe | Search file contents with regex |
+| `find_files` | Safe | Find files by name pattern (glob) |
+
+### Command Execution
+
+| Tool | Permission | Description |
+|------|-----------|-------------|
+| `run_command` | Varies | Execute a shell command |
+
+Command classification:
+
+| Category | Examples |
+|----------|---------|
+| **Auto-approve** | `ls`, `cat`, `npm test`, `tsc`, `eslint`, `git status` |
+| **Ask** | `npm install`, `docker`, `make`, `python`, `mkdir`, `cp`, `mv` |
+| **Dangerous** | `rm -rf`, `dd`, `mkfs`, `chmod 777`, `DROP TABLE`, `curl \| sh` |
+
+### Git Operations
+
+| Tool | Permission | Description |
+|------|-----------|-------------|
+| `git_status` | Safe | Show staged, unstaged, untracked files |
+| `git_diff` | Safe | Show diffs (staged/unstaged) |
+| `git_commit` | Ask | Create a commit (can auto-stage files) |
+| `git_log` | Safe | Show recent commit history |
+
+### Spiral Memory
+
+| Tool | Permission | Description |
+|------|-----------|-------------|
+| `spiral_query` | Safe | Semantic search across all levels |
+| `spiral_store` | Safe | Store new context (auto-generates embeddings) |
+
+### Web Research
+
+| Tool | Permission | Description |
+|------|-----------|-------------|
+| `web_research` | Ask | Search web, fetch pages, extract knowledge → store in L6 |
+
+## Tool Execution Flow
+
+1. **Agent decides** which tool to use
+2. **Permission check** — auto-approve or prompt
+3. **Sandbox validation** — commands classified for safety
+4. **Execution** — tool runs
+5. **Checkpoint** — snapshot auto-created for undo
+6. **Result** — output fed back to agent for next step
+
+The agent can chain up to **25 tool calls** in a single response.

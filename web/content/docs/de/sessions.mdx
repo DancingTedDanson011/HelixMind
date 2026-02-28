@@ -1,0 +1,47 @@
+---
+title: Sessions & Hintergrund-Tasks
+description: Mehrere AI-Sessions gleichzeitig — Sicherheitsaudits, autonome Fixes und mehr in Hintergrund-Tabs.
+order: 16
+category: Kernkonzepte
+---
+
+# Sessions & Hintergrund-Tasks
+
+HelixMind unterstützt **mehrere gleichzeitige Sessions** — Sicherheitsaudit im Hintergrund, während du im Vordergrund weiter codest.
+
+## Session-Typen
+
+| Typ | Befehl | Beschreibung |
+|-----|--------|-------------|
+| **Haupt-Session** | `helixmind` | Dein interaktiver Chat (immer vorhanden) |
+| **Sicherheitsaudit** | `/security` | Umfassender Security-Scan |
+| **Autonomer Modus** | `/auto` | Kontinuierliches Scannen & Fixen |
+| **Custom** | `/auto <Ziel>` | Zielgerichtete Hintergrund-Arbeit |
+
+## Jede Hintergrund-Session hat
+
+- Eigenen **Gesprächsverlauf**
+- Eigenen **Undo-Stack** für Dateiänderungen
+- Eigenen **Agent-Controller** (Pause/Resume/Abort)
+- Einen **Status-Indikator** in der Tab-Leiste
+
+## Tab-Leiste
+
+```
+[🔒 security ●] [⚙️ auto ●] [💬 main]
+```
+
+## Session-Verwaltung
+
+| Aktion | Befehl |
+|--------|--------|
+| Tabs wechseln | **Ctrl+PageUp/PageDown** |
+| Alle Sessions auflisten | `/sessions` |
+| Hintergrund stoppen | `/stop` |
+| Notfall-Stopp | **ESC ESC** |
+
+## Session-Status
+
+`running` → `completed` / `error` / `aborted`
+
+Abgeschlossene Sessions schließen automatisch nach 10 Sekunden.

@@ -1,0 +1,48 @@
+---
+title: Feed Pipeline
+description: Feed files and directories into HelixMind's spiral memory for the AI to learn from your codebase.
+order: 34
+category: Integrations
+---
+
+# Feed Pipeline
+
+The feed pipeline imports **files in bulk** into the spiral memory.
+
+## Usage
+
+```bash
+helixmind feed README.md src/architecture.md   # Specific files
+helixmind feed src/                             # Directory (recursive)
+/feed                                           # Interactive in chat
+```
+
+## Feed Modes
+
+| Mode | Flag | Description |
+|------|------|-------------|
+| **Quick** (default) | — | Fast overview, key patterns |
+| **Deep** | `--deep` | Thorough analysis of every file |
+| **Watch** | `--watch` | Continuous monitoring on file changes |
+
+## What Gets Extracted
+
+| File Type | Extraction |
+|-----------|-----------|
+| `.ts`, `.js` | Functions, classes, exports, imports |
+| `.json` | Config structure, keys |
+| `.md` | Sections, concepts |
+| Config files | Framework settings |
+
+Automatically ignored: `node_modules/`, `dist/`, `.git/`, binaries, lock files.
+
+## Memory Impact
+
+Fed content starts at **L2 Active**. Over time: frequently used knowledge promotes to L1, unused decays to L3–L5. Web-fetched knowledge enters separately at L6.
+
+## Tips
+
+1. **Feed early** — `helixmind feed README.md` right after `helixmind init`
+2. **Deep-feed core code** — `--deep` for your most important directories
+3. **Don't over-feed** — Quality over quantity
+4. **Re-feed after major changes** — After refactoring, re-feed the changed directories

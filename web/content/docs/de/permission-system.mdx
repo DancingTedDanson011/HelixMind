@@ -1,0 +1,52 @@
+---
+title: Berechtigungssystem
+description: HelixMinds 3-stufiges Berechtigungssystem — safe, ask, dangerous — und wie du steuerst, was die AI darf.
+order: 13
+category: Kernkonzepte
+---
+
+# Berechtigungssystem
+
+HelixMind nutzt ein **3-stufiges Berechtigungssystem**. Jeder Tool-Call wird klassifiziert und entweder automatisch ausgeführt, zur Genehmigung vorgelegt oder blockiert.
+
+## Die 3 Stufen
+
+### Safe (Auto-Genehmigung)
+
+Read-only Operationen: `read_file`, `list_directory`, `search_files`, `find_files`, `git_status`, `git_log`, `git_diff`, `spiral_query`, `spiral_store`
+
+### Ask (Nachfragen)
+
+Dateien/State modifizierend: `edit_file`, `write_file`, `git_commit`, `run_command` (bei sicheren Befehlen), `web_research`
+
+### Dangerous (Immer nachfragen)
+
+Potenziell destruktiv: `run_command` mit `rm -rf`, `dd`, `format`, `DROP TABLE`, etc.
+
+## Berechtigungs-Modi
+
+| Modus | Verhalten | Befehl |
+|-------|-----------|--------|
+| **Standard** | Safe=auto, Ask=prompt, Dangerous=prompt | `helixmind chat` |
+| **Skip** | Safe+Ask=auto, Dangerous=prompt | `helixmind -s` / `/skip-permissions` |
+| **YOLO** | Alles auto (auch Dangerous!) | `helixmind --yolo` / `/yolo` |
+
+## Berechtigungs-Prompt
+
+```
+🔒 edit_file: src/middleware/auth.ts (Zeile 42)
+   Erlauben? [y/n/always]:
+```
+
+- **y** — Einmalig erlauben
+- **n** — Ablehnen
+- **always** — Diesen Tool-Typ für den Rest der Session erlauben
+
+## Notfall-Stopp
+
+**ESC ESC** (doppelt tippen):
+1. Alle Operationen sofort abbrechen
+2. Checkpoint-Browser öffnen
+3. State zurücksetzen
+
+Funktioniert in **jedem Modus** — auch in YOLO.

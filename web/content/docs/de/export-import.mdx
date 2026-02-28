@@ -1,0 +1,39 @@
+---
+title: Export & Import
+description: Spiral-Memory sichern, teilen und zwischen Rechnern migrieren.
+order: 35
+category: Integrationen
+---
+
+# Export & Import
+
+Exportiere dein Spiral-Gedächtnis als ZIP-Archiv für Backup, Teilen oder Migration.
+
+## Export
+
+```bash
+helixmind export                      # Aktuelles Verzeichnis
+helixmind export ./backups            # Bestimmtes Verzeichnis
+helixmind export -n mein-projekt      # Mit Projektnamen
+```
+
+Enthält: Alle Knoten (L1-L6), Metadaten, Kanten. Embeddings werden beim Import neu generiert.
+
+## Import
+
+```bash
+helixmind import backup.zip           # Zusammenführen (Standard)
+helixmind import --replace backup.zip  # Alles ersetzen
+```
+
+| Modus | Verhalten |
+|-------|-----------|
+| **Merge** | Fügt importierte Knoten neben existierenden ein |
+| **Replace** | Löscht existierende Daten und ersetzt mit Archiv |
+
+## Anwendungsfälle
+
+- **Backup**: `helixmind export ~/backups/`
+- **Team-Sharing**: Export bei Dev A → Import bei Dev B
+- **Rechner-Migration**: Export auf altem → Import auf neuem Rechner
+- **Im Chat**: `/export` exportiert in den Projekt-Root

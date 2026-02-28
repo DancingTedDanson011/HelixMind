@@ -1,0 +1,75 @@
+---
+title: Ollama & Offline Mode
+description: Run HelixMind fully offline with Ollama — no API key, no data leaves your machine.
+order: 32
+category: Integrations
+---
+
+# Ollama & Offline Mode
+
+HelixMind works **fully offline** with Ollama. No API keys, no data leaves your machine.
+
+## Setup
+
+1. Install Ollama from [ollama.ai](https://ollama.ai)
+2. Start the server: `ollama serve`
+3. Configure HelixMind:
+
+```bash
+helixmind config set provider ollama
+helixmind config set model qwen2.5-coder:32b   # optional
+```
+
+HelixMind auto-detects Ollama at `http://localhost:11434`.
+
+## Recommended Models
+
+| Model | Size | Quality | Speed |
+|-------|------|---------|-------|
+| `qwen2.5-coder:32b` | 19GB | Excellent | Moderate |
+| `qwen3-coder:30b` | 17GB | Excellent | Moderate |
+| `qwen2.5-coder:14b` | 8.5GB | Good | Fast |
+| `qwen2.5-coder:7b` | 4.4GB | Decent | Very Fast |
+| `deepseek-r1:14b` | 8.5GB | Good (reasoning) | Moderate |
+
+For best results, use **14B+** parameters. 32B recommended for complex tasks.
+
+## Model Management
+
+| Method | Command |
+|--------|---------|
+| In chat | `/local` — list, pull, manage models |
+| Switch model | `/model` — interactive picker |
+| CLI pull | `ollama pull qwen2.5-coder:32b` |
+| CLI list | `ollama list` |
+
+## What Works Offline
+
+| Feature | Status |
+|---------|--------|
+| Interactive Chat | ✅ Full |
+| Agent Tools (14) | ✅ Full |
+| Spiral Memory | ✅ Full |
+| Brain Visualization | ✅ Full |
+| Validation Matrix | ✅ Full (uses same model) |
+| Checkpoints & Undo | ✅ Full |
+| Sessions | ✅ Full |
+| MCP Server | ✅ Full |
+| Web Knowledge Enricher | ❌ Disabled (requires internet) |
+
+## Hardware Requirements
+
+| Model Size | RAM | GPU VRAM |
+|-----------|-----|----------|
+| 7B | 8GB | 4GB |
+| 14B | 16GB | 8GB |
+| 32B | 32GB | 16GB |
+
+Ollama auto-uses GPU if available (NVIDIA CUDA, Apple Metal). Store models on SSD for faster loading.
+
+## Privacy
+
+- **Zero** data leaves your machine
+- No API key required
+- No telemetry or analytics
+- Ideal for corporate environments, sensitive code, air-gapped networks

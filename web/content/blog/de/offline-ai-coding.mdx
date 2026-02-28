@@ -1,0 +1,68 @@
+---
+title: "Offline programmieren: HelixMind mit Ollama nutzen"
+description: "Wie du HelixMind fuer vollstaendig offline KI-Coding mit lokalen Modellen einrichtest, inklusive Modell-Empfehlungen und Workflow-Tipps."
+date: "2025-02-15"
+author: "HelixMind Team"
+tags: ["ollama", "offline", "lokale-modelle"]
+---
+
+# Offline programmieren: HelixMind mit Ollama nutzen
+
+Nicht jeder Entwickler moechte seinen Code in die Cloud schicken. Ob du an proprietaerer Software arbeitest, in einer air-gapped Umgebung operierst oder einfach deine Daten lieber lokal behaeltst -- HelixMind unterstuetzt dich. Voller Offline-Betrieb ist ein First-Class-Feature, kein Nachgedanke.
+
+## Ollama einrichten
+
+Ollama ist ein lokaler Model-Runner, der es unkompliziert macht, LLMs auf der eigenen Hardware auszufuehren. HelixMind integriert sich nativ damit.
+
+Zuerst installiere Ollama von [ollama.com](https://ollama.com) und lade ein Modell:
+
+```bash
+ollama pull qwen2.5-coder:14b
+```
+
+Dann konfiguriere HelixMind:
+
+```bash
+helixmind config set provider ollama
+helixmind config set model qwen2.5-coder:14b
+```
+
+Das war's. HelixMind erkennt deine laufende Ollama-Instanz automatisch und verbindet sich. Keine API-Keys, keine Cloud-Accounts, kein Netzwerk noetig.
+
+## Modell-Empfehlungen
+
+Das richtige Modell haengt von deiner Hardware und deinen Anforderungen ab:
+
+**Fuer 8 GB RAM:** `qwen2.5-coder:7b` bietet solide Coding-Unterstuetzung. Es bewaeltigt die meisten Aufgaben, kann aber bei komplexen Multi-Datei-Refactorings an Grenzen stossen.
+
+**Fuer 16 GB RAM:** `qwen2.5-coder:14b` ist der Sweet Spot. Schnell genug fuer interaktive Nutzung, leistungsfaehig genug fuer echte Entwicklungsarbeit. Das ist unsere Standard-Empfehlung.
+
+**Fuer 32+ GB RAM:** `qwen2.5-coder:32b` oder `deepseek-coder-v2:16b` liefern nahezu Cloud-Qualitaet fuer die meisten Aufgaben. Groessere Modelle bewaeltigen Architekturfragen und komplexes Debugging deutlich besser.
+
+**Fuer Apple Silicon (M1/M2/M3):** Metal-Beschleunigung macht lokale Inferenz ueberraschend schnell. Ein 14B-Modell auf einem M2 Pro liefert Tokens mit komfortabler interaktiver Geschwindigkeit.
+
+## Der Offline-Workflow
+
+Wenn du HelixMind offline nutzt, funktioniert alles genauso wie mit einem Cloud-Provider:
+
+- Spiral Memory speichert und ruft Kontext lokal ab (SQLite + sqlite-vec)
+- Die Agent-Schleife verarbeitet Tool-Calls und Responses
+- Dateioperationen, Git-Integration und Suche funktionieren normal
+- Die Validation Matrix fuehrt statische Checks durch (dynamische Checks benoetigen ein Modell, das Ollama lokal bereitstellt)
+
+Der einzige Unterschied ist die Latenz. Cloud-Modelle antworten in 1-2 Sekunden. Lokale Modelle variieren je nach Hardware, aber ein 14B-Modell auf moderner Hardware generiert typischerweise 20-40 Tokens pro Sekunde -- schnell genug fuer produktives Arbeiten.
+
+## Auto-Erkennung
+
+HelixMinds Ollama-Integration beinhaltet Auto-Erkennung. Wenn du den Ollama-Provider waehlst, macht die CLI:
+
+1. Scan nach einer laufenden Ollama-Instanz auf dem Standard-Port
+2. Auflistung aller verfuegbaren Modelle
+3. Interaktive Auswahl oder Konfiguration ueber Config
+4. Angebot, empfohlene Modelle herunterzuladen, falls keine installiert sind
+
+Du kannst auch waehrend einer Sitzung mit dem `/model`-Slash-Command zwischen Providern wechseln. So laesst sich ein lokales Modell fuer Routine-Aufgaben nutzen und bei Bedarf auf ein Cloud-Modell umschalten.
+
+## Datenschutz als Standard
+
+Mit Ollama verlaesst dein Code niemals deinen Rechner. Spiral Memory wird in lokalen SQLite-Datenbanken gespeichert. Embeddings werden lokal mit dem mitgelieferten MiniLM-Modell generiert. Es gibt null Netzwerk-Traffic. Das macht HelixMind geeignet fuer klassifizierte Projekte, regulierte Branchen und jeden, der Datensouveraenitaet schaetzt.

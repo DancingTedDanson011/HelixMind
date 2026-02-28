@@ -1,0 +1,50 @@
+---
+title: "How Spiral Memory Works: A Deep Dive"
+description: "Understanding the five levels of spiral context memory, how knowledge evolves and decays, and why it makes AI coding fundamentally better."
+date: "2025-01-20"
+author: "HelixMind Team"
+tags: ["spiral-memory", "deep-dive", "architecture"]
+---
+
+# How Spiral Memory Works: A Deep Dive
+
+Traditional AI coding tools treat every session as a blank slate. You explain your project structure, describe your patterns, and provide context -- only to do it all over again next time. Spiral memory changes that.
+
+## The Five Levels
+
+HelixMind organizes project knowledge into five hierarchical levels, each serving a distinct purpose:
+
+**L1 -- Focus** is your working memory. It contains the files you're editing, the task you described, and the immediate context of your current session. L1 nodes are created and promoted automatically as you work. They have the highest priority when assembling context for the AI.
+
+**L2 -- Active** holds recently accessed patterns, decisions, and solutions. When you solve a tricky TypeScript type issue or establish a new API pattern, that knowledge lives at L2. It stays active as long as you reference it regularly.
+
+**L3 -- Reference** is your stable architecture layer. Project structure, coding conventions, database schemas, and deployment configurations settle here over time. L3 knowledge is accessed less frequently but carries significant weight when relevant.
+
+**L4 -- Archive** stores historical context. Past decisions, deprecated approaches, and resolved bugs move here. They're not in the way, but they're retrievable when you need to understand why something was done a certain way.
+
+**L5 -- Deep Archive** contains compressed summaries of old knowledge. When L4 nodes age out, they're condensed into summary nodes at L5, preserving the essence without the detail.
+
+## Evolution and Decay
+
+What makes spiral memory fundamentally different from a flat knowledge base is its dynamic behavior. Nodes **evolve** upward when accessed: a piece of architecture knowledge sitting at L3 gets promoted to L2 when you reference it during active development. Conversely, nodes **decay** downward when stale. That hot pattern you used last week but haven't touched since gradually sinks from L2 toward L3 and eventually L4.
+
+This mirrors how human memory works. Frequently used knowledge stays sharp and accessible. Rarely used knowledge fades but remains retrievable.
+
+## Context Assembly
+
+When you start a conversation, HelixMind doesn't just dump everything into the prompt. The context assembler selects the most relevant nodes using a combination of:
+
+- **Level priority** -- L1 and L2 nodes take precedence
+- **Semantic similarity** -- Embedding-based search (MiniLM-L6-v2) matches your query against stored knowledge
+- **Recency** -- Recently accessed nodes score higher
+- **Token budget** -- The assembler fits as much relevant context as possible within the model's limits
+
+The result is an AI that feels like it genuinely knows your project. It remembers your naming conventions, your preferred patterns, and the bugs you've already fixed. No more re-explaining.
+
+## Compaction
+
+Over time, spiral memory can grow large. The `/compact` command triggers intelligent compaction: related nodes are merged, redundant information is deduplicated, and old summaries are refreshed. Think of it as defragmenting your AI's brain.
+
+## Why It Matters
+
+Every AI coding session builds on the last. Your AI grows smarter about your specific project over weeks and months of use. That's not a feature -- it's a fundamental shift in how AI-assisted development works.

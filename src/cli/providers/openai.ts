@@ -14,6 +14,7 @@ import {
   reportSuccess,
   handleRateLimitError,
   isRateLimitError,
+  detectCreditsExhausted,
 } from './rate-limiter.js';
 
 export class OpenAIProvider implements LLMProvider {
@@ -183,6 +184,16 @@ export class OpenAIProvider implements LLMProvider {
         break;
       } catch (err) {
         if (signal?.aborted) throw err;
+
+        // Credits exhausted — don't retry, throw immediately with clear message
+        const creditsReason = detectCreditsExhausted(err);
+        if (creditsReason) {
+          const freeHint = this.name === 'zai'
+            ? ' Switch to a free model: /model → glm-4.7-flash or glm-4.5-flash'
+            : '';
+          throw new Error(`\u274C ${creditsReason}.${freeHint}`);
+        }
+
         if (isRateLimitError(err)) {
           const waitMs = handleRateLimitError(err);
           if (attempt < maxRetries) {

@@ -1,0 +1,271 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  SUPPORT
+  ADMIN
+}
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  TRIALING
+}
+
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketCategory {
+  BUG
+  FEATURE
+  BILLING
+  ACCOUNT
+  GENERAL
+}
+
+// ─── Auth ────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  image         String?
+  role          Role      @default(USER)
+  locale        String    @default("en")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  subscription  Subscription?
+  apiKeys       ApiKey[]
+  tickets       Ticket[]       @relation("UserTickets")
+  ticketMessages TicketMessage[]
+  usageLogs     UsageLog[]
+  chats         Chat[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Billing ─────────────────────────────────
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String             @unique
+  stripeCustomerId      String?            @unique
+  stripeSubscriptionId  String?            @unique
+  plan                  Plan               @default(FREE)
+  status                SubscriptionStatus @default(ACTIVE)
+  billingPeriod         BillingPeriod?
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean            @default(false)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ApiKey {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  keyHash   String    @unique
+  keyPrefix String
+  scopes    String[]  @default(["read"])
+  expiresAt DateTime?
+  revokedAt DateTime?
+  lastUsed  DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Support ─────────────────────────────────
+
+model Ticket {
+  id         String         @id @default(cuid())
+  number     Int            @unique @default(autoincrement())
+  userId     String
+  subject    String
+  status     TicketStatus   @default(OPEN)
+  priority   TicketPriority @default(MEDIUM)
+  category   TicketCategory @default(GENERAL)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  resolvedAt DateTime?
+  closedAt   DateTime?
+
+  user     User            @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
+}
+
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  userId     String
+  content    String   @db.Text
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Analytics ───────────────────────────────
+
+model UsageLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, action])
+  @@index([createdAt])
+}
+
+// ─── Content ─────────────────────────────────
+
+model FaqEntry {
+  id        String @id @default(cuid())
+  question  Json   // { en: "...", de: "..." }
+  answer    Json   // { en: "...", de: "..." }
+  category  String
+  sortOrder Int    @default(0)
+  published Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Admin Settings ─────────────────────────
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   @db.Text
+  category    String   // auth, payments, email, general
+  label       String   // Human-readable name
+  description String?  // Help text
+  isSecret    Boolean  @default(false) // Mask value in UI
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?  // User ID who last changed it
+
+  @@index([category])
+}
+
+// ─── Chat ────────────────────────────────────
+
+model Chat {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @default("New Chat")
+  mode      String   @default("normal")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  chatId    String
+  role      String
+  content   String   @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+}
+
+model PlanConfig {
+  id            String  @id @default(cuid())
+  plan          Plan    @unique
+  displayName   String
+  monthlyPrice  Int?    // null = custom pricing
+  yearlyPrice   Int?
+  tokenLimit    Int?    // null = unlimited
+  maxApiKeys    Int     @default(3)
+  features      Json    // ["feature1", "feature2", ...]
+  isActive      Boolean @default(true)
+  sortOrder     Int     @default(0)
+  stripePriceMonthly String? // Stripe Price ID
+  stripePriceYearly  String? // Stripe Price ID
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

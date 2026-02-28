@@ -1,0 +1,77 @@
+---
+title: Sessions & Background Tasks
+description: Run multiple AI sessions simultaneously — security audits, autonomous fixes, and more in background tabs.
+order: 16
+category: Core Concepts
+---
+
+# Sessions & Background Tasks
+
+HelixMind supports **multiple concurrent sessions** — run a security audit in the background while you keep coding.
+
+## Session Types
+
+| Type | Command | What It Does |
+|------|---------|-------------|
+| **Main** | `helixmind` | Your interactive chat — always exists |
+| **Security** | `/security` | Comprehensive security scan (auto-fixes CRITICAL + HIGH) |
+| **Auto** | `/auto` | Continuously scans & fixes issues by priority |
+| **Custom** | `/auto <goal>` | Goal-driven: breaks goal into subtasks |
+
+Each background session gets its own conversation history, undo stack, and agent controller.
+
+## Security Audit Checks
+
+| Category | What's Checked |
+|----------|---------------|
+| Injection | SQL injection, command injection, template injection |
+| Path Traversal | Directory traversal, symlink attacks |
+| XSS | Cross-site scripting, unsanitized output |
+| Secrets | Hardcoded API keys, passwords, tokens |
+| Dependencies | Known vulnerabilities, outdated packages |
+| Validation | Missing input validation, type coercion |
+| Auth | Weak authentication, missing session management |
+| Race Conditions | TOCTOU bugs, concurrent access issues |
+
+## Auto Mode Priority
+
+1. Critical bugs and crashes
+2. Security vulnerabilities
+3. Missing error handling
+4. Broken tests
+5. Performance bottlenecks
+6. Dead code
+7. Code quality improvements
+
+## Tab Bar
+
+```
+[🔒 security ●] [⚙️ auto ●] [💬 main]
+```
+
+| Shortcut | Action |
+|----------|--------|
+| **Ctrl+PageUp** | Previous tab |
+| **Ctrl+PageDown** | Next tab |
+| `/sessions` | List all sessions with status |
+| `/stop` | Stop background sessions |
+| **ESC ESC** | Emergency stop all |
+
+## Session Lifecycle
+
+| Phase | What Happens |
+|-------|-------------|
+| **Launch** | `/security`, `/auto`, or `/sessions` |
+| **Running** | Agent works in background, you keep your prompt |
+| **Notification** | Completion notification in tab bar |
+| **Auto-close** | Completed sessions close after 10 seconds |
+| **Results** | Findings appear in Brain's findings panel |
+
+## Session Status
+
+| Status | Meaning |
+|--------|---------|
+| `running` | Agent actively working |
+| `completed` | All tasks finished |
+| `error` | An error occurred |
+| `aborted` | Manually stopped |

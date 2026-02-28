@@ -13,7 +13,7 @@ import type { CheckpointStore } from '../checkpoints/store.js';
 import { captureFileSnapshots, fillSnapshotAfter } from '../checkpoints/revert.js';
 import type { TaskStep } from '../ui/activity.js';
 import type { SessionBuffer } from '../context/session-buffer.js';
-import { isRateLimitError, handleRateLimitError } from '../providers/rate-limiter.js';
+import { isRateLimitError, handleRateLimitError, detectCreditsExhausted } from '../providers/rate-limiter.js';
 
 export class AgentAbortError extends Error {
   constructor(message: string = 'Agent aborted') {
@@ -47,6 +47,8 @@ export interface AgentLoopResult {
   aborted: boolean;
   steps: TaskStep[];
   errors: string[];
+  /** The full conversation history after this loop — caller must adopt this */
+  updatedHistory: ToolMessage[];
 }
 
 /**
@@ -75,7 +77,7 @@ export async function runAgentLoop(
     onStepEnd,
     onThinking,
     onBeforeAnswer,
-    maxIterations = 25,
+    maxIterations = 200,
   } = options;
 
   const tools = getAllToolDefinitions();
@@ -123,6 +125,16 @@ export async function runAgentLoop(
       }
 
       const errMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
+
+      // Credits exhausted — don't retry, give clear message with free model hint
+      const creditsReason = detectCreditsExhausted(apiErr);
+      if (creditsReason) {
+        sessionBuffer?.addToolError('credits_exhausted', creditsReason);
+        const freeHint = provider.name === 'zai'
+          ? ' Switch to a free model: /model → glm-4.7-flash or glm-4.5-flash'
+          : '';
+        throw new Error(`\u274C ${creditsReason}.${freeHint}`);
+      }
 
       // Rate limit errors — smart backoff (provider already retried, but handle edge cases)
       if (isRateLimitError(apiErr) && iterations < maxIterations && consecutiveErrors < 4) {
@@ -315,7 +327,7 @@ export async function runAgentLoop(
   }
 
   if (iterations >= maxIterations) {
-    process.stdout.write('\n  [Agent reached maximum iterations]\n');
+    process.stdout.write(`\n  [Agent reached maximum iterations (${maxIterations}). Use --max-iterations to increase.]\n`);
   }
 
   return {
@@ -325,6 +337,7 @@ export async function runAgentLoop(
     aborted: false,
     steps,
     errors,
+    updatedHistory: messages,
   };
 }
 

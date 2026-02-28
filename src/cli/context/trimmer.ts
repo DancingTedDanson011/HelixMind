@@ -8,6 +8,7 @@
 
 import type { ToolMessage } from '../providers/types.js';
 import { renderInfo } from '../ui/chat-view.js';
+import type { SessionBuffer } from './session-buffer.js';
 
 const CHARS_PER_TOKEN = 4;
 
@@ -44,6 +45,7 @@ export function estimateTokens(messages: ToolMessage[]): number {
 export function trimConversation(
   history: ToolMessage[],
   maxTokens: number,
+  sessionBuffer?: SessionBuffer,
 ): number {
   const currentTokens = estimateTokens(history);
   const trimTarget = Math.floor(maxTokens * 0.75); // trim to 75%
@@ -68,6 +70,11 @@ export function trimConversation(
 
   if (dropCount === 0) return 0;
 
+  // Summarize dropped messages into session buffer before removing them
+  if (sessionBuffer && dropCount > 0) {
+    summarizeDropped(history.slice(0, dropCount), sessionBuffer);
+  }
+
   // Actually mutate the history array
   history.splice(0, dropCount);
 
@@ -87,4 +94,26 @@ export function trimConversation(
 
   renderInfo(`  Context trimmed: ${dropCount} old messages removed to free space.`);
   return dropCount;
+}
+
+/**
+ * Extract key information from dropped messages into the session buffer.
+ * Preserves goals, entities, and assistant decisions that would otherwise be lost.
+ */
+function summarizeDropped(dropped: ToolMessage[], sessionBuffer: SessionBuffer): void {
+  for (const msg of dropped) {
+    if (typeof msg.content !== 'string') continue;
+
+    if (msg.role === 'user') {
+      // Re-extract goals and entities from user messages being dropped
+      sessionBuffer.extractGoals(msg.content);
+      sessionBuffer.extractEntities(msg.content);
+    } else if (msg.role === 'assistant') {
+      // Save a condensed version of the assistant response as a decision
+      const text = msg.content.trim();
+      if (text.length > 30) {
+        sessionBuffer.addDecision(text.slice(0, 300));
+      }
+    }
+  }
 }

@@ -1,0 +1,98 @@
+---
+title: Project Setup
+description: Initialize HelixMind in your project — create local memory, configure context, and feed your codebase.
+order: 2
+category: Getting Started
+---
+
+# Project Setup
+
+Initialize HelixMind for **project-local memory** — the AI remembers this specific project across sessions.
+
+## Initialization
+
+```bash
+cd your-project
+helixmind init
+```
+
+Creates the `.helixmind/` directory:
+
+```
+your-project/
+├── .helixmind/
+│   ├── context.md    # Custom AI instructions
+│   └── spiral.db     # Project memory database
+├── src/
+└── ...
+```
+
+## `context.md` — Custom Instructions
+
+Included in **every conversation**. Tell HelixMind about your project:
+
+```markdown
+# Project: E-Commerce Platform
+
+## Tech Stack
+- Next.js 15 with App Router
+- PostgreSQL + Prisma ORM
+- Stripe for payments
+
+## Conventions
+- TypeScript strict mode
+- Functional components with hooks
+- Use zod for input validation
+
+## Important
+- Never modify migration files directly
+- All prices are in cents (integer)
+```
+
+## Feeding Your Codebase
+
+After init, feed important files into the spiral:
+
+```bash
+helixmind feed README.md ARCHITECTURE.md     # Key files
+helixmind feed src/                           # Entire directory
+helixmind feed --deep src/core/               # Deep analysis
+```
+
+### What to Feed
+
+| Priority | Files | Why |
+|----------|-------|-----|
+| **High** | README, ARCHITECTURE.md | Project overview |
+| **High** | Key config files | Framework setup |
+| **Medium** | Core business logic | Domain understanding |
+| **Low** | Test files | Test patterns |
+| **Skip** | node_modules, dist | Generated code |
+
+## `.gitignore`
+
+```
+# HelixMind local memory
+.helixmind/
+```
+
+Consider committing `.helixmind/context.md` for shared team instructions.
+
+## Project Detection
+
+When you start `helixmind`:
+
+1. Looks for `.helixmind/` in the current directory
+2. If found → project-local memory
+3. If not → global memory (`~/.helixmind/`)
+4. Auto-detects tech stack (package.json, tsconfig, etc.)
+5. Reads `.helixmind/context.md` for custom instructions
+
+## Multiple Projects
+
+Each project has isolated memory. To share knowledge:
+
+```bash
+cd project-a && helixmind export           # Export
+cd project-b && helixmind import *.zip     # Import
+```

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <rect width="180" height="180" fill="#050510"/>
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3.6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="spiralGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d4ff"/>
+      <stop offset="50%" stop-color="#4169e1"/>
+      <stop offset="100%" stop-color="#8a2be2"/>
+    </linearGradient>
+  </defs>
+  <path d="M99.5,90.0 L100.2,92.2 L100.1,94.7 L99.0,97.2 L97.0,99.6 L93.9,101.6 L90.0,102.7 L85.5,102.9 L80.8,101.9 L76.2,99.7 L72.2,96.3 L69.0,91.8 L67.2,86.4 L66.9,80.5 L68.3,74.5 L71.5,68.8 L76.3,63.9 L82.6,60.2 L90.0,58.0 L97.9,57.7 L105.9,59.2 L113.2,62.8 L119.4,68.1 L123.9,74.9 L126.2,82.8 L126.1,91.2 L123.3,99.5 L118.0,107.1 L110.3,113.3 L100.8,117.6 L90.0,119.6 L78.6,119.0 L67.4,115.6 L57.3,109.5 L49.0,101.1 L43.2,90.8 L40.4,79.2 L41.0,67.1 L45.1,55.3 L52.6,44.6 L63.0,35.9 L75.7,29.7 L90.0,26.7 L104.9,27.2 L119.3,31.2 L132.2,38.5 L142.6,48.9 L149.8,61.5 L153.0,75.6" fill="none" stroke="url(#spiralGrad)" stroke-width="5.3999999999999995" stroke-linecap="round" filter="url(#glow)"/>
+  <circle cx="90" cy="90" r="7.2" fill="#00d4ff" filter="url(#glow)"/>
+</svg>

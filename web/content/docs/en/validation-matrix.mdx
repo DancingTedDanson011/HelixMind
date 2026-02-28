@@ -1,0 +1,84 @@
+---
+title: Validation Matrix
+description: How HelixMind validates AI output with a 3-phase pipeline — classify, work, validate — before applying changes.
+order: 12
+category: Core Concepts
+---
+
+# Validation Matrix
+
+The Validation Matrix is a **3-phase pipeline** that checks every AI output before it's applied to your codebase.
+
+## The 3 Phases
+
+### Phase 1: Classify
+
+Each task is classified before validation:
+
+| Category | Examples |
+|----------|---------|
+| `ui_component` | Frontend components, layouts |
+| `api_endpoint` | API routes, handlers |
+| `data_processing` | Data transformation, ETL |
+| `refactoring` | Code restructuring |
+| `bug_fix` | Bug fixes, patches |
+| `configuration` | Config files, settings |
+| `documentation` | Docs, comments |
+| `testing` | Test files, assertions |
+| `architecture` | Structural changes |
+| `general_code` | Everything else |
+| `chat_only` | Conversational (skips validation) |
+
+**Complexity**: trivial → simple → medium → complex — determines check strictness.
+
+### Phase 2: Work
+
+The AI produces its output (code edits, new files, commands).
+
+### Phase 3: Validate
+
+Three parallel check systems:
+
+| Check Type | How It Works |
+|-----------|-------------|
+| **Static (15+)** | Algorithmic: HTML validation, SQL injection detection, import validation, secret detection, type safety, unused variables, anti-patterns |
+| **Dynamic** | A smaller LLM reviews for logical issues static analysis can't catch |
+| **Spiral** | Knowledge-based: style patterns, known bugs, project conventions |
+
+**Dynamic model mapping:**
+
+| Main Model | Validation Model |
+|-----------|-----------------|
+| claude-opus-4-6 | claude-haiku-4-5 |
+| gpt-4o | gpt-4o-mini |
+| Ollama (local) | Same model |
+
+## Autofix Loop
+
+When checks fail → AI generates fixes → re-validate → repeat up to **3 times**.
+
+## Validation Report
+
+```
+╭─── ✅ Validation Matrix ── 12 checks ── 1 loop ── 340ms ───╮
+│   Structural  : ✅✅✅  3/3                                  │
+│   Completeness: ✅✅    2/2                                  │
+│   Consistency : ✅✅✅  3/3                                  │
+│   Security    : ✅✅    2/2                                  │
+│   Style       : ✅✅    2/2                                  │
+│   12/12 passed │ 0 warnings │ 0 errors                      │
+╰──────────────────────────────────────────────────────────────╯
+```
+
+## CLI Control
+
+| Flag / Command | Effect |
+|---------------|--------|
+| `--no-validation` | Disable validation entirely |
+| `--validation-verbose` | Show detailed check results |
+| `--validation-strict` | Treat warnings as errors |
+| `/validation` | Show current status |
+| `/validation on/off` | Enable/disable |
+| `/validation verbose` | Toggle verbose output |
+| `/validation strict` | Toggle strict mode |
+| `/validation stats` | Historical statistics |

@@ -1,7 +1,14 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { BrainExport } from './exporter.js';
 import { generateBrainHTML } from './template.js';
+import type {
+  ControlHandlers,
+  ControlRequest,
+  InstanceMeta,
+  WSMessage,
+} from './control-protocol.js';
 
 export type VoiceInputHandler = (text: string) => void;
 export type ScopeSwitchHandler = (scope: 'project' | 'global') => void;
@@ -10,16 +17,23 @@ export type ModelActivateHandler = (model: string) => void;
 export interface BrainServer {
   port: number;
   url: string;
+  connectionToken: string;
   /** Push incremental update to all connected browsers */
   pushUpdate(data: BrainExport): void;
   /** Push an arbitrary event to all connected browsers */
   pushEvent(event: Record<string, unknown>): void;
+  /** Push event only to authenticated control clients */
+  pushControlEvent(event: Record<string, unknown>): void;
   /** Register handler for voice input from browser */
   onVoiceInput(handler: VoiceInputHandler): void;
   /** Register handler for scope switch from browser */
   onScopeSwitch(handler: ScopeSwitchHandler): void;
   /** Register handler for model activation from browser */
   onModelActivate(handler: ModelActivateHandler): void;
+  /** Register control message handlers for CLI ↔ Web protocol */
+  registerControlHandlers(handlers: ControlHandlers): void;
+  /** Set instance metadata for discovery endpoint */
+  setInstanceMeta(meta: InstanceMeta): void;
   /** Shut down server */
   close(): void;
 }
@@ -123,12 +137,51 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
   let latestData = initialData;
   let html = generateBrainHTML(initialData);
 
+  // Unique connection token for this CLI session (required for WS auth)
+  const connectionToken = randomUUID();
+  let instanceMeta: InstanceMeta | null = null;
+  let controlHandlers: ControlHandlers | null = null;
+
   const httpServer = createServer(async (req, res) => {
     const url = req.url || '/';
+
+    // CORS headers for all JSON endpoints
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, corsHeaders);
+      res.end();
+      return;
+    }
 
     if (url === '/' || url === '/index.html') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);
+
+    // --- Discovery endpoints (no auth required) ---
+    } else if (url === '/api/instance') {
+      const meta = instanceMeta ?? {
+        instanceId: 'unknown',
+        projectName: 'HelixMind',
+        projectPath: process.cwd(),
+        model: 'unknown',
+        provider: 'unknown',
+        uptime: 0,
+        version: '0.1.0',
+      };
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+      res.end(JSON.stringify(meta));
+
+    } else if (url === '/api/token-hint') {
+      const hint = connectionToken.slice(-4);
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+      res.end(JSON.stringify({ hint }));
+
     } else if (url === '/api/data') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(latestData));
@@ -189,20 +242,152 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
     httpServer.listen(port, '127.0.0.1', () => {
       // Create WebSocket server AFTER HTTP server is successfully listening
       const wss = new WebSocketServer({ server: httpServer });
-      const clients = new Set<WebSocket>();
+
+      // Brain visualization clients (legacy — no auth required)
+      const brainClients = new Set<WebSocket>();
+
+      // Authenticated control clients (CLI ↔ Web protocol)
+      const controlClients = new Set<WebSocket>();
+
+      // Output subscriptions: sessionId → set of subscribed clients
+      const outputSubscriptions = new Map<string, Set<WebSocket>>();
+
       let voiceHandler: VoiceInputHandler | null = null;
       let scopeSwitchHandler: ScopeSwitchHandler | null = null;
       let modelActivateHandler: ModelActivateHandler | null = null;
 
-      wss.on('connection', (ws) => {
-        clients.add(ws);
-        ws.send(JSON.stringify({ type: 'full_sync', data: latestData }));
-        ws.on('close', () => clients.delete(ws));
+      /** Send a JSON message to a specific WebSocket */
+      function sendTo(ws: WebSocket, msg: Record<string, unknown>): void {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(msg));
+        }
+      }
 
-        // Listen for messages from browser (voice input, scope switch)
+      /** Dispatch a control request and send the response */
+      function handleControlMessage(ws: WebSocket, msg: ControlRequest): void {
+        if (!controlHandlers) {
+          sendTo(ws, { type: 'error', message: 'Control handlers not registered', requestId: msg.requestId, timestamp: Date.now() });
+          return;
+        }
+
+        const requestId = msg.requestId;
+
+        switch (msg.type) {
+          case 'ping':
+            sendTo(ws, { type: 'pong', requestId, timestamp: Date.now() });
+            break;
+
+          case 'list_sessions': {
+            const sessions = controlHandlers.listSessions();
+            sendTo(ws, { type: 'sessions_list', sessions, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'start_auto': {
+            const sessionId = controlHandlers.startAuto(msg.goal);
+            sendTo(ws, { type: 'auto_started', sessionId, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'start_security': {
+            const sessionId = controlHandlers.startSecurity();
+            sendTo(ws, { type: 'security_started', sessionId, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'abort_session': {
+            const success = controlHandlers.abortSession(msg.sessionId);
+            sendTo(ws, { type: 'session_aborted', sessionId: msg.sessionId, success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'subscribe_output': {
+            const sessionId = msg.sessionId;
+            if (!outputSubscriptions.has(sessionId)) {
+              outputSubscriptions.set(sessionId, new Set());
+            }
+            outputSubscriptions.get(sessionId)!.add(ws);
+            sendTo(ws, { type: 'output_subscribed', requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'unsubscribe_output': {
+            const subs = outputSubscriptions.get(msg.sessionId);
+            if (subs) subs.delete(ws);
+            break;
+          }
+
+          case 'send_chat': {
+            controlHandlers.sendChat(msg.text);
+            sendTo(ws, { type: 'chat_received', requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'get_findings': {
+            const findings = controlHandlers.getFindings();
+            sendTo(ws, { type: 'findings_list', findings, requestId, timestamp: Date.now() });
+            break;
+          }
+        }
+      }
+
+      wss.on('connection', (ws) => {
+        let authenticated = false;
+        let authTimeout: ReturnType<typeof setTimeout> | null = null;
+
+        // Give client 5 seconds to authenticate; if no auth message arrives,
+        // treat as legacy brain client (backward-compatible)
+        authTimeout = setTimeout(() => {
+          if (!authenticated) {
+            // Legacy brain client — add to brain clients without auth
+            brainClients.add(ws);
+            ws.send(JSON.stringify({ type: 'full_sync', data: latestData }));
+          }
+        }, 5000);
+
+        ws.on('close', () => {
+          brainClients.delete(ws);
+          controlClients.delete(ws);
+          // Clean up output subscriptions
+          for (const subs of outputSubscriptions.values()) {
+            subs.delete(ws);
+          }
+        });
+
         ws.on('message', (raw) => {
           try {
             const msg = JSON.parse(String(raw));
+
+            // Auth handshake
+            if (msg.type === 'auth') {
+              if (authTimeout) { clearTimeout(authTimeout); authTimeout = null; }
+
+              if (msg.token === connectionToken) {
+                authenticated = true;
+                controlClients.add(ws);
+                // Also add to brain clients so they get brain events too
+                brainClients.add(ws);
+                sendTo(ws, { type: 'auth_ok', timestamp: Date.now() });
+                // Send full sync after auth
+                ws.send(JSON.stringify({ type: 'full_sync', data: latestData }));
+                // Send instance meta if available
+                if (instanceMeta) {
+                  sendTo(ws, { type: 'instance_meta', instance: instanceMeta, timestamp: Date.now() });
+                }
+              } else {
+                sendTo(ws, { type: 'auth_fail', reason: 'Invalid token', timestamp: Date.now() });
+                ws.close(4001, 'Invalid token');
+              }
+              return;
+            }
+
+            // Control messages (only from authenticated clients)
+            if (authenticated && isControlRequest(msg.type)) {
+              handleControlMessage(ws, msg as ControlRequest);
+              return;
+            }
+
+            // Legacy brain messages (voice, scope, model)
             if (msg.type === 'voice_input' && typeof msg.text === 'string' && voiceHandler) {
               voiceHandler(msg.text);
             }
@@ -222,11 +407,12 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
       resolve({
         port: actualPort,
         url: `http://127.0.0.1:${actualPort}`,
+        connectionToken,
         pushUpdate(data: BrainExport) {
           latestData = data;
           html = generateBrainHTML(data);
           const msg = JSON.stringify({ type: 'full_sync', data });
-          for (const ws of clients) {
+          for (const ws of brainClients) {
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(msg);
             }
@@ -234,9 +420,28 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
         },
         pushEvent(event: Record<string, unknown>) {
           const msg = JSON.stringify(event);
-          for (const ws of clients) {
+          for (const ws of brainClients) {
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(msg);
+            }
+          }
+        },
+        pushControlEvent(event: Record<string, unknown>) {
+          const msg = JSON.stringify(event);
+          for (const ws of controlClients) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(msg);
+            }
+          }
+          // Also forward output_line events to subscribed clients
+          if (event.type === 'output_line' && typeof event.sessionId === 'string') {
+            const subs = outputSubscriptions.get(event.sessionId);
+            if (subs) {
+              for (const ws of subs) {
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(msg);
+                }
+              }
             }
           }
         },
@@ -249,15 +454,32 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
         onModelActivate(handler: ModelActivateHandler) {
           modelActivateHandler = handler;
         },
+        registerControlHandlers(handlers: ControlHandlers) {
+          controlHandlers = handlers;
+        },
+        setInstanceMeta(meta: InstanceMeta) {
+          instanceMeta = meta;
+        },
         close() {
           voiceHandler = null;
           scopeSwitchHandler = null;
           modelActivateHandler = null;
-          for (const ws of clients) ws.close();
+          controlHandlers = null;
+          for (const ws of brainClients) ws.close();
+          for (const ws of controlClients) ws.close();
           wss.close();
           httpServer.close();
         },
       });
     });
   });
+}
+
+/** Check if a message type is a control request */
+function isControlRequest(type: string): boolean {
+  return [
+    'list_sessions', 'start_auto', 'start_security',
+    'abort_session', 'subscribe_output', 'unsubscribe_output',
+    'send_chat', 'get_findings', 'ping',
+  ].includes(type);
 }

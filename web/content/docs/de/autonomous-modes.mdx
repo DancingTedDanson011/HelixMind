@@ -1,0 +1,73 @@
+---
+title: Autonome Modi
+description: HelixMind automatisch scannen, fixen und verbessern lassen — Sicherheitsaudits, Bug-Fixes und mehr.
+order: 6
+category: CLI-Nutzung
+---
+
+# Autonome Modi
+
+HelixMind kann **autonom im Hintergrund** arbeiten, während du weiter codest.
+
+## Autonomer Scan (`/auto`)
+
+```bash
+/auto
+```
+
+Der Agent arbeitet Issues in Prioritätsreihenfolge ab:
+
+1. **Kritische Bugs** — Crashes, Null-Pointer, unbehandelte Exceptions
+2. **Sicherheitslücken** — Injection, XSS, hardcodierte Secrets
+3. **Fehlende Fehlerbehandlung** — Uncaught Promises, unvalidierter Input
+4. **Kaputte Tests** — Fehlschlagende Testfälle
+5. **Performance-Bottlenecks** — N+1 Queries, unnötige Re-Renders
+6. **Dead Code** — Ungenutzte Funktionen
+7. **Code-Qualität** — Linting-Issues, Style-Inkonsistenzen
+
+### Zielgerichteter Modus
+
+```bash
+/auto Refactore alle API-Endpoints auf die neue Validierungs-Middleware
+```
+
+### Stoppen
+
+```bash
+/stop     # Oder ESC ESC für Notfall-Stopp
+```
+
+## Sicherheits-Audit (`/security`)
+
+```bash
+/security
+```
+
+| Kategorie | Prüfungen |
+|-----------|-----------|
+| **Injection** | SQL, Command, Template Injection |
+| **Path Traversal** | Verzeichnis-Traversierung, Symlink-Attacken |
+| **XSS** | Cross-Site Scripting, unsanierter Output |
+| **Secrets** | Hardcodierte API-Keys, Passwörter, Tokens |
+| **Dependencies** | Bekannte Schwachstellen, veraltete Pakete |
+| **Validierung** | Fehlende Input-Validierung |
+| **Auth** | Schwache Authentifizierung, fehlende Session-Verwaltung |
+
+**Auto-Fix:** CRITICAL und HIGH Issues werden automatisch gefixt. MEDIUM und LOW werden gemeldet.
+
+## Wie Hintergrund-Sessions funktionieren
+
+1. Neue Session wird mit isoliertem State erstellt
+2. Du behältst dein **interaktives Prompt**
+3. Hintergrund-Session erscheint als **Tab** im Terminal
+4. **Benachrichtigungen** bei Abschluss oder gefundenen Issues
+5. Sessions schließen automatisch nach **10 Sekunden**
+
+## Session-Verwaltung
+
+```bash
+/sessions              # Alle Sessions auflisten
+Ctrl+PageUp/PageDown   # Zwischen Tabs wechseln
+/stop                  # Hintergrund-Sessions stoppen
+ESC ESC                # Notfall-Stopp aller Sessions
+```

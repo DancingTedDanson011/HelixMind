@@ -46,6 +46,9 @@ export class Session {
   /** Copy of original CLI flags for spawned sessions */
   readonly flags: { yolo: boolean; skipPermissions: boolean };
 
+  /** Optional callback for output streaming (CLI ↔ Web protocol) */
+  onCapture?: (line: string, index: number) => void;
+
   constructor(
     id: string,
     name: string,
@@ -91,9 +94,12 @@ export class Session {
   /** Capture an output line to the buffer */
   capture(line: string): void {
     this.output.push(line);
+    const index = this.output.length - 1;
     // Keep max 500 lines per session
     if (this.output.length > 500) {
       this.output.splice(0, this.output.length - 500);
     }
+    // Notify output streaming subscribers
+    this.onCapture?.(line, index);
   }
 }

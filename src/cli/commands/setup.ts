@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { theme } from '../ui/theme.js';
 import { selectMenu, confirmMenu } from '../ui/select-menu.js';
 import { ConfigStore } from '../config/store.js';
-import { createProvider, KNOWN_PROVIDERS } from '../providers/registry.js';
+import { createProvider, KNOWN_PROVIDERS, isModelFree } from '../providers/registry.js';
 import type { LLMProvider } from '../providers/types.js';
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -189,9 +189,10 @@ export async function showModelSwitcher(
     if (p.name === 'ollama') continue; // Handled in local section
     for (const model of p.entry.models) {
       const isCurrent = p.name === config.provider && model === config.model;
+      const freeTag = isModelFree(model) ? chalk.green(' [FREE]') : '';
       options.push({ provider: p.name, model });
       menuItems.push({
-        label: `${p.name} / ${model}`,
+        label: `${p.name} / ${model}${freeTag}`,
         marker: isCurrent ? chalk.green('\u25C0 current') : undefined,
       });
     }

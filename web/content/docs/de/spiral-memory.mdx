@@ -1,0 +1,85 @@
+---
+title: Spiral Memory
+description: Deep Dive in HelixMinds 6-Level-Spiral-Gedächtnis — wie Kontext promoted, decayed, komprimiert und über Sessions hinweg evolviert.
+order: 10
+category: Kernkonzepte
+---
+
+# Spiral Memory
+
+HelixMinds Spiral Memory ist ein **6-stufiges hierarchisches System**, das Kontext intelligent speichert, weiterentwickelt und abruft — die Kern-Innovation, die HelixMind von jedem anderen AI-Coding-Tool unterscheidet.
+
+## Die 6 Ebenen
+
+| Level | Name | Zweck | Token-Budget | Farbe |
+|-------|------|-------|-------------|-------|
+| **L1** | Focus | Aktueller Arbeitskontext (Dateien, Bugs, Features) | 30% | Cyan |
+| **L2** | Active | Aktuelle Muster, Entscheidungen, Web-Enricher-Findings | 25% | Grün |
+| **L3** | Reference | Stabiles Architektur-Wissen (Schemas, APIs) | 20% | Blau |
+| **L4** | Archive | Historischer Kontext (alte Sessions, gelöste Issues) | 15% | Violett |
+| **L5** | Deep Archive | Komprimierte Zusammenfassungen | 10% | Grau |
+| **L6** | Web Knowledge | Auto-geholte Doku und Web-Insights | Bonus | Orange |
+
+## Wie sich Gedächtnis entwickelt
+
+| Prozess | Richtung | Auslöser |
+|---------|----------|----------|
+| **Promotion** | L4 → L3 → L2 → L1 | Häufiger Zugriff |
+| **Decay** | L1 → L2 → L3 → L4 → L5 | Kein Zugriff über Zeit |
+| **Kompression** | Bei L5 | Code → Zusammenfassungen, Details → Key-Patterns |
+| **Beziehungen** | Zwischen Knoten | AI erkennt Verbindungen automatisch |
+| **Web-Anreicherung** | Extern → L6 | AI erkennt Technologie-Topics → sucht Web |
+
+## Embeddings & Semantische Suche
+
+Jeder Knoten bekommt ein **384-dimensionales Embedding** (`all-MiniLM-L6-v2`, läuft lokal):
+
+```bash
+helixmind spiral search "JWT Authentifizierung Pattern"
+```
+
+| Fähigkeit | Wie es funktioniert |
+|-----------|-------------------|
+| **Semantische Suche** | KNN über alle 6 Level — findet Konzepte, nicht nur Keywords |
+| **Relevanz-Scoring** | Embedding-Ähnlichkeit + Aktualität + Zugriffszähler |
+| **Smart Retrieval** | Verwandte Knoten werden zusammen geladen |
+
+## Kontext-Assembly
+
+Beim Chat-Start assembliert HelixMind Kontext aus allen **6 Leveln (L1–L6)**:
+
+1. **Semantische Relevanz** — Embedding-Ähnlichkeit zum Gespräch
+2. **Level-Priorität** — L1 bekommt 30% der Tokens, L2 25%, etc.
+3. **Aktualität** — Kürzlich aufgerufene Knoten scoren höher
+4. **Beziehungen** — Verbundene Knoten werden zusammen injiziert
+
+## Speicherung
+
+| Ort | Scope |
+|-----|-------|
+| `.helixmind/spiral.db` | Projekt-lokales Gedächtnis |
+| `~/.helixmind/spiral.db` | Projektübergreifendes globales Wissen |
+
+Jeder Knoten speichert: Content, Level (L1–L6), Embeddings, Timestamps, Zugriffszähler, Metadaten.
+
+## CLI-Befehle
+
+```bash
+helixmind spiral status    # Knoten pro Level (L1–L6), Speichergröße
+helixmind spiral search    # Semantische Suche über alle 6 Level
+helixmind spiral compact   # Evolution auslösen (komprimieren, rebalancen)
+```
+
+| Slash-Befehl | Aktion |
+|-------------|--------|
+| `/spiral` | Schnelle Statusübersicht |
+| `/compact` | Evolution auslösen |
+| `/context` | Assembly anzeigen |
+| `/tokens` | Token-Verbrauch pro Level |
+
+## Tipps
+
+1. **Natürlich lernen lassen** — Nicht alles auf einmal einspeisen
+2. **Früh einspeisen** — `helixmind feed README.md` direkt nach `helixmind init`
+3. **Regelmäßig prüfen** — `/spiral` zeigt was die AI über alle 6 Level weiß
+4. **Projekt-lokal für Spezifisches** — Globales Memory für projektübergreifende Muster

@@ -1,0 +1,124 @@
+---
+title: CLI-Referenz
+description: Vollständige Referenz aller HelixMind CLI-Befehle, Flags und Optionen.
+order: 3
+category: CLI-Nutzung
+---
+
+# CLI-Referenz
+
+HelixMind bietet eine umfangreiche Sammlung von Befehlen für interaktives Coding, Memory-Management und Konfiguration.
+
+## Hauptbefehle
+
+### `helixmind` / `helixmind chat`
+
+Startet eine interaktive AI-Coding-Session. Dies ist der **Standard-Befehl** — einfach `helixmind` ausführen öffnet den Chat.
+
+```bash
+helixmind [chat] [optionen]
+```
+
+**Optionen:**
+
+| Flag | Beschreibung |
+|------|-------------|
+| `-m, --message <text>` | Eine einzelne Nachricht senden statt interaktivem Modus |
+| `--yolo` | ALLE Operationen automatisch genehmigen (auch gefährliche) |
+| `-s, --skip-permissions` | Safe/Ask-Berechtigungen überspringen (fragt bei gefährlichen weiterhin) |
+| `--no-validation` | Validation Matrix deaktivieren |
+| `--validation-verbose` | Detaillierte Validierungsergebnisse anzeigen |
+| `--validation-strict` | Warnungen als Fehler behandeln |
+
+**Beispiele:**
+
+```bash
+# Interaktiver Chat (Standard)
+helixmind
+
+# Einzelne Nachricht senden
+helixmind chat -m "Fehlerbehandlung zu den API-Endpoints hinzufügen"
+
+# Voller Auto-Modus — keine Prompts, keine Validierung
+helixmind --yolo --no-validation
+```
+
+### `helixmind init`
+
+Initialisiert HelixMind im aktuellen Projektverzeichnis.
+
+```bash
+cd dein-projekt
+helixmind init
+```
+
+### `helixmind config`
+
+Konfiguration verwalten.
+
+```bash
+# Wert setzen
+helixmind config set <key> <value>
+
+# Wert abrufen
+helixmind config get <key>
+
+# Alle Einstellungen auflisten
+helixmind config list
+```
+
+**Config-Keys:**
+
+| Key | Beschreibung | Standard |
+|-----|-------------|---------|
+| `provider` | LLM-Provider | `anthropic` |
+| `apiKey` | API-Key für den Provider | — |
+| `model` | Modellname | Provider-Standard |
+| `logLevel` | Debug-Ausgabe-Level | `info` |
+| `validationEnabled` | Validation Matrix an/aus | `true` |
+| `brainScope` | Brain-Scope (local/global) | `local` |
+
+### `helixmind spiral`
+
+Spiral-Memory direkt verwalten.
+
+```bash
+# Memory-Status anzeigen
+helixmind spiral status
+
+# Über alle Level suchen
+helixmind spiral search "authentifizierung"
+
+# Manuelle Kompaktierung auslösen
+helixmind spiral compact
+```
+
+### `helixmind feed`
+
+Dateien in das Spiral-Gedächtnis einspeisen.
+
+```bash
+# Bestimmte Dateien einspeisen
+helixmind feed README.md src/architecture.md
+
+# Tiefenanalyse
+helixmind feed --deep src/
+
+# Änderungen beobachten
+helixmind feed --watch src/
+```
+
+### `helixmind export` / `helixmind import`
+
+Spiral-Memory als ZIP-Archiv exportieren oder importieren.
+
+```bash
+# Exportieren
+helixmind export ./backups
+
+# Importieren (zusammenführen)
+helixmind import spiral-backup.zip
+
+# Importieren (ersetzen)
+helixmind import --replace spiral-backup.zip
+```

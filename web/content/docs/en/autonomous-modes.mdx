@@ -1,0 +1,94 @@
+---
+title: Autonomous Modes
+description: Let HelixMind scan, fix, and improve your codebase autonomously — security audits, bug fixes, and more.
+order: 6
+category: CLI Usage
+---
+
+# Autonomous Modes
+
+HelixMind can work **autonomously** in the background while you keep coding.
+
+## Autonomous Scan (`/auto`)
+
+```bash
+/auto
+```
+
+The agent works through issues in priority order:
+
+| Priority | Category |
+|----------|----------|
+| 1 | Critical bugs — crashes, null pointers, unhandled exceptions |
+| 2 | Security vulnerabilities — injection, XSS, hardcoded secrets |
+| 3 | Missing error handling — uncaught promises, unvalidated input |
+| 4 | Broken tests — failing cases, outdated assertions |
+| 5 | Performance bottlenecks — N+1 queries, unnecessary re-renders |
+| 6 | Dead code — unused functions, unreachable branches |
+| 7 | Code quality — linting issues, style inconsistencies |
+
+### Goal-Driven Mode
+
+```bash
+/auto Refactor all API endpoints to use the new validation middleware
+```
+
+The agent breaks the goal into subtasks and works until completion.
+
+## Security Audit (`/security`)
+
+```bash
+/security
+```
+
+| Category | What's Checked |
+|----------|---------------|
+| Injection | SQL, command, template injection |
+| Path Traversal | Directory traversal, symlink attacks |
+| XSS | Cross-site scripting, unsanitized output |
+| Secrets | Hardcoded API keys, passwords, tokens |
+| Dependencies | Known vulnerabilities, outdated packages |
+| Validation | Missing input validation, type coercion |
+| Auth | Weak auth, missing session management |
+| Race Conditions | TOCTOU bugs, concurrent access |
+| Info Disclosure | Stack traces, debug info in production |
+
+### Auto-Fix Behavior
+
+| Severity | Action |
+|----------|--------|
+| **CRITICAL** | Fixed immediately |
+| **HIGH** | Fixed with notification |
+| **MEDIUM** | Reported for manual review |
+| **LOW** | Reported for manual review |
+
+Findings appear in the Brain's **findings panel**.
+
+## Background Sessions
+
+When you launch `/auto` or `/security`:
+
+1. New session created with isolated state
+2. You keep your interactive prompt
+3. Background session shows as a tab
+4. Notifications appear on completion
+5. Sessions auto-close after 10 seconds
+
+Each session has its own: conversation history, undo stack, agent controller.
+
+## Controls
+
+| Command | Action |
+|---------|--------|
+| `/sessions` | List all sessions |
+| `/stop` | Stop background sessions |
+| **Ctrl+PageUp/Down** | Switch tabs |
+| **ESC ESC** | Emergency stop all |
+
+## Tips
+
+1. Run `/security` on every new project for a baseline assessment
+2. Use `/auto` for cleanup while you focus on features
+3. Review findings in the Brain before committing
+4. Set specific goals with `/auto` for targeted work
+5. Use checkpoints — `/undo` reverts unwanted changes

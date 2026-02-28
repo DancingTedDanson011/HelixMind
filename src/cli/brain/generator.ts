@@ -5,6 +5,7 @@ import type { BrainExport } from './exporter.js';
 import type { BrainScope } from '../../utils/config.js';
 import { generateBrainHTML } from './template.js';
 import { startBrainServer, type BrainServer } from './server.js';
+import type { ControlHandlers, InstanceMeta, SessionInfo } from './control-protocol.js';
 
 /** Generate a static HTML file (fallback / export) */
 export function generateBrainFile(data: BrainExport): string {
@@ -22,6 +23,9 @@ let updateInterval: ReturnType<typeof setInterval> | null = null;
 let pendingVoiceHandler: ((text: string) => void) | null = null;
 let pendingScopeSwitchHandler: ((scope: 'project' | 'global') => void) | null = null;
 let pendingModelActivateHandler: ((model: string) => void) | null = null;
+
+/** Relay client instance */
+let activeRelayClient: { close(): void } | null = null;
 
 /**
  * Start a live brain server that auto-refreshes when spiral data changes.
@@ -81,6 +85,10 @@ export function stopLiveBrain(): void {
   if (updateInterval) {
     clearInterval(updateInterval);
     updateInterval = null;
+  }
+  if (activeRelayClient) {
+    activeRelayClient.close();
+    activeRelayClient = null;
   }
   if (activeBrainServer) {
     activeBrainServer.close();
@@ -180,4 +188,87 @@ export function onBrainModelActivate(handler: (model: string) => void): void {
 export function pushModelActivated(model: string): void {
   if (!activeBrainServer) return;
   activeBrainServer.pushEvent({ type: 'model_activated', model, timestamp: Date.now() });
+}
+
+// ---------------------------------------------------------------------------
+// Control Protocol — CLI ↔ Web
+// ---------------------------------------------------------------------------
+
+/** Register control handlers on the active brain server */
+export function registerControlHandlers(handlers: ControlHandlers): void {
+  if (activeBrainServer) {
+    activeBrainServer.registerControlHandlers(handlers);
+  }
+}
+
+/** Set instance metadata on the brain server (for discovery) */
+export function setInstanceMeta(meta: InstanceMeta): void {
+  if (activeBrainServer) {
+    activeBrainServer.setInstanceMeta(meta);
+  }
+}
+
+/** Get the brain server connection token (for local auth) */
+export function getBrainToken(): string | null {
+  return activeBrainServer?.connectionToken ?? null;
+}
+
+/** Push a session-updated event to control clients */
+export function pushSessionUpdate(session: SessionInfo): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'session_updated',
+    session,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a session-created event to control clients */
+export function pushSessionCreated(session: SessionInfo): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'session_created',
+    session,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a session-removed event to control clients */
+export function pushSessionRemoved(sessionId: string): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'session_removed',
+    sessionId,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push an output line event to subscribed control clients */
+export function pushOutputLine(sessionId: string, line: string, lineIndex: number): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'output_line',
+    sessionId,
+    line,
+    lineIndex,
+    timestamp: Date.now(),
+  });
+}
+
+/**
+ * Start the relay client (outbound connection to Web Server).
+ * Only connects if relay.url + relay.apiKey are configured.
+ */
+export async function startRelayClient(
+  relayUrl: string,
+  apiKey: string,
+  handlers: ControlHandlers,
+  getInstanceMeta: () => InstanceMeta,
+): Promise<void> {
+  try {
+    const { createRelayClient } = await import('./relay-client.js');
+    activeRelayClient = createRelayClient(relayUrl, apiKey, handlers, getInstanceMeta, activeBrainServer);
+  } catch {
+    // Relay client is optional
+  }
 }

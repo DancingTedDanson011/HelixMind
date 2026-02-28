@@ -235,6 +235,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     process.exit(1);
   }
 
+  // Refresh plan info in background (non-blocking)
+  if (store.isLoggedIn()) {
+    import('../auth/feature-gate.js').then(({ refreshPlanInfo }) => refreshPlanInfo(store)).catch(() => {});
+  }
+
   // Register rate limit handler for user-visible feedback
   const { onRateLimitWait } = await import('../providers/rate-limiter.js');
   onRateLimitWait((waitMs, reason) => {
@@ -275,6 +280,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let agentRunning = false;
   let autonomousMode = false;
 
+  // Forward-declared findings handler (reassigned by control protocol if active)
+  let pushFindingsToBrainFn: ((session: import('../sessions/session.js').Session) => void) | null = null;
+
   // Session Manager — manages background sessions (security, auto, etc.)
   const sessionMgr = new SessionManager({
     flags: {
@@ -287,8 +295,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         process.stdout.write(renderSessionNotification(session));
 
         // Push findings to brain visualization (if browser is open)
-        if (session.result?.text) {
-          pushFindingsToBrain(session);
+        if (session.result?.text && pushFindingsToBrainFn) {
+          pushFindingsToBrainFn(session);
         }
 
         updateStatusBar();
@@ -362,6 +370,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       permissions, undoStack, checkpointStore, agentController, activity, sessionBuffer,
       (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
       () => { sessionToolCalls++; },
+      undefined,
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
     );
     spiralEngine?.close();
@@ -401,6 +410,214 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         renderInfo(`  \u{1F9E0} Brain: ${chalk.dim(brainUrl)}`);
       }
     } catch { /* brain server optional */ }
+  }
+
+  // === Register CLI ↔ Web control protocol ===
+  if (brainUrl) {
+    try {
+      const {
+        registerControlHandlers,
+        setInstanceMeta,
+        getBrainToken,
+        pushSessionCreated,
+        pushSessionUpdate,
+        pushSessionRemoved,
+        pushOutputLine,
+        startRelayClient,
+      } = await import('../brain/generator.js');
+      const { serializeSession, buildInstanceMeta, resetInstanceStartTime } = await import('../brain/control-protocol.js');
+
+      resetInstanceStartTime();
+
+      // Collected findings for getFindings() handler
+      const collectedFindings: import('../brain/control-protocol.js').Finding[] = [];
+
+      // Set instance metadata for discovery
+      const instanceId = (await import('node:crypto')).randomUUID().slice(0, 8);
+      const updateMeta = () => {
+        const meta = buildInstanceMeta(
+          project.name || 'HelixMind',
+          process.cwd(),
+          config.model,
+          config.provider,
+          '0.1.0',
+          instanceId,
+        );
+        setInstanceMeta(meta);
+        return meta;
+      };
+      updateMeta();
+
+      // Wire output streaming: when any session captures output, push to control clients
+      const wireSessionOutput = (session: import('../sessions/session.js').Session) => {
+        session.onCapture = (line, index) => {
+          pushOutputLine(session.id, line, index);
+        };
+      };
+
+      // Register control handlers
+      registerControlHandlers({
+        listSessions: () => sessionMgr.all.map(serializeSession),
+
+        startAuto: (goal?) => {
+          const sessionName = goal ? `\u{1F504} Auto: ${goal.slice(0, 30)}` : '\u{1F504} Auto';
+          const bgSession = sessionMgr.create(sessionName, '\u{1F504}', agentHistory);
+          bgSession.start();
+          wireSessionOutput(bgSession);
+          pushSessionCreated(serializeSession(bgSession));
+
+          // Trigger autonomous mode (same as /auto start)
+          autonomousMode = true;
+          (async () => {
+            const completed: string[] = [];
+            try {
+              await runAutonomousLoop({
+                sendMessage: async (prompt) => {
+                  bgSession.controller.reset();
+                  const resultTextHolder = { text: '' };
+                  const origAddSummary = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
+                  bgSession.buffer.addAssistantSummary = (t: string) => {
+                    resultTextHolder.text = t;
+                    origAddSummary(t);
+                  };
+                  await sendAgentMessage(
+                    prompt, bgSession.history, provider, project, spiralEngine, config,
+                    permissions, bgSession.undoStack, checkpointStore,
+                    bgSession.controller, new ActivityIndicator(), bgSession.buffer,
+                    (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                    () => { sessionToolCalls++; },
+                    undefined,
+                    { enabled: false, verbose: false, strict: false },
+                  );
+                  bgSession.buffer.addAssistantSummary = origAddSummary;
+                  return resultTextHolder.text;
+                },
+                isAborted: () => !autonomousMode || bgSession.controller.isAborted,
+                onRoundStart: (round) => {
+                  bgSession.controller.reset();
+                  bgSession.capture(`Round ${round}...`);
+                },
+                onRoundEnd: (_round, summary) => {
+                  completed.push(summary);
+                  bgSession.capture(`\u2713 ${summary}`);
+                  pushSessionUpdate(serializeSession(bgSession));
+                },
+                updateStatus: () => updateStatusBar(),
+              }, goal);
+            } catch (err) {
+              if (!(err instanceof AgentAbortError)) {
+                bgSession.capture(`Error: ${err}`);
+              }
+            }
+            autonomousMode = false;
+            sessionMgr.complete(bgSession.id, {
+              text: completed.join('\n'),
+              steps: [],
+              errors: bgSession.controller.isAborted ? ['Aborted by user'] : [],
+              durationMs: bgSession.elapsed,
+            });
+            pushSessionUpdate(serializeSession(bgSession));
+          })();
+
+          return bgSession.id;
+        },
+
+        startSecurity: () => {
+          const bgSession = sessionMgr.create('\u{1F512} Security', '\u{1F512}', agentHistory);
+          bgSession.start();
+          wireSessionOutput(bgSession);
+          pushSessionCreated(serializeSession(bgSession));
+
+          runBackgroundSession(
+            bgSession, SECURITY_PROMPT, provider, project, spiralEngine, config,
+            permissions, checkpointStore,
+            (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+            () => { sessionToolCalls++; },
+            { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+          ).then(result => {
+            sessionMgr.complete(bgSession.id, result);
+            pushSessionUpdate(serializeSession(bgSession));
+          }).catch(err => {
+            if (!(err instanceof AgentAbortError)) {
+              sessionMgr.complete(bgSession.id, {
+                text: '',
+                steps: [],
+                errors: [err instanceof Error ? err.message : String(err)],
+                durationMs: bgSession.elapsed,
+              });
+              pushSessionUpdate(serializeSession(bgSession));
+            }
+          });
+
+          return bgSession.id;
+        },
+
+        abortSession: (sessionId) => {
+          const session = sessionMgr.get(sessionId);
+          if (!session) return false;
+          sessionMgr.abort(sessionId);
+          pushSessionUpdate(serializeSession(session));
+          return true;
+        },
+
+        sendChat: (text) => {
+          // Queue chat text to be processed as if the user typed it
+          typeAheadBuffer.push(text);
+        },
+
+        getFindings: () => [...collectedFindings],
+      });
+
+      // Override forward-reference to also collect findings for control protocol
+      pushFindingsToBrainFn = (session) => {
+        pushFindingsToBrain(session);
+        // Also collect findings for the control protocol
+        const text = session.result?.text || '';
+        const severityPatterns = [
+          { regex: /\*\*CRITICAL\*\*[:\s]*(.+?)(?:\n|$)/gi, severity: 'critical' as const },
+          { regex: /\*\*HIGH\*\*[:\s]*(.+?)(?:\n|$)/gi, severity: 'high' as const },
+          { regex: /\*\*MEDIUM\*\*[:\s]*(.+?)(?:\n|$)/gi, severity: 'medium' as const },
+          { regex: /\*\*LOW\*\*[:\s]*(.+?)(?:\n|$)/gi, severity: 'low' as const },
+          { regex: /DONE:\s*(.+?)(?:\n|$)/gi, severity: 'info' as const },
+        ];
+        for (const { regex, severity } of severityPatterns) {
+          let match;
+          while ((match = regex.exec(text)) !== null) {
+            const finding = match[1].trim();
+            if (finding.length > 5) {
+              const fileMatch = finding.match(/(?:in |file[:\s]+|path[:\s]+)([^\s,]+\.\w+)/i);
+              collectedFindings.push({
+                sessionName: session.name,
+                finding,
+                severity,
+                file: fileMatch?.[1] || '',
+                timestamp: Date.now(),
+              });
+            }
+          }
+        }
+      };
+
+      // Log connection token
+      const token = getBrainToken();
+      if (token) {
+        renderInfo(`  \u{1F511} Brain token: ${chalk.dim(token.slice(-4))} ${chalk.dim('(full token in /brain)')}`);
+      }
+
+      // Start relay client if configured
+      const relayUrl = config.relay?.url as string | undefined;
+      const relayApiKey = config.relay?.apiKey as string | undefined;
+      if (relayUrl && relayApiKey) {
+        startRelayClient(relayUrl, relayApiKey, {
+          listSessions: () => sessionMgr.all.map(serializeSession),
+          startAuto: (goal?) => { /* relay delegates to local handlers — already registered */ return ''; },
+          startSecurity: () => '',
+          abortSession: (id) => { sessionMgr.abort(id); return true; },
+          sendChat: (text) => { typeAheadBuffer.push(text); },
+          getFindings: () => [...collectedFindings],
+        }, updateMeta).catch(() => {});
+      }
+    } catch { /* control protocol optional */ }
   }
 
   renderInfo(`  Type /help for commands, ESC = stop agent, Ctrl+C twice to exit\n`);
@@ -494,6 +711,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       permissionMode: permissions.getModeLabel(),
       autonomous: autonomousMode,
       paused: agentController.isPaused,
+      plan: (store.get('relay.plan') as string | undefined) ?? undefined,
     };
   }
 
@@ -510,9 +728,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     },
   });
 
-  // Update prompt on terminal resize
+  // Update prompt and activity scroll region on terminal resize
   process.stdout.on('resize', () => {
     rl.setPrompt(makePrompt());
+    activity.handleResize();
   });
 
   // Track suggestion overlay state
@@ -521,11 +740,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   permissions.setReadline(rl);
   permissions.setPromptCallback((active) => { isAtPrompt = active; });
 
-  // NOTE: Do NOT use activity.setReadline() — it enables two-line mode which uses
-  // \x1b[1A (cursor up) to overwrite the activity line. This ANSI sequence doesn't
-  // work reliably across Windows terminals, causing every spinner frame to print on
-  // a new line instead of overwriting in-place ("infinite spiral" bug).
-  // Single-line mode (\r\x1b[K) is universally reliable.
+  // Activity indicator renders on the bottom terminal row (absolute positioned,
+  // same row as statusbar). The footer timer already skips statusbar draws when
+  // activity.isAnimating is true, so there's no conflict.
 
   // Ctrl+C behavior:
   // - If there's text on the line → clear the line (like a normal terminal)
@@ -724,12 +941,28 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       // Double-ESC detection (for checkpoint browser when nothing is running)
       const result = processKeypress(key, keyState);
-      if (result.action === 'open_browser') {
-        // Nothing running — inform user
-        process.stdout.write('\n');
-        renderInfo(chalk.dim('No agent running. Press ESC while agent works to stop.'));
-        isAtPrompt = true;
-        rl.prompt();
+      if (result.action === 'open_browser' && !agentRunning) {
+        // Open checkpoint browser
+        rl.pause();
+        try {
+          const browserResult = await runCheckpointBrowser({
+            store: checkpointStore,
+            agentHistory,
+            simpleMessages: messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' })),
+            isPaused: false,
+          });
+
+          if (browserResult.action === 'revert') {
+            const r = browserResult.result;
+            process.stdout.write('\n');
+            if (r.messagesRemoved > 0) renderInfo(chalk.yellow(`${r.messagesRemoved} message(s) reverted`));
+            if (r.filesReverted > 0) renderInfo(chalk.yellow(`${r.filesReverted} file(s) reverted`));
+          }
+        } catch {
+          // Browser closed unexpectedly
+        }
+        rl.resume();
+        showPrompt();
       }
     });
   }
@@ -823,9 +1056,16 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       }
     }).catch(() => {});
   }
+  // Set forward-reference for session completion callback
+  pushFindingsToBrainFn = pushFindingsToBrain;
 
   // Type-ahead buffer: stores user input submitted while agent is running
   const typeAheadBuffer: string[] = [];
+
+  // Paste detection — collects rapid-fire line events into a buffer
+  let pasteBuffer: string[] = [];
+  let pasteTimer: ReturnType<typeof setTimeout> | null = null;
+  const PASTE_THRESHOLD_MS = 50; // Lines arriving faster than this = paste
 
   // Show full prompt area on startup (separator + status + > prompt)
   showPrompt();
@@ -840,36 +1080,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   }, 500);
   footerTimer.unref();
 
-  rl.on('line', async (line) => {
-    isAtPrompt = false; // User submitted — readline no longer active
-    ctrlCCount = 0; // Reset on any input
-
-    // Guard: skip phantom line events from sub-readline (e.g. askText in /keys)
-    if (Date.now() < drainUntil) {
-      showPrompt();
-      return;
-    }
-
-    // Clear command suggestions on submit
-    if (lastSuggestionCount > 0) {
-      clearSuggestions(lastSuggestionCount);
-      lastSuggestionCount = 0;
-    }
-    const input = line.trim();
-    if (!input) {
-      isAtPrompt = true;
-      rl.prompt();
-      return;
-    }
-
-    // If agent is running, buffer the input for later (type-ahead)
-    if (agentRunning) {
-      typeAheadBuffer.push(input);
-      process.stdout.write(`  ${theme.dim('\u23F3 Queued:')} ${theme.dim(input)}\n`);
-      // Re-show prompt so user can keep typing more messages
-      rl.prompt();
-      return;
-    }
+  /** Process a complete input (single line or assembled paste block) */
+  async function processInput(input: string): Promise<void> {
 
     // Handle /feed directly here (needs access to inlineProgressActive flag)
     if (input.startsWith('/feed')) {
@@ -1015,6 +1227,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                       bgSession.controller, new ActivityIndicator(), bgSession.buffer,
                       (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
                       () => { sessionToolCalls++; },
+                      undefined,
                       { enabled: false, verbose: false, strict: false },
                     );
 
@@ -1113,7 +1326,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // Don't pause readline — let user type next prompt while agent works.
     // Buffer submitted lines during agent execution for processing after.
     // Show hint so user knows they can still type.
-    process.stdout.write(chalk.dim('  \u{1F4AC} Type while agent works \u2014 press Enter to queue\n'));
+    process.stdout.write(chalk.dim('  \u{1F4AC} Type-ahead active \u2014 input queued for after agent finishes\n'));
 
     // Send message through agent loop
     roundToolCalls = 0;
@@ -1131,6 +1344,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       () => {
         sessionToolCalls++;
         roundToolCalls++;
+      },
+      () => {
+        // Activity started — readline stays active for type-ahead buffering
+        // but we do NOT show a visible prompt (it would collide with tool output)
+        isAtPrompt = false;
       },
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
     );
@@ -1159,6 +1377,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           permissions, undoStack, checkpointStore, agentController, activity, sessionBuffer,
           (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
           () => { sessionToolCalls++; roundToolCalls++; },
+          () => { isAtPrompt = true; rl.prompt(); },
           { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
         );
 
@@ -1168,11 +1387,129 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
 
     showPrompt();
+  }
+
+  // === Paste-aware line handler ===
+  // Rapid-fire line events (< 50ms apart) = multi-line paste.
+  // We collect them and show a preview instead of sending immediately.
+  rl.on('line', (line) => {
+    isAtPrompt = false;
+    ctrlCCount = 0;
+
+    // Guard: skip phantom line events from sub-readline
+    if (Date.now() < drainUntil) {
+      showPrompt();
+      return;
+    }
+
+    // Clear command suggestions on submit
+    if (lastSuggestionCount > 0) {
+      clearSuggestions(lastSuggestionCount);
+      lastSuggestionCount = 0;
+    }
+
+    const trimmed = line.trim();
+
+    // If paste buffer has content and user pressed Enter on empty line → send it
+    if (!trimmed && pasteBuffer.length > 0) {
+      const assembled = pasteBuffer.join('\n');
+      pasteBuffer = [];
+      if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
+      // Show full pasted text as user message
+      process.stdout.write(`\x1b[2K\r`);
+      processInput(assembled);
+      return;
+    }
+
+    if (!trimmed) {
+      isAtPrompt = true;
+      rl.prompt();
+      return;
+    }
+
+    // If agent is running, buffer for type-ahead (no paste detection needed)
+    if (agentRunning) {
+      typeAheadBuffer.push(trimmed);
+      process.stdout.write(`  ${theme.dim('\u23F3 Queued:')} ${theme.dim(trimmed)}\n`);
+      // Re-show prompt for further type-ahead input
+      rl.prompt();
+      return;
+    }
+
+    // Paste detection: if a timer is already running, this is a continuation
+    if (pasteTimer) {
+      pasteBuffer.push(line);
+      clearTimeout(pasteTimer);
+      // Show updated preview
+      const count = pasteBuffer.length;
+      process.stdout.write(`\x1b[2K\r  ${chalk.dim(`(${count} Zeilen eingefuegt — Enter zum Senden, Esc zum Verwerfen)`)}`);
+      pasteTimer = setTimeout(() => {
+        // Paste ended — show final preview and wait for Enter
+        pasteTimer = null;
+        const count = pasteBuffer.length;
+        const preview = pasteBuffer[0].slice(0, 60);
+        process.stdout.write(`\x1b[2K\r  ${chalk.cyan(`[${count} Zeilen]`)} ${chalk.dim(preview + (pasteBuffer[0].length > 60 ? '...' : ''))}\n`);
+        process.stdout.write(`  ${chalk.dim('Enter = senden | Esc = verwerfen')}\n`);
+        rl.prompt();
+      }, PASTE_THRESHOLD_MS);
+      return;
+    }
+
+    // First line — start the paste timer
+    pasteBuffer = [line];
+    pasteTimer = setTimeout(() => {
+      // Timer expired without more lines → this was a normal single-line input
+      pasteTimer = null;
+      const singleInput = pasteBuffer.join('\n').trim();
+      pasteBuffer = [];
+      if (singleInput) {
+        processInput(singleInput);
+      } else {
+        isAtPrompt = true;
+        rl.prompt();
+      }
+    }, PASTE_THRESHOLD_MS);
   });
+
+  // Handle Esc to discard paste buffer
+  if (process.stdin.isTTY) {
+    const origKeypress = process.stdin.listeners('keypress') as Array<(...args: any[]) => void>;
+    // Insert paste-cancel before the existing ESC handler
+    process.stdin.prependListener('keypress', (_str: string, key: any) => {
+      if (key?.name === 'escape' && pasteBuffer.length > 0 && !agentRunning) {
+        pasteBuffer = [];
+        if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
+        process.stdout.write(`\x1b[2K\r  ${chalk.dim('Paste verworfen.')}\n`);
+        showPrompt();
+      }
+    });
+  }
 
   rl.on('close', async () => {
     clearInterval(footerTimer);
     if (spiralEngine) {
+      // Persist session buffer (goals, entities, decisions) into spiral brain
+      // so next session with the same brain can recall them
+      try {
+        const goals = sessionBuffer.getGoals();
+        const entities = sessionBuffer.getEntities();
+        if (goals.length > 0) {
+          await spiralEngine.store(
+            `[Session Goals] ${goals.join(' | ')}`,
+            'decision',
+            { tags: ['session', 'goals'] },
+          );
+        }
+        if (entities.size > 0) {
+          const entryList = [...entities.entries()].map(([k, v]) => `${k}=${v}`).join(', ');
+          await spiralEngine.store(
+            `[Session Refs] ${entryList}`,
+            'summary',
+            { tags: ['session', 'entities'] },
+          );
+        }
+      } catch { /* best effort */ }
+
       try {
         await spiralEngine.saveState(messages);
       } catch { /* best effort */ }
@@ -1213,7 +1550,7 @@ async function runBackgroundSession(
     prompt, session.history, provider, project, spiralEngine, config,
     permissions, session.undoStack, checkpointStore,
     session.controller, bgActivity, session.buffer,
-    onTokens, onToolCall, validationOpts,
+    onTokens, onToolCall, undefined, validationOpts,
   );
 
   // Build result from the session buffer
@@ -1248,6 +1585,7 @@ async function sendAgentMessage(
   sessionBuffer: SessionBuffer,
   onTokens: (input: number, output: number) => void,
   onToolCall: () => void,
+  onAgentStart?: () => void,
   validationOpts?: ValidationOptions,
 ): Promise<void> {
   // User message was rendered by renderUserMessage() in the caller before entering here.
@@ -1314,14 +1652,17 @@ async function sendAgentMessage(
     project.name !== 'unknown' ? project : null,
     spiralContext,
     sessionContext || undefined,
+    { provider: provider.name, model: provider.model },
   );
 
   // Auto-trim context when approaching budget limit
   const maxBudget = config.spiral.maxTokensBudget || 200000;
-  trimConversation(agentHistory, maxBudget);
+  trimConversation(agentHistory, maxBudget, sessionBuffer);
 
-  // Start the glowing activity indicator
+  // Start the glowing activity indicator (reserves bottom row via scroll region)
   activity.start();
+  // Notify caller so it can show the readline prompt for type-ahead
+  onAgentStart?.();
 
   try {
     const result = await runAgentLoop(input, agentHistory, {
@@ -1363,6 +1704,12 @@ async function sendAgentMessage(
     // activity.stop() was already called via onBeforeAnswer (shows colorful "Done" line)
     // Ensure stopped if onBeforeAnswer wasn't reached (e.g. no tools, direct answer)
     if (activity.isRunning) activity.stop();
+
+    // CRITICAL: Adopt updated conversation history from agent loop.
+    // runAgentLoop works on a copy — we must sync it back so the next turn
+    // sees the full conversation (user message + assistant + tool results).
+    agentHistory.length = 0;
+    agentHistory.push(...result.updatedHistory);
 
     // ═══ PHASE 3: VALIDATION MATRIX ═══
     if (validationOpts?.enabled && result.text) {
@@ -1439,9 +1786,10 @@ async function sendAgentMessage(
       );
     }
 
-    // Store in spiral (fire-and-forget)
+    // Store turn summary in spiral (user request + agent response)
     if (spiralEngine && config.spiral.autoStore && result.text) {
-      spiralEngine.store(input, 'code', { tags: ['chat'] }).catch(() => {});
+      const turnSummary = `User: ${input.slice(0, 100)} → Agent: ${result.text.slice(0, 400)}`;
+      spiralEngine.store(turnSummary, 'summary', { tags: ['session', 'turn'] }).catch(() => {});
     }
 
     // Show web enrichment results (if any arrived while agent worked)

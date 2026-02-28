@@ -1,0 +1,93 @@
+---
+title: Slash Commands
+description: Complete reference for all interactive slash commands available during a HelixMind chat session.
+order: 4
+category: CLI Usage
+---
+
+# Slash Commands
+
+Type `/` followed by a command name during an interactive chat session.
+
+## Chat & Interaction
+
+| Command | Description |
+|---------|-------------|
+| `/clear` | Clear conversation history (spiral memory stays intact) |
+| `/model` | Interactive model picker — switch LLM mid-session |
+| `/keys` | Manage API keys interactively |
+| `/help` | Show all available commands |
+| `/exit` / `/quit` | Exit HelixMind gracefully |
+
+## Spiral Memory
+
+| Command | Description |
+|---------|-------------|
+| `/spiral` | Quick status: node counts per level, edges, storage size |
+| `/feed` | Feed files into spiral memory (file picker) |
+| `/context` | Show how context is assembled (nodes per level, token usage) |
+| `/compact` | Trigger evolution: compress, promote, decay nodes |
+| `/tokens` | Token usage statistics across all levels |
+
+## Visualization & Brain
+
+| Command | Description |
+|---------|-------------|
+| `/brain` | Open 3D Brain Visualization in browser |
+| `/brain local` | Switch brain to project-local scope |
+| `/brain global` | Switch brain to global scope (all projects) |
+| `/helix` | Open HelixMind Command Center (menu-driven interface) |
+
+## Permission Modes
+
+| Command | Description |
+|---------|-------------|
+| `/yolo` | Toggle YOLO mode — auto-approve ALL operations (⚠️ dangerous) |
+| `/skip-permissions` | Toggle skip-permissions — auto-approve safe + ask, still prompt dangerous |
+
+## Autonomous & Background
+
+| Command | Description |
+|---------|-------------|
+| `/auto` | Start autonomous scan (background session) — finds & fixes issues |
+| `/auto <goal>` | Goal-driven mode: `"/auto Refactor all API endpoints to use validation"` |
+| `/security` | Run comprehensive security audit (background session) |
+| `/sessions` | List all sessions/tabs with status |
+| `/stop` | Stop running background sessions |
+
+## Code & Git
+
+| Command | Description |
+|---------|-------------|
+| `/undo` | Open checkpoint browser — revert file changes |
+| `/diff` | Show uncommitted git changes (staged + unstaged) |
+| `/git` | Show branch, status, and recent commits |
+| `/project` | Display project info: tech stack, file count, context |
+| `/export` | Export spiral memory to ZIP archive |
+
+## Validation Matrix
+
+| Command | Description |
+|---------|-------------|
+| `/validation` | Show current validation status |
+| `/validation on` | Enable Validation Matrix |
+| `/validation off` | Disable Validation Matrix |
+| `/validation verbose` | Toggle detailed check results |
+| `/validation strict` | Toggle strict mode (warnings → errors) |
+| `/validation stats` | Show historical pass/fail statistics |
+
+## Local LLM
+
+| Command | Description |
+|---------|-------------|
+| `/local` | Open Ollama configuration — list, pull, manage models |
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| **ESC ESC** (double) | Emergency stop — aborts all sessions + opens checkpoint browser |
+| **Ctrl+PageUp** | Switch to previous session tab |
+| **Ctrl+PageDown** | Switch to next session tab |
+| **Tab** | Command/path autocomplete |
+| **Ctrl+C** | Clear current input or exit |

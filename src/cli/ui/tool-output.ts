@@ -66,7 +66,7 @@ export function renderToolCall(name: string, input: Record<string, unknown>): vo
   const label = `${name}: ${summary}`;
   const truncLabel = label.length > maxLabel ? label.slice(0, maxLabel - 1) + '\u2026' : label;
 
-  // Write tool call line inside the block (no newline — renderToolResult appends result)
+  // Clear current readline input, write tool line, readline will re-prompt after
   process.stdout.write(`\r\x1b[K  ${chalk.dim('\u2502')} ${theme.dim(countStr)} ${icon} ${theme.secondary(truncLabel)}`);
 }
 

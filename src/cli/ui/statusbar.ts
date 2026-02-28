@@ -27,6 +27,7 @@ export interface StatusBarData {
   permissionMode?: 'safe' | 'skip' | 'yolo';
   autonomous?: boolean;
   paused?: boolean;
+  plan?: string;
 }
 
 /**
@@ -84,6 +85,17 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
       case 'skip':  essentialParts.push(chalk.yellow('\u26A1 skip')); break;
       case 'yolo':  essentialParts.push(chalk.red('\u{1F525} yolo')); break;
     }
+  }
+
+  // [Optional] Plan badge (when logged in)
+  if (data.plan && data.plan !== 'FREE') {
+    const planColors: Record<string, string> = {
+      PRO: '#00d4ff',
+      TEAM: '#00ff88',
+      ENTERPRISE: '#8a2be2',
+    };
+    const color = planColors[data.plan] ?? '#888888';
+    optionalParts.push(chalk.hex(color).bold(data.plan));
   }
 
   // [Essential] Model (shortened)
@@ -238,9 +250,16 @@ function shortenModelName(model: string): string {
     'deepseek-chat': 'ds-chat',
     'deepseek-reasoner': 'ds-r1',
     'glm-5': 'GLM-5',
+    'glm-5-code': 'GLM-5C',
     'glm-4.7': 'GLM-4.7',
+    'glm-4.7-flashx': 'GLM-4.7FX',
+    'glm-4.7-flash': 'GLM-4.7F\u2605',
     'glm-4.6': 'GLM-4.6',
     'glm-4.5': 'GLM-4.5',
+    'glm-4.5-x': 'GLM-4.5X',
+    'glm-4.5-air': 'GLM-4.5A',
+    'glm-4.5-airx': 'GLM-4.5AX',
+    'glm-4.5-flash': 'GLM-4.5F\u2605',
   };
   if (map[model]) return map[model];
   // Auto-shorten: strip common prefixes, truncate long names

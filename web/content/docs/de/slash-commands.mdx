@@ -1,0 +1,87 @@
+---
+title: Slash-Befehle
+description: Vollständige Referenz aller interaktiven Slash-Befehle während einer HelixMind Chat-Session.
+order: 4
+category: CLI-Nutzung
+---
+
+# Slash-Befehle
+
+Tippe während einer interaktiven Chat-Session `/` gefolgt von einem Befehlsnamen. Diese Befehle steuern HelixMinds Verhalten, verwalten Memory und lösen spezielle Modi aus.
+
+## Chat & Interaktion
+
+| Befehl | Beschreibung |
+|--------|-------------|
+| `/clear` | Gesprächsverlauf löschen (Spiral-Memory bleibt erhalten) |
+| `/model` | Interaktiver Modell-Picker zum Wechseln des LLM-Modells |
+| `/keys` | API-Keys interaktiv verwalten |
+| `/help` | Alle verfügbaren Slash-Befehle anzeigen |
+| `/exit` / `/quit` | HelixMind-Session beenden |
+
+## Spiral-Memory
+
+| Befehl | Beschreibung |
+|--------|-------------|
+| `/spiral` | Schnelle Spiral-Status-Übersicht |
+| `/feed` | Dateien interaktiv in die Spiral einspeisen |
+| `/context` | Kontext-Assembly für das aktuelle Gespräch anzeigen |
+| `/compact` | Spiral-Evolution auslösen |
+| `/tokens` | Token-Verbrauch pro Level anzeigen |
+
+## Visualisierung & Brain
+
+| Befehl | Beschreibung |
+|--------|-------------|
+| `/brain` | 3D-Brain-Visualisierung im Browser öffnen |
+| `/brain local` | Brain auf projekt-lokalen Scope umschalten |
+| `/brain global` | Brain auf globalen Scope umschalten |
+| `/helix` | HelixMind Command Center öffnen |
+
+## Berechtigungs-Modi
+
+| Befehl | Beschreibung |
+|--------|-------------|
+| `/yolo` | YOLO-Modus umschalten (alle Operationen automatisch genehmigt) |
+| `/skip-permissions` | Skip-Permissions-Modus umschalten |
+
+## Autonome & Hintergrund-Tasks
+
+| Befehl | Beschreibung |
+|--------|-------------|
+| `/auto` | Autonomen Modus als Hintergrund-Session starten |
+| `/stop` | Laufende Hintergrund-Session stoppen |
+| `/security` | Umfassenden Sicherheits-Audit als Hintergrund-Session starten |
+| `/sessions` | Alle aktiven Sessions/Tabs auflisten |
+| `/local` | Ollama-Konfiguration öffnen |
+
+## Code & Git
+
+| Befehl | Beschreibung |
+|--------|-------------|
+| `/undo` | Checkpoint-Browser zum Rückgängigmachen öffnen |
+| `/diff` | Uncommittete Git-Änderungen anzeigen |
+| `/git` | Aktuellen Git-Branch und Status anzeigen |
+| `/project` | Projektinformationen anzeigen |
+| `/export` | Spiral-Memory als ZIP exportieren |
+
+## Validation Matrix
+
+| Befehl | Beschreibung |
+|--------|-------------|
+| `/validation` | Aktuellen Validierungsstatus anzeigen |
+| `/validation on` | Validation Matrix aktivieren |
+| `/validation off` | Validation Matrix deaktivieren |
+| `/validation verbose` | Verbose-Modus umschalten |
+| `/validation strict` | Strict-Modus umschalten |
+| `/validation stats` | Validierungsstatistiken anzeigen |
+
+## Tastenkürzel
+
+| Kürzel | Aktion |
+|--------|--------|
+| **ESC ESC** (doppelt) | Notfall-Stopp — bricht alle Sessions ab + öffnet Checkpoint-Browser |
+| **Ctrl+PageUp** | Zum vorherigen Session-Tab wechseln |
+| **Ctrl+PageDown** | Zum nächsten Session-Tab wechseln |
+| **Tab** | Befehl-/Pfad-Autovervollständigung |
+| **Ctrl+C** | Aktuelle Eingabe löschen oder beenden |
