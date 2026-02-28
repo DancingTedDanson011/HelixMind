@@ -12,9 +12,10 @@ export function BrainScene() {
   return (
     <Canvas
       camera={{ position: [550, 200, 700], fov: 50, near: 1, far: 12000 }}
-      gl={{ antialias: true, alpha: true }}
-      dpr={[1, 1.5]}
+      gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
+      dpr={1}
       style={{ background: 'transparent' }}
+      frameloop="always"
     >
       <color attach="background" args={['#050510']} />
       <ambientLight intensity={0.5} />
@@ -28,9 +29,9 @@ export function BrainScene() {
 
       <EffectComposer>
         <Bloom
-          intensity={0.5}
-          luminanceThreshold={0.15}
-          luminanceSmoothing={0.5}
+          intensity={0.35}
+          luminanceThreshold={0.4}
+          luminanceSmoothing={0.3}
           mipmapBlur
         />
       </EffectComposer>

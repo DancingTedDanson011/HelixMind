@@ -10,7 +10,7 @@ import { useCliContext } from './CliConnectionProvider';
 import { useCliOutput } from '@/hooks/use-cli-output';
 import { useBrainstormChat } from '@/hooks/use-brainstorm-chat';
 import { TerminalViewer } from '@/components/cli/TerminalViewer';
-import { BugJournal } from './BugJournal';
+// BugJournal tab removed — bugs now shown inline in ChatView
 import type { DiscoveredInstance } from '@/lib/cli-types';
 import {
   Brain, PanelLeftClose, PanelLeft, Menu,
@@ -73,9 +73,10 @@ export function AppShell() {
     }
   }, []);
   const [mode, setMode] = useState<'normal' | 'skip-permissions'>('normal');
-  const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor' | 'journal'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor'>('chat');
   const [consoleSessionId, setConsoleSessionId] = useState<string | null>(null);
   const [showInstancePicker, setShowInstancePicker] = useState(false);
+  const [showBugPanel, setShowBugPanel] = useState(false);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
   const [hasLLMKey, setHasLLMKey] = useState(false);
 
@@ -361,11 +362,12 @@ export function AppShell() {
           return;
         case 'journal':
         case 'bugs':
-          // Fetch bugs if connected, then show journal
+          // Fetch bugs if connected, then toggle inline bug panel
           if (isConnected) {
             connection.getBugs().catch(() => {});
           }
-          setActiveTab('journal');
+          setActiveTab('chat');
+          setShowBugPanel(prev => !prev);
           return;
         case 'bugfix': {
           // Fix all open bugs via CLI
@@ -792,7 +794,7 @@ export function AppShell() {
               {/* Bug badge */}
               {connection.bugs.filter(b => b.status === 'open').length > 0 && (
                 <button
-                  onClick={() => { setActiveTab('journal'); connection.getBugs().catch(() => {}); }}
+                  onClick={() => { setActiveTab('chat'); setShowBugPanel(true); connection.getBugs().catch(() => {}); }}
                   className="w-full px-2 py-1.5 rounded-md bg-red-500/5 border border-red-500/10 text-left hover:bg-red-500/10 transition-colors"
                 >
                   <div className="flex items-center gap-1">
@@ -917,23 +919,26 @@ export function AppShell() {
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
                 )}
               </button>
-              <button
-                onClick={() => { setActiveTab('journal'); connection.getBugs().catch(() => {}); }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  activeTab === 'journal'
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-300'
-                }`}
-              >
-                <Bug size={11} />
-                {t('bugJournal')}
-                {connection.bugs.filter(b => b.status === 'open').length > 0 && (
-                  <span className="min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
-                    {connection.bugs.filter(b => b.status === 'open').length}
-                  </span>
-                )}
-              </button>
             </div>
+          )}
+
+          {/* Bug panel toggle — visible when connected and bugs exist */}
+          {isConnected && connection.bugs.length > 0 && activeTab === 'chat' && (
+            <button
+              onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
+                showBugPanel
+                  ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                  : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
+              }`}
+            >
+              <Bug size={11} />
+              {connection.bugs.filter(b => b.status === 'open').length > 0 && (
+                <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
+                  {connection.bugs.filter(b => b.status === 'open').length}
+                </span>
+              )}
+            </button>
           )}
 
           {/* CLI Connection badge */}
@@ -1079,6 +1084,11 @@ export function AppShell() {
               onExecutePrompt={handleExecutePrompt}
               isConnected={isConnected}
               isExecuting={cliExecuting}
+              bugs={connection.bugs}
+              showBugPanel={showBugPanel}
+              onCloseBugPanel={() => setShowBugPanel(false)}
+              onFixBug={handleFixBug}
+              onFixAll={handleFixAllBugs}
             />
           </div>
         ) : activeTab === 'console' ? (
@@ -1296,17 +1306,6 @@ export function AppShell() {
                 </div>
               )}
             </div>
-          </div>
-        ) : activeTab === 'journal' ? (
-          /* ─── Bug Journal Tab ─── */
-          <div className="flex-1 overflow-hidden">
-            <BugJournal
-              bugs={connection.bugs}
-              isConnected={isConnected}
-              onFixBug={handleFixBug}
-              onFixAll={handleFixAllBugs}
-              onClose={() => setActiveTab('chat')}
-            />
           </div>
         ) : null}
 

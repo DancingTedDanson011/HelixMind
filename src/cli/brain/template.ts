@@ -598,21 +598,23 @@ scene.fog = new THREE.FogExp2(0x050510, 0.00005); // Reduced fog for clearer vis
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 10000);
 camera.position.set(0, 200, 1200); // Centered on force-directed graph
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(1);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
 document.body.prepend(renderer.domElement);
 
-// =========== POST-PROCESSING (Bloom) ===========
+// =========== POST-PROCESSING (Bloom at half resolution) ===========
+const bloomW = Math.round(innerWidth / 2);
+const bloomH = Math.round(innerHeight / 2);
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(innerWidth, innerHeight),
-  0.8,   // strength
-  0.4,   // radius
-  0.6    // threshold
+  new THREE.Vector2(bloomW, bloomH),
+  0.6,   // strength (reduced)
+  0.3,   // radius
+  0.7    // threshold (higher = fewer objects bloom)
 );
 composer.addPass(bloomPass);
 
@@ -639,9 +641,9 @@ const fillLight = new THREE.PointLight(0x00FF88, 0.4, 3000);
 fillLight.position.set(400, 100, -300);
 scene.add(fillLight);
 
-// =========== BACKGROUND PARTICLES ===========
+// =========== BACKGROUND PARTICLES (reduced count) ===========
 const starGeo = new THREE.BufferGeometry();
-const starCount = 2000;
+const starCount = 800;
 const starPos = new Float32Array(starCount * 3);
 for (let i = 0; i < starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 8000;
 starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
@@ -695,13 +697,21 @@ class BrainManager {
     // Connected nodes will pull together, unconnected repel — organic clusters form naturally
     const SPREAD = 600; // Initial scatter radius
 
+    // Shared geometries — reuse instead of creating per node
+    const sharedIcoGeo = new THREE.IcosahedronGeometry(1, 1); // unit size, detail 1 (low poly)
+    const sharedOctGeo = new THREE.OctahedronGeometry(1, 1);
+    const sharedHitGeo = new THREE.SphereGeometry(1, 6, 4); // minimal segments
+    const sharedRingGeo = new THREE.RingGeometry(1, 1.6, 16); // reduced segments
+    const sharedWaveGeo = new THREE.RingGeometry(1, 1.1, 16);
+    const sharedWireGeo = new THREE.OctahedronGeometry(1, 0);
+
     data.nodes.forEach((node, i) => {
       const isWeb = node.level === 6;
 
       // Random spherical distribution as starting positions
-      const phi = Math.acos(2 * Math.random() - 1);  // polar angle
-      const theta = Math.random() * Math.PI * 2;       // azimuthal angle
-      const r = SPREAD * (0.3 + Math.random() * 0.7);  // random radius
+      const phi = Math.acos(2 * Math.random() - 1);
+      const theta = Math.random() * Math.PI * 2;
+      const r = SPREAD * (0.3 + Math.random() * 0.7);
       const x = r * Math.sin(phi) * Math.cos(theta);
       const y = r * Math.sin(phi) * Math.sin(theta);
       const z = r * Math.cos(phi);
@@ -713,66 +723,65 @@ class BrainManager {
       const size = LEVEL_SIZES[node.level] || 3;
       const color = new THREE.Color(LEVEL_COLORS[node.level] || 0x00FFFF);
 
-      // Core geometry: Octahedron for L6 Web, Icosahedron for others
-      const coreGeo = isWeb
-        ? new THREE.OctahedronGeometry(size, 2)
-        : new THREE.IcosahedronGeometry(size, 3);
+      // Core mesh — shared geometry, scaled per node
       const coreMat = new THREE.MeshStandardMaterial({
         color, emissive: color, emissiveIntensity: LEVEL_GLOW[node.level] || 0.6,
         roughness: isWeb ? 0.1 : 0.15,
         metalness: isWeb ? 0.9 : 0.7,
         transparent: true, opacity: 0.95,
       });
-      const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+      const coreMesh = new THREE.Mesh(isWeb ? sharedOctGeo : sharedIcoGeo, coreMat);
+      coreMesh.scale.set(size, size, size);
       coreMesh.position.copy(node._pos);
       coreMesh.userData = node;
       coreMesh.userData._color = color.clone();
+      coreMesh.userData._baseSize = size;
       this.nodeGroup.add(coreMesh);
       this.nodeMeshes.push(coreMesh);
 
-      // Invisible larger sphere for easier click hit detection
-      const hitGeo = new THREE.SphereGeometry(size * 3, 8, 6);
+      // Hit detection — shared geometry, scaled
       const hitMat = new THREE.MeshBasicMaterial({ visible: false });
-      const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+      const hitMesh = new THREE.Mesh(sharedHitGeo, hitMat);
+      hitMesh.scale.set(size * 3, size * 3, size * 3);
       hitMesh.position.copy(node._pos);
       hitMesh.userData = node;
       hitMesh.userData._coreMesh = coreMesh;
       this.nodeGroup.add(hitMesh);
       this.nodeHitMeshes.push(hitMesh);
 
-      // Outer glow ring (bigger for L6)
+      // Glow ring — shared geometry, scaled
       const ringScale = isWeb ? 2.8 : 1.4;
-      const ringOuter = isWeb ? 3.5 : 2.2;
-      const ringGeo = new THREE.RingGeometry(size * ringScale, size * ringOuter, 32);
       const ringMat = new THREE.MeshBasicMaterial({
         color, transparent: true, opacity: isWeb ? 0.12 : 0.08, side: THREE.DoubleSide,
       });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
+      const ring = new THREE.Mesh(sharedRingGeo, ringMat);
+      ring.scale.set(size * ringScale, size * ringScale, size * ringScale);
       ring.position.copy(node._pos);
       ring.userData = { nodeIndex: i };
       this.nodeGroup.add(ring);
       this.glowRings.push(ring);
 
-      // L6 Web nodes get extra "signal wave" rings (wifi-like emanation)
+      // L6 Web nodes: signal wave rings (reduced to 2) + wireframe shell
       if (isWeb) {
-        for (let w = 0; w < 3; w++) {
-          const waveGeo = new THREE.RingGeometry(size * (3 + w * 2), size * (3.3 + w * 2), 32);
+        for (let w = 0; w < 2; w++) {
+          const waveScale = size * (3 + w * 2);
           const waveMat = new THREE.MeshBasicMaterial({
             color: 0xFFAA00, transparent: true, opacity: 0, side: THREE.DoubleSide,
           });
-          const waveMesh = new THREE.Mesh(waveGeo, waveMat);
+          const waveMesh = new THREE.Mesh(sharedWaveGeo, waveMat);
+          waveMesh.scale.set(waveScale, waveScale, waveScale);
           waveMesh.position.copy(node._pos);
           waveMesh.userData = { nodeIndex: i, waveIndex: w, _startTime: 0 };
           this.nodeGroup.add(waveMesh);
           this.webSignalRings.push(waveMesh);
         }
 
-        // Wireframe outer shell for L6
-        const wireGeo = new THREE.OctahedronGeometry(size * 1.8, 1);
         const wireMat = new THREE.MeshBasicMaterial({
           color: 0xFFAA00, wireframe: true, transparent: true, opacity: 0.15,
         });
-        const wireMesh = new THREE.Mesh(wireGeo, wireMat);
+        const wireMesh = new THREE.Mesh(sharedWireGeo, wireMat);
+        const ws = size * 1.8;
+        wireMesh.scale.set(ws, ws, ws);
         wireMesh.position.copy(node._pos);
         wireMesh.userData = { nodeIndex: i, isWireShell: true };
         this.nodeGroup.add(wireMesh);
@@ -838,124 +847,129 @@ class BrainManager {
   simulateForces() {
     if (!this.simActive) return;
     if (this.simSteps <= 0) { this.simActive = false; return; }
-    this.simSteps--;
 
+    // Run multiple sim steps per frame to converge faster (less total frames with sim overhead)
+    const stepsPerFrame = Math.min(4, this.simSteps);
     const nodes = BRAIN_DATA.nodes;
-    const repulsion = 18000;       // Nodes push each other apart
-    const edgeAttraction = 0.003;  // Connected nodes pull together (strong)
-    const edgeIdealLen = 80;       // Ideal edge length — spring rest length
+    const n = nodes.length;
+    const repulsion = 18000;
+    const edgeAttraction = 0.003;
+    const edgeIdealLen = 80;
     const damping = 0.82;
-    const centerPull = 0.0003;     // Gentle pull to keep graph centered
+    const centerPull = 0.0003;
     const cutoff = 800;
-
-    // Spatial grid for O(n) repulsion instead of O(n²)
+    const cutoff2 = cutoff * cutoff;
     const cellSize = cutoff;
-    const grid = new Map();
-    for (let i = 0; i < nodes.length; i++) {
-      const cx = Math.floor(nodes[i]._pos.x / cellSize);
-      const cy = Math.floor(nodes[i]._pos.y / cellSize);
-      const cz = Math.floor(nodes[i]._pos.z / cellSize);
-      const key = cx + ',' + cy + ',' + cz;
-      if (!grid.has(key)) grid.set(key, []);
-      grid.get(key).push(i);
-    }
 
-    // Repulsion — all nodes push each other away (equal in all axes)
-    for (const [key, cell] of grid) {
-      const [cx, cy, cz] = key.split(',').map(Number);
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dz = -1; dz <= 1; dz++) {
-            const nk = (cx+dx) + ',' + (cy+dy) + ',' + (cz+dz);
-            const neighbor = grid.get(nk);
-            if (!neighbor) continue;
-            for (const i of cell) {
-              for (const j of neighbor) {
-                if (j <= i) continue;
-                const ddx = nodes[i]._pos.x - nodes[j]._pos.x;
-                const ddy = nodes[i]._pos.y - nodes[j]._pos.y;
-                const ddz = nodes[i]._pos.z - nodes[j]._pos.z;
-                const dist2 = ddx*ddx + ddy*ddy + ddz*ddz;
-                if (dist2 > cutoff * cutoff) continue;
-                const dist = Math.sqrt(dist2) + 1;
-                const force = repulsion / (dist * dist);
-                const fx = (ddx / dist) * force;
-                const fy = (ddy / dist) * force;
-                const fz = (ddz / dist) * force;
-                nodes[i]._vel.x += fx; nodes[i]._vel.y += fy; nodes[i]._vel.z += fz;
-                nodes[j]._vel.x -= fx; nodes[j]._vel.y -= fy; nodes[j]._vel.z -= fz;
-              }
-            }
+    for (let step = 0; step < stepsPerFrame; step++) {
+      this.simSteps--;
+
+      // Spatial grid — reuse object for less GC
+      const grid = new Map();
+      for (let i = 0; i < n; i++) {
+        const p = nodes[i]._pos;
+        const key = (Math.floor(p.x / cellSize) * 73856093 ^ Math.floor(p.y / cellSize) * 19349663 ^ Math.floor(p.z / cellSize) * 83492791) | 0;
+        const arr = grid.get(key);
+        if (arr) arr.push(i); else grid.set(key, [i]);
+      }
+
+      // Repulsion
+      for (const [, cell] of grid) {
+        const len = cell.length;
+        for (let a = 0; a < len; a++) {
+          const i = cell[a];
+          const pi = nodes[i]._pos;
+          const vi = nodes[i]._vel;
+          for (let b = a + 1; b < len; b++) {
+            const j = cell[b];
+            const pj = nodes[j]._pos;
+            const ddx = pi.x - pj.x;
+            const ddy = pi.y - pj.y;
+            const ddz = pi.z - pj.z;
+            const dist2 = ddx*ddx + ddy*ddy + ddz*ddz;
+            if (dist2 > cutoff2) continue;
+            const dist = Math.sqrt(dist2) + 1;
+            const force = repulsion / (dist * dist);
+            const fx = (ddx / dist) * force;
+            const fy = (ddy / dist) * force;
+            const fz = (ddz / dist) * force;
+            vi.x += fx; vi.y += fy; vi.z += fz;
+            nodes[j]._vel.x -= fx; nodes[j]._vel.y -= fy; nodes[j]._vel.z -= fz;
           }
         }
       }
+
+      // Edge springs
+      const edges = BRAIN_DATA.edges;
+      for (let e = 0; e < edges.length; e++) {
+        const edge = edges[e];
+        const s = this.nodeMap.get(edge.source);
+        const t = this.nodeMap.get(edge.target);
+        if (!s || !t) continue;
+        const dx = t._pos.x - s._pos.x;
+        const dy = t._pos.y - s._pos.y;
+        const dz = t._pos.z - s._pos.z;
+        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) + 0.01;
+        const strength = edgeAttraction * (dist - edgeIdealLen) * (0.5 + edge.weight * 0.5);
+        const fx = (dx / dist) * strength;
+        const fy = (dy / dist) * strength;
+        const fz = (dz / dist) * strength;
+        s._vel.x += fx; s._vel.y += fy; s._vel.z += fz;
+        t._vel.x -= fx; t._vel.y -= fy; t._vel.z -= fz;
+      }
+
+      // Apply velocity + centering
+      for (let i = 0; i < n; i++) {
+        const node = nodes[i];
+        node._vel.x -= node._pos.x * centerPull;
+        node._vel.y -= node._pos.y * centerPull;
+        node._vel.z -= node._pos.z * centerPull;
+        node._vel.x *= damping; node._vel.y *= damping; node._vel.z *= damping;
+        node._pos.x += node._vel.x; node._pos.y += node._vel.y; node._pos.z += node._vel.z;
+      }
     }
 
-    // Edge spring forces — connected nodes attract with ideal distance
-    for (const edge of BRAIN_DATA.edges) {
-      const s = this.nodeMap.get(edge.source);
-      const t = this.nodeMap.get(edge.target);
-      if (!s || !t) continue;
-      const dx = t._pos.x - s._pos.x;
-      const dy = t._pos.y - s._pos.y;
-      const dz = t._pos.z - s._pos.z;
-      const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) + 0.01;
-      // Spring: pull if > ideal, push if < ideal
-      const displacement = dist - edgeIdealLen;
-      const strength = edgeAttraction * displacement * (0.5 + edge.weight * 0.5);
-      const fx = (dx / dist) * strength;
-      const fy = (dy / dist) * strength;
-      const fz = (dz / dist) * strength;
-      s._vel.x += fx; s._vel.y += fy; s._vel.z += fz;
-      t._vel.x -= fx; t._vel.y -= fy; t._vel.z -= fz;
+    // Sync meshes (once per frame, not per sim step)
+    for (let i = 0; i < n; i++) {
+      const p = nodes[i]._pos;
+      this.nodeMeshes[i].position.set(p.x, p.y, p.z);
+      this.nodeHitMeshes[i].position.set(p.x, p.y, p.z);
+    }
+    const rings = this.glowRings;
+    for (let i = 0; i < rings.length; i++) {
+      const ni = rings[i].userData.nodeIndex;
+      if (ni < n) rings[i].position.copy(nodes[ni]._pos);
     }
 
-    // Apply velocity + gentle centering
-    for (const node of nodes) {
-      // Gentle pull toward origin so graph doesn't drift away
-      node._vel.x -= node._pos.x * centerPull;
-      node._vel.y -= node._pos.y * centerPull;
-      node._vel.z -= node._pos.z * centerPull;
-
-      node._vel.multiplyScalar(damping);
-      node._pos.add(node._vel);
-    }
-
-    // Sync meshes
-    this.nodeMeshes.forEach((mesh, i) => { mesh.position.copy(nodes[i]._pos); });
-    this.nodeHitMeshes.forEach((mesh, i) => { mesh.position.copy(nodes[i]._pos); });
-    this.glowRings.forEach((ring, i) => {
-      const ni = ring.userData.nodeIndex;
-      if (ni < nodes.length) ring.position.copy(nodes[ni]._pos);
-      ring.lookAt(camera.position);
-    });
-
-    // Update edge positions
-    this.edgeLines.forEach(line => {
-      const e = line.userData;
+    // Update edges
+    const lines = this.edgeLines;
+    for (let i = 0; i < lines.length; i++) {
+      const e = lines[i].userData;
       const s = this.nodeMap.get(e.source);
       const t = this.nodeMap.get(e.target);
       if (s && t) {
-        const pos = line.geometry.attributes.position;
+        const pos = lines[i].geometry.attributes.position;
         pos.setXYZ(0, s._pos.x, s._pos.y, s._pos.z);
         pos.setXYZ(1, t._pos.x, t._pos.y, t._pos.z);
         pos.needsUpdate = true;
       }
-    });
+    }
   }
 }
 
 const brain = new BrainManager();
 brain.loadData(BRAIN_DATA);
 
-// =========== RAYCASTER & INTERACTION ===========
+// =========== RAYCASTER & INTERACTION (throttled) ===========
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let hoveredMesh = null;
 let selectedMesh = null;
 let hoverScale = 1;
+let lastRayTime = 0;
+let pendingMouseEvent = null;
 
-renderer.domElement.addEventListener('mousemove', (e) => {
+function doRaycast(e) {
   mouse.x = (e.clientX / innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / innerHeight) * 2 + 1;
 
@@ -969,18 +983,14 @@ renderer.domElement.addEventListener('mousemove', (e) => {
     const node = hitMesh.userData;
     const coreMesh = hitMesh.userData._coreMesh;
 
-    // Unhover previous
     if (hoveredMesh && hoveredMesh !== coreMesh) {
       hoveredMesh.material.emissiveIntensity = LEVEL_GLOW[hoveredMesh.userData.level] || 0.6;
     }
 
     hoveredMesh = coreMesh;
     renderer.domElement.style.cursor = 'pointer';
-
-    // Hover glow
     coreMesh.material.emissiveIntensity = 1.8;
 
-    // Tooltip
     tooltip.style.display = 'block';
     const tx = Math.min(e.clientX + 18, innerWidth - 330);
     const ty = Math.min(e.clientY + 18, innerHeight - 100);
@@ -1000,6 +1010,16 @@ renderer.domElement.addEventListener('mousemove', (e) => {
     renderer.domElement.style.cursor = 'default';
     tooltip.style.display = 'none';
   }
+}
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  // Throttle raycasting to max every 60ms (~16 checks/sec instead of 100+)
+  pendingMouseEvent = e;
+  const now = performance.now();
+  if (now - lastRayTime < 60) return;
+  lastRayTime = now;
+  doRaycast(e);
+  pendingMouseEvent = null;
 });
 
 renderer.domElement.addEventListener('click', () => {
@@ -1217,98 +1237,97 @@ document.querySelectorAll('[data-edge]').forEach(btn => {
   });
 });
 
-// =========== ANIMATION LOOP ===========
+// =========== ANIMATION LOOP (optimized) ===========
 let frameCount = 0;
+let fpsFrames = 0;
 let lastFpsTime = performance.now();
 
 function animate() {
   requestAnimationFrame(animate);
+
+  // Force simulation — only when active, skip when converged
   brain.simulateForces();
   controls.update();
 
   const now = Date.now();
 
-  // Node breathing pulse + scale breathing + L6 rotation
-  brain.nodeMeshes.forEach((m, i) => {
-    if (selectedMesh && selectedMesh !== m) return;
-    if (m.material.emissiveIntensity > 1.5) return; // hovered or search-highlighted
-
-    const lvl = m.userData.level;
-    const base = LEVEL_GLOW[lvl] || 0.6;
-    const speed = 0.002 + (lvl * 0.0004); // Higher levels pulse faster
-
-    if (lvl === 6) {
-      // L6 Web nodes: slow rotation + stronger pulse + color shift
-      m.rotation.y += 0.005;
-      m.rotation.x += 0.002;
-      const t = Math.sin(now * 0.003 + i * 0.5);
-      m.material.emissiveIntensity = base + t * 0.35;
-      // Color shift yellow → cyan
-      const r = 1.0 - t * 0.5;
-      const g = 0.67 + t * 0.16;
-      const b = t * 0.5;
-      m.material.emissive.setRGB(r, g, b);
-    } else {
-      const pulse = base + Math.sin(now * speed + i * 0.7) * 0.15;
-      m.material.emissiveIntensity = pulse;
-      // Subtle scale breathing — nodes "breathe"
-      const s = 1 + Math.sin(now * 0.0015 + i * 1.1) * 0.04;
-      m.scale.set(s, s, s);
-    }
-  });
-
-  // Glow rings face camera + gentle pulse (lookAt every 3rd frame for performance)
+  // Node animations — every 3rd frame (imperceptible difference, 3x less work)
   if (frameCount % 3 === 0) {
-    brain.glowRings.forEach((r, i) => {
-      r.lookAt(camera.position);
-      if (!selectedMesh) {
-        const scale = 1 + Math.sin(now * 0.001 + i * 0.5) * 0.08;
-        r.scale.set(scale, scale, scale);
+    const meshes = brain.nodeMeshes;
+    for (let i = 0; i < meshes.length; i++) {
+      const m = meshes[i];
+      if (selectedMesh && selectedMesh !== m) continue;
+      if (m.material.emissiveIntensity > 1.5) continue;
+
+      const lvl = m.userData.level;
+      const base = LEVEL_GLOW[lvl] || 0.6;
+
+      if (lvl === 6) {
+        m.rotation.y += 0.015; // 3x per update = same visual speed
+        m.rotation.x += 0.006;
+        const t = Math.sin(now * 0.003 + i * 0.5);
+        m.material.emissiveIntensity = base + t * 0.35;
+        m.material.emissive.setRGB(1.0 - t * 0.5, 0.67 + t * 0.16, t * 0.5);
+      } else {
+        const speed = 0.002 + (lvl * 0.0004);
+        m.material.emissiveIntensity = base + Math.sin(now * speed + i * 0.7) * 0.15;
+        const bs = m.userData._baseSize || 1;
+        const s = bs * (1 + Math.sin(now * 0.0015 + i * 1.1) * 0.04);
+        m.scale.set(s, s, s);
       }
-    });
+    }
   }
 
-  // L6 Signal wave animation (WiFi-like rings expanding outward) — every 2nd frame
-  if (brain.webSignalRings && frameCount % 2 === 0) {
-    brain.webSignalRings.forEach(ring => {
+  // Glow rings — every 8th frame
+  if (frameCount % 8 === 0) {
+    const rings = brain.glowRings;
+    for (let i = 0; i < rings.length; i++) {
+      rings[i].lookAt(camera.position);
+    }
+  }
+
+  // L6 signal waves — every 6th frame
+  if (brain.webSignalRings && brain.webSignalRings.length > 0 && frameCount % 6 === 0) {
+    const rings = brain.webSignalRings;
+    for (let i = 0; i < rings.length; i++) {
+      const ring = rings[i];
       const ni = ring.userData.nodeIndex;
       const wi = ring.userData.waveIndex;
       if (ni < BRAIN_DATA.nodes.length) {
         ring.position.copy(BRAIN_DATA.nodes[ni]._pos);
       }
       ring.lookAt(camera.position);
-
-      // Staggered wave animation: each ring pulses with offset
-      const cycle = 3000; // ms per cycle
+      const cycle = 3000;
       const offset = wi * (cycle / 3);
-      const t = ((now + offset) % cycle) / cycle; // 0..1
-
-      // Fade in during first half, fade out during second half
-      if (t < 0.5) {
-        ring.material.opacity = t * 0.16;
-        const s = 1 + t * 0.6;
-        ring.scale.set(s, s, s);
-      } else {
-        ring.material.opacity = (1 - t) * 0.16;
-        const s = 1 + t * 0.6;
-        ring.scale.set(s, s, s);
-      }
-    });
+      const t = ((now + offset) % cycle) / cycle;
+      ring.material.opacity = (t < 0.5 ? t : 1 - t) * 0.16;
+      const s = 1 + t * 0.6;
+      ring.scale.set(s, s, s);
+    }
   }
 
-  // Move lights + dynamic rim pulse for organic feel
-  mainLight.position.x = Math.sin(now * 0.0003) * 40;
-  mainLight.position.z = Math.cos(now * 0.0003) * 40;
-  rimLight.intensity = 0.6 + Math.sin(now * 0.001) * 0.25;
+  // Light animation — every 4th frame
+  if (frameCount % 4 === 0) {
+    mainLight.position.x = Math.sin(now * 0.0003) * 40;
+    mainLight.position.z = Math.cos(now * 0.0003) * 40;
+    rimLight.intensity = 0.6 + Math.sin(now * 0.001) * 0.25;
+  }
+
+  // Process pending mousemove if throttled
+  if (pendingMouseEvent) {
+    doRaycast(pendingMouseEvent);
+    pendingMouseEvent = null;
+  }
 
   // Render with bloom
   composer.render();
 
   // FPS counter
   frameCount++;
+  fpsFrames++;
   if (now - lastFpsTime > 1000) {
-    document.getElementById('fps-counter').textContent = frameCount;
-    frameCount = 0;
+    document.getElementById('fps-counter').textContent = fpsFrames;
+    fpsFrames = 0;
     lastFpsTime = now;
   }
 }
@@ -1320,6 +1339,7 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
+  bloomPass.resolution.set(Math.round(innerWidth / 2), Math.round(innerHeight / 2));
 });
 
 // =========== WEBSOCKET LIVE UPDATES ===========

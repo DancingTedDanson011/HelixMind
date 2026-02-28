@@ -87,28 +87,33 @@ export function HelixNodes({ nodes }: HelixNodesProps) {
     }
   }, [nodes, tempColor]);
 
+  const frameRef = useRef(0);
+
   useFrame((state) => {
     if (!meshRef.current) return;
-    const time = state.clock.elapsedTime;
+    frameRef.current++;
 
-    nodes.forEach((node, i) => {
+    // Only update matrices every 3rd frame — imperceptible visual difference
+    if (frameRef.current % 3 !== 0) return;
+
+    const time = state.clock.elapsedTime;
+    const n = nodes.length;
+
+    for (let i = 0; i < n; i++) {
+      const node = nodes[i];
       const pos = positions[i];
       const floatOffset = Math.sin(time * 0.5 + i * 0.3) * 2;
       dummy.position.set(pos.x, pos.y + floatOffset, pos.z);
 
-      // Monitor nodes: level 7 (threat) gets aggressive pulse, 8 (defense) gets glow, 9 (baseline) is stable
       let baseScale: number;
       let pulse: number;
       if (node.level === 7) {
-        // Security threat — large, fast pulse
         baseScale = 5;
         pulse = 1 + Math.sin(time * 3.0 + i) * 0.3;
       } else if (node.level === 8) {
-        // Defense action — medium, moderate pulse
         baseScale = 4;
         pulse = 1 + Math.sin(time * 1.5 + i) * 0.15;
       } else if (node.level === 9) {
-        // Monitor baseline — stable
         baseScale = 3.5;
         pulse = 1 + Math.sin(time * 0.3 + i) * 0.05;
       } else {
@@ -119,14 +124,14 @@ export function HelixNodes({ nodes }: HelixNodesProps) {
 
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(i, dummy.matrix);
-    });
+    }
 
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, nodes.length]}>
-      <icosahedronGeometry args={[1, 3]} />
+      <icosahedronGeometry args={[1, 1]} />
       <meshStandardMaterial
         toneMapped={false}
         emissive="#ffffff"

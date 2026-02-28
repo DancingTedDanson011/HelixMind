@@ -5,8 +5,10 @@ import { useTranslations } from 'next-intl';
 import { MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
+import { InlineBugPanel } from './InlineBugPanel';
 import type { ChatMessage } from './AppShell';
 import type { ActiveTool } from '@/hooks/use-cli-chat';
+import type { BugInfo } from '@/lib/cli-types';
 
 interface ChatViewProps {
   messages: ChatMessage[];
@@ -21,6 +23,11 @@ interface ChatViewProps {
   onExecutePrompt?: (prompt: string) => void;
   isConnected?: boolean;
   isExecuting?: boolean;
+  bugs?: BugInfo[];
+  showBugPanel?: boolean;
+  onCloseBugPanel?: () => void;
+  onFixBug?: (bugId: number) => void;
+  onFixAll?: () => void;
 }
 
 export function ChatView({
@@ -36,6 +43,11 @@ export function ChatView({
   onExecutePrompt,
   isConnected = false,
   isExecuting = false,
+  bugs = [],
+  showBugPanel = false,
+  onCloseBugPanel,
+  onFixBug,
+  onFixAll,
 }: ChatViewProps) {
   const t = useTranslations('app');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -103,6 +115,17 @@ export function ChatView({
         onScroll={handleScroll}
         className="h-full overflow-y-auto px-4 py-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
       >
+        {/* Inline Bug Panel */}
+        {showBugPanel && bugs.length > 0 && (
+          <InlineBugPanel
+            bugs={bugs}
+            isConnected={isConnected}
+            onFixBug={onFixBug ?? (() => {})}
+            onFixAll={onFixAll ?? (() => {})}
+            onClose={onCloseBugPanel ?? (() => {})}
+          />
+        )}
+
         <div className="max-w-3xl mx-auto space-y-4">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
