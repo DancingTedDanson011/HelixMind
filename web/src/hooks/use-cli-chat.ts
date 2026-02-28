@@ -47,7 +47,11 @@ export interface UseCliChatReturn {
  * @param connectionId — unique ID of the CLI connection (for WS registry lookup)
  * @param wsVersion — increments each time the WebSocket reconnects (re-attach listeners)
  */
-export function useCliChat(connectionId: string, wsVersion: number): UseCliChatReturn {
+export function useCliChat(
+  connectionId: string,
+  wsVersion: number,
+  onComplete?: (text: string, tools: ActiveTool[]) => void,
+): UseCliChatReturn {
   const [state, setState] = useState<CliChatState>({
     isProcessing: false,
     streamingText: '',
@@ -57,6 +61,8 @@ export function useCliChat(connectionId: string, wsVersion: number): UseCliChatR
 
   const activeChatIdRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   // Reset state
   const reset = useCallback(() => {
@@ -157,11 +163,15 @@ export function useCliChat(connectionId: string, wsVersion: number): UseCliChatR
 
           case 'chat_complete': {
             const completeEvt = msg as ChatCompleteEvent;
-            setState(prev => ({
-              ...prev,
-              isProcessing: false,
-              streamingText: completeEvt.text,
-            }));
+            setState(prev => {
+              const finalTools = prev.activeTools;
+              onCompleteRef.current?.(completeEvt.text, finalTools);
+              return {
+                ...prev,
+                isProcessing: false,
+                streamingText: completeEvt.text,
+              };
+            });
             activeChatIdRef.current = null;
             break;
           }

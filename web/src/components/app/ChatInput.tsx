@@ -11,7 +11,6 @@ interface ChatInputProps {
   mode: 'normal' | 'skip-permissions';
   onModeChange: (mode: 'normal' | 'skip-permissions') => void;
   disabled: boolean;
-  isConnected?: boolean;
   hasLLMKey?: boolean;
 }
 
@@ -22,7 +21,6 @@ export function ChatInput({
   mode,
   onModeChange,
   disabled,
-  isConnected = true,
   hasLLMKey = false,
 }: ChatInputProps) {
   const t = useTranslations('app');
@@ -154,15 +152,8 @@ export function ChatInput({
           </div>
         )}
 
-        {/* Brainstorm hint */}
-        {!isConnected && hasLLMKey && !disabled && (
-          <div className="mt-1.5 text-[10px] text-purple-400/60 flex items-center gap-1">
-            {t('brainstormHint')}
-          </div>
-        )}
-
         {/* No API key hint */}
-        {!isConnected && !hasLLMKey && (
+        {!hasLLMKey && (
           <div className="mt-1.5 text-[10px] text-gray-600 flex items-center gap-1">
             {t('noApiKey')}
           </div>

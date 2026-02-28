@@ -58,7 +58,7 @@ export function AppShell() {
   const {
     connection, chat: cliChat,
     instances, scanning, rescan, connectTo, disconnectCli,
-    connectedPort,
+    connectedPort, registerOnComplete,
   } = useCliContext();
 
   const [chats, setChats] = useState<ChatSummary[]>([]);
@@ -84,13 +84,12 @@ export function AppShell() {
   const isConnected = connection.connectionState === 'connected';
   const isConnecting = connection.connectionState === 'connecting' || connection.connectionState === 'authenticating';
 
-  // Dual-mode: CLI chat when connected, brainstorm when not
-  const activeChat$ = isConnected ? cliChat : brainstormChat;
-  const isAgentRunning = activeChat$.state.isProcessing;
-  const streamingContent = activeChat$.state.streamingText;
+  // CLI execution state (only when user confirms prompt execution)
+  const [cliExecuting, setCliExecuting] = useState(false);
 
-  // Track chat completion to save assistant messages
-  const prevProcessingRef = useRef(false);
+  // Chat ALWAYS uses brainstorm; CLI only for on-demand execution
+  const isAgentRunning = brainstormChat.state.isProcessing || cliExecuting;
+  const streamingContent = brainstormChat.state.streamingText || (cliExecuting ? cliChat.state.streamingText : '');
 
   // Console output — always call hook (React rules), subscribe only on console tab
   const cliOutput = useCliOutput({
@@ -435,59 +434,57 @@ export function AppShell() {
       });
     } catch { /* silent */ }
 
-    // Send to CLI via WebSocket (with user-selected mode) or brainstorm
-    if (isConnected) {
-      cliChat.sendMessage(trimmed, chatId, mode);
-    } else if (hasLLMKey) {
+    // ALWAYS use brainstorm (own API key) — CLI is only for on-demand execution
+    if (hasLLMKey) {
       brainstormChat.sendMessage(trimmed, chatId);
     }
-  }, [activeChatId, isConnected, cliChat, brainstormChat, mode, hasLLMKey, fetchChats, loadChat, activeTab,
+  }, [activeChatId, brainstormChat, mode, hasLLMKey, fetchChats, loadChat, activeTab,
       handleStartAuto, handleStartSecurity, handleStartMonitor, handleAbortSession,
       handleBrainClick, activeSessions, disconnectCli]);
 
-  // ── Save assistant message when CLI chat_complete fires ──
-  useEffect(() => {
-    const wasProcessing = prevProcessingRef.current;
-    prevProcessingRef.current = cliChat.state.isProcessing;
+  // ── CLI completion callback (event-based, not ref-tracking) ──
+  const handleCliComplete = useCallback((text: string, tools: import('@/hooks/use-cli-chat').ActiveTool[]) => {
+    if (!activeChatId) return;
 
-    // Transition: processing -> done, with text available
-    if (wasProcessing && !cliChat.state.isProcessing && cliChat.state.streamingText && activeChatId) {
-      const assistantContent = cliChat.state.streamingText;
+    const assistantMsg: ChatMessage = {
+      id: `assistant-${Date.now()}`,
+      chatId: activeChatId,
+      role: 'assistant',
+      content: text,
+      metadata: {
+        isCliExecution: true,
+        tools: tools.map(t => ({ name: t.toolName, status: t.status, result: t.result })),
+      },
+      createdAt: new Date().toISOString(),
+    };
 
-      // Add to local messages
-      const assistantMsg: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        chatId: activeChatId,
+    setActiveChat(prev => prev ? {
+      ...prev,
+      messages: [...prev.messages, assistantMsg],
+    } : null);
+
+    fetch(`/api/chats/${activeChatId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         role: 'assistant',
-        content: assistantContent,
-        createdAt: new Date().toISOString(),
-      };
+        content: text,
+        metadata: {
+          isCliExecution: true,
+          tools: tools.map(t => ({ name: t.toolName, status: t.status, result: t.result })),
+        },
+      }),
+    }).catch(() => {});
 
-      setActiveChat(prev => prev ? {
-        ...prev,
-        messages: [...prev.messages, assistantMsg],
-      } : null);
+    setCliExecuting(false);
+    cliChat.reset();
+    fetchChats();
+  }, [activeChatId, fetchChats, cliChat]);
 
-      // Persist to DB
-      fetch(`/api/chats/${activeChatId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role: 'assistant',
-          content: assistantContent,
-          metadata: {
-            tools: cliChat.state.activeTools.map(t => ({ name: t.toolName, status: t.status })),
-          },
-        }),
-      }).catch(() => {});
-
-      // Refresh sidebar
-      fetchChats();
-
-      // Reset chat hook state for next round
-      cliChat.reset();
-    }
-  }, [cliChat.state.isProcessing, cliChat.state.streamingText, activeChatId, fetchChats, cliChat]);
+  // Register CLI completion callback
+  useEffect(() => {
+    registerOnComplete(handleCliComplete);
+  }, [registerOnComplete, handleCliComplete]);
 
   // ── Save assistant message when brainstorm completes ──
   const prevBrainstormRef = useRef(false);
@@ -537,12 +534,14 @@ export function AppShell() {
 
   // ── Stop handler ─────────────────────────────
   const handleStop = useCallback(() => {
-    if (isConnected) {
+    if (cliExecuting) {
       cliChat.abort();
-    } else {
+      setCliExecuting(false);
+    }
+    if (brainstormChat.state.isProcessing) {
       brainstormChat.abort();
     }
-  }, [isConnected, cliChat, brainstormChat]);
+  }, [cliExecuting, cliChat, brainstormChat]);
 
   // ── Create Agent Prompt ─────────────────────
   const handleCreatePrompt = useCallback(async () => {
@@ -570,6 +569,45 @@ export function AppShell() {
       setActiveChat(prev => prev ? { ...prev, agentPrompt: newPrompt } : null);
     } catch { /* silent */ }
   }, [activeChatId]);
+
+  // ── Execute prompt directly (already connected) ──
+  const handleExecutePrompt = useCallback(async (prompt: string) => {
+    if (!activeChatId || !isConnected) return;
+
+    try {
+      await fetch(`/api/chats/${activeChatId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'executing' }),
+      });
+      setActiveChat(prev => prev ? { ...prev, status: 'executing' } : null);
+    } catch { /* silent */ }
+
+    const userMsg: ChatMessage = {
+      id: `agent-prompt-${Date.now()}`,
+      chatId: activeChatId,
+      role: 'user',
+      content: prompt,
+      metadata: { isAgentPrompt: true },
+      createdAt: new Date().toISOString(),
+    };
+
+    setActiveChat(prev => prev ? {
+      ...prev,
+      messages: [...prev.messages, userMsg],
+    } : null);
+
+    try {
+      await fetch(`/api/chats/${activeChatId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user', content: prompt, metadata: { isAgentPrompt: true } }),
+      });
+    } catch { /* silent */ }
+
+    setCliExecuting(true);
+    cliChat.sendMessage(prompt, activeChatId, mode);
+  }, [activeChatId, isConnected, cliChat, mode]);
 
   // ── Connect Instance & Execute ──────────────
   const handleConnectAndExecute = useCallback(async (instance: DiscoveredInstance, execMode: 'normal' | 'skip-permissions') => {
@@ -633,6 +671,7 @@ export function AppShell() {
       } catch { /* silent */ }
 
       // Send to CLI
+      setCliExecuting(true);
       cliChat.sendMessage(prompt, activeChatId, execMode);
     }
   }, [activeChat?.agentPrompt, activeChatId, connectTo, connection.connectionState, cliChat]);
@@ -810,16 +849,8 @@ export function AppShell() {
                 : (connection.sessions.find(s => s.id === consoleSessionId)?.name || 'Console')}
             </h2>
 
-            {/* Brainstorm badge when not connected */}
-            {activeTab === 'chat' && !isConnected && hasLLMKey && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                <Sparkles size={9} />
-                {t('brainstormMode')}
-              </span>
-            )}
-
-            {/* Create Agent Prompt button */}
-            {activeTab === 'chat' && activeChat && !isConnected && hasLLMKey &&
+            {/* Use in Helix button — always visible when >= 2 messages */}
+            {activeTab === 'chat' && activeChat &&
               activeChat.messages.length >= 2 && !activeChat.agentPrompt && (
               <button
                 onClick={handleCreatePrompt}
@@ -831,7 +862,7 @@ export function AppShell() {
                 ) : (
                   <FileText size={10} />
                 )}
-                {creatingPrompt ? t('creatingPrompt') : t('createPrompt')}
+                {creatingPrompt ? t('creatingPrompt') : t('useInHelix')}
               </button>
             )}
 
@@ -1039,12 +1070,15 @@ export function AppShell() {
               messages={activeChat?.messages || []}
               isAgentRunning={isAgentRunning}
               streamingContent={streamingContent}
-              activeTools={isConnected ? cliChat.state.activeTools : []}
+              activeTools={cliExecuting ? cliChat.state.activeTools : []}
               hasChat={!!activeChat}
               agentPrompt={activeChat?.agentPrompt}
               chatStatus={activeChat?.status}
               onEditPrompt={handleEditPrompt}
               onConnectInstance={() => setShowInstancePicker(true)}
+              onExecutePrompt={handleExecutePrompt}
+              isConnected={isConnected}
+              isExecuting={cliExecuting}
             />
           </div>
         ) : activeTab === 'console' ? (
@@ -1283,8 +1317,7 @@ export function AppShell() {
           onStop={handleStop}
           mode={mode}
           onModeChange={setMode}
-          disabled={!isConnected && !hasLLMKey}
-          isConnected={isConnected}
+          disabled={!hasLLMKey}
           hasLLMKey={hasLLMKey}
         />
       </div>

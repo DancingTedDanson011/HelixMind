@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { User, Bot, Copy, Check } from 'lucide-react';
+import { User, Bot, Copy, Check, CheckCircle2, XCircle, ChevronDown, ChevronUp, Wrench } from 'lucide-react';
 import { ToolBlock } from './ToolBlock';
 import type { ChatMessage } from './AppShell';
 
@@ -57,11 +57,24 @@ function AssistantContent({
     status?: string;
   }> | undefined;
 
+  // CLI execution tool summary (persistent after completion)
+  const isCliExecution = metadata?.isCliExecution === true;
+  const savedTools = metadata?.tools as Array<{
+    name: string;
+    status: string;
+    result?: string;
+  }> | undefined;
+
   // Parse content into segments (text + code blocks)
   const segments = parseContent(content);
 
   return (
     <div className="space-y-3">
+      {/* CLI execution tool summary */}
+      {isCliExecution && savedTools && savedTools.length > 0 && (
+        <ToolSummary tools={savedTools} />
+      )}
+
       {/* Tool calls */}
       {toolCalls && toolCalls.length > 0 && (
         <div className="space-y-1.5">
@@ -82,6 +95,59 @@ function AssistantContent({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/* ─── Tool Summary (persistent after CLI execution) ─── */
+
+function ToolSummary({ tools }: { tools: Array<{ name: string; status: string; result?: string }> }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const doneCount = tools.filter(t => t.status === 'done').length;
+  const errorCount = tools.filter(t => t.status === 'error').length;
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.02] overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-300 transition-colors"
+      >
+        <Wrench size={12} className="text-cyan-400" />
+        <span>{tools.length} tools used</span>
+        {doneCount > 0 && (
+          <span className="flex items-center gap-0.5 text-emerald-400">
+            <CheckCircle2 size={10} /> {doneCount}
+          </span>
+        )}
+        {errorCount > 0 && (
+          <span className="flex items-center gap-0.5 text-red-400">
+            <XCircle size={10} /> {errorCount}
+          </span>
+        )}
+        <span className="ml-auto">
+          {expanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+        </span>
+      </button>
+      {expanded && (
+        <div className="border-t border-white/5 px-3 py-2 space-y-1">
+          {tools.map((tool, i) => (
+            <div key={i} className="flex items-center gap-2 text-[11px]">
+              {tool.status === 'done' ? (
+                <CheckCircle2 size={10} className="text-emerald-400 flex-shrink-0" />
+              ) : (
+                <XCircle size={10} className="text-red-400 flex-shrink-0" />
+              )}
+              <span className="text-gray-400 font-mono">{tool.name}</span>
+              {tool.result && (
+                <span className="text-gray-600 truncate max-w-[300px] ml-auto">
+                  {tool.result.slice(0, 80)}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

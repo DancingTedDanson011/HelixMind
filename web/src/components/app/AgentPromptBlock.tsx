@@ -4,20 +4,27 @@ import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   FileText, Copy, Pencil, Check, Plug, ChevronDown, ChevronUp,
+  Send, Loader2, X,
 } from 'lucide-react';
 
 interface AgentPromptBlockProps {
   prompt: string;
   onEdit: (newPrompt: string) => void;
   onConnectInstance: () => void;
+  onExecute: (prompt: string) => void;
+  isConnected: boolean;
+  isExecuting: boolean;
 }
 
-export function AgentPromptBlock({ prompt, onEdit, onConnectInstance }: AgentPromptBlockProps) {
+export function AgentPromptBlock({
+  prompt, onEdit, onConnectInstance, onExecute, isConnected, isExecuting,
+}: AgentPromptBlockProps) {
   const t = useTranslations('app');
   const [expanded, setExpanded] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(prompt);
   const [copied, setCopied] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(prompt);
@@ -29,6 +36,11 @@ export function AgentPromptBlock({ prompt, onEdit, onConnectInstance }: AgentPro
     onEdit(editValue);
     setEditing(false);
   }, [editValue, onEdit]);
+
+  const handleConfirmExecute = useCallback(() => {
+    setConfirming(false);
+    onExecute(prompt);
+  }, [prompt, onExecute]);
 
   return (
     <div className="mx-auto max-w-3xl my-4">
@@ -81,7 +93,7 @@ export function AgentPromptBlock({ prompt, onEdit, onConnectInstance }: AgentPro
                     onClick={() => setEditing(false)}
                     className="px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-all"
                   >
-                    Cancel
+                    {t('cancel')}
                   </button>
                   <button
                     onClick={handleSaveEdit}
@@ -99,15 +111,50 @@ export function AgentPromptBlock({ prompt, onEdit, onConnectInstance }: AgentPro
           </div>
         )}
 
-        {/* Footer — Connect Instance CTA */}
+        {/* Footer — Execute / Connect CTA */}
         <div className="px-4 py-3 border-t border-white/5 bg-white/[0.02]">
-          <button
-            onClick={onConnectInstance}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 hover:border-cyan-500/30 transition-all"
-          >
-            <Plug size={14} />
-            {t('connectInstance')}
-          </button>
+          {isExecuting ? (
+            <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20">
+              <Loader2 size={14} className="animate-spin" />
+              {t('executingOnCli')}
+            </div>
+          ) : confirming ? (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-400 text-center">{t('confirmExecute')}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirming(false)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                >
+                  <X size={14} />
+                  {t('cancel')}
+                </button>
+                <button
+                  onClick={handleConfirmExecute}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 transition-all"
+                >
+                  <Check size={14} />
+                  {t('confirm')}
+                </button>
+              </div>
+            </div>
+          ) : isConnected ? (
+            <button
+              onClick={() => setConfirming(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 hover:border-cyan-500/30 transition-all"
+            >
+              <Send size={14} />
+              {t('sendToHelix')}
+            </button>
+          ) : (
+            <button
+              onClick={onConnectInstance}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 hover:border-cyan-500/30 transition-all"
+            >
+              <Plug size={14} />
+              {t('connectAndSend')}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { useCliConnection, type UseCliConnectionReturn } from '@/hooks/use-cli-connection';
-import { useCliChat, type UseCliChatReturn } from '@/hooks/use-cli-chat';
+import { useCliChat, type UseCliChatReturn, type ActiveTool } from '@/hooks/use-cli-chat';
 import { useCliDiscovery } from '@/hooks/use-cli-discovery';
 import type { ConnectionMode, DiscoveredInstance } from '@/lib/cli-types';
 
@@ -25,6 +25,8 @@ interface CliContextValue {
   disconnectCli: () => void;
   /** Port of the currently connected CLI instance */
   connectedPort: number | undefined;
+  /** Register a callback for CLI chat completion */
+  registerOnComplete: (fn: (text: string, tools: ActiveTool[]) => void) => void;
 }
 
 const CliContext = createContext<CliContextValue | null>(null);
@@ -58,8 +60,16 @@ export function CliConnectionProvider({ children }: { children: React.ReactNode 
     token: authToken,
   });
 
+  // onComplete callback registration for CLI chat
+  const onCliCompleteRef = useRef<((text: string, tools: ActiveTool[]) => void) | null>(null);
+  const registerOnComplete = useCallback((fn: (text: string, tools: ActiveTool[]) => void) => {
+    onCliCompleteRef.current = fn;
+  }, []);
+
   // Chat hook with wsVersion for reconnect handling
-  const chat = useCliChat(connection.connectionId, connection.wsVersion);
+  const chat = useCliChat(connection.connectionId, connection.wsVersion, (text, tools) => {
+    onCliCompleteRef.current?.(text, tools);
+  });
 
   // ── Connect after React state has settled ──
   useEffect(() => {
@@ -137,6 +147,7 @@ export function CliConnectionProvider({ children }: { children: React.ReactNode 
       connectTo,
       disconnectCli,
       connectedPort: selectedPort,
+      registerOnComplete,
     }}>
       {children}
     </CliContext.Provider>

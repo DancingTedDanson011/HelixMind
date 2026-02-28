@@ -18,6 +18,9 @@ interface ChatViewProps {
   chatStatus?: string;
   onEditPrompt?: (prompt: string) => void;
   onConnectInstance?: () => void;
+  onExecutePrompt?: (prompt: string) => void;
+  isConnected?: boolean;
+  isExecuting?: boolean;
 }
 
 export function ChatView({
@@ -30,6 +33,9 @@ export function ChatView({
   chatStatus,
   onEditPrompt,
   onConnectInstance,
+  onExecutePrompt,
+  isConnected = false,
+  isExecuting = false,
 }: ChatViewProps) {
   const t = useTranslations('app');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -108,6 +114,9 @@ export function ChatView({
               prompt={agentPrompt}
               onEdit={onEditPrompt ?? (() => {})}
               onConnectInstance={onConnectInstance ?? (() => {})}
+              onExecute={onExecutePrompt ?? (() => {})}
+              isConnected={isConnected}
+              isExecuting={isExecuting}
             />
           )}
 
