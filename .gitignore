@@ -45,3 +45,6 @@ npm-debug.log*
 # Temp files
 *.tmp
 *.temp
+commit.txt
+public-repo/
+public-repo-backup/

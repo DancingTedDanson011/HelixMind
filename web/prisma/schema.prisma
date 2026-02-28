@@ -77,6 +77,7 @@ model User {
   ticketMessages TicketMessage[]
   usageLogs     UsageLog[]
   chats         Chat[]
+  llmKeys       UserLLMKey[]
 }
 
 model Account {
@@ -227,12 +228,14 @@ model SystemSetting {
 // ─── Chat ────────────────────────────────────
 
 model Chat {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String   @default("New Chat")
-  mode      String   @default("normal")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  title       String   @default("New Chat")
+  mode        String   @default("normal")
+  agentPrompt String?  @db.Text
+  status      String   @default("active") // "active" | "prompt_ready" | "executing" | "done"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages ChatMessage[]
@@ -251,6 +254,22 @@ model ChatMessage {
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId, createdAt])
+}
+
+// ─── User LLM Keys ──────────────────────────
+
+model UserLLMKey {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String   // "anthropic" | "openai"
+  encKey    String   @db.Text  // AES-256-GCM encrypted
+  keyHint   String   // Last 4 chars for display ("...sk-1234")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
 }
 
 model PlanConfig {

@@ -710,6 +710,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               const { runMonitorLoop } = await import('../agent/monitor/watcher.js');
               const { pushMonitorStatus: pushStatus } = await import('../brain/generator.js');
 
+              // Helper: log to both session buffer and terminal
+              const mLog = (msg: string) => { bgSession.capture(msg); renderInfo(`${chalk.hex('#ff6600')(icon)} ${chalk.dim(msg)}`); };
+
+              mLog('Phase 1: Scanning system...');
               const scanResult = await scanSystem({
                 sendMessage: async (prompt) => {
                   bgSession.controller.reset();
@@ -729,14 +733,17 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 },
                 isAborted: () => bgSession.controller.isAborted,
                 onThreat: () => {}, onDefense: () => {},
-                onScanComplete: (p) => bgSession.capture(`Scan: ${p}`),
+                onScanComplete: (p) => mLog(`Scan: ${p}`),
                 onStatusUpdate: () => {}, updateStatus: () => {},
               });
               if (bgSession.controller.isAborted) return;
 
+              mLog('Phase 2: Building baseline...');
               const baseline = buildBaseline(scanResult);
+              mLog(`Baseline: ${baseline.processes.length} processes, ${baseline.ports.length} ports`);
               if (bgSession.controller.isAborted) return;
 
+              mLog(`Phase 3: Monitoring (${mode} mode)...`);
               await runMonitorLoop({
                 sendMessage: async (prompt) => {
                   bgSession.controller.reset();
@@ -755,9 +762,18 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   return rth.text;
                 },
                 isAborted: () => bgSession.controller.isAborted,
-                onThreat: (t) => bgSession.capture(`THREAT [${t.severity}]: ${t.title}`),
-                onDefense: (d) => bgSession.capture(`DEFENSE: ${d.action} \u2192 ${d.target}`),
-                onScanComplete: (p) => bgSession.capture(`Check: ${p}`),
+                onThreat: (t) => {
+                  const msg = `THREAT [${t.severity}]: ${t.title}`;
+                  bgSession.capture(msg);
+                  const sc = t.severity === 'critical' ? '#ff0000' : t.severity === 'high' ? '#ff6600' : t.severity === 'medium' ? '#ffaa00' : '#888888';
+                  renderInfo(`${chalk.hex(sc)('\u26A0')} ${chalk.hex(sc)(msg)}`);
+                },
+                onDefense: (d) => {
+                  const msg = `DEFENSE: ${d.action} \u2192 ${d.target}`;
+                  bgSession.capture(msg);
+                  renderInfo(`${chalk.green('\u{1F6E1}\uFE0F')} ${chalk.green(msg)}`);
+                },
+                onScanComplete: (p) => mLog(`Check: ${p}`),
                 onStatusUpdate: (state) => {
                   pushStatus({ mode: state.mode, uptime: state.uptime, threatCount: state.threats.length, defenseCount: state.defenses.length, lastScan: state.lastScan });
                 },
@@ -1117,11 +1133,16 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   // Ctrl+C behavior:
   // - If there's text on the line → clear the line (like a normal terminal)
+  // - If agent is running → interrupt agent
   // - If line is empty → count towards exit (double Ctrl+C = exit)
+  //
+  // IMPORTANT: Use rl.on('SIGINT') instead of process.on('SIGINT') because
+  // readline clears rl.line BEFORE emitting process SIGINT. The rl-level
+  // event fires while rl.line still has the original content.
   let ctrlCCount = 0;
   let ctrlCTimer: ReturnType<typeof setTimeout> | null = null;
 
-  process.on('SIGINT', () => {
+  rl.on('SIGINT', () => {
     // If agent is running, treat Ctrl+C as interrupt
     if (agentRunning) {
       activity.stop('Stopped');
@@ -1133,12 +1154,25 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
 
     // Check if readline has text on the current line
+    // (rl.line is still populated at this point — not yet cleared)
     const currentLine = (rl as any).line || '';
     if (currentLine.length > 0) {
       // Clear current input — write a new line and re-prompt
       process.stdout.write('\n');
       (rl as any).line = '';
       (rl as any).cursor = 0;
+      isAtPrompt = true;
+      rl.prompt();
+      ctrlCCount = 0;
+      return;
+    }
+
+    // Also clear paste buffer if it has content
+    if (pasteBuffer.length > 0) {
+      pasteBuffer = [];
+      if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
+      process.stdout.write('\n');
+      renderInfo(chalk.dim('Input cleared.'));
       isAtPrompt = true;
       rl.prompt();
       ctrlCCount = 0;
@@ -1168,6 +1202,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     if (ctrlCTimer) clearTimeout(ctrlCTimer);
     ctrlCTimer = setTimeout(() => { ctrlCCount = 0; }, 2000);
+  });
+
+  // Fallback: OS-level SIGINT (e.g. kill -INT) — graceful exit
+  process.on('SIGINT', () => {
+    // Only handle if not already handled by rl.on('SIGINT')
+    if (!process.stdin.isTTY) {
+      process.exit(0);
+    }
   });
 
   /** Register brain event handlers (voice, scope switch) — reusable for auto-start and /brain */
@@ -1287,8 +1329,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       }
 
       // === ESC detection ===
-      // Single ESC stops immediately when agent is running
-      // Double ESC works as fallback anytime
+      // Single ESC stops running agents immediately.
+      // Double ESC opens the checkpoint Rewind browser.
+      // IMPORTANT: Don't return after STOP — fall through so processKeypress
+      // always sees the ESC for double-ESC detection.
       if (key.name === 'escape') {
         if (agentRunning || sessionMgr.hasBackgroundTasks || autonomousMode) {
           // Clear any suggestions
@@ -1314,42 +1358,50 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
           // Restore prompt so user can type again
           showPrompt();
-          return;
+          // NOTE: no return — fall through to double-ESC detection below
         }
       }
 
-      // Double-ESC detection (for checkpoint browser when nothing is running)
+      // Double-ESC detection (checkpoint Rewind browser)
+      // processKeypress tracks ESC timing even when STOP ran above.
       const result = processKeypress(key, keyState);
       if (result.action === 'open_browser' && !agentRunning) {
-        // Open checkpoint browser — deactivate chrome for fullscreen TUI
-        rl.pause();
-        chrome.deactivate();
-        try {
-          const browserResult = await runCheckpointBrowser({
-            store: checkpointStore,
-            agentHistory,
-            simpleMessages: messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' })),
-            isPaused: false,
-          });
+        // Check if there are any checkpoints before opening browser
+        const allCps = checkpointStore.getAll();
+        if (allCps.length === 0 || allCps.filter(cp => cp.type === 'chat').length === 0) {
+          renderInfo(chalk.dim('No checkpoints yet \u2014 start chatting to create rewind points.'));
+          showPrompt();
+        } else {
+          // Open checkpoint browser — deactivate chrome for fullscreen TUI
+          rl.pause();
+          chrome.deactivate();
+          try {
+            const browserResult = await runCheckpointBrowser({
+              store: checkpointStore,
+              agentHistory,
+              simpleMessages: messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' })),
+              isPaused: false,
+            });
 
-          if (browserResult.action === 'revert') {
-            const r = browserResult.result;
-            process.stdout.write('\n');
-            if (r.messagesRemoved > 0) renderInfo(chalk.yellow(`${r.messagesRemoved} message(s) reverted`));
-            if (r.filesReverted > 0) renderInfo(chalk.yellow(`${r.filesReverted} file(s) reverted`));
+            if (browserResult.action === 'revert') {
+              const r = browserResult.result;
+              process.stdout.write('\n');
+              if (r.messagesRemoved > 0) renderInfo(chalk.yellow(`${r.messagesRemoved} message(s) reverted`));
+              if (r.filesReverted > 0) renderInfo(chalk.yellow(`${r.filesReverted} file(s) reverted`));
 
-            // Restore user text into readline input
-            if (browserResult.messageText) {
-              (rl as any).line = browserResult.messageText;
-              (rl as any).cursor = browserResult.messageText.length;
+              // Restore user text into readline input
+              if (browserResult.messageText) {
+                (rl as any).line = browserResult.messageText;
+                (rl as any).cursor = browserResult.messageText.length;
+              }
             }
+          } catch {
+            // Browser closed unexpectedly
           }
-        } catch {
-          // Browser closed unexpectedly
+          chrome.activate();
+          rl.resume();
+          showPrompt();
         }
-        chrome.activate();
-        rl.resume();
-        showPrompt();
       }
     });
   }
@@ -1633,8 +1685,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 const { runMonitorLoop } = await import('../agent/monitor/watcher.js');
                 const { pushMonitorStatus } = await import('../brain/generator.js');
 
+                // Helper: show monitor event in terminal (prefixed with icon)
+                const monitorLog = (msg: string) => {
+                  bgSession.capture(msg);
+                  renderInfo(`${chalk.hex('#ff6600')(icon)} ${chalk.dim(msg)}`);
+                };
+
                 // Phase 1: Full system scan
-                bgSession.capture('Phase 1: Scanning system...');
+                monitorLog('Phase 1: Scanning system...');
                 const scanResult = await scanSystem({
                   sendMessage: async (prompt) => {
                     bgSession.controller.reset();
@@ -1659,7 +1717,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   isAborted: () => bgSession.controller.isAborted,
                   onThreat: () => {},
                   onDefense: () => {},
-                  onScanComplete: (phase) => bgSession.capture(`Scan: ${phase}`),
+                  onScanComplete: (phase) => monitorLog(`Scan: ${phase}`),
                   onStatusUpdate: () => updateStatusBar(),
                   updateStatus: () => updateStatusBar(),
                 });
@@ -1667,14 +1725,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 if (bgSession.controller.isAborted) return;
 
                 // Phase 2: Build baseline
-                bgSession.capture('Phase 2: Building security baseline...');
+                monitorLog('Phase 2: Building security baseline...');
                 const baseline = buildBaseline(scanResult);
-                bgSession.capture(`Baseline: ${baseline.processes.length} processes, ${baseline.ports.length} ports`);
+                monitorLog(`Baseline: ${baseline.processes.length} processes, ${baseline.ports.length} ports`);
 
                 if (bgSession.controller.isAborted) return;
 
                 // Phase 3: Continuous watching
-                bgSession.capture(`Phase 3: Monitoring (${monitorMode} mode)...`);
+                monitorLog(`Phase 3: Monitoring (${monitorMode} mode)...`);
                 await runMonitorLoop({
                   sendMessage: async (prompt) => {
                     bgSession.controller.reset();
@@ -1698,12 +1756,20 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   },
                   isAborted: () => bgSession.controller.isAborted,
                   onThreat: (threat) => {
-                    bgSession.capture(`THREAT [${threat.severity}]: ${threat.title}`);
+                    const msg = `THREAT [${threat.severity}]: ${threat.title}`;
+                    bgSession.capture(msg);
+                    // Threats are always prominently shown
+                    const severityColor = threat.severity === 'critical' ? '#ff0000'
+                      : threat.severity === 'high' ? '#ff6600'
+                      : threat.severity === 'medium' ? '#ffaa00' : '#888888';
+                    renderInfo(`${chalk.hex(severityColor)('\u26A0')} ${chalk.hex(severityColor)(msg)}`);
                   },
                   onDefense: (defense) => {
-                    bgSession.capture(`DEFENSE: ${defense.action} \u2192 ${defense.target}`);
+                    const msg = `DEFENSE: ${defense.action} \u2192 ${defense.target}`;
+                    bgSession.capture(msg);
+                    renderInfo(`${chalk.green('\u{1F6E1}\uFE0F')} ${chalk.green(msg)}`);
                   },
-                  onScanComplete: (phase) => bgSession.capture(`Check: ${phase}`),
+                  onScanComplete: (phase) => monitorLog(`Check: ${phase}`),
                   onStatusUpdate: (state) => {
                     pushMonitorStatus({
                       mode: state.mode,
@@ -1988,34 +2054,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     const trimmed = line.trim();
 
-    // If paste buffer has content and user pressed Enter on empty line → send it
-    if (!trimmed && pasteBuffer.length > 0) {
-      const assembled = pasteBuffer.join('\n').trim();
-      pasteBuffer = [];
-      if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
-      process.stdout.write(`\x1b[2K\r`);
-      if (agentRunning) {
-        // Queue the entire paste as a single type-ahead entry
-        if (assembled) {
-          typeAheadBuffer.push(assembled);
-          const lineCount = assembled.split('\n').length;
-          process.stdout.write(`  ${theme.dim('\u23F3 Queued:')} ${chalk.cyan(`[${lineCount} Zeilen]`)} ${theme.dim(assembled.split('\n')[0].slice(0, 50))}\n`);
-        }
-        rl.prompt();
-      } else {
-        processInput(assembled);
-      }
-      return;
-    }
-
-    if (!trimmed) {
-      isAtPrompt = true;
-      rl.prompt();
-      return;
-    }
-
-    // Paste detection: if a timer is already running, this is a continuation
-    // (works both when agent is running and when idle)
+    // Paste detection: if a timer is already running, this is a continuation.
+    // ALL lines (including empty ones) are part of the paste block.
+    // This MUST come before the empty-line-flush check so blank lines in
+    // pasted text don't prematurely split the buffer into multiple messages.
     if (pasteTimer) {
       pasteBuffer.push(line);
       clearTimeout(pasteTimer);
@@ -2044,6 +2086,32 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           rl.prompt();
         }
       }, PASTE_THRESHOLD_MS);
+      return;
+    }
+
+    // If paste buffer has content and user pressed Enter on empty line → send it
+    // (pasteTimer is null here, meaning the paste has ended and we're waiting for confirmation)
+    if (!trimmed && pasteBuffer.length > 0) {
+      const assembled = pasteBuffer.join('\n').trim();
+      pasteBuffer = [];
+      process.stdout.write(`\x1b[2K\r`);
+      if (agentRunning) {
+        // Queue the entire paste as a single type-ahead entry
+        if (assembled) {
+          typeAheadBuffer.push(assembled);
+          const lineCount = assembled.split('\n').length;
+          process.stdout.write(`  ${theme.dim('\u23F3 Queued:')} ${chalk.cyan(`[${lineCount} Zeilen]`)} ${theme.dim(assembled.split('\n')[0].slice(0, 50))}\n`);
+        }
+        rl.prompt();
+      } else {
+        processInput(assembled);
+      }
+      return;
+    }
+
+    if (!trimmed) {
+      isAtPrompt = true;
+      rl.prompt();
       return;
     }
 

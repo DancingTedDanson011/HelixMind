@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
+import { AgentPromptBlock } from './AgentPromptBlock';
 import type { ChatMessage } from './AppShell';
 import type { ActiveTool } from '@/hooks/use-cli-chat';
 
@@ -13,6 +14,10 @@ interface ChatViewProps {
   streamingContent: string;
   activeTools?: ActiveTool[];
   hasChat: boolean;
+  agentPrompt?: string | null;
+  chatStatus?: string;
+  onEditPrompt?: (prompt: string) => void;
+  onConnectInstance?: () => void;
 }
 
 export function ChatView({
@@ -21,6 +26,10 @@ export function ChatView({
   streamingContent,
   activeTools = [],
   hasChat,
+  agentPrompt,
+  chatStatus,
+  onEditPrompt,
+  onConnectInstance,
 }: ChatViewProps) {
   const t = useTranslations('app');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -92,6 +101,15 @@ export function ChatView({
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
+
+          {/* Agent Prompt Block */}
+          {agentPrompt && (chatStatus === 'prompt_ready' || chatStatus === 'executing' || chatStatus === 'done') && (
+            <AgentPromptBlock
+              prompt={agentPrompt}
+              onEdit={onEditPrompt ?? (() => {})}
+              onConnectInstance={onConnectInstance ?? (() => {})}
+            />
+          )}
 
           {/* Active tool calls */}
           {activeTools.length > 0 && isAgentRunning && (

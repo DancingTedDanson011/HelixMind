@@ -5,15 +5,18 @@ import { useTranslations } from 'next-intl';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatView } from './ChatView';
 import { ChatInput } from './ChatInput';
+import { InstancePicker } from './InstancePicker';
 import { useCliContext } from './CliConnectionProvider';
 import { useCliOutput } from '@/hooks/use-cli-output';
+import { useBrainstormChat } from '@/hooks/use-brainstorm-chat';
 import { TerminalViewer } from '@/components/cli/TerminalViewer';
+import type { DiscoveredInstance } from '@/lib/cli-types';
 import {
-  Brain, PanelLeftClose, PanelLeft,
+  Brain, PanelLeftClose, PanelLeft, Menu,
   Wifi, WifiOff, RefreshCw, Terminal,
-  Cpu, Clock, Plug, Shield, Zap,
+  Cpu, Clock, Plug, Shield, Zap, Sparkles,
   AlertTriangle, Activity, X, MessageSquare,
-  Eye, ShieldAlert, CheckCircle2, XCircle, Radio,
+  Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
 } from 'lucide-react';
 
 /* ─── Types ───────────────────────────────────── */
@@ -41,6 +44,8 @@ export interface ChatFull {
   id: string;
   title: string;
   mode: string;
+  agentPrompt?: string | null;
+  status: string;
   messages: ChatMessage[];
 }
 
@@ -58,14 +63,29 @@ export function AppShell() {
   const [activeChat, setActiveChat] = useState<ChatFull | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Close sidebar by default on mobile
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, []);
   const [mode, setMode] = useState<'normal' | 'skip-permissions'>('normal');
   const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor'>('chat');
   const [consoleSessionId, setConsoleSessionId] = useState<string | null>(null);
+  const [showInstancePicker, setShowInstancePicker] = useState(false);
+  const [creatingPrompt, setCreatingPrompt] = useState(false);
+  const [hasLLMKey, setHasLLMKey] = useState(false);
+
+  const brainstormChat = useBrainstormChat();
 
   const isConnected = connection.connectionState === 'connected';
   const isConnecting = connection.connectionState === 'connecting' || connection.connectionState === 'authenticating';
-  const isAgentRunning = cliChat.state.isProcessing;
-  const streamingContent = cliChat.state.streamingText;
+
+  // Dual-mode: CLI chat when connected, brainstorm when not
+  const activeChat$ = isConnected ? cliChat : brainstormChat;
+  const isAgentRunning = activeChat$.state.isProcessing;
+  const streamingContent = activeChat$.state.streamingText;
 
   // Track chat completion to save assistant messages
   const prevProcessingRef = useRef(false);
@@ -88,6 +108,19 @@ export function AppShell() {
   }, []);
 
   useEffect(() => { fetchChats(); }, [fetchChats]);
+
+  // ── Check for LLM key ────────────────────────
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/user/llm-keys');
+        if (res.ok) {
+          const keys = await res.json();
+          setHasLLMKey(keys.some((k: { provider: string }) => k.provider === 'anthropic'));
+        }
+      } catch { /* silent */ }
+    })();
+  }, []);
 
   // ── Load chat messages ──────────────────────
   const loadChat = useCallback(async (chatId: string) => {
@@ -291,15 +324,17 @@ export function AppShell() {
       });
     } catch { /* silent */ }
 
-    // Send to CLI via WebSocket (with user-selected mode)
+    // Send to CLI via WebSocket (with user-selected mode) or brainstorm
     if (isConnected) {
       cliChat.sendMessage(trimmed, chatId, mode);
+    } else if (hasLLMKey) {
+      brainstormChat.sendMessage(trimmed, chatId);
     }
-  }, [activeChatId, isConnected, cliChat, mode, fetchChats, loadChat, activeTab,
+  }, [activeChatId, isConnected, cliChat, brainstormChat, mode, hasLLMKey, fetchChats, loadChat, activeTab,
       handleStartAuto, handleStartSecurity, handleStartMonitor, handleAbortSession,
       handleBrainClick, activeSessions, disconnectCli]);
 
-  // ── Save assistant message when chat_complete fires ──
+  // ── Save assistant message when CLI chat_complete fires ──
   useEffect(() => {
     const wasProcessing = prevProcessingRef.current;
     prevProcessingRef.current = cliChat.state.isProcessing;
@@ -343,6 +378,34 @@ export function AppShell() {
     }
   }, [cliChat.state.isProcessing, cliChat.state.streamingText, activeChatId, fetchChats, cliChat]);
 
+  // ── Save assistant message when brainstorm completes ──
+  const prevBrainstormRef = useRef(false);
+  useEffect(() => {
+    const wasProcessing = prevBrainstormRef.current;
+    prevBrainstormRef.current = brainstormChat.state.isProcessing;
+
+    if (wasProcessing && !brainstormChat.state.isProcessing && brainstormChat.state.streamingText && activeChatId) {
+      const assistantContent = brainstormChat.state.streamingText;
+
+      // Add to local messages (brainstorm API already saved to DB)
+      const assistantMsg: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        chatId: activeChatId,
+        role: 'assistant',
+        content: assistantContent,
+        createdAt: new Date().toISOString(),
+      };
+
+      setActiveChat(prev => prev ? {
+        ...prev,
+        messages: [...prev.messages, assistantMsg],
+      } : null);
+
+      fetchChats();
+      brainstormChat.reset();
+    }
+  }, [brainstormChat.state.isProcessing, brainstormChat.state.streamingText, activeChatId, fetchChats, brainstormChat]);
+
   // ── Auto-title after first message ──────────
   useEffect(() => {
     if (activeChat && activeChat.messages.length === 1 && activeChat.title === 'New Chat') {
@@ -363,8 +426,105 @@ export function AppShell() {
 
   // ── Stop handler ─────────────────────────────
   const handleStop = useCallback(() => {
-    cliChat.abort();
-  }, [cliChat]);
+    if (isConnected) {
+      cliChat.abort();
+    } else {
+      brainstormChat.abort();
+    }
+  }, [isConnected, cliChat, brainstormChat]);
+
+  // ── Create Agent Prompt ─────────────────────
+  const handleCreatePrompt = useCallback(async () => {
+    if (!activeChatId) return;
+    setCreatingPrompt(true);
+    try {
+      const res = await fetch(`/api/chats/${activeChatId}/create-prompt`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveChat(prev => prev ? { ...prev, agentPrompt: data.agentPrompt, status: 'prompt_ready' } : null);
+      }
+    } catch { /* silent */ }
+    setCreatingPrompt(false);
+  }, [activeChatId]);
+
+  // ── Edit Agent Prompt ───────────────────────
+  const handleEditPrompt = useCallback(async (newPrompt: string) => {
+    if (!activeChatId) return;
+    try {
+      await fetch(`/api/chats/${activeChatId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentPrompt: newPrompt }),
+      });
+      setActiveChat(prev => prev ? { ...prev, agentPrompt: newPrompt } : null);
+    } catch { /* silent */ }
+  }, [activeChatId]);
+
+  // ── Connect Instance & Execute ──────────────
+  const handleConnectAndExecute = useCallback(async (instance: DiscoveredInstance, execMode: 'normal' | 'skip-permissions') => {
+    setShowInstancePicker(false);
+    setMode(execMode);
+
+    // Connect to instance
+    connectTo(instance);
+
+    // Wait for connection then send the agent prompt
+    const prompt = activeChat?.agentPrompt;
+    if (prompt && activeChatId) {
+      // Update chat status
+      try {
+        await fetch(`/api/chats/${activeChatId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'executing' }),
+        });
+        setActiveChat(prev => prev ? { ...prev, status: 'executing' } : null);
+      } catch { /* silent */ }
+
+      // Wait a bit for connection to establish, then send
+      const waitForConnection = () => {
+        return new Promise<void>((resolve) => {
+          const check = setInterval(() => {
+            if (connection.connectionState === 'connected') {
+              clearInterval(check);
+              resolve();
+            }
+          }, 200);
+          // Timeout after 10s
+          setTimeout(() => { clearInterval(check); resolve(); }, 10000);
+        });
+      };
+
+      await waitForConnection();
+
+      // Send agent prompt as chat message
+      const userMsg: ChatMessage = {
+        id: `agent-prompt-${Date.now()}`,
+        chatId: activeChatId,
+        role: 'user',
+        content: prompt,
+        metadata: { isAgentPrompt: true },
+        createdAt: new Date().toISOString(),
+      };
+
+      setActiveChat(prev => prev ? {
+        ...prev,
+        messages: [...prev.messages, userMsg],
+      } : null);
+
+      // Save to DB
+      try {
+        await fetch(`/api/chats/${activeChatId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'user', content: prompt, metadata: { isAgentPrompt: true } }),
+        });
+      } catch { /* silent */ }
+
+      // Send to CLI
+      cliChat.sendMessage(prompt, activeChatId, execMode);
+    }
+  }, [activeChat?.agentPrompt, activeChatId, connectTo, connection.connectionState, cliChat]);
 
   // ── Format uptime ────────────────────────────
   const formatUptime = (seconds: number) => {
@@ -507,17 +667,55 @@ export function AppShell() {
         <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-surface/50 backdrop-blur-sm">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            className="p-2 md:p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
           >
-            {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
+            {sidebarOpen ? <PanelLeftClose size={18} /> : (
+              <>
+                <Menu size={20} className="md:hidden" />
+                <PanelLeft size={18} className="hidden md:block" />
+              </>
+            )}
           </button>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-2">
             <h2 className="text-sm font-medium text-gray-200 truncate">
               {activeTab === 'chat'
                 ? (activeChat?.title || t('noMessages'))
                 : (connection.sessions.find(s => s.id === consoleSessionId)?.name || 'Console')}
             </h2>
+
+            {/* Brainstorm badge when not connected */}
+            {activeTab === 'chat' && !isConnected && hasLLMKey && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                <Sparkles size={9} />
+                {t('brainstormMode')}
+              </span>
+            )}
+
+            {/* Create Agent Prompt button */}
+            {activeTab === 'chat' && activeChat && !isConnected && hasLLMKey &&
+              activeChat.messages.length >= 2 && !activeChat.agentPrompt && (
+              <button
+                onClick={handleCreatePrompt}
+                disabled={creatingPrompt}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all disabled:opacity-50"
+              >
+                {creatingPrompt ? (
+                  <Loader2 size={10} className="animate-spin" />
+                ) : (
+                  <FileText size={10} />
+                )}
+                {creatingPrompt ? t('creatingPrompt') : t('createPrompt')}
+              </button>
+            )}
+
+            {/* Prompt ready badge */}
+            {activeChat?.status === 'prompt_ready' && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <CheckCircle2 size={9} />
+                {t('promptReady')}
+              </span>
+            )}
           </div>
 
           {/* Tab switcher */}
@@ -699,8 +897,12 @@ export function AppShell() {
               messages={activeChat?.messages || []}
               isAgentRunning={isAgentRunning}
               streamingContent={streamingContent}
-              activeTools={cliChat.state.activeTools}
+              activeTools={isConnected ? cliChat.state.activeTools : []}
               hasChat={!!activeChat}
+              agentPrompt={activeChat?.agentPrompt}
+              chatStatus={activeChat?.status}
+              onEditPrompt={handleEditPrompt}
+              onConnectInstance={() => setShowInstancePicker(true)}
             />
           </div>
         ) : activeTab === 'console' ? (
@@ -928,10 +1130,18 @@ export function AppShell() {
           onStop={handleStop}
           mode={mode}
           onModeChange={setMode}
-          disabled={false}
+          disabled={!isConnected && !hasLLMKey}
           isConnected={isConnected}
+          hasLLMKey={hasLLMKey}
         />
       </div>
+
+      {/* Instance Picker Modal */}
+      <InstancePicker
+        open={showInstancePicker}
+        onClose={() => setShowInstancePicker(false)}
+        onConnect={handleConnectAndExecute}
+      />
     </div>
   );
 }

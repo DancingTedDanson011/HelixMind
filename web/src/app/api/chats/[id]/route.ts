@@ -6,6 +6,8 @@ import { z } from 'zod';
 const updateChatSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   mode: z.enum(['normal', 'skip-permissions']).optional(),
+  agentPrompt: z.string().optional(),
+  status: z.enum(['active', 'prompt_ready', 'executing', 'done']).optional(),
 });
 
 export async function GET(
