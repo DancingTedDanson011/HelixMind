@@ -1362,6 +1362,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let pasteTimer: ReturnType<typeof setTimeout> | null = null;
   const PASTE_THRESHOLD_MS = 100; // Lines arriving faster than this = paste (100ms for Windows compat)
 
+  // Ensure enough blank lines so the chrome rows don't overlap init output.
+  // The scroll region needs at least RESERVED_ROWS (3) free rows at the bottom.
+  if (process.stdout.isTTY) {
+    process.stdout.write('\n\n\n\n');
+  }
+
   // Show full prompt area on startup (separator + status + > prompt)
   showPrompt();
 
