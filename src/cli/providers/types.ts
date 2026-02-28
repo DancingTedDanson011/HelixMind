@@ -63,6 +63,8 @@ export interface ToolResponse {
 export interface LLMProvider {
   name: string;
   model: string;
+  /** Context window size in tokens — used for auto-trimming */
+  maxContextLength: number;
   stream(
     messages: ChatMessage[],
     systemPrompt: string,

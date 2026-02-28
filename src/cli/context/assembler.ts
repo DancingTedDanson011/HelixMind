@@ -53,6 +53,7 @@ export function assembleSystemPrompt(
   spiralContext: SpiralQueryResult,
   sessionContext?: string,
   identity?: ModelIdentity,
+  bugSummary?: string | null,
 ): string {
   const sections: string[] = [BASE_INSTRUCTIONS];
 
@@ -78,6 +79,11 @@ export function assembleSystemPrompt(
   const spiralSection = buildSpiralSection(spiralContext);
   if (spiralSection) {
     sections.push(spiralSection);
+  }
+
+  // Bug journal context
+  if (bugSummary) {
+    sections.push(bugSummary);
   }
 
   return sections.join('\n\n---\n\n');

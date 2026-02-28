@@ -301,6 +301,8 @@ export class SessionBuffer {
       case 'git_log': return 'git log';
       case 'spiral_query': return `spiral: "${input.query}"`;
       case 'spiral_store': return `spiral store [${input.type}]`;
+      case 'bug_report': return `bug ${input.action} ${input.bug_id ? '#' + input.bug_id : ''}`.trim();
+      case 'bug_list': return `bugs ${input.status || 'all'}`;
       default: return `${tool}(${JSON.stringify(input).slice(0, 50)})`;
     }
   }

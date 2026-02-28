@@ -49,6 +49,8 @@ const TOOL_TYPE_MAP: Record<string, CheckpointType> = {
   git_log: 'tool_read',
   spiral_query: 'tool_read',
   spiral_store: 'tool_write',
+  bug_report: 'tool_write',
+  bug_list: 'tool_read',
 };
 
 /** Icon map for display */

@@ -14,14 +14,17 @@ import {
   handleRateLimitError,
   isRateLimitError,
 } from './rate-limiter.js';
+import { getModelContextLength } from './model-limits.js';
 
 export class AnthropicProvider implements LLMProvider {
   readonly name = 'anthropic';
   readonly model: string;
+  readonly maxContextLength: number;
   private client: Anthropic;
 
   constructor(apiKey: string, model: string = 'claude-sonnet-4-6') {
     this.model = model;
+    this.maxContextLength = getModelContextLength(model, 'anthropic');
     this.client = new Anthropic({ apiKey });
   }
 

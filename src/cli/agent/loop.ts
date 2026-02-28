@@ -14,6 +14,7 @@ import { captureFileSnapshots, fillSnapshotAfter } from '../checkpoints/revert.j
 import type { TaskStep } from '../ui/activity.js';
 import type { SessionBuffer } from '../context/session-buffer.js';
 import { isRateLimitError, handleRateLimitError, detectCreditsExhausted } from '../providers/rate-limiter.js';
+import { trimConversation, estimateTokens } from '../context/trimmer.js';
 
 export class AgentAbortError extends Error {
   constructor(message: string = 'Agent aborted') {
@@ -108,6 +109,11 @@ export async function runAgentLoop(
 
     // Signal activity indicator: we're about to call the LLM
     onThinking?.();
+
+    // Auto-trim before each LLM call to prevent context overflow
+    const systemTokens = estimateTokens([{ role: 'user', content: systemPrompt }]);
+    const availableBudget = Math.floor(provider.maxContextLength * 0.85) - systemTokens;
+    trimConversation(messages, availableBudget, sessionBuffer);
 
     // Call the LLM with tools — pass abort signal for hard cancellation
     let response;
@@ -357,6 +363,8 @@ function summarizeToolForStep(name: string, input: Record<string, unknown>): str
     case 'git_log': return 'git log';
     case 'spiral_query': return 'querying spiral';
     case 'spiral_store': return 'storing in spiral';
+    case 'bug_report': return `bug ${input.action || 'update'}`;
+    case 'bug_list': return 'listing bugs';
     default: return name;
   }
 }

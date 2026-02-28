@@ -16,16 +16,19 @@ import {
   isRateLimitError,
   detectCreditsExhausted,
 } from './rate-limiter.js';
+import { getModelContextLength } from './model-limits.js';
 
 export class OpenAIProvider implements LLMProvider {
   readonly name: string;
   readonly model: string;
+  readonly maxContextLength: number;
   private client: OpenAI;
   private systemRole: 'developer' | 'system';
 
   constructor(apiKey: string, model: string = 'gpt-4o', baseURL?: string, providerName?: string) {
     this.model = model;
     this.name = providerName ?? 'openai';
+    this.maxContextLength = getModelContextLength(model, this.name);
     // Only native OpenAI supports the 'developer' role; all others use 'system'
     this.systemRole = this.name === 'openai' ? 'developer' : 'system';
     this.client = new OpenAI({

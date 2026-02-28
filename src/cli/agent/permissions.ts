@@ -21,6 +21,10 @@ const TOOL_PERMISSIONS: Record<string, PermissionLevel> = {
   git_commit: 'ask',
   spiral_store: 'auto', // Auto — spiral stores are low-risk
 
+  // Bug journal (safe — local metadata only)
+  bug_report: 'auto',
+  bug_list: 'auto',
+
   // Dangerous (shell execution)
   run_command: 'ask', // Upgraded to 'dangerous' based on command content
 };

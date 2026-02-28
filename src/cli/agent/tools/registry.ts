@@ -1,10 +1,12 @@
 import type { ToolDefinition } from '../../providers/types.js';
 import type { UndoStack } from '../undo.js';
+import type { BugJournal } from '../../bugs/journal.js';
 
 export interface ToolContext {
   projectRoot: string;
   undoStack: UndoStack;
   spiralEngine?: any;
+  bugJournal?: BugJournal;
 }
 
 export interface ToolHandler {
@@ -46,4 +48,6 @@ export async function initializeTools(): Promise<void> {
   await import('./spiral-query.js');
   await import('./spiral-store.js');
   await import('./web-research.js');
+  await import('./bug-report.js');
+  await import('./bug-list.js');
 }

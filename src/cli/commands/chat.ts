@@ -34,12 +34,14 @@ import { createKeybindingState, processKeypress } from '../checkpoints/keybindin
 import { runCheckpointBrowser } from '../checkpoints/browser.js';
 import { runFirstTimeSetup, showModelSwitcher, showKeyManagement } from './setup.js';
 import { SessionBuffer } from '../context/session-buffer.js';
-import { trimConversation } from '../context/trimmer.js';
+import { trimConversation, estimateTokens } from '../context/trimmer.js';
 import { runAutonomousLoop, SECURITY_PROMPT } from '../agent/autonomous.js';
 import { SessionManager } from '../sessions/manager.js';
 import { renderSessionNotification, renderSessionList } from '../sessions/tab-view.js';
 import { getSuggestions, getBestCompletion, writeSuggestions, clearSuggestions } from '../ui/command-suggest.js';
 import { selectMenu, type MenuItem } from '../ui/select-menu.js';
+import { BugJournal } from '../bugs/journal.js';
+import { detectBugReport } from '../bugs/detector.js';
 import { classifyTask } from '../validation/classifier.js';
 import { generateCriteria } from '../validation/criteria.js';
 import { validationLoop } from '../validation/autofix.js';
@@ -288,6 +290,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Session buffer (working memory)
   const sessionBuffer = new SessionBuffer();
 
+  // Bug journal (persistent bug tracking)
+  const bugJournal = new BugJournal(process.cwd());
+
   // Activity indicator (replaces spinner)
   const activity = new ActivityIndicator();
 
@@ -388,6 +393,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       () => { sessionToolCalls++; },
       undefined,
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+      bugJournal,
     );
     spiralEngine?.close();
     return;
@@ -1335,6 +1341,17 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // Track user message in session buffer
     sessionBuffer.addUserMessage(input);
 
+    // Auto-detect bug reports from user messages
+    const bugDetection = detectBugReport(input);
+    if (bugDetection.isBug) {
+      const newBug = bugJournal.create(bugDetection.description, {
+        file: bugDetection.file,
+        line: bugDetection.line,
+        evidence: bugDetection.evidence,
+      });
+      renderInfo(chalk.hex('#ff4444')(`Bug #${newBug.id} tracked: `) + chalk.dim(newBug.description));
+    }
+
     // Create checkpoint for user message
     checkpointStore.createForChat(input, agentHistory.length);
 
@@ -1367,6 +1384,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         isAtPrompt = false;
       },
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+      bugJournal,
     );
 
     agentRunning = false;
@@ -1395,6 +1413,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           () => { sessionToolCalls++; roundToolCalls++; },
           () => { isAtPrompt = true; rl.prompt(); },
           { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+          bugJournal,
         );
 
         agentRunning = false;
@@ -1624,6 +1643,7 @@ async function sendAgentMessage(
   onToolCall: () => void,
   onAgentStart?: () => void,
   validationOpts?: ValidationOptions,
+  bugJournal?: BugJournal,
 ): Promise<void> {
   // User message was rendered by renderUserMessage() in the caller before entering here.
 
@@ -1686,15 +1706,18 @@ async function sendAgentMessage(
 
   // Assemble system prompt with spiral context + project info + session memory
   const sessionContext = sessionBuffer.buildContext();
+  const bugSummary = bugJournal?.getSummaryForPrompt() ?? null;
   const systemPrompt = assembleSystemPrompt(
     project.name !== 'unknown' ? project : null,
     spiralContext,
     sessionContext || undefined,
     { provider: provider.name, model: provider.model },
+    bugSummary,
   );
 
-  // Auto-trim context when approaching budget limit
-  const maxBudget = config.spiral.maxTokensBudget || 200000;
+  // Auto-trim context using model-aware budget (15% headroom for output + safety)
+  const systemTokens = estimateTokens([{ role: 'user', content: systemPrompt }]);
+  const maxBudget = Math.floor(provider.maxContextLength * 0.85) - systemTokens;
   trimConversation(agentHistory, maxBudget, sessionBuffer);
 
   // Start the glowing activity indicator (reserves bottom row via scroll region)
@@ -1711,6 +1734,7 @@ async function sendAgentMessage(
         projectRoot: process.cwd(),
         undoStack,
         spiralEngine,
+        bugJournal,
       },
       checkpointStore,
       sessionBuffer,
