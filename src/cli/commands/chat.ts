@@ -3093,17 +3093,36 @@ async function handleSlashCommand(
       // Interactive setup: show banner + mode selection
       rl.pause();
       process.stdout.write('\n');
-      renderInfo(chalk.dim('  Docs: https://helixmind.dev/docs/security-monitor'));
 
+      const docsItemIdx = MONITOR_MODES.length;
+      const cancelItemIdx = MONITOR_MODES.length + 1;
       const monitorMenuItems: MenuItem[] = [
         ...MONITOR_MODES.map(m => ({ label: chalk.hex('#ff6600').bold(m.label), description: m.description })),
+        { label: chalk.hex('#00d4ff')('\u{1F4D6} Docs'), description: 'Open security monitor docs in browser' },
         { label: chalk.dim('\u2715 Cancel'), description: 'Go back' },
       ];
 
-      const modeIdx = await selectMenu(monitorMenuItems, {
-        title: chalk.hex('#ff6600').bold('\u{1F6E1}\uFE0F MONITOR MODE'),
-        cancelLabel: 'Cancel',
-      });
+      let modeIdx: number;
+      // Loop so "Docs" re-shows the menu after opening the browser
+      while (true) {
+        modeIdx = await selectMenu(monitorMenuItems, {
+          title: chalk.hex('#ff6600').bold('\u{1F6E1}\uFE0F MONITOR MODE'),
+          cancelLabel: 'Cancel',
+        });
+
+        if (modeIdx === docsItemIdx) {
+          const docsUrl = 'https://helixmind.dev/docs/security-monitor';
+          const { exec } = await import('node:child_process');
+          const { platform } = await import('node:os');
+          const openCmd = platform() === 'win32' ? `start "" "${docsUrl}"`
+            : platform() === 'darwin' ? `open "${docsUrl}"`
+            : `xdg-open "${docsUrl}"`;
+          exec(openCmd, () => {});
+          renderInfo(chalk.dim(`  Opened ${docsUrl}`));
+          continue; // re-show menu
+        }
+        break;
+      }
 
       if (modeIdx < 0 || modeIdx >= MONITOR_MODES.length) {
         rl.resume();
