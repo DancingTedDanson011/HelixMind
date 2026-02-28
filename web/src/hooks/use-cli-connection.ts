@@ -49,6 +49,8 @@ interface WSIncoming {
 export interface UseCliConnectionReturn {
   connectionId: string;
   connectionState: ConnectionState;
+  /** Increments each time a new WebSocket is created (for re-attaching listeners) */
+  wsVersion: number;
   sessions: SessionInfo[];
   findings: Finding[];
   bugs: BugInfo[];
@@ -102,6 +104,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [defenses, setDefenses] = useState<DefenseRecord[]>([]);
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [monitorStatus, setMonitorStatus] = useState<MonitorStatus | null>(null);
+  const [wsVersion, setWsVersion] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const mountedRef = useRef(true);
@@ -338,6 +341,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     const ws = new WebSocket(url);
     wsRef.current = ws;
     registerConnectionWs(connectionIdRef.current, ws);
+    setWsVersion(v => v + 1);
 
     ws.onopen = () => {
       if (!mountedRef.current) return;
@@ -533,6 +537,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   return {
     connectionId: connectionIdRef.current,
     connectionState,
+    wsVersion,
     sessions,
     findings,
     bugs,

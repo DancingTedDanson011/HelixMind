@@ -31,7 +31,7 @@ export interface CliChatState {
 
 export interface UseCliChatReturn {
   state: CliChatState;
-  sendMessage: (text: string, chatId: string) => void;
+  sendMessage: (text: string, chatId: string, mode?: 'normal' | 'skip-permissions') => void;
   abort: () => void;
   reset: () => void;
 }
@@ -43,8 +43,11 @@ export interface UseCliChatReturn {
 /**
  * Hook that listens for chat_* events on an existing CLI WebSocket connection
  * and accumulates state for the UI (streaming text, active tools, errors).
+ *
+ * @param connectionId — unique ID of the CLI connection (for WS registry lookup)
+ * @param wsVersion — increments each time the WebSocket reconnects (re-attach listeners)
  */
-export function useCliChat(connectionId: string): UseCliChatReturn {
+export function useCliChat(connectionId: string, wsVersion: number): UseCliChatReturn {
   const [state, setState] = useState<CliChatState>({
     isProcessing: false,
     streamingText: '',
@@ -67,7 +70,7 @@ export function useCliChat(connectionId: string): UseCliChatReturn {
   }, []);
 
   // Send a chat message
-  const sendMessage = useCallback((text: string, chatId: string) => {
+  const sendMessage = useCallback((text: string, chatId: string, mode: 'normal' | 'skip-permissions' = 'normal') => {
     const ws = getConnectionWs(connectionId);
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
@@ -83,7 +86,7 @@ export function useCliChat(connectionId: string): UseCliChatReturn {
       type: 'send_chat',
       text,
       chatId,
-      mode: 'skip-permissions',
+      mode,
       timestamp: Date.now(),
     }));
   }, [connectionId]);
@@ -92,12 +95,12 @@ export function useCliChat(connectionId: string): UseCliChatReturn {
   const abort = useCallback(() => {
     const chatId = activeChatIdRef.current;
     if (!chatId) return;
-    // For now, just reset processing state — full abort would need a new protocol message
     setState(prev => ({ ...prev, isProcessing: false, error: 'Aborted' }));
     activeChatIdRef.current = null;
   }, []);
 
   // Listen for chat_* events on the WebSocket
+  // Re-runs whenever wsVersion changes (new WebSocket after reconnect)
   useEffect(() => {
     mountedRef.current = true;
 
@@ -108,8 +111,8 @@ export function useCliChat(connectionId: string): UseCliChatReturn {
         const msg = JSON.parse(String(event.data));
         const chatId = activeChatIdRef.current;
 
-        // Only process events for our active chat
-        if (!chatId || msg.chatId !== chatId) return;
+        // Only process events for our active chat (or accept if no chatId filter)
+        if (chatId && msg.chatId && msg.chatId !== chatId) return;
 
         switch (msg.type) {
           case 'chat_started':
@@ -192,7 +195,7 @@ export function useCliChat(connectionId: string): UseCliChatReturn {
         ws.removeEventListener('message', handleWsMessage);
       }
     };
-  }, [connectionId]);
+  }, [connectionId, wsVersion]);
 
   return { state, sendMessage, abort, reset };
 }
