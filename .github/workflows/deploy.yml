@@ -21,15 +21,16 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
-            echo "=== Git Pull ==="
+            echo "=== Git Fetch & Reset ==="
             cd /opt/helixmind/web
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "=== Enter web directory ==="
             cd /opt/helixmind/web/web
 
-            # Copy .env from repo root if not present here yet
-            if [ -f /opt/helixmind/web/.env ] && [ ! -f .env ]; then
+            # Copy .env from parent if not present
+            if [ ! -f .env ] && [ -f /opt/helixmind/web/.env ]; then
               cp /opt/helixmind/web/.env .env
               echo "Copied .env from repo root"
             fi
