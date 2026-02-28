@@ -1786,8 +1786,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       return;
     }
 
-    // Render user message explicitly so it persists in the chat scroll history.
-    // Readline's prompt echo can be overwritten by activity indicator / agent output.
+    // Clear the readline echo line (prompt + typed text) and replace with the
+    // styled "You" label so the user doesn't see their input twice.
+    process.stdout.write('\x1b[A\x1b[2K');
     renderUserMessage(input);
 
     // Track user message in session buffer
