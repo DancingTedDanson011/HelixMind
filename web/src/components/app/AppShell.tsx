@@ -5,14 +5,15 @@ import { useTranslations } from 'next-intl';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatView } from './ChatView';
 import { ChatInput } from './ChatInput';
-import { BrainOverlay } from './BrainOverlay';
 import { useCliContext } from './CliConnectionProvider';
+import { useCliOutput } from '@/hooks/use-cli-output';
+import { TerminalViewer } from '@/components/cli/TerminalViewer';
 import {
   Brain, PanelLeftClose, PanelLeft,
   Wifi, WifiOff, RefreshCw, Terminal,
-  Cpu, Clock, Plug, Play, Shield, Zap,
-  AlertTriangle, CheckCircle2, Activity,
-  X,
+  Cpu, Clock, Plug, Shield, Zap,
+  AlertTriangle, Activity, X, MessageSquare,
+  Eye, ShieldAlert, CheckCircle2, XCircle, Radio,
 } from 'lucide-react';
 
 /* ─── Types ───────────────────────────────────── */
@@ -50,14 +51,16 @@ export function AppShell() {
   const {
     connection, chat: cliChat,
     instances, scanning, rescan, connectTo, disconnectCli,
+    connectedPort,
   } = useCliContext();
 
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeChat, setActiveChat] = useState<ChatFull | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [brainOpen, setBrainOpen] = useState(false);
   const [mode, setMode] = useState<'normal' | 'skip-permissions'>('normal');
+  const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor'>('chat');
+  const [consoleSessionId, setConsoleSessionId] = useState<string | null>(null);
 
   const isConnected = connection.connectionState === 'connected';
   const isConnecting = connection.connectionState === 'connecting' || connection.connectionState === 'authenticating';
@@ -66,6 +69,12 @@ export function AppShell() {
 
   // Track chat completion to save assistant messages
   const prevProcessingRef = useRef(false);
+
+  // Console output — always call hook (React rules), subscribe only on console tab
+  const cliOutput = useCliOutput({
+    connection,
+    sessionId: activeTab === 'console' ? consoleSessionId : null,
+  });
 
   // ── Fetch chats ─────────────────────────────
   const fetchChats = useCallback(async () => {
@@ -136,9 +145,103 @@ export function AppShell() {
     } catch { /* silent */ }
   }, [fetchChats, activeChat?.id]);
 
-  // ── Send message ────────────────────────────
+  // ── Active sessions (auto, security, monitor) ──
+  const activeSessions = connection.sessions.filter(s => s.status === 'running');
+  const recentFindings = connection.findings.slice(-5);
+  const threatCount = connection.threats.length;
+
+  // ── Session actions ───────────────────────────
+  const handleStartAuto = useCallback((goal?: string) => {
+    connection.startAuto(goal).catch(() => {});
+  }, [connection]);
+
+  const handleStartSecurity = useCallback(() => {
+    connection.startSecurity().catch(() => {});
+  }, [connection]);
+
+  const handleStartMonitor = useCallback((monitorMode: string) => {
+    connection.startMonitor(monitorMode).catch(() => {});
+  }, [connection]);
+
+  const handleAbortSession = useCallback((sessionId: string) => {
+    connection.abortSession(sessionId).catch(() => {});
+  }, [connection]);
+
+  // ── Brain: open in new tab ────────────────────
+  const handleBrainClick = useCallback(() => {
+    if (connectedPort) {
+      window.open(`http://127.0.0.1:${connectedPort}`, '_blank');
+    }
+  }, [connectedPort]);
+
+  // ── Auto-select first session for console ─────
+  useEffect(() => {
+    if (activeTab === 'console' && !consoleSessionId && connection.sessions.length > 0) {
+      // Prefer a running session
+      const running = connection.sessions.find(s => s.status === 'running');
+      setConsoleSessionId(running?.id ?? connection.sessions[0].id);
+    }
+  }, [activeTab, consoleSessionId, connection.sessions]);
+
+  // ── Open session in console ────────────────────
+  const openSessionConsole = useCallback((sessionId: string) => {
+    setConsoleSessionId(sessionId);
+    setActiveTab('console');
+  }, []);
+
+  // ── Send message (with slash command support) ──
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
+
+    const trimmed = content.trim();
+
+    // Handle slash commands
+    if (trimmed.startsWith('/')) {
+      const parts = trimmed.slice(1).split(/\s+/);
+      const cmd = parts[0].toLowerCase();
+      const arg = parts.slice(1).join(' ');
+
+      switch (cmd) {
+        case 'auto':
+          handleStartAuto(arg || undefined);
+          return;
+        case 'security':
+          handleStartSecurity();
+          return;
+        case 'monitor':
+          if (arg) {
+            handleStartMonitor(arg);
+          }
+          setActiveTab('monitor');
+          return;
+        case 'stop': {
+          if (arg) {
+            handleAbortSession(arg);
+          } else {
+            activeSessions.forEach(s => handleAbortSession(s.id));
+          }
+          return;
+        }
+        case 'brain':
+          handleBrainClick();
+          return;
+        case 'console':
+          setActiveTab('console');
+          return;
+        case 'chat':
+          setActiveTab('chat');
+          return;
+        case 'disconnect':
+          disconnectCli();
+          return;
+        case 'help':
+          // Show help as system message in chat
+          break; // fall through to send as regular message
+        default:
+          // Unknown slash command — send as regular message to CLI
+          break;
+      }
+    }
 
     // Auto-create chat if none selected
     let chatId = activeChatId;
@@ -160,12 +263,17 @@ export function AppShell() {
 
     if (!chatId) return;
 
+    // Switch to chat tab when sending a message
+    if (activeTab !== 'chat') {
+      setActiveTab('chat');
+    }
+
     // Add user message optimistically
     const userMsg: ChatMessage = {
       id: `temp-${Date.now()}`,
       chatId,
       role: 'user',
-      content: content.trim(),
+      content: trimmed,
       createdAt: new Date().toISOString(),
     };
 
@@ -179,22 +287,24 @@ export function AppShell() {
       await fetch(`/api/chats/${chatId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'user', content: content.trim() }),
+        body: JSON.stringify({ role: 'user', content: trimmed }),
       });
     } catch { /* silent */ }
 
     // Send to CLI via WebSocket (with user-selected mode)
     if (isConnected) {
-      cliChat.sendMessage(content.trim(), chatId, mode);
+      cliChat.sendMessage(trimmed, chatId, mode);
     }
-  }, [activeChatId, isConnected, cliChat, mode, fetchChats, loadChat]);
+  }, [activeChatId, isConnected, cliChat, mode, fetchChats, loadChat, activeTab,
+      handleStartAuto, handleStartSecurity, handleStartMonitor, handleAbortSession,
+      handleBrainClick, activeSessions, disconnectCli]);
 
   // ── Save assistant message when chat_complete fires ──
   useEffect(() => {
     const wasProcessing = prevProcessingRef.current;
     prevProcessingRef.current = cliChat.state.isProcessing;
 
-    // Transition: processing → done, with text available
+    // Transition: processing -> done, with text available
     if (wasProcessing && !cliChat.state.isProcessing && cliChat.state.streamingText && activeChatId) {
       const assistantContent = cliChat.state.streamingText;
 
@@ -245,6 +355,7 @@ export function AppShell() {
   // ── Mobile: close sidebar on chat select ────
   const handleChatSelect = useCallback((chatId: string) => {
     loadChat(chatId);
+    setActiveTab('chat');
     if (window.innerWidth < 768) {
       setSidebarOpen(false);
     }
@@ -261,28 +372,6 @@ export function AppShell() {
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
     return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
   };
-
-  // ── Active sessions (auto, security, monitor) ──
-  const activeSessions = connection.sessions.filter(s => s.status === 'running');
-  const recentFindings = connection.findings.slice(-5);
-  const threatCount = connection.threats.length;
-
-  // ── Session actions ───────────────────────────
-  const handleStartAuto = useCallback((goal?: string) => {
-    connection.startAuto(goal).catch(() => {});
-  }, [connection]);
-
-  const handleStartSecurity = useCallback(() => {
-    connection.startSecurity().catch(() => {});
-  }, [connection]);
-
-  const handleStartMonitor = useCallback((monitorMode: string) => {
-    connection.startMonitor(monitorMode).catch(() => {});
-  }, [connection]);
-
-  const handleAbortSession = useCallback((sessionId: string) => {
-    connection.abortSession(sessionId).catch(() => {});
-  }, [connection]);
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -307,22 +396,49 @@ export function AppShell() {
           {/* Sessions & Quick Actions (bottom of sidebar) */}
           {isConnected && (
             <div className="border-t border-white/5 p-3 space-y-2 flex-shrink-0">
-              {/* Active sessions */}
+              {/* Active sessions — clickable to open console */}
               {activeSessions.length > 0 && (
                 <div className="space-y-1">
                   <p className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">Sessions</p>
                   {activeSessions.map((session) => (
-                    <div key={session.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.03] border border-white/5 group">
+                    <button
+                      key={session.id}
+                      onClick={() => openSessionConsole(session.id)}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.03] hover:bg-cyan-500/5 border border-white/5 hover:border-cyan-500/10 group text-left transition-all"
+                    >
                       <span className="text-xs">{session.icon}</span>
                       <span className="flex-1 text-[11px] text-gray-300 truncate">{session.name}</span>
                       <Activity size={10} className="text-emerald-400 animate-pulse" />
-                      <button
-                        onClick={() => handleAbortSession(session.id)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all"
+                      <span
+                        onClick={(e) => { e.stopPropagation(); handleAbortSession(session.id); }}
+                        className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all cursor-pointer"
                       >
                         <X size={10} />
-                      </button>
-                    </div>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* All sessions (completed too) */}
+              {connection.sessions.filter(s => s.status !== 'running').length > 0 && (
+                <div className="space-y-1">
+                  {connection.sessions.filter(s => s.status !== 'running').map((session) => (
+                    <button
+                      key={session.id}
+                      onClick={() => openSessionConsole(session.id)}
+                      className="w-full flex items-center gap-2 px-2 py-1 rounded-md bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.03] text-left transition-all"
+                    >
+                      <span className="text-xs opacity-50">{session.icon}</span>
+                      <span className="flex-1 text-[10px] text-gray-500 truncate">{session.name}</span>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                        session.status === 'done' ? 'bg-emerald-500/5 text-emerald-500' :
+                        session.status === 'error' ? 'bg-red-500/5 text-red-400' :
+                        'bg-white/5 text-gray-500'
+                      }`}>
+                        {session.status}
+                      </span>
+                    </button>
                   ))}
                 </div>
               )}
@@ -385,7 +501,7 @@ export function AppShell() {
         />
       )}
 
-      {/* Main chat area */}
+      {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
         <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-surface/50 backdrop-blur-sm">
@@ -398,18 +514,63 @@ export function AppShell() {
 
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-medium text-gray-200 truncate">
-              {activeChat?.title || t('noMessages')}
+              {activeTab === 'chat'
+                ? (activeChat?.title || t('noMessages'))
+                : (connection.sessions.find(s => s.id === consoleSessionId)?.name || 'Console')}
             </h2>
           </div>
 
+          {/* Tab switcher */}
+          {isConnected && (
+            <div className="flex gap-0.5 bg-white/5 rounded-lg p-0.5">
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                  activeTab === 'chat'
+                    ? 'bg-white/10 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <MessageSquare size={11} />
+                Chat
+              </button>
+              <button
+                onClick={() => setActiveTab('console')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                  activeTab === 'console'
+                    ? 'bg-white/10 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <Terminal size={11} />
+                Console
+                {activeSessions.length > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('monitor')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                  activeTab === 'monitor'
+                    ? 'bg-white/10 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <Eye size={11} />
+                {t('monitorTab')}
+                {(threatCount > 0 || connection.approvals.length > 0) && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                )}
+              </button>
+            </div>
+          )}
+
           {/* CLI Connection badge */}
           {isConnected && connection.instanceMeta ? (
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
+            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
               <div className="flex items-center gap-1 text-emerald-400">
                 <Wifi size={11} />
-                <span className="font-medium">{t('cliConnected')}</span>
               </div>
-              <span className="text-gray-500">|</span>
               <div className="flex items-center gap-1 text-gray-400">
                 <Cpu size={10} />
                 <span>{connection.instanceMeta.model}</span>
@@ -434,16 +595,18 @@ export function AppShell() {
             </button>
           )}
 
+          {/* Brain button — opens in new browser tab */}
           <button
-            onClick={() => setBrainOpen(true)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors"
-            title={t('brain')}
+            onClick={handleBrainClick}
+            disabled={!connectedPort}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title={connectedPort ? `${t('brain')} (127.0.0.1:${connectedPort})` : t('brain')}
           >
             <Brain size={18} />
           </button>
         </div>
 
-        {/* Connection panel when disconnected (shown inline above messages) */}
+        {/* Connection panel when disconnected */}
         {!isConnected && !isConnecting && (
           <div className="border-b border-white/5 bg-surface/30 px-4 py-3">
             <div className="max-w-3xl mx-auto">
@@ -495,19 +658,24 @@ export function AppShell() {
         {isConnected && activeSessions.length > 0 && (
           <div className="flex items-center gap-2 px-4 py-1.5 border-b border-white/5 bg-surface/30 overflow-x-auto">
             {activeSessions.map((session) => (
-              <div
+              <button
                 key={session.id}
-                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] bg-white/5 border border-white/10 flex-shrink-0"
+                onClick={() => openSessionConsole(session.id)}
+                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] border flex-shrink-0 transition-all ${
+                  consoleSessionId === session.id && activeTab === 'console'
+                    ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+                    : 'bg-white/5 border-white/10 text-gray-300 hover:bg-cyan-500/5 hover:border-cyan-500/10'
+                }`}
               >
                 <span>{session.icon}</span>
-                <span className="text-gray-300">{session.name}</span>
+                <span>{session.name}</span>
                 <Activity size={8} className="text-emerald-400 animate-pulse" />
                 {session.result && (
                   <span className="text-gray-500">
                     {session.result.stepsCount} steps
                   </span>
                 )}
-              </div>
+              </button>
             ))}
             {connection.findings.length > 0 && (
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-amber-500/5 border border-amber-500/10 flex-shrink-0">
@@ -524,18 +692,236 @@ export function AppShell() {
           </div>
         )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-hidden">
-          <ChatView
-            messages={activeChat?.messages || []}
-            isAgentRunning={isAgentRunning}
-            streamingContent={streamingContent}
-            activeTools={cliChat.state.activeTools}
-            hasChat={!!activeChat}
-          />
-        </div>
+        {/* Main content — Chat, Console, or Monitor */}
+        {activeTab === 'chat' ? (
+          <div className="flex-1 overflow-hidden">
+            <ChatView
+              messages={activeChat?.messages || []}
+              isAgentRunning={isAgentRunning}
+              streamingContent={streamingContent}
+              activeTools={cliChat.state.activeTools}
+              hasChat={!!activeChat}
+            />
+          </div>
+        ) : activeTab === 'console' ? (
+          <>
+            {/* Console session selector */}
+            {connection.sessions.length > 0 && (
+              <div className="flex gap-1.5 px-4 py-2 border-b border-white/5 overflow-x-auto bg-[#0a0a1a]/50">
+                {connection.sessions.map(session => (
+                  <button
+                    key={session.id}
+                    onClick={() => setConsoleSessionId(session.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all flex-shrink-0 border ${
+                      consoleSessionId === session.id
+                        ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-300'
+                    }`}
+                  >
+                    <span>{session.icon}</span>
+                    <span>{session.name}</span>
+                    {session.status === 'running' && (
+                      <Activity size={8} className="text-emerald-400 animate-pulse" />
+                    )}
+                    {session.status === 'done' && (
+                      <span className="text-[9px] text-emerald-500">done</span>
+                    )}
+                    {session.status === 'error' && (
+                      <span className="text-[9px] text-red-400">error</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
 
-        {/* Input */}
+            {/* Terminal output */}
+            <div className="flex-1 overflow-hidden">
+              {consoleSessionId ? (
+                <TerminalViewer lines={cliOutput.lines} fullHeight />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center space-y-3 px-6">
+                    <Terminal size={32} className="mx-auto text-gray-700" />
+                    <p className="text-sm text-gray-500">
+                      {connection.sessions.length === 0
+                        ? t('consoleNoSessions')
+                        : t('consoleSelectSession')}
+                    </p>
+                    {connection.sessions.length === 0 && (
+                      <p className="text-xs text-gray-600">
+                        {t('consoleHint')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* ─── Monitor Tab ─── */
+          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div className="max-w-3xl mx-auto space-y-4">
+
+              {/* Monitor status header */}
+              {connection.monitorStatus ? (
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                      <Radio size={18} className="text-emerald-400 animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-200">
+                        {t('monitorMode')}: <span className="text-cyan-400 capitalize">{connection.monitorStatus.mode}</span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {t('monitorUptime')}: {formatUptime(connection.monitorStatus.uptime)}
+                        {' · '}{connection.monitorStatus.threatCount} {t('monitorThreats').toLowerCase()}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => connection.stopMonitor().catch(() => {})}
+                    className="px-3 py-1.5 rounded-lg text-xs text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
+                  >
+                    {t('monitorStop')}
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-8 space-y-4">
+                  <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-red-500/10 border border-white/5 flex items-center justify-center">
+                    <Eye size={28} className="text-purple-500/50" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">{t('monitorIdle')}</p>
+                    <p className="text-xs text-gray-600 mt-1">{t('monitorIdleHint')}</p>
+                  </div>
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={() => handleStartMonitor('passive')}
+                      className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-400 transition-all"
+                    >
+                      <Eye size={12} className="inline mr-1.5" />
+                      {t('monitorStartPassive')}
+                    </button>
+                    <button
+                      onClick={() => handleStartMonitor('defensive')}
+                      className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all"
+                    >
+                      <Shield size={12} className="inline mr-1.5" />
+                      {t('monitorStartDefensive')}
+                    </button>
+                    <button
+                      onClick={() => handleStartMonitor('active')}
+                      className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all"
+                    >
+                      <ShieldAlert size={12} className="inline mr-1.5" />
+                      {t('monitorStartActive')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Pending approvals */}
+              {connection.approvals.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle size={12} />
+                    {t('monitorApprovals')} ({connection.approvals.length})
+                  </h3>
+                  {connection.approvals.map((approval) => (
+                    <div key={approval.id} className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 space-y-2">
+                      <p className="text-sm text-gray-300">{approval.action}: {approval.target}</p>
+                      <p className="text-xs text-gray-500">{approval.reason}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => connection.respondApproval(approval.id, true).catch(() => {})}
+                          className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
+                        >
+                          <CheckCircle2 size={12} />
+                          {t('monitorApprove')}
+                        </button>
+                        <button
+                          onClick={() => connection.respondApproval(approval.id, false).catch(() => {})}
+                          className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
+                        >
+                          <XCircle size={12} />
+                          {t('monitorDeny')}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Threats */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-medium text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldAlert size={12} />
+                  {t('monitorThreats')} ({connection.threats.length})
+                </h3>
+                {connection.threats.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center">
+                    <p className="text-xs text-gray-600">{t('monitorNoThreats')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {connection.threats.slice().reverse().map((threat, i) => (
+                      <div key={i} className="p-3 rounded-xl bg-red-500/5 border border-red-500/10">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-300">{threat.title}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{threat.details}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                                threat.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
+                                threat.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                                threat.severity === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                                'bg-gray-500/20 text-gray-400'
+                              }`}>{threat.severity}</span>
+                              <span className="text-[10px] text-gray-600">{threat.source}</span>
+                              <span className="text-[10px] text-gray-600">{new Date(threat.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Defenses */}
+              {connection.defenses.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Shield size={12} />
+                    {t('monitorDefenses')} ({connection.defenses.length})
+                  </h3>
+                  <div className="space-y-1.5">
+                    {connection.defenses.slice().reverse().map((defense, i) => (
+                      <div key={i} className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                        <div className="flex items-start gap-2">
+                          <CheckCircle2 size={14} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-300">{defense.action}: {defense.target}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{defense.reason}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {defense.autoApproved && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">auto</span>}
+                              {defense.reversible && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400">reversible</span>}
+                              <span className="text-[10px] text-gray-600">{new Date(defense.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Input — always visible */}
         <ChatInput
           onSend={sendMessage}
           isAgentRunning={isAgentRunning}
@@ -546,9 +932,6 @@ export function AppShell() {
           isConnected={isConnected}
         />
       </div>
-
-      {/* Brain overlay */}
-      {brainOpen && <BrainOverlay onClose={() => setBrainOpen(false)} />}
     </div>
   );
 }

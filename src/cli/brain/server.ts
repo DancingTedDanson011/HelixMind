@@ -323,7 +323,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'send_chat': {
-            controlHandlers.sendChat(msg.text);
+            controlHandlers.sendChat(msg.text, msg.chatId, msg.mode);
             sendTo(ws, { type: 'chat_received', requestId, timestamp: Date.now() });
             break;
           }

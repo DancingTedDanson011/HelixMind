@@ -23,6 +23,8 @@ interface CliContextValue {
   connectTo: (instance: DiscoveredInstance) => void;
   /** Disconnect from current instance */
   disconnectCli: () => void;
+  /** Port of the currently connected CLI instance */
+  connectedPort: number | undefined;
 }
 
 const CliContext = createContext<CliContextValue | null>(null);
@@ -134,6 +136,7 @@ export function CliConnectionProvider({ children }: { children: React.ReactNode 
       rescan: discovery.scan,
       connectTo,
       disconnectCli,
+      connectedPort: selectedPort,
     }}>
       {children}
     </CliContext.Provider>
