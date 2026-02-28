@@ -41,6 +41,8 @@ The agent breaks the goal into subtasks and works until completion.
 /security
 ```
 
+Run a one-time security audit of your codebase:
+
 | Category | What's Checked |
 |----------|---------------|
 | Injection | SQL, command, template injection |
@@ -63,6 +65,36 @@ The agent breaks the goal into subtasks and works until completion.
 | **LOW** | Reported for manual review |
 
 Findings appear in the Brain's **findings panel**.
+
+## Continuous Security Monitor (`/monitor`)
+
+```bash
+/monitor [mode] [interval]
+```
+
+Start **continuous security monitoring** in the background:
+
+| Mode | Description |
+|:-----|:------------|
+| `passive` | Detects threats but takes no action (audit only) |
+| `defensive` | Takes pre-approved defensive actions automatically |
+| `active` | Requests approval for each defensive action via web dashboard |
+
+**Examples:**
+```
+/monitor                    # Passive mode, 5 min interval
+/monitor active 60         # Active mode, 60 sec interval
+/monitor defensive 180     # Defensive mode, 3 min interval
+```
+
+**Features:**
+- Real-time threat detection (bruteforce, portscan, malware, config changes)
+- Automated defenses (block IPs, kill processes, close ports)
+- Web dashboard integration (`/dashboard/monitor`)
+- Approval queue for manual review (Active mode)
+- Baseline system scanning and drift detection
+
+See the [Security Monitor](/docs/security-monitor) guide for full details.
 
 ## Background Sessions
 

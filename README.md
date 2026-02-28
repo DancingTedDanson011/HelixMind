@@ -104,6 +104,20 @@ AI can **edit files, run commands, commit changes, and browse the web** — with
 
 </td>
 </tr>
+<tr>
+<td width="50%">
+
+### 🛡️ Security Monitor
+**Continuous security monitoring** — threat detection, automated defenses, real-time dashboard with approval queue.
+
+</td>
+<td width="50%">
+
+### 📈 MCP Integration
+**Model Context Protocol** — works with Claude Code, Cursor, VS Code, Windsurf, Codex, JetBrains AI.
+
+</td>
+</tr>
 </table>
 
 ---

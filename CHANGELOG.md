@@ -56,6 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Chrome finder for local installation
   - Puppeteer-based browser control
   - Screenshot capture and visual analysis
+- 🛡️ **Security Monitor**
+  - Continuous security monitoring with three modes (passive/defensive/active)
+  - System baseline scanning (processes, ports, configs, packages, users, cron)
+  - Real-time threat detection (bruteforce, portscan, malware, config changes)
+  - Automated defenses (block IPs, kill processes, close ports, rotate secrets)
+  - Web dashboard integration with threat timeline and approval queue
 - 🐛 **Bug Tracking**
   - Automatic bug detection in code
   - Bug journal with persistent tracking

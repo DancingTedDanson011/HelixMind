@@ -43,6 +43,8 @@ Der Agent arbeitet Issues in Prioritätsreihenfolge ab:
 /security
 ```
 
+Führe einen **einmaligen Sicherheits-Audit** deiner Codebase durch:
+
 | Kategorie | Prüfungen |
 |-----------|-----------|
 | **Injection** | SQL, Command, Template Injection |
@@ -54,6 +56,36 @@ Der Agent arbeitet Issues in Prioritätsreihenfolge ab:
 | **Auth** | Schwache Authentifizierung, fehlende Session-Verwaltung |
 
 **Auto-Fix:** CRITICAL und HIGH Issues werden automatisch gefixt. MEDIUM und LOW werden gemeldet.
+
+## Kontinuierlicher Security Monitor (`/monitor`)
+
+```bash
+/monitor [mode] [interval]
+```
+
+Starte **kontinuierliches Security-Monitoring** im Hintergrund:
+
+| Modus | Beschreibung |
+|:-----|:------------|
+| `passive` | Erkennt Bedrohungen, ergreift aber keine Maßnahmen (nur Audit) |
+| `defensive` | Führt vorab genehmigte Verteidigungsmaßnahmen automatisch aus |
+| `active` | Fordert für jede Verteidigungsmaßnahme Genehmigung via Web-Dashboard an |
+
+**Beispiele:**
+```
+/monitor                    # Passiv-Modus, 5 Min. Intervall
+/monitor active 60         # Aktiv-Modus, 60 Sek. Intervall
+/monitor defensive 180     # Defensiv-Modus, 3 Min. Intervall
+```
+
+**Features:**
+- Echtzeit-Threat-Erkennung (Bruteforce, Portscan, Malware, Konfig-Änderungen)
+- Automatisierte Verteidigungen (IPs blockieren, Prozesse beenden, Ports schließen)
+- Web-Dashboard-Integration (`/dashboard/monitor`)
+- Approval-Queue für manuelle Review (Aktiv-Modus)
+- Baseline-System-Scanning und Drift-Erkennung
+
+Siehe den [Security Monitor](/docs/security-monitor) Guide für vollständige Details.
 
 ## Wie Hintergrund-Sessions funktionieren
 

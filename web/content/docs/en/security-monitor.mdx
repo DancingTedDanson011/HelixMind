@@ -1,0 +1,131 @@
+---
+title: Security Monitor & Audits
+description: Continuous security monitoring, threat detection, and automated defense system built into HelixMind.
+order: 18
+category: Core Concepts
+---
+
+# Security Monitor & Audits
+
+HelixMind includes a **real-time security monitoring system** that runs in the background while you code, detecting threats, performing security audits, and optionally taking automated defensive actions.
+
+## Overview
+
+The Security Monitor works in three modes:
+
+| Mode | Description |
+|:-----|:------------|
+| **Passive** | Detects threats but takes no action (audit only) |
+| **Defensive** | Takes pre-approved defensive actions automatically |
+| **Active** | Requests approval for each defensive action via web dashboard |
+
+## How It Works
+
+1. **Baseline Scan** — Creates a snapshot of your system (processes, ports, configs, packages, users, cron jobs)
+2. **Continuous Monitoring** — Periodically rescans and compares against baseline
+3. **Threat Detection** — Identifies anomalies, suspicious processes, open ports, config changes
+4. **Defense Actions** — Can block IPs, kill processes, close ports, rotate secrets, isolate services
+5. **Approval Flow** — Requests approval via web dashboard (in Active mode)
+
+## Starting the Monitor
+
+### CLI Command
+
+```
+/monitor [mode] [interval]
+```
+
+| Parameter | Description | Default |
+|:----------|:------------|:--------|
+| `mode` | `passive`, `defensive`, or `active` | `passive` |
+| `interval` | Rescan interval in seconds | `300` (5 minutes) |
+
+Examples:
+```
+/monitor                    # Start in passive mode (5 min interval)
+/monitor active 60          # Start in active mode, rescan every 60 seconds
+/monitor defensive 180      # Start in defensive mode, 3 min interval
+```
+
+### Security Audit (One-time)
+
+```
+/security [scope]
+```
+
+Run a one-time security audit:
+
+```
+/security                   # Full system audit
+/security ports             # Check open ports only
+/security processes         # Check running processes
+/security configs           # Check config file changes
+/security packages          # Check for vulnerable packages
+```
+
+## Web Dashboard Integration
+
+Connect to the web dashboard at `http://localhost:3000/dashboard/monitor` to:
+
+- **View real-time threats** on threat timeline
+- **See active defenses** with undo capability
+- **Approve/deny actions** in approval queue
+- **Change monitor mode** (passive/defensive/active)
+- **View system baseline** and drift detection
+
+## Threat Categories
+
+The monitor detects:
+
+| Category | What It Detects |
+|:---------|:----------------|
+| **Bruteforce** | Multiple failed login attempts |
+| **Portscan** | Unusual port scanning patterns |
+| **Exfiltration** | Large outbound data transfers |
+| **Malware** | Suspicious processes, known malware signatures |
+| **Config Change** | Unauthorized configuration file changes |
+| **Privilege Escalation** | Unexpected privilege changes |
+| **Secret Leak** | Potential secret exposure in files |
+| **Anomaly** | Statistical anomalies in system behavior |
+
+## Defense Actions
+
+When a threat is detected, the monitor can:
+
+| Action | Description |
+|:-------|:------------|
+| **Block IP** | Block suspicious IP via firewall |
+| **Kill Process** | Terminate malicious process |
+| **Close Port** | Close unexpected open port |
+| **Rotate Secret** | Automatically rotate exposed secret |
+| **Isolate Service** | Network-isolate compromised service |
+| **Deploy Honeypot** | Deploy decoy service to track attacker |
+
+## Configuration
+
+Enable/configure monitoring in `.helixmind/config.json`:
+
+```json
+{
+  "monitor": {
+    "enabled": true,
+    "defaultMode": "passive",
+    "scanInterval": 300,
+    "maxThreatHistory": 1000,
+    "autoApproveLow": false,
+    "allowedDefenses": ["block_ip", "kill_process", "close_port"]
+  }
+}
+```
+
+## Permissions
+
+Monitor operations require explicit permissions:
+
+| Operation | Permission Level |
+|:----------|:----------------|
+| **Passive scanning** | `auto` (always allowed) |
+| **Defensive actions** | `ask` (requires approval in Active mode) |
+| **Active monitoring** | `ask` (requires approval to start) |
+
+Use `/permissions` to view and adjust permission settings.

@@ -133,6 +133,7 @@ helixmind/
 | `cli/sessions/` | Session lifecycle and multi-tab view |
 | `cli/context/` | Context assembly, project analysis, trimming |
 | `cli/providers/` | AI providers (Anthropic, OpenAI, Ollama) with rate limiting |
+| `cli/agent/monitor/` | Security monitoring system with scanner, watcher, alerter, defenses |
 | `spiral/engine.ts` | Core spiral memory with 5-level architecture |
 | `spiral/cloud/` | Web knowledge enrichment (search, topic detection, extraction) |
 | `storage/` | SQLite + sqlite-vec database layer |

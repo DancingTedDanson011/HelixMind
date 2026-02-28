@@ -1,0 +1,131 @@
+---
+title: Security Monitor & Audits
+description: Kontinuierliches Security-Monitoring, Threat-Erkennung und automatisiertes Verteidigungssystem in HelixMind.
+order: 18
+category: Kernkonzepte
+---
+
+# Security Monitor & Audits
+
+HelixMind enthält ein **Echtzeit-Security-Monitoring-System**, das im Hintergrund läuft während du codest, Bedrohungen erkennt, Security-Audits durchführt und optional automatisierte Verteidigungsmaßnahmen ergreift.
+
+## Übersicht
+
+Der Security Monitor arbeitet in drei Modi:
+
+| Modus | Beschreibung |
+|:-----|:------------|
+| **Passiv** | Erkennt Bedrohungen, ergreift aber keine Maßnahmen (nur Audit) |
+| **Defensiv** | Führt vorab genehmigte Verteidigungsmaßnahmen automatisch aus |
+| **Aktiv** | Fordert für jede Verteidigungsmaßnahme Genehmigung via Web-Dashboard an |
+
+## Wie es funktioniert
+
+1. **Baseline-Scan** — Erstellt einen Snapshot deines Systems (Prozesse, Ports, Konfigs, Pakete, Benutzer, Cron-Jobs)
+2. **Kontinuierliches Monitoring** — Rescannt periodisch und vergleicht mit Baseline
+3. **Threat-Erkennung** — Identifiziert Anomalien, verdächtige Prozesse, offene Ports, Konfigurationsänderungen
+4. **Verteidigungsaktionen** — Kann IPs blockieren, Prozesse beenden, Ports schließen, Secrets rotieren, Services isolieren
+5. **Genehmigungs-Flow** — Fordert Genehmigung via Web-Dashboard an (im Aktiv-Modus)
+
+## Monitor starten
+
+### CLI-Befehl
+
+```
+/monitor [mode] [interval]
+```
+
+| Parameter | Beschreibung | Standard |
+|:----------|:------------|:--------|
+| `mode` | `passive`, `defensive` oder `active` | `passive` |
+| `interval` | Rescan-Intervall in Sekunden | `300` (5 Minuten) |
+
+Beispiele:
+```
+/monitor                    # Starte im Passiv-Modus (5 Min. Intervall)
+/monitor active 60          # Starte im Aktiv-Modus, rescanne alle 60 Sekunden
+/monitor defensive 180      # Starte im Defensiv-Modus, 3 Min. Intervall
+```
+
+### Security Audit (Einmalig)
+
+```
+/security [scope]
+```
+
+Führe einen einmaligen Security-Audit durch:
+
+```
+/security                   # Vollständiger System-Audit
+/security ports             # Nur offene Ports prüfen
+/security processes         # Laufende Prozesse prüfen
+/security configs           # Konfigurationsdatei-Änderungen prüfen
+/security packages          # Anfällige Pakete prüfen
+```
+
+## Web-Dashboard-Integration
+
+Verbinde dich mit dem Web-Dashboard unter `http://localhost:3000/dashboard/monitor` um:
+
+- **Echtzeit-Bedrohungen** im Threat-Timeline zu sehen
+- **Aktive Verteidigungen** mit Rückgängig-Funktion zu sehen
+- **Aktionen genehmigen/ablehnen** in der Approval-Queue
+- **Monitor-Modus ändern** (passiv/defensiv/aktiv)
+- **System-Baseline** und Drift-Erkennung sehen
+
+## Threat-Kategorien
+
+Der Monitor erkennt:
+
+| Kategorie | Was erkannt wird |
+|:---------|:----------------|
+| **Bruteforce** | Mehrere fehlgeschlagene Login-Versuche |
+| **Portscan** | Ungewöhnliche Port-Scanning-Muster |
+| **Exfiltration** | Große ausgehende Datenübertragungen |
+| **Malware** | Verdächtige Prozesse, bekannte Malware-Signaturen |
+| **Config Change** | Unautorisierte Konfigurationsdatei-Änderungen |
+| **Privilege Escalation** | Unerwartete Privilegien-Änderungen |
+| **Secret Leak** | Potentielle Secret-Exposure in Dateien |
+| **Anomaly** | Statistische Anomalien im Systemverhalten |
+
+## Verteidigungsaktionen
+
+Wenn eine Bedrohung erkannt wird, kann der Monitor:
+
+| Aktion | Beschreibung |
+|:-------|:------------|
+| **Block IP** | Verdächtige IP via Firewall blockieren |
+| **Kill Process** | Bösartigen Prozess beenden |
+| **Close Port** | Unerwarteten offenen Port schließen |
+| **Rotate Secret** | Exposedes Secret automatisch rotieren |
+| **Isolate Service** | Kompromittierten Service netzwerk-isolieren |
+| **Deploy Honeypot** | Köder-Service deployen um Angreifer zu tracken |
+
+## Konfiguration
+
+Monitoring aktivieren/konfigurieren in `.helixmind/config.json`:
+
+```json
+{
+  "monitor": {
+    "enabled": true,
+    "defaultMode": "passive",
+    "scanInterval": 300,
+    "maxThreatHistory": 1000,
+    "autoApproveLow": false,
+    "allowedDefenses": ["block_ip", "kill_process", "close_port"]
+  }
+}
+```
+
+## Berechtigungen
+
+Monitor-Operationen benötigen explizite Berechtigungen:
+
+| Operation | Berechtigungs-Level |
+|:----------|:----------------|
+| **Passives Scanning** | `auto` (immer erlaubt) |
+| **Defensive Aktionen** | `ask` (benötigt Genehmigung im Aktiv-Modus) |
+| **Aktives Monitoring** | `ask` (benötigt Genehmigung zum Starten) |
+
+Verwende `/permissions` um Berechtigungseinstellungen anzuzeigen und anzupassen.
