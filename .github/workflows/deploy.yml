@@ -1,0 +1,63 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          command_timeout: 10m
+          script: |
+            set -e
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            echo "=== Git Pull ==="
+            cd /opt/helixmind/web
+            git pull origin main
+
+            echo "=== Enter web directory ==="
+            cd /opt/helixmind/web/web
+
+            # Copy .env from repo root if not present here yet
+            if [ -f /opt/helixmind/web/.env ] && [ ! -f .env ]; then
+              cp /opt/helixmind/web/.env .env
+              echo "Copied .env from repo root"
+            fi
+
+            set -a && source .env && set +a
+
+            echo "=== NPM Install ==="
+            npm install --include=dev
+
+            echo "=== Prisma DB Push ==="
+            npx prisma db push --accept-data-loss
+
+            echo "=== Prisma Generate ==="
+            npx prisma generate
+
+            echo "=== Build ==="
+            npm run build
+
+            echo "=== PM2 Restart ==="
+            pm2 delete helixmind-web 2>/dev/null || true
+            pm2 start ecosystem.config.cjs
+            sleep 3
+
+            echo "=== PM2 Status ==="
+            pm2 status
+
+            echo "=== PM2 Logs (last 30 lines) ==="
+            pm2 logs helixmind-web --nostream --lines 30 || true
+
+            pm2 save
+            echo "=== Deploy complete: $(date) ==="
