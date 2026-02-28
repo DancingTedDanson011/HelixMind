@@ -331,6 +331,23 @@ npm run dev
 
 ---
 
+## 📚 Documentation
+
+Complete documentation is available in the web dashboard and includes:
+
+| Category | Topics |
+|:---------|:-------|
+| **Core Concepts** | Spiral Memory, Validation Matrix, Web Knowledge, Bug Tracking, Browser Automation |
+| **Usage Guides** | Getting Started, Configuration, Authentication, Project Setup |
+| **Advanced** | Autonomous Modes, Agent Tools, MCP Integration, SWE-Bench |
+| **Reference** | CLI Commands, Slash Commands, Permission System, Export/Import |
+
+**Web Dashboard Docs**: Start the web dashboard (`cd web && npm run dev`) and navigate to `/docs`.
+
+**CLI Help**: Use `helixmind --help` or `helixmind chat --help` for command reference.
+
+---
+
 ## 📄 License
 
 [AGPL-3.0](LICENSE) — Free for open-source use. Commercial licenses available.

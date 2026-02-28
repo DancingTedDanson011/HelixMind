@@ -123,9 +123,19 @@ helixmind/
 | `cli/commands/chat.ts` | Main chat loop (120KB) — the heart of the CLI |
 | `cli/brain/template.ts` | System prompt template (82KB) — defines AI personality and capabilities |
 | `cli/agent/loop.ts` | Agent tool-use loop — executes tools, manages permissions |
-| `cli/validation/` | Output quality validation with autofix |
+| `cli/validation/` | Output quality validation with autofix (static, dynamic, spiral checks) |
+| `cli/bugs/` | Automatic bug detection and persistent journal |
+| `cli/browser/` | Puppeteer browser automation + visual analysis |
+| `cli/checkpoints/` | Checkpoint store, revert, browser UI |
+| `cli/feed/` | File feed pipeline with analyzer, parser, watcher |
+| `cli/auth/` | OAuth login, feature gating, guard system |
+| `cli/bench/` | SWE-bench benchmark runner and harness |
+| `cli/sessions/` | Session lifecycle and multi-tab view |
+| `cli/context/` | Context assembly, project analysis, trimming |
+| `cli/providers/` | AI providers (Anthropic, OpenAI, Ollama) with rate limiting |
 | `spiral/engine.ts` | Core spiral memory with 5-level architecture |
-| `spiral/cloud/` | Web knowledge enrichment |
+| `spiral/cloud/` | Web knowledge enrichment (search, topic detection, extraction) |
+| `storage/` | SQLite + sqlite-vec database layer |
 | `web/server.ts` | Custom Next.js server with WebSocket relay |
 
 ---
