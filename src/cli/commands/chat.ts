@@ -1160,6 +1160,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             process.stdout.write('\n');
             if (r.messagesRemoved > 0) renderInfo(chalk.yellow(`${r.messagesRemoved} message(s) reverted`));
             if (r.filesReverted > 0) renderInfo(chalk.yellow(`${r.filesReverted} file(s) reverted`));
+
+            // Restore user text into readline input
+            if (browserResult.messageText) {
+              (rl as any).line = browserResult.messageText;
+              (rl as any).cursor = browserResult.messageText.length;
+            }
           }
         } catch {
           // Browser closed unexpectedly

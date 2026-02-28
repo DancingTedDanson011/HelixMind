@@ -51,11 +51,11 @@ describe('CheckpointStore', () => {
   });
 
   it('should truncate long chat labels', () => {
-    const longMessage = 'A'.repeat(100);
+    const longMessage = 'A'.repeat(300);
     const id = store.createForChat(longMessage, 0);
 
     const cp = store.get(id);
-    expect(cp!.label.length).toBeLessThanOrEqual(63); // 60 + '...'
+    expect(cp!.label.length).toBeLessThanOrEqual(203); // 200 + '...'
   });
 
   it('should return all checkpoints most recent first', () => {

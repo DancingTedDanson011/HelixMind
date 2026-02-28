@@ -1,12 +1,12 @@
 import chalk from 'chalk';
 import type { CheckpointStore, Checkpoint } from './store.js';
 import { createKeybindingState, processKeypress, type KeybindingState } from './keybinding.js';
-import { revertChatOnly, revertCodeOnly, revertBoth, type RevertResult } from './revert.js';
+import { revertChatOnly, revertBoth, type RevertResult } from './revert.js';
 import type { ToolMessage } from '../providers/types.js';
 
 export type BrowserResult =
   | { action: 'resume' }
-  | { action: 'revert'; result: RevertResult };
+  | { action: 'revert'; result: RevertResult; messageText: string };
 
 interface BrowserOptions {
   store: CheckpointStore;
@@ -15,106 +15,191 @@ interface BrowserOptions {
   isPaused: boolean;
 }
 
+interface RewindEntry {
+  chatCheckpoint: Checkpoint;
+  messageText: string;
+  filesChanged: number;
+  linesAdded: number;
+  linesRemoved: number;
+  hasCodeChanges: boolean;
+}
+
 /**
- * Run the checkpoint browser. This takes over the terminal until the user
- * either resumes (ESC) or selects a revert action.
- *
- * Returns the action taken.
+ * Build RewindEntry list: group tool checkpoints under their preceding chat checkpoint.
+ * Calculates file change stats from fileSnapshots of tool checkpoints between chat CPs.
+ */
+function buildRewindEntries(store: CheckpointStore): RewindEntry[] {
+  // getAll() returns newest-first, we need chronological
+  const all = [...store.getAll()].reverse();
+
+  const chatIndices: number[] = [];
+  for (let i = 0; i < all.length; i++) {
+    if (all[i].type === 'chat') chatIndices.push(i);
+  }
+
+  const entries: RewindEntry[] = [];
+
+  for (let ci = 0; ci < chatIndices.length; ci++) {
+    const chatIdx = chatIndices[ci];
+    const nextChatIdx = ci + 1 < chatIndices.length ? chatIndices[ci + 1] : all.length;
+    const chatCp = all[chatIdx];
+
+    // Collect tool checkpoints between this chat and the next
+    const toolCps = all.slice(chatIdx + 1, nextChatIdx);
+
+    // Compute file change stats
+    const fileChanges = new Map<string, { added: number; removed: number }>();
+
+    for (const tcp of toolCps) {
+      if (!tcp.fileSnapshots) continue;
+      for (const snap of tcp.fileSnapshots) {
+        const beforeLines = snap.contentBefore ? snap.contentBefore.split('\n').length : 0;
+        const afterLines = snap.contentAfter.split('\n').length;
+        const diff = afterLines - beforeLines;
+
+        const existing = fileChanges.get(snap.path);
+        if (existing) {
+          if (diff > 0) existing.added += diff;
+          else existing.removed += Math.abs(diff);
+        } else {
+          fileChanges.set(snap.path, {
+            added: diff > 0 ? diff : 0,
+            removed: diff < 0 ? Math.abs(diff) : 0,
+          });
+        }
+      }
+    }
+
+    let totalAdded = 0;
+    let totalRemoved = 0;
+    for (const { added, removed } of fileChanges.values()) {
+      totalAdded += added;
+      totalRemoved += removed;
+    }
+
+    entries.push({
+      chatCheckpoint: chatCp,
+      messageText: chatCp.label,
+      filesChanged: fileChanges.size,
+      linesAdded: totalAdded,
+      linesRemoved: totalRemoved,
+      hasCodeChanges: fileChanges.size > 0,
+    });
+  }
+
+  return entries;
+}
+
+/**
+ * Format elapsed time as human-readable string.
+ */
+function formatElapsed(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  if (totalSec < 60) return `${totalSec}s`;
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (sec === 0) return `${min}m`;
+  return `${min}m ${sec}s`;
+}
+
+/**
+ * Run the Rewind checkpoint browser. Shows only user messages with code change summaries.
+ * Claude Code-style clean UI.
  */
 export function runCheckpointBrowser(options: BrowserOptions): Promise<BrowserResult> {
-  const { store, agentHistory, simpleMessages, isPaused } = options;
-  const checkpoints = store.getAll();
+  const { store, agentHistory, simpleMessages } = options;
+  const entries = buildRewindEntries(store);
 
-  if (checkpoints.length === 0) {
+  if (entries.length === 0) {
     process.stdout.write(chalk.dim('\n  No checkpoints yet.\n\n'));
     return Promise.resolve({ action: 'resume' });
   }
 
   return new Promise<BrowserResult>((resolve) => {
-    let selectedIndex = 0;
+    // selectedIndex points into entries; entries.length = "(current)"
+    let selectedIndex = entries.length; // start at "(current)"
     let inOptions = false;
     const keyState = createKeybindingState();
     keyState.inBrowser = true;
 
-    const pageSize = Math.min(checkpoints.length, Math.max(8, (process.stdout.rows || 24) - 8));
+    // Total items: entries + 1 for "(current)"
+    const totalItems = entries.length + 1;
+    const maxVisible = Math.min(totalItems, Math.max(6, (process.stdout.rows || 24) - 10));
 
     function render(): void {
-      // Clear screen area
-      const totalLines = pageSize + 6;
-      process.stdout.write('\x1b[2J\x1b[H'); // Clear screen, move to top
+      process.stdout.write('\x1b[2J\x1b[H');
 
-      // Header
-      const pauseLabel = isPaused ? chalk.yellow(' \u23F8\uFE0F AGENT PAUSED ') : '';
-      process.stdout.write(
-        chalk.dim('\u256D\u2500\u2500\u2500 \u{1F551} HelixMind Checkpoints \u2500\u2500\u2500') +
-        pauseLabel +
-        chalk.dim('\u2500'.repeat(Math.max(1, 50 - pauseLabel.length))) +
-        chalk.dim('\u256E') + '\n',
-      );
-      process.stdout.write(chalk.dim('\u2502') + '\n');
+      // Elapsed time header
+      const allCps = [...store.getAll()].reverse();
+      let elapsed = 0;
+      if (allCps.length >= 2) {
+        elapsed = allCps[allCps.length - 1].timestamp.getTime() - allCps[0].timestamp.getTime();
+      }
+      process.stdout.write(chalk.magenta(`  \u2726 Baked for ${formatElapsed(elapsed)}`) + '\n\n');
 
-      // Visible range
-      const start = Math.max(0, selectedIndex - Math.floor(pageSize / 2));
-      const end = Math.min(checkpoints.length, start + pageSize);
+      // Title
+      process.stdout.write(chalk.bold('  Rewind') + '\n');
+      process.stdout.write(chalk.dim('  Restore the code and/or conversation to the point before...') + '\n\n');
+
+      // Visible range for scrolling
+      const start = Math.max(0, selectedIndex - Math.floor(maxVisible / 2));
+      const end = Math.min(totalItems, start + maxVisible);
 
       for (let i = start; i < end; i++) {
-        const cp = checkpoints[i];
         const isSelected = i === selectedIndex;
-        const pointer = isSelected ? chalk.cyan('\u25BA') : ' ';
-        const icon = getCheckpointIcon(cp);
-        const time = formatTime(cp.timestamp);
-        const typeLabel = cp.type.replace('tool_', '').padEnd(6);
 
-        const line = `  ${pointer} #${String(cp.id).padStart(3)}  ${time}  ${icon} ${chalk.cyan(typeLabel)}  ${truncate(cp.label, 50)}`;
+        if (i < entries.length) {
+          // Entry row
+          const entry = entries[i];
+          const pointer = isSelected ? chalk.cyan('\u25B8 ') : '  ';
+          const maxTextLen = Math.min(80, (process.stdout.columns || 80) - 10);
+          const msgText = entry.messageText.length > maxTextLen
+            ? entry.messageText.slice(0, maxTextLen - 3) + '...'
+            : entry.messageText;
 
-        if (isSelected) {
-          process.stdout.write(chalk.dim('\u2502') + chalk.bgGray.white(stripAnsi(line).padEnd(70)) + '\n');
+          // Change summary
+          let changeSummary: string;
+          if (entry.hasCodeChanges) {
+            const parts = [`${entry.filesChanged} file${entry.filesChanged !== 1 ? 's' : ''} changed`];
+            if (entry.linesAdded > 0) parts.push(chalk.green(`+${entry.linesAdded}`));
+            if (entry.linesRemoved > 0) parts.push(chalk.red(`-${entry.linesRemoved}`));
+            changeSummary = parts.join(' ');
+          } else {
+            changeSummary = chalk.dim('No code changes');
+          }
+
+          if (isSelected) {
+            process.stdout.write(`  ${pointer}${chalk.white(msgText)}\n`);
+            process.stdout.write(`      ${changeSummary}\n\n`);
+          } else {
+            process.stdout.write(`  ${pointer}${chalk.dim(msgText)}\n`);
+            process.stdout.write(`      ${changeSummary}\n\n`);
+          }
         } else {
-          process.stdout.write(chalk.dim('\u2502') + line + '\n');
+          // "(current)" row
+          const pointer = isSelected ? chalk.cyan('\u25B8 ') : '  ';
+          if (isSelected) {
+            process.stdout.write(`  ${pointer}${chalk.white('(current)')}\n\n`);
+          } else {
+            process.stdout.write(`  ${pointer}${chalk.dim('(current)')}\n\n`);
+          }
         }
       }
 
-      // Scroll indicator
-      if (checkpoints.length > pageSize) {
-        const pos = Math.round((selectedIndex / (checkpoints.length - 1)) * 10);
-        const scrollBar = '\u2591'.repeat(pos) + '\u2588' + '\u2591'.repeat(10 - pos);
-        process.stdout.write(chalk.dim('\u2502  ') + chalk.dim(scrollBar) + '\n');
-      }
-
-      process.stdout.write(chalk.dim('\u2502') + '\n');
-
-      if (inOptions) {
-        renderOptions(checkpoints[selectedIndex]);
+      if (inOptions && selectedIndex < entries.length) {
+        renderOptions(entries[selectedIndex]);
       } else {
         // Footer
-        const footer = isPaused
-          ? 'ESC = Resume Agent \u2502 Enter = Options \u2502 \u2191\u2193 Navigate'
-          : 'ESC = Close \u2502 Enter = Options \u2502 \u2191\u2193 Navigate';
-        process.stdout.write(
-          chalk.dim('\u2570\u2500\u2500\u2500 ') +
-          chalk.dim(footer) +
-          chalk.dim(' \u2500'.repeat(Math.max(1, 50 - footer.length))) +
-          chalk.dim('\u256F') + '\n',
-        );
+        process.stdout.write(chalk.dim('  Enter to continue \u00B7 Esc to exit') + '\n');
       }
     }
 
-    function renderOptions(cp: Checkpoint): void {
-      const hasCode = cp.fileSnapshots && cp.fileSnapshots.length > 0;
-
-      process.stdout.write(chalk.dim('\u2502  ') + chalk.yellow('Options for #' + cp.id + ':') + '\n');
-      process.stdout.write(chalk.dim('\u2502  ') + chalk.cyan('[1]') + ' Revert Chat Only\n');
-      if (hasCode) {
-        process.stdout.write(chalk.dim('\u2502  ') + chalk.cyan('[2]') + ' Revert Code Only\n');
-        process.stdout.write(chalk.dim('\u2502  ') + chalk.cyan('[3]') + ' Revert Both\n');
+    function renderOptions(entry: RewindEntry): void {
+      process.stdout.write(chalk.cyan('  [1]') + ' Conversation only\n');
+      if (entry.hasCodeChanges) {
+        process.stdout.write(chalk.cyan('  [2]') + ' Conversation + file changes\n');
       }
-      process.stdout.write(chalk.dim('\u2502  ') + chalk.cyan('[4]') + ' View Details\n');
-      process.stdout.write(chalk.dim('\u2502  ') + chalk.dim('ESC = Back') + '\n');
-      process.stdout.write(
-        chalk.dim('\u2570') +
-        chalk.dim('\u2500'.repeat(70)) +
-        chalk.dim('\u256F') + '\n',
-      );
+      process.stdout.write(chalk.dim('  ESC = Back') + '\n');
     }
 
     function handleKey(chunk: Buffer): void {
@@ -129,55 +214,25 @@ export function runCheckpointBrowser(options: BrowserOptions): Promise<BrowserRe
           return;
         }
 
-        if (result.action === 'digit' && result.digit) {
-          const cp = checkpoints[selectedIndex];
+        if (result.action === 'digit' && result.digit && selectedIndex < entries.length) {
+          const entry = entries[selectedIndex];
+          const cpId = entry.chatCheckpoint.id;
+
           switch (result.digit) {
             case 1: {
               cleanup();
-              const r = revertChatOnly(cp.id, store, agentHistory, simpleMessages);
-              resolve({ action: 'revert', result: r });
+              const r = revertChatOnly(cpId, store, agentHistory, simpleMessages);
+              resolve({ action: 'revert', result: r, messageText: entry.messageText });
               return;
             }
             case 2: {
-              if (cp.fileSnapshots && cp.fileSnapshots.length > 0) {
+              if (entry.hasCodeChanges) {
                 cleanup();
-                const r = revertCodeOnly(cp.id, store);
-                resolve({ action: 'revert', result: r });
+                const r = revertBoth(cpId, store, agentHistory, simpleMessages);
+                resolve({ action: 'revert', result: r, messageText: entry.messageText });
                 return;
               }
               break;
-            }
-            case 3: {
-              if (cp.fileSnapshots && cp.fileSnapshots.length > 0) {
-                cleanup();
-                const r = revertBoth(cp.id, store, agentHistory, simpleMessages);
-                resolve({ action: 'revert', result: r });
-                return;
-              }
-              break;
-            }
-            case 4: {
-              // View details
-              process.stdout.write('\n');
-              process.stdout.write(chalk.cyan(`  Checkpoint #${cp.id}\n`));
-              process.stdout.write(chalk.dim(`  Time: ${cp.timestamp.toLocaleTimeString()}\n`));
-              process.stdout.write(chalk.dim(`  Type: ${cp.type}\n`));
-              process.stdout.write(chalk.dim(`  Label: ${cp.label}\n`));
-              if (cp.toolName) process.stdout.write(chalk.dim(`  Tool: ${cp.toolName}\n`));
-              if (cp.fileSnapshots) {
-                process.stdout.write(chalk.dim(`  Files: ${cp.fileSnapshots.map(s => s.path).join(', ')}\n`));
-              }
-              if (cp.toolResult) {
-                process.stdout.write(chalk.dim(`  Result: ${cp.toolResult.slice(0, 200)}\n`));
-              }
-              process.stdout.write('\n  ' + chalk.dim('Press any key to go back...') + '\n');
-              // Wait for any key then re-render
-              const onceKey = () => {
-                process.stdin.removeListener('data', onceKey);
-                render();
-              };
-              process.stdin.on('data', onceKey);
-              return;
             }
           }
         }
@@ -193,14 +248,20 @@ export function runCheckpointBrowser(options: BrowserOptions): Promise<BrowserRe
           }
           break;
         case 'down':
-          if (selectedIndex < checkpoints.length - 1) {
+          if (selectedIndex < totalItems - 1) {
             selectedIndex++;
             render();
           }
           break;
         case 'enter':
-          inOptions = true;
-          render();
+          if (selectedIndex < entries.length) {
+            inOptions = true;
+            render();
+          } else {
+            // "(current)" selected — just close
+            cleanup();
+            resolve({ action: 'resume' });
+          }
           break;
         case 'escape':
           cleanup();
@@ -211,15 +272,12 @@ export function runCheckpointBrowser(options: BrowserOptions): Promise<BrowserRe
 
     function cleanup(): void {
       process.stdin.removeListener('data', handleKey);
-      // Restore original raw mode state
       if (process.stdin.isTTY && !wasRaw) {
         process.stdin.setRawMode(false);
       }
-      // Clear the browser display
       process.stdout.write('\x1b[2J\x1b[H');
     }
 
-    // Enable raw mode for keypress handling
     let wasRaw = false;
     if (process.stdin.isTTY) {
       wasRaw = process.stdin.isRaw ?? false;
@@ -231,44 +289,12 @@ export function runCheckpointBrowser(options: BrowserOptions): Promise<BrowserRe
   });
 }
 
-function getCheckpointIcon(cp: Checkpoint): string {
-  const icons: Record<string, string> = {
-    session_start: '\u{1F680}',
-    chat: '\u{1F4AC}',
-    tool_read: '\u{1F4C4}',
-    tool_edit: '\u{270F}\u{FE0F}',
-    tool_write: '\u{1F4DD}',
-    tool_run: '\u26A1',
-    tool_commit: '\u{1F4E6}',
-    tool_search: '\u{1F50D}',
-    feed: '\u{1F300}',
-    config: '\u2699\u{FE0F}',
-  };
-  return icons[cp.type] ?? '\u{1F4CC}';
-}
-
-function formatTime(date: Date): string {
-  const h = String(date.getHours()).padStart(2, '0');
-  const m = String(date.getMinutes()).padStart(2, '0');
-  const s = String(date.getSeconds()).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-}
-
-function truncate(str: string, max: number): string {
-  return str.length > max ? str.slice(0, max - 3) + '...' : str;
-}
-
-function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*m/g, '');
-}
-
 function parseKey(str: string): { name?: string; sequence?: string; ctrl?: boolean } {
   if (str === '\x1b' || str === '\x1b\x1b') return { name: 'escape' };
   if (str === '\x1b[A') return { name: 'up' };
   if (str === '\x1b[B') return { name: 'down' };
   if (str === '\r' || str === '\n') return { name: 'return' };
-  if (str.length === 1 && str >= '1' && str <= '4') return { sequence: str };
+  if (str.length === 1 && str >= '1' && str <= '2') return { sequence: str };
   if (str.charCodeAt(0) === 3) return { name: 'c', ctrl: true };
   return { sequence: str };
 }

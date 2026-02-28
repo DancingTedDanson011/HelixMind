@@ -130,7 +130,7 @@ export class CheckpointStore {
   createForChat(label: string, messageIndex: number): number {
     return this.create({
       type: 'chat',
-      label: label.length > 60 ? label.slice(0, 60) + '...' : label,
+      label: label.length > 200 ? label.slice(0, 200) + '...' : label,
       messageIndex,
     });
   }
