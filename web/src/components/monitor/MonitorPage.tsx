@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { GlassPanel } from '@/components/ui/GlassPanel';
@@ -23,21 +23,33 @@ export function MonitorPageClient() {
   const t = useTranslations('monitor');
   const [connectionMode] = useState<ConnectionMode>('local');
   const [pendingInstance, setPendingInstance] = useState<DiscoveredInstance | null>(null);
+  const [authToken, setAuthToken] = useState<string | undefined>(undefined);
+  const connectAfterRenderRef = useRef(false);
 
   const { instances, scanning, scan: rescan } = useCliDiscovery();
 
   const connection = useCliConnection({
     mode: connectionMode,
     port: pendingInstance?.port,
-    token: undefined,
+    token: authToken,
   });
 
   const isConnected = connection.connectionState === 'connected';
 
-  // Auto-connect to first discovered instance
+  // Connect after React state has settled
+  useEffect(() => {
+    if (connectAfterRenderRef.current) {
+      connectAfterRenderRef.current = false;
+      connection.connect();
+    }
+  });
+
+  // Auto-connect with discovered token
   const handleConnect = useCallback((instance: DiscoveredInstance) => {
     setPendingInstance(instance);
-    setTimeout(() => connection.connect(), 100);
+    setAuthToken(instance.token || undefined);
+    connection.disconnect();
+    connectAfterRenderRef.current = true;
   }, [connection]);
 
   // Not connected yet — show discovery

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { GlassPanel } from '@/components/ui/GlassPanel';
@@ -43,6 +43,9 @@ export function CliManager() {
   const [pendingInstance, setPendingInstance] = useState<DiscoveredInstance | null>(null);
   const [authToken, setAuthToken] = useState<string | undefined>(undefined);
 
+  // Flag: connect on next render (after state has settled)
+  const connectAfterRenderRef = useRef(false);
+
   // ── Hooks ───────────────────────────────────────
 
   const discovery = useCliDiscovery();
@@ -56,6 +59,17 @@ export function CliManager() {
   const output = useCliOutput({
     connection,
     sessionId: selectedSessionId,
+  });
+
+  // ── Auto-connect after state settles ──────────
+  // When connectAfterRenderRef is set, we wait for the next render cycle
+  // (which means React has applied all pending state updates including authToken)
+  // and then trigger the connection.
+  useEffect(() => {
+    if (connectAfterRenderRef.current) {
+      connectAfterRenderRef.current = false;
+      connection.connect();
+    }
   });
 
   // ── Derived ─────────────────────────────────────
@@ -83,8 +97,17 @@ export function CliManager() {
   const handleConnectClick = useCallback((instance: DiscoveredInstance) => {
     setPendingInstance(instance);
     setConnectionMode('local');
-    setTokenDialogOpen(true);
-  }, []);
+
+    if (instance.token) {
+      // Auto-connect: token was fetched during discovery, no dialog needed
+      setAuthToken(instance.token);
+      connection.disconnect();
+      connectAfterRenderRef.current = true;
+    } else {
+      // Fallback: show token dialog if auto-fetch failed
+      setTokenDialogOpen(true);
+    }
+  }, [connection]);
 
   const handleRelayConnect = useCallback(() => {
     setConnectionMode('relay');
@@ -103,11 +126,8 @@ export function CliManager() {
         } catch { /* ignore storage errors */ }
       }
 
-      // Reconnect with the new token (needs brief delay for state to settle)
       connection.disconnect();
-      setTimeout(() => {
-        connection.connect();
-      }, 100);
+      connectAfterRenderRef.current = true;
     },
     [pendingInstance, connection],
   );
@@ -230,7 +250,7 @@ export function CliManager() {
         />
       )}
 
-      {/* ── Token Dialog ── */}
+      {/* ── Token Dialog (fallback for when auto-fetch fails) ── */}
       <TokenDialog
         open={tokenDialogOpen}
         onClose={() => setTokenDialogOpen(false)}

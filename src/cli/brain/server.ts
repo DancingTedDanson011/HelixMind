@@ -177,6 +177,11 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
       res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
       res.end(JSON.stringify(meta));
 
+    } else if (url === '/api/token') {
+      // Full token — safe because server only listens on 127.0.0.1
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+      res.end(JSON.stringify({ token: connectionToken }));
+
     } else if (url === '/api/token-hint') {
       const hint = connectionToken.slice(-4);
       res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });

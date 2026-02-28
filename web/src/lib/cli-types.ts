@@ -89,6 +89,7 @@ export interface BrowserScreenshotInfo {
 export interface DiscoveredInstance {
   port: number;
   meta: InstanceMeta;
+  token: string;
   tokenHint: string;
 }
 

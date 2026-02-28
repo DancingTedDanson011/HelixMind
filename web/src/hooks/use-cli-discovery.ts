@@ -32,25 +32,39 @@ async function probePort(port: number): Promise<DiscoveredInstance | null> {
 
     const meta: InstanceMeta = await metaRes.json();
 
-    // Best-effort fetch of the token hint (last 4 chars of token)
+    // Auto-fetch the full connection token (safe — server only listens on 127.0.0.1)
+    let token = '';
     let tokenHint = '';
     try {
-      const hintController = new AbortController();
-      const hintTimer = setTimeout(() => hintController.abort(), FETCH_TIMEOUT_MS);
-      const hintRes = await fetch(`http://127.0.0.1:${port}/api/token-hint`, {
-        signal: hintController.signal,
+      const tokenController = new AbortController();
+      const tokenTimer = setTimeout(() => tokenController.abort(), FETCH_TIMEOUT_MS);
+      const tokenRes = await fetch(`http://127.0.0.1:${port}/api/token`, {
+        signal: tokenController.signal,
       });
-      clearTimeout(hintTimer);
+      clearTimeout(tokenTimer);
 
-      if (hintRes.ok) {
-        const hintData: { hint: string } = await hintRes.json();
-        tokenHint = hintData.hint ?? '';
+      if (tokenRes.ok) {
+        const tokenData: { token: string } = await tokenRes.json();
+        token = tokenData.token ?? '';
+        tokenHint = token.slice(-4);
       }
     } catch {
-      // token-hint is optional, ignore failures
+      // token fetch is best-effort; fallback to hint endpoint
+      try {
+        const hintController = new AbortController();
+        const hintTimer = setTimeout(() => hintController.abort(), FETCH_TIMEOUT_MS);
+        const hintRes = await fetch(`http://127.0.0.1:${port}/api/token-hint`, {
+          signal: hintController.signal,
+        });
+        clearTimeout(hintTimer);
+        if (hintRes.ok) {
+          const hintData: { hint: string } = await hintRes.json();
+          tokenHint = hintData.hint ?? '';
+        }
+      } catch { /* ignore */ }
     }
 
-    return { port, meta, tokenHint };
+    return { port, meta, token, tokenHint };
   } catch {
     return null;
   } finally {
