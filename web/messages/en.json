@@ -523,7 +523,11 @@
       "noInstances": "No remote instances connected",
       "noInstancesHint": "Configure relay in CLI: helixmind config set relay.url wss://your-server.com"
     },
-    "mixedContentWarning": "Mixed content: HTTPS page cannot connect to local WS. Use the relay instead."
+    "mixedContentWarning": "Mixed content: HTTPS page cannot connect to local WS. Use the relay instead.",
+    "commands": "Commands",
+    "securityAudit": "Security Audit",
+    "selectSession": "Select a session to view details",
+    "selectSessionHint": "Click on any session from the list to view its output"
   },
   "app": {
     "title": "HelixMind App",

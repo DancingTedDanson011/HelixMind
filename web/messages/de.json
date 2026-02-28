@@ -523,7 +523,11 @@
       "noInstances": "Keine Remote-Instanzen verbunden",
       "noInstancesHint": "Relay konfigurieren: helixmind config set relay.url wss://dein-server.com"
     },
-    "mixedContentWarning": "Mixed Content: HTTPS-Seite kann nicht mit lokalem WS verbinden. Nutze stattdessen den Relay."
+    "mixedContentWarning": "Mixed Content: HTTPS-Seite kann nicht mit lokalem WS verbinden. Nutze stattdessen den Relay.",
+    "commands": "Befehle",
+    "securityAudit": "Sicherheitsanalyse",
+    "selectSession": "Wähle eine Session um Details zu sehen",
+    "selectSessionHint": "Klicke auf eine Session aus der Liste um ihre Ausgabe zu sehen"
   },
   "app": {
     "title": "HelixMind App",
