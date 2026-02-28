@@ -38,7 +38,10 @@ jobs:
             set -a && source .env && set +a
 
             echo "=== Clean node_modules ==="
-            rm -rf node_modules
+            if [ -d node_modules ]; then
+              mv node_modules node_modules_old_$$ 2>/dev/null || true
+              rm -rf node_modules_old_$$ &
+            fi
 
             echo "=== NPM Install ==="
             npm ci --include=dev
