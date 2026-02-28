@@ -37,8 +37,11 @@ jobs:
 
             set -a && source .env && set +a
 
+            echo "=== Clean node_modules ==="
+            rm -rf node_modules
+
             echo "=== NPM Install ==="
-            npm install --include=dev
+            npm ci --include=dev
 
             echo "=== Prisma DB Push ==="
             npx prisma db push --accept-data-loss
