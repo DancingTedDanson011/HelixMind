@@ -2009,6 +2009,33 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
   }
 
+  // Show user's typing in the top border during agent work.
+  // Readline echo is muted (devNull), so we mirror rl.line into chrome row 0.
+  process.stdin.on('keypress', () => {
+    if (!agentRunning || !chrome.isActive) return;
+    // Defer to let readline update rl.line first
+    setImmediate(() => {
+      if (!agentRunning || !chrome.isActive) return;
+      const userInput = (rl as any).line as string || '';
+      const w = Math.max(20, (process.stdout.columns || 80) - 2);
+      const dim = chalk.hex('#00d4ff').dim;
+      if (userInput) {
+        const maxLen = w - 14;
+        const display = userInput.length > maxLen
+          ? '\u2026' + userInput.slice(-(maxLen - 1))
+          : userInput;
+        const pipe = chalk.hex('#00d4ff').dim('\u2502');
+        const gt = chalk.hex('#00d4ff').bold('\u276F');
+        const inner = `${pipe} ${gt} ${display}`;
+        const innerVis = visibleLength(inner);
+        const fill = Math.max(0, w - 4 - innerVis - 1);
+        chrome.setRow(0, dim('\u250C\u2500\u2500') + ' ' + inner + ' ' + dim('\u2500'.repeat(fill) + '\u2510'));
+      } else {
+        chrome.setRow(0, buildTopBorder(w));
+      }
+    });
+  });
+
   rl.on('close', async () => {
     clearInterval(footerTimer);
     chrome.deactivate();
