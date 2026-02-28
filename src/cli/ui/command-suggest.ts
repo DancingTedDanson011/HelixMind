@@ -83,17 +83,18 @@ export function getBestCompletion(partial: string): string | null {
 }
 
 /**
- * Write command suggestions as overlay above the status bar.
+ * Write command suggestions as overlay above the bottom chrome.
  * Uses ANSI cursor positioning to avoid disturbing readline.
+ * @param chromeRows Number of reserved rows at the bottom (default: 3 for BottomChrome)
  */
-export function writeSuggestions(suggestions: CommandDef[]): void {
+export function writeSuggestions(suggestions: CommandDef[], chromeRows: number = 3): void {
   if (suggestions.length === 0) return;
   if (!process.stdout.isTTY) return;
 
   const termHeight = process.stdout.rows || 24;
   const count = suggestions.length;
-  // Suggestions go above status bar (last row)
-  const startRow = termHeight - count;
+  // Suggestions go above the chrome (which occupies the last chromeRows rows)
+  const startRow = termHeight - chromeRows - count;
 
   process.stdout.write('\x1b7'); // Save cursor
   for (let i = 0; i < count; i++) {
@@ -107,13 +108,14 @@ export function writeSuggestions(suggestions: CommandDef[]): void {
 
 /**
  * Clear previously rendered suggestions.
+ * @param chromeRows Number of reserved rows at the bottom (default: 3 for BottomChrome)
  */
-export function clearSuggestions(count: number): void {
+export function clearSuggestions(count: number, chromeRows: number = 3): void {
   if (count === 0) return;
   if (!process.stdout.isTTY) return;
 
   const termHeight = process.stdout.rows || 24;
-  const startRow = termHeight - count;
+  const startRow = termHeight - chromeRows - count;
 
   process.stdout.write('\x1b7'); // Save cursor
   for (let i = 0; i < count; i++) {

@@ -20,6 +20,7 @@ import { isInsideToolBlock } from '../ui/tool-output.js';
 import { renderFeedProgress, renderFeedSummary } from '../ui/progress.js';
 import type { FeedProgress } from '../feed/pipeline.js';
 import { ActivityIndicator } from '../ui/activity.js';
+import { BottomChrome } from '../ui/bottom-chrome.js';
 import { theme } from '../ui/theme.js';
 import { detectFeedIntent } from '../feed/intent.js';
 import { runFeedPipeline } from '../feed/pipeline.js';
@@ -314,8 +315,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let browserController: BrowserController | undefined;
   let visionProcessor: VisionProcessor | undefined;
 
-  // Activity indicator (replaces spinner)
-  const activity = new ActivityIndicator();
+  // Bottom chrome (3 fixed rows at terminal bottom: separator, hints, statusbar)
+  const chrome = new BottomChrome();
+
+  // Activity indicator (renders on chrome row 0 during agent work)
+  const activity = new ActivityIndicator(chrome);
 
   // Agent controller for pause/resume
   const agentController = new AgentController();
@@ -801,33 +805,69 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     return `${escaped} `;
   }
 
+  /** Build separator content for chrome row 0 */
+  function buildSeparator(w: number): string {
+    return chalk.hex('#00d4ff').dim('\u2500'.repeat(w));
+  }
+
+  /** Build hint line content for chrome row 1 */
+  function buildHintLine(): string {
+    const data = getStatusBarData();
+    const hints: string[] = [];
+    if (data.permissionMode === 'yolo') hints.push(chalk.red('\u25B8\u25B8 yolo mode'));
+    else if (data.permissionMode === 'skip') hints.push(chalk.yellow('\u25B8\u25B8 bypass permissions'));
+    else hints.push(chalk.green('\u25B8\u25B8 safe permissions'));
+    hints.push(chalk.dim('shift+tab to cycle'));
+    hints.push(chalk.dim('esc to interrupt'));
+    return hints.join(chalk.dim(' \u00B7 '));
+  }
+
   /**
-   * Show the full prompt area:
-   *   ──────────────────
-   *   ▸▸ safe permissions · esc = stop · /help
-   *   🌀 L1:... | tokens | model | git
-   *   > _                    ← cursor here (last line)
-   *
-   * Info is written ABOVE the prompt as normal scrolling text.
-   * The prompt is always the last line — no ANSI cursor tricks needed.
+   * Show the full prompt area using sticky bottom chrome:
+   *   > _                    ← cursor here (bottom of scroll region, row N-3)
+   *   ──────────────────     ← row N-2: separator (fixed chrome row 0)
+   *   ▸▸ safe · esc = stop   ← row N-1: hints (fixed chrome row 1)
+   *   🌀 L1:... | statusbar  ← row N:   statusbar (fixed chrome row 2)
    */
   function showPrompt(): void {
     const w = Math.max(20, (process.stdout.columns || 80) - 2);
-    const sep = chalk.hex('#00d4ff').dim('\u2500'.repeat(w));
+
+    // Update chrome row content
+    const sep = buildSeparator(w);
+    const hintLine = buildHintLine();
     const data = getStatusBarData();
     const bar = renderStatusBar(data, w);
-    // Build hint line
-    const hints: string[] = [];
-    if (data.permissionMode === 'yolo') hints.push(chalk.red('\u25B8\u25B8 yolo mode'));
-    else if (data.permissionMode === 'skip') hints.push(chalk.yellow('\u25B8\u25B8 skip permissions'));
-    else hints.push(chalk.green('\u25B8\u25B8 safe permissions'));
-    hints.push(chalk.dim('esc = stop'));
-    hints.push(chalk.dim('/help'));
-    const hintLine = hints.join(chalk.dim(' \u00B7 '));
-    // Write info above the prompt, then the prompt as the last line
+
+    // Set separator content on activity indicator (for restore after agent work)
+    activity.setSeparatorContent(sep);
+
+    // Combine tab bar into statusbar row when sessions exist
+    let statusContent = bar;
+    if (sessionMgr.all.length > 1) {
+      const tabBar = truncateBar(sessionMgr.renderTabs(), w);
+      statusContent = `${tabBar}  ${bar}`;
+    }
+
+    chrome.setRow(0, sep);
+    chrome.setRow(1, hintLine);
+    chrome.setRow(2, statusContent);
+
+    // Activate chrome if not already (sets scroll region + hooks stdout)
+    if (!chrome.isActive && !chrome.isInlineMode) {
+      chrome.activate();
+    }
+
     isAtPrompt = true;
-    process.stdout.write(`\n${sep}\n ${hintLine}\n ${bar}\n`);
-    rl.prompt();
+
+    if (chrome.isActive) {
+      // Position cursor at the bottom of the scroll region, then prompt
+      chrome.positionCursorForPrompt();
+      rl.prompt();
+    } else {
+      // Inline fallback for small terminals
+      process.stdout.write(`\n${sep}\n ${hintLine}\n ${bar}\n`);
+      rl.prompt();
+    }
   }
 
   /** Build current status bar data object */
@@ -873,10 +913,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     },
   });
 
-  // Update prompt and activity scroll region on terminal resize
+  // Update prompt, chrome, and activity on terminal resize
   process.stdout.on('resize', () => {
     rl.setPrompt(makePrompt());
+    chrome.handleResize();
     activity.handleResize();
+    if (isAtPrompt) {
+      chrome.positionCursorForPrompt();
+      rl.prompt();
+    }
   });
 
   // Track suggestion overlay state
@@ -885,9 +930,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   permissions.setReadline(rl);
   permissions.setPromptCallback((active) => { isAtPrompt = active; });
 
-  // Activity indicator renders on the bottom terminal row (absolute positioned,
-  // same row as statusbar). The footer timer already skips statusbar draws when
-  // activity.isAnimating is true, so there's no conflict.
+  // Activity indicator renders on chrome row 0 (separator/activity row, terminal row N-2).
+  // BottomChrome manages the scroll region and stdout hook for all 3 fixed rows.
 
   // Ctrl+C behavior:
   // - If there's text on the line → clear the line (like a normal terminal)
@@ -1024,12 +1068,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // === Tab switching: Ctrl+PageUp / Ctrl+PageDown ===
       if (key.ctrl && key.name === 'pageup') {
         sessionMgr.switchPrev();
-        writeTabBar();
+        updateStatusBar();
         return;
       }
       if (key.ctrl && key.name === 'pagedown') {
         sessionMgr.switchNext();
-        writeTabBar();
+        updateStatusBar();
         return;
       }
 
@@ -1087,8 +1131,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Double-ESC detection (for checkpoint browser when nothing is running)
       const result = processKeypress(key, keyState);
       if (result.action === 'open_browser' && !agentRunning) {
-        // Open checkpoint browser
+        // Open checkpoint browser — deactivate chrome for fullscreen TUI
         rl.pause();
+        chrome.deactivate();
         try {
           const browserResult = await runCheckpointBrowser({
             store: checkpointStore,
@@ -1106,61 +1151,34 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         } catch {
           // Browser closed unexpectedly
         }
+        chrome.activate();
         rl.resume();
         showPrompt();
       }
     });
   }
 
-  // Update statusbar — uses save/restore cursor (DECSC/DECRC).
-  // Only called during agent work to update token counts etc.
+  // Update statusbar via BottomChrome row 2.
+  // Called during agent work by the footer timer to update token counts etc.
   function updateStatusBar(): void {
     if (!process.stdout.isTTY) return;
     const data = getStatusBarData();
-    writeStatusBar(data);
+    const w = (process.stdout.columns || 80) - 2;
+    const bar = renderStatusBar(data, w);
 
-    // Draw tab bar if there are background sessions, otherwise clear stale tab bar
+    // Combine tab bar into statusbar row when background sessions exist
+    let statusContent = bar;
     if (sessionMgr.all.length > 1) {
-      writeTabBar();
-    } else {
-      // Clear the tab bar row when no background sessions remain
-      clearTabBarRow();
+      const tabBar = truncateBar(sessionMgr.renderTabs(), w);
+      statusContent = `${tabBar}  ${bar}`;
     }
-  }
 
-  /** Clear the tab bar row (row N-1) to remove stale tab bar text */
-  function clearTabBarRow(): void {
-    if (!process.stdout.isTTY) return;
-    const termHeight = process.stdout.rows || 24;
-    process.stdout.write(
-      `\x1b7` +                           // Save cursor
-      `\x1b[${termHeight - 1};0H` +       // Move to tab bar row
-      `\x1b[2K` +                          // Clear line
-      `\x1b8`,                             // Restore cursor
-    );
-  }
-
-  /** Draw the session tab bar above the statusbar */
-  function writeTabBar(): void {
-    if (!process.stdout.isTTY) return;
-    if (sessionMgr.all.length <= 1) return;
-
-    const tabBar = sessionMgr.renderTabs();
-    const termHeight = process.stdout.rows || 24;
-    const termWidth = (process.stdout.columns || 80) - 2;
-
-    // Truncate tab bar to terminal width to prevent overflow into other rows
-    const safeTabBar = truncateBar(tabBar, termWidth);
-
-    // Write tab bar above the statusbar (termHeight - 1)
-    // Layout: ..., tabbar(N-1), statusbar(N)
-    process.stdout.write(
-      `\x1b7` +                           // Save cursor
-      `\x1b[${termHeight - 1};0H` +       // Move to row above statusbar
-      `\x1b[2K` +                          // Clear line
-      ` ${safeTabBar}` +                   // Tab bar (truncated to fit)
-      `\x1b8`,                             // Restore cursor
-    );
+    if (chrome.isActive) {
+      chrome.setRow(2, statusContent);
+    } else {
+      // Inline fallback
+      writeStatusBar(data);
+    }
   }
 
   /** Push session findings to brain visualization */
@@ -1215,13 +1233,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Show full prompt area on startup (separator + status + > prompt)
   showPrompt();
 
-  // Footer timer — redraws status bar during agent work (absolute positioning).
+  // Footer timer — redraws statusbar on chrome row 2 during agent work.
   // Skipped when:
   //   - user is at readline prompt (isAtPrompt) — prevents cursor-jumping
-  //   - activity indicator is animating — prevents flicker collision
   //   - inline progress active (inlineProgressActive) — prevents flicker over feed progress
+  // Note: activity.isAnimating guard no longer needed — activity uses chrome row 0,
+  // statusbar uses chrome row 2, they don't collide.
   const footerTimer = setInterval(() => {
-    if (process.stdout.isTTY && !isAtPrompt && !activity.isAnimating && !inlineProgressActive) updateStatusBar();
+    if (process.stdout.isTTY && !isAtPrompt && !inlineProgressActive) updateStatusBar();
   }, 500);
   footerTimer.unref();
 
@@ -1718,6 +1737,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   rl.on('close', async () => {
     clearInterval(footerTimer);
+    chrome.deactivate();
     if (spiralEngine) {
       // Persist session buffer (goals, entities, decisions) into spiral brain
       // so next session with the same brain can recall them

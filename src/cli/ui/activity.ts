@@ -1,22 +1,12 @@
 import chalk from 'chalk';
+import type { BottomChrome } from './bottom-chrome.js';
 
 /**
  * Glowing activity indicator with color-wave animation across "HelixMind" text.
  * Shows elapsed time, step info, and error count during agent work.
  *
- * TWO-LAYER protection keeps the bottom row reserved at all costs:
- *
- * Layer 1 — SCROLL REGION (best-effort, terminal-dependent)
- *   Sets DECSTBM so rows 1..(N-1) scroll normally, row N is untouchable.
- *   Works on Windows Terminal, iTerm, GNOME Terminal, xterm, etc.
- *   May not work fully on legacy cmd.exe / conhost.
- *
- * Layer 2 — STDOUT HOOK (bulletproof, works everywhere)
- *   Monkey-patches process.stdout.write. After every normal write,
- *   a process.nextTick redraws the bar on the bottom row. This catches
- *   any content that leaks past the scroll region (or when scroll regions
- *   aren't supported). The nextTick batching avoids interrupting
- *   multi-part ANSI sequences.
+ * Renders on BottomChrome row 0 (the separator/activity row, terminal row N-2).
+ * Scroll region management and stdout hooking are delegated to BottomChrome.
  */
 
 const GRADIENT = [
@@ -49,11 +39,19 @@ export class ActivityIndicator {
   private startTime = 0;
   private _blockMode = false;
   private _finalElapsed = 0;
+  private _separatorContent = '';
 
-  // ─── stdout hook state ────────────────────────────────────
-  private _originalWrite: ((...args: any[]) => boolean) | null = null;
-  private _lastBarContent = '';
-  private _redrawScheduled = false;
+  /** Reference to the shared BottomChrome instance */
+  private chrome: BottomChrome | null;
+
+  constructor(chrome?: BottomChrome) {
+    this.chrome = chrome ?? null;
+  }
+
+  /** Set the separator content to restore when activity stops/pauses */
+  setSeparatorContent(content: string): void {
+    this._separatorContent = content;
+  }
 
   start(): void {
     this.frame = 0;
@@ -62,8 +60,6 @@ export class ActivityIndicator {
     this.totalSteps = 0;
     this.errors = 0;
     this.startTime = Date.now();
-    this._hookStdout();
-    this._setScrollRegion();
     this.resumeAnimation();
   }
 
@@ -77,14 +73,16 @@ export class ActivityIndicator {
     this.render();
   }
 
-  /** Pause the animation but keep the timer running (hook stays active) */
+  /** Pause the animation but keep the timer running */
   pauseAnimation(): void {
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;
     }
-    this._lastBarContent = '';
-    this._writeToBottomRow('');
+    // Restore separator on chrome row 0
+    if (this.chrome?.isActive) {
+      this.chrome.setRow(0, this._separatorContent);
+    }
   }
 
   /** Toggle block mode — shows | prefix when inside a tool block */
@@ -104,7 +102,7 @@ export class ActivityIndicator {
 
   /**
    * Stop the activity indicator and write a final status line.
-   * Resets scroll region, unhooks stdout, clears bottom row, writes "Done" inline.
+   * Restores separator on chrome row 0 and writes "Done" as inline scrolling content.
    */
   stop(message: string = 'Done'): void {
     if (this.startTime > 0) {
@@ -116,11 +114,10 @@ export class ActivityIndicator {
       this.interval = null;
     }
 
-    // Clear the bar, remove all protections
-    this._lastBarContent = '';
-    this._writeToBottomRow('');
-    this._resetScrollRegion();
-    this._unhookStdout();
+    // Restore separator on chrome row 0
+    if (this.chrome?.isActive) {
+      this.chrome.setRow(0, this._separatorContent);
+    }
 
     if (this.startTime > 0 && wasAnimating) {
       // Write colorful final status inline (part of conversation flow)
@@ -159,101 +156,11 @@ export class ActivityIndicator {
    * Called on terminal resize to update protections while active.
    */
   handleResize(): void {
-    if (this.isRunning) {
-      this._setScrollRegion();
-      if (this._lastBarContent) {
-        this._writeToBottomRow(this._lastBarContent);
-      }
+    // BottomChrome handles scroll region and row repositioning.
+    // Just re-render the current frame if animating.
+    if (this.isAnimating) {
+      this.render();
     }
-  }
-
-  // ─── Layer 2: stdout write hook ───────────────────────────
-
-  /**
-   * Monkey-patch process.stdout.write so that after every normal write,
-   * a nextTick redraws the bar. This guarantees the bottom row is never
-   * left showing stale content — even if the terminal ignores scroll regions.
-   *
-   * nextTick batching prevents interrupting multi-part ANSI sequences
-   * (e.g. a write of "\x1b[" followed by "31m" won't have a bar redraw
-   * injected between them).
-   */
-  private _hookStdout(): void {
-    if (!process.stdout.isTTY || this._originalWrite) return;
-    this._originalWrite = process.stdout.write.bind(process.stdout);
-    const self = this;
-    (process.stdout as any).write = function (...args: any[]): boolean {
-      const result = self._originalWrite!(...args);
-      // Schedule a single bar redraw after current synchronous writes finish
-      if (self._lastBarContent && !self._redrawScheduled) {
-        self._redrawScheduled = true;
-        process.nextTick(() => {
-          self._redrawScheduled = false;
-          if (self._lastBarContent) {
-            self._writeToBottomRow(self._lastBarContent);
-          }
-        });
-      }
-      return result;
-    };
-  }
-
-  /** Restore the original stdout.write */
-  private _unhookStdout(): void {
-    if (this._originalWrite) {
-      process.stdout.write = this._originalWrite as typeof process.stdout.write;
-      this._originalWrite = null;
-    }
-    this._redrawScheduled = false;
-  }
-
-  // ─── Low-level rendering ──────────────────────────────────
-
-  /** Write directly to the real stdout, bypassing the hook */
-  private _rawWrite(data: string): void {
-    const write = this._originalWrite || process.stdout.write.bind(process.stdout);
-    write(data);
-  }
-
-  /**
-   * Write content to the bottom terminal row.
-   * Uses cursor save/restore so the caller's position is preserved.
-   * Empty string = clear the row.
-   */
-  private _writeToBottomRow(content: string): void {
-    const row = process.stdout.rows || 24;
-    this._rawWrite(
-      '\x1b[?25l' +          // Hide cursor (prevents flash)
-      '\x1b7' +              // Save cursor position
-      `\x1b[${row};1H` +    // Move to bottom row, col 1
-      '\x1b[2K' +            // Clear entire line
-      content +              // Write content (or nothing to just clear)
-      '\x1b8' +              // Restore cursor position
-      '\x1b[?25h',           // Show cursor
-    );
-  }
-
-  // ─── Layer 1: scroll region (best-effort) ─────────────────
-
-  /**
-   * Set scroll region to rows 1..(N-1), reserving row N for the bar.
-   * Move cursor into the region so readline/prompt don't land on row N.
-   */
-  private _setScrollRegion(): void {
-    if (!process.stdout.isTTY) return;
-    const rows = process.stdout.rows || 24;
-    if (rows < 4) return;
-    const regionEnd = rows - 1;
-    this._rawWrite(
-      `\x1b[1;${regionEnd}r` +     // Set scroll region
-      `\x1b[${regionEnd};1H`,      // Move cursor into region
-    );
-  }
-
-  /** Reset scroll region to full screen */
-  private _resetScrollRegion(): void {
-    if (!process.stdout.isTTY) return;
-    this._rawWrite('\x1b[r');
   }
 
   // ─── Animation rendering ──────────────────────────────────
@@ -294,8 +201,10 @@ export class ActivityIndicator {
       }
     }
 
-    this._lastBarContent = ` ${line}`;
-    this._writeToBottomRow(this._lastBarContent);
+    // Write to chrome row 0 (separator/activity row)
+    if (this.chrome?.isActive) {
+      this.chrome.setRow(0, line);
+    }
   }
 }
 
