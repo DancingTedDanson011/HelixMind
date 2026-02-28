@@ -11,6 +11,7 @@ export interface ToolContext {
   bugJournal?: BugJournal;
   browserController?: BrowserController;
   visionProcessor?: VisionProcessor;
+  onBrowserScreenshot?: (info: { url: string; title?: string; imageBase64?: string; analysis?: string }) => void;
 }
 
 export interface ToolHandler {

@@ -39,6 +39,29 @@ export interface Finding {
   timestamp: number;
 }
 
+export type BugStatus = 'open' | 'investigating' | 'fixed' | 'verified';
+
+export interface BugInfo {
+  id: number;
+  description: string;
+  file?: string;
+  line?: number;
+  status: BugStatus;
+  createdAt: number;
+  updatedAt: number;
+  fixedAt?: number;
+  fixDescription?: string;
+}
+
+export interface BrowserScreenshotInfo {
+  url: string;
+  title?: string;
+  timestamp: number;
+  /** Base64-encoded PNG screenshot (may be absent if too large) */
+  imageBase64?: string;
+  analysis?: string;
+}
+
 // ---------------------------------------------------------------------------
 // WS message envelope
 // ---------------------------------------------------------------------------
@@ -67,6 +90,7 @@ export interface SubscribeOutputRequest extends WSMessage { type: 'subscribe_out
 export interface UnsubscribeOutputRequest extends WSMessage { type: 'unsubscribe_output'; sessionId: string }
 export interface SendChatRequest extends WSMessage { type: 'send_chat'; text: string }
 export interface GetFindingsRequest extends WSMessage { type: 'get_findings' }
+export interface GetBugsRequest extends WSMessage { type: 'get_bugs' }
 export interface PingRequest extends WSMessage { type: 'ping' }
 
 // --- Responses (CLI → Browser) ---
@@ -77,6 +101,7 @@ export interface SessionAbortedResponse extends WSMessage { type: 'session_abort
 export interface OutputSubscribedResponse extends WSMessage { type: 'output_subscribed' }
 export interface ChatReceivedResponse extends WSMessage { type: 'chat_received' }
 export interface FindingsListResponse extends WSMessage { type: 'findings_list'; findings: Finding[] }
+export interface BugsListResponse extends WSMessage { type: 'bugs_list'; bugs: BugInfo[] }
 export interface PongResponse extends WSMessage { type: 'pong' }
 
 // --- Server-Push Events (CLI → Browser, async) ---
@@ -85,6 +110,9 @@ export interface SessionCreatedEvent extends WSMessage { type: 'session_created'
 export interface SessionRemovedEvent extends WSMessage { type: 'session_removed'; sessionId: string }
 export interface OutputLineEvent extends WSMessage { type: 'output_line'; sessionId: string; line: string; lineIndex: number }
 export interface InstanceMetaEvent extends WSMessage { type: 'instance_meta'; instance: InstanceMeta }
+export interface BugCreatedEvent extends WSMessage { type: 'bug_created'; bug: BugInfo }
+export interface BugUpdatedEvent extends WSMessage { type: 'bug_updated'; bug: BugInfo }
+export interface BrowserScreenshotEvent extends WSMessage { type: 'browser_screenshot'; screenshot: BrowserScreenshotInfo }
 
 // Union of all control request types
 export type ControlRequest =
@@ -96,6 +124,7 @@ export type ControlRequest =
   | UnsubscribeOutputRequest
   | SendChatRequest
   | GetFindingsRequest
+  | GetBugsRequest
   | PingRequest;
 
 // ---------------------------------------------------------------------------
@@ -109,6 +138,7 @@ export interface ControlHandlers {
   abortSession(sessionId: string): boolean;
   sendChat(text: string): void;
   getFindings(): Finding[];
+  getBugs(): BugInfo[];
 }
 
 // ---------------------------------------------------------------------------

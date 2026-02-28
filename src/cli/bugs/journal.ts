@@ -181,6 +181,11 @@ export class BugJournal {
   /**
    * Short status line for the status bar.
    */
+  /** Set or replace the onChange callback (useful when brain server starts after construction) */
+  setOnChange(handler: (event: string, bug: BugEntry) => void): void {
+    this.onChange = handler;
+  }
+
   getStatusLine(): string {
     const open = this.getByStatus('open').length;
     const investigating = this.getByStatus('investigating').length;

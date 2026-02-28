@@ -328,6 +328,12 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             sendTo(ws, { type: 'findings_list', findings, requestId, timestamp: Date.now() });
             break;
           }
+
+          case 'get_bugs': {
+            const bugs = controlHandlers.getBugs();
+            sendTo(ws, { type: 'bugs_list', bugs, requestId, timestamp: Date.now() });
+            break;
+          }
         }
       }
 

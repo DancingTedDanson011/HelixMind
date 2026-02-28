@@ -53,6 +53,36 @@ export interface Finding {
 }
 
 // ---------------------------------------------------------------------------
+// Bug Journal
+// ---------------------------------------------------------------------------
+
+export type BugStatus = 'open' | 'investigating' | 'fixed' | 'verified';
+
+export interface BugInfo {
+  id: number;
+  description: string;
+  file?: string;
+  line?: number;
+  status: BugStatus;
+  createdAt: number;
+  updatedAt: number;
+  fixedAt?: number;
+  fixDescription?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Browser Screenshot
+// ---------------------------------------------------------------------------
+
+export interface BrowserScreenshotInfo {
+  url: string;
+  title?: string;
+  timestamp: number;
+  imageBase64?: string;
+  analysis?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Discovery result from scanning local ports
 // ---------------------------------------------------------------------------
 

@@ -5,7 +5,7 @@ import type { BrainExport } from './exporter.js';
 import type { BrainScope } from '../../utils/config.js';
 import { generateBrainHTML } from './template.js';
 import { startBrainServer, type BrainServer } from './server.js';
-import type { ControlHandlers, InstanceMeta, SessionInfo } from './control-protocol.js';
+import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo } from './control-protocol.js';
 
 /** Generate a static HTML file (fallback / export) */
 export function generateBrainFile(data: BrainExport): string {
@@ -251,6 +251,36 @@ export function pushOutputLine(sessionId: string, line: string, lineIndex: numbe
     sessionId,
     line,
     lineIndex,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a bug-created event to control clients */
+export function pushBugCreated(bug: BugInfo): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'bug_created',
+    bug,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a bug-updated event to control clients */
+export function pushBugUpdated(bug: BugInfo): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'bug_updated',
+    bug,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a browser screenshot event to control clients */
+export function pushBrowserScreenshot(screenshot: BrowserScreenshotInfo): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'browser_screenshot',
+    screenshot,
     timestamp: Date.now(),
   });
 }

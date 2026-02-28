@@ -325,6 +325,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Forward-declared findings handler (reassigned by control protocol if active)
   let pushFindingsToBrainFn: ((session: import('../sessions/session.js').Session) => void) | null = null;
 
+  // Forward-declared browser screenshot handler (reassigned when brain server is active)
+  let pushScreenshotToBrainFn: ((info: { url: string; title?: string; imageBase64?: string; analysis?: string }) => void) | null = null;
+
   // Session Manager — manages background sessions (security, auto, etc.)
   const sessionMgr = new SessionManager({
     flags: {
@@ -414,7 +417,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       () => { sessionToolCalls++; },
       undefined,
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-      bugJournal, browserController, visionProcessor,
+      bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
     );
     spiralEngine?.close();
     return;
@@ -466,6 +469,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         pushSessionUpdate,
         pushSessionRemoved,
         pushOutputLine,
+        pushBugCreated,
+        pushBugUpdated,
+        pushBrowserScreenshot,
         startRelayClient,
       } = await import('../brain/generator.js');
       const { serializeSession, buildInstanceMeta, resetInstanceStartTime } = await import('../brain/control-protocol.js');
@@ -609,7 +615,50 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
 
         getFindings: () => [...collectedFindings],
+
+        getBugs: () => bugJournal.getAllBugs().map(b => ({
+          id: b.id,
+          description: b.description,
+          file: b.file,
+          line: b.line,
+          status: b.status,
+          createdAt: b.createdAt,
+          updatedAt: b.updatedAt,
+          fixedAt: b.fixedAt,
+          fixDescription: b.fixDescription,
+        })),
       });
+
+      // Wire bug journal change events to brain server
+      bugJournal.setOnChange((event, bug) => {
+        const bugInfo = {
+          id: bug.id,
+          description: bug.description,
+          file: bug.file,
+          line: bug.line,
+          status: bug.status,
+          createdAt: bug.createdAt,
+          updatedAt: bug.updatedAt,
+          fixedAt: bug.fixedAt,
+          fixDescription: bug.fixDescription,
+        };
+        if (event === 'bug_created') {
+          pushBugCreated(bugInfo);
+        } else {
+          pushBugUpdated(bugInfo);
+        }
+      });
+
+      // Wire browser screenshots to brain server
+      pushScreenshotToBrainFn = (info) => {
+        pushBrowserScreenshot({
+          url: info.url,
+          title: info.title,
+          timestamp: Date.now(),
+          imageBase64: info.imageBase64,
+          analysis: info.analysis,
+        });
+      };
 
       // Override forward-reference to also collect findings for control protocol
       pushFindingsToBrainFn = (session) => {
@@ -658,6 +707,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           abortSession: (id) => { sessionMgr.abort(id); return true; },
           sendChat: (text) => { typeAheadBuffer.push(text); },
           getFindings: () => [...collectedFindings],
+          getBugs: () => bugJournal.getAllBugs().map(b => ({
+            id: b.id, description: b.description, file: b.file, line: b.line,
+            status: b.status, createdAt: b.createdAt, updatedAt: b.updatedAt,
+            fixedAt: b.fixedAt, fixDescription: b.fixDescription,
+          })),
         }, updateMeta).catch(() => {});
       }
     } catch { /* control protocol optional */ }
@@ -1457,7 +1511,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         isAtPrompt = false;
       },
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-      bugJournal, browserController, visionProcessor,
+      bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
     );
 
     agentRunning = false;
@@ -1486,7 +1540,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           () => { sessionToolCalls++; roundToolCalls++; },
           () => { isAtPrompt = true; rl.prompt(); },
           { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-          bugJournal, browserController, visionProcessor,
+          bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
         );
 
         agentRunning = false;
@@ -1723,6 +1777,7 @@ async function sendAgentMessage(
   bugJournal?: BugJournal,
   browserController?: BrowserController,
   visionProcessor?: VisionProcessor,
+  onBrowserScreenshot?: ((info: { url: string; title?: string; imageBase64?: string; analysis?: string }) => void) | null,
 ): Promise<void> {
   // User message was rendered by renderUserMessage() in the caller before entering here.
 
@@ -1821,6 +1876,7 @@ async function sendAgentMessage(
         bugJournal,
         browserController,
         visionProcessor,
+        onBrowserScreenshot: onBrowserScreenshot ?? undefined,
       },
       checkpointStore,
       sessionBuffer,

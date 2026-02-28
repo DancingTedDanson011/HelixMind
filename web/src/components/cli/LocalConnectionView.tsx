@@ -10,6 +10,8 @@ import { SessionList } from './SessionList';
 import { SessionDetail } from './SessionDetail';
 import { CommandPanel } from './CommandPanel';
 import { FindingsPanel } from './FindingsPanel';
+import { BugJournalPanel } from './BugJournalPanel';
+import { BrowserPreview } from './BrowserPreview';
 import { Monitor, RefreshCw, WifiOff } from 'lucide-react';
 import type { UseCliConnectionReturn } from '@/hooks/use-cli-connection';
 import type { UseCliOutputReturn } from '@/hooks/use-cli-output';
@@ -102,6 +104,14 @@ export function LocalConnectionView({
 
           {connection.findings.length > 0 && (
             <FindingsPanel findings={connection.findings} />
+          )}
+
+          {connection.bugs.length > 0 && (
+            <BugJournalPanel bugs={connection.bugs} />
+          )}
+
+          {connection.lastScreenshot && (
+            <BrowserPreview screenshot={connection.lastScreenshot} />
           )}
         </div>
       </motion.div>

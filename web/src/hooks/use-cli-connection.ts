@@ -5,6 +5,8 @@ import type {
   ConnectionMode,
   ConnectionState,
   Finding,
+  BugInfo,
+  BrowserScreenshotInfo,
   InstanceMeta,
   SessionInfo,
 } from '@/lib/cli-types';
@@ -45,6 +47,8 @@ export interface UseCliConnectionReturn {
   connectionState: ConnectionState;
   sessions: SessionInfo[];
   findings: Finding[];
+  bugs: BugInfo[];
+  lastScreenshot: BrowserScreenshotInfo | null;
   instanceMeta: InstanceMeta | null;
   error: string | null;
 
@@ -57,6 +61,7 @@ export interface UseCliConnectionReturn {
   abortSession: (sessionId: string) => Promise<void>;
   sendChat: (text: string) => Promise<void>;
   getFindings: () => Promise<Finding[]>;
+  getBugs: () => Promise<BugInfo[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +78,8 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
+  const [bugs, setBugs] = useState<BugInfo[]>([]);
+  const [lastScreenshot, setLastScreenshot] = useState<BrowserScreenshotInfo | null>(null);
   const [instanceMeta, setInstanceMeta] = useState<InstanceMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -223,6 +230,30 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
       const pushed = msg.findings as Finding[];
       if (mountedRef.current && Array.isArray(pushed)) {
         setFindings((prev) => [...prev, ...pushed]);
+      }
+      return;
+    }
+
+    if (msg.type === 'bug_created') {
+      const bug = msg.bug as BugInfo;
+      if (mountedRef.current) {
+        setBugs((prev) => [...prev, bug]);
+      }
+      return;
+    }
+
+    if (msg.type === 'bug_updated') {
+      const bug = msg.bug as BugInfo;
+      if (mountedRef.current) {
+        setBugs((prev) => prev.map((b) => (b.id === bug.id ? bug : b)));
+      }
+      return;
+    }
+
+    if (msg.type === 'browser_screenshot') {
+      const screenshot = msg.screenshot as BrowserScreenshotInfo;
+      if (mountedRef.current) {
+        setLastScreenshot(screenshot);
       }
       return;
     }
@@ -399,6 +430,13 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     return list;
   }, [sendRequest]);
 
+  const getBugs = useCallback(async (): Promise<BugInfo[]> => {
+    const res = (await sendRequest('get_bugs')) as { bugs: BugInfo[] };
+    const list = res.bugs ?? [];
+    setBugs(list);
+    return list;
+  }, [sendRequest]);
+
   // ---------------------------------------------------------------------------
   // Cleanup on unmount
   // ---------------------------------------------------------------------------
@@ -416,6 +454,8 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     connectionState,
     sessions,
     findings,
+    bugs,
+    lastScreenshot,
     instanceMeta,
     error,
 
@@ -428,5 +468,6 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     abortSession,
     sendChat,
     getFindings,
+    getBugs,
   };
 }

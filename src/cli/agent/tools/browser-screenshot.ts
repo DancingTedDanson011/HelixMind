@@ -27,6 +27,9 @@ registerTool({
     try {
       const screenshot = await ctx.browserController.screenshot();
       const prompt = (input.prompt as string) || 'Describe what you see on this webpage. Note any errors, key content, or interactive elements.';
+      const url = ctx.browserController.getUrl() || 'unknown';
+      let title: string | undefined;
+      try { title = await ctx.browserController.getTitle(); } catch { /* ignore */ }
 
       // If vision processor is available, analyze the screenshot
       if (ctx.visionProcessor) {
@@ -40,14 +43,28 @@ registerTool({
 
         const analysis = await ctx.visionProcessor.analyzeScreenshot(screenshot, prompt, fallbackText);
 
-        const url = ctx.browserController.getUrl() || 'unknown';
+        // Push screenshot event to brain server if available
+        ctx.onBrowserScreenshot?.({
+          url,
+          title,
+          imageBase64: screenshot.toString('base64'),
+          analysis,
+        });
+
         const sizeKB = (screenshot.length / 1024).toFixed(1);
         return `Screenshot taken (${sizeKB} KB) — ${url}\n\n${analysis}`;
       }
 
       // No vision processor — extract page text instead
       const pageText = await ctx.browserController.getPageText();
-      const url = ctx.browserController.getUrl() || 'unknown';
+
+      // Push screenshot event (without vision analysis)
+      ctx.onBrowserScreenshot?.({
+        url,
+        title,
+        imageBase64: screenshot.toString('base64'),
+      });
+
       return `Screenshot taken — ${url}\n[No vision model available. Page text:]\n\n${pageText}`;
     } catch (err) {
       return `Screenshot failed: ${err instanceof Error ? err.message : String(err)}`;
