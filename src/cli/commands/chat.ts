@@ -1811,9 +1811,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       return;
     }
 
-    // Clear the readline echo line (prompt + typed text) and replace with the
-    // styled "You" label so the user doesn't see their input twice.
-    process.stdout.write('\x1b[A\x1b[2K');
+    // Clear the readline echo (prompt + typed text) — may span multiple wrapped
+    // terminal lines for long inputs. Clear each wrapped line so nothing lingers.
+    const promptVis = visibleLength(makePrompt());
+    const cols = process.stdout.columns || 80;
+    const wrappedLines = Math.max(1, Math.ceil((promptVis + input.length) / cols));
+    process.stdout.write('\x1b[A\x1b[2K'.repeat(wrappedLines));
     renderUserMessage(input);
 
     // Track user message in session buffer
@@ -1909,6 +1912,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   rl.on('line', (line) => {
     isAtPrompt = false;
     ctrlCCount = 0;
+
+    // Clear any type-ahead preview at the prompt row
+    if (chrome.isActive && activity.isAnimating) {
+      chrome.writeAtPromptRow('');
+    }
 
     // Guard: skip phantom line events from sub-readline
     if (Date.now() < drainUntil) {
