@@ -78,12 +78,24 @@ export function trimConversation(
   // Actually mutate the history array
   history.splice(0, dropCount);
 
-  // Ensure the first remaining message is a 'user' message to maintain
-  // Anthropic API alternation requirement (user/assistant/user/assistant).
-  // If the first remaining message is 'assistant', drop it too.
-  while (history.length > 0 && history[0].role === 'assistant') {
-    history.shift();
-    dropCount++;
+  // Ensure the first remaining message is a clean 'user' text message.
+  // Drop leading messages that would break the API contract:
+  // 1. assistant messages (breaks user/assistant alternation)
+  // 2. user messages containing tool_result blocks (orphaned — their
+  //    corresponding assistant tool_use message was already trimmed)
+  while (history.length > 0) {
+    const first = history[0];
+    if (first.role === 'assistant') {
+      // Drop leading assistant messages
+      history.shift();
+      dropCount++;
+    } else if (first.role === 'user' && hasToolResultContent(first)) {
+      // Drop orphaned tool_result messages whose tool_use was trimmed
+      history.shift();
+      dropCount++;
+    } else {
+      break;
+    }
   }
 
   // Insert trimmed marker at the start (always a 'user' message)
@@ -94,6 +106,19 @@ export function trimConversation(
 
   renderInfo(`  Context trimmed: ${dropCount} old messages removed to free space.`);
   return dropCount;
+}
+
+/**
+ * Check if a message contains tool_result content blocks.
+ * These are user-role messages that are paired with a preceding assistant
+ * message containing tool_use blocks. If the assistant message was trimmed,
+ * this tool_result becomes orphaned and must also be removed.
+ */
+function hasToolResultContent(msg: ToolMessage): boolean {
+  if (!Array.isArray(msg.content)) return false;
+  return msg.content.some(
+    (block: any) => block.type === 'tool_result',
+  );
 }
 
 /**
