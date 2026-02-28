@@ -26,6 +26,9 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
+            echo "=== Stop PM2 ==="
+            pm2 stop helixmind-web 2>/dev/null || true
+
             echo "=== Enter web directory ==="
             cd /opt/helixmind/web/web
 
@@ -38,10 +41,7 @@ jobs:
             set -a && source .env && set +a
 
             echo "=== Clean node_modules ==="
-            if [ -d node_modules ]; then
-              mv node_modules node_modules_old_$$ 2>/dev/null || true
-              rm -rf node_modules_old_$$ &
-            fi
+            rm -rf node_modules node_modules_old_*
 
             echo "=== NPM Install ==="
             npm ci --include=dev
