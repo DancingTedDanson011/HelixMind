@@ -58,6 +58,8 @@ import { SkillManager } from '../jarvis/skills.js';
 import { JarvisTelegramBot, parseTelegramCommand } from '../jarvis/telegram-bot.js';
 import type { ThinkingCallbacks, MoodAnalysis } from '../jarvis/types.js';
 import { SentimentAnalyzer } from '../jarvis/sentiment.js';
+import { acquireJarvisSlot, releaseJarvisSlot } from '../jarvis/instance-lock.js';
+import { BrainInstanceManager } from '../brain/instance-manager.js';
 import { BrowserController } from '../browser/controller.js';
 import { VisionProcessor } from '../browser/vision.js';
 import { classifyTask } from '../validation/classifier.js';
@@ -66,7 +68,7 @@ import { validationLoop } from '../validation/autofix.js';
 import { getValidationModelConfig, createValidationProvider } from '../validation/model.js';
 import { renderValidationSummary, renderValidationStart, renderClassification, renderValidationOneLine } from '../validation/reporter.js';
 import { storeValidationResult, getValidationStats, renderValidationStats } from '../validation/stats.js';
-import { isFeatureAvailable, getLoginCTA, type Feature } from '../auth/feature-gate.js';
+import { isFeatureAvailable, getLoginCTA, getJarvisLimitsForPlan, getBrainLimitsForPlan, isLoggedIn, type Feature } from '../auth/feature-gate.js';
 import chalk from 'chalk';
 
 interface ChatOptions {
@@ -317,6 +319,20 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     if (blocked.length > 0) setBlockedCommands(blocked);
   }
 
+  // ─── Brain Instance Manager (limit enforcement) ────────────
+  let brainManager: BrainInstanceManager | null = null;
+  if (isLoggedIn(store)) {
+    const plan = (store.get('relay.plan') as string | undefined) ?? 'FREE_PLUS';
+    const brainLimits = getBrainLimitsForPlan(plan);
+    if (brainLimits) {
+      brainManager = new BrainInstanceManager(configDir);
+      brainManager.setLimits(brainLimits);
+    }
+  }
+
+  // ─── Process exit cleanup: release Jarvis slot ─────────────
+  process.on('exit', () => { releaseJarvisSlot(); });
+
   // First-time setup: prompt for LLM API key if none configured
   if (!store.hasApiKey()) {
     const success = await runFirstTimeSetup(store);
@@ -541,6 +557,25 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   if (config.spiral.enabled) {
     spiralEngine = await initSpiralEngine(brainScope);
+  }
+
+  // Register current brain in manager (so limits track it)
+  if (brainManager) {
+    const brainPath = brainScope === 'project'
+      ? join(process.cwd(), '.helixmind')
+      : join(homedir(), '.spiral-context');
+    const existing = brainManager.getByPath(brainPath);
+    if (existing) {
+      brainManager.activate(existing.id);
+    } else {
+      const brain = brainManager.register({
+        name: brainScope === 'project' ? `Local: ${process.cwd().split(/[\\/]/).pop()}` : 'Global Brain',
+        type: brainScope === 'project' ? 'local' : 'global',
+        path: brainPath,
+        projectPath: brainScope === 'project' ? process.cwd() : undefined,
+      });
+      brainManager.activate(brain.id);
+    }
   }
 
   // Build SkillContext for skill activation
@@ -1175,6 +1210,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
         startJarvis: () => {
           if (jarvisDaemonSession && jarvisDaemonSession.status === 'running') return jarvisDaemonSession.id;
+          // Enforce cross-process Jarvis instance limit
+          const plan = (store.get('relay.plan') as string | undefined) ?? 'FREE';
+          const maxJ = getJarvisLimitsForPlan(plan);
+          if (!acquireJarvisSlot(maxJ, process.cwd())) return null;
           const jName = jarvisIdentity.getIdentity().name;
           const bgSession = sessionMgr.create(`\u{1F916} ${jName}`, '\u{1F916}', agentHistory);
           bgSession.start();
@@ -1248,6 +1287,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             sessionMgr.complete(bgSession.id, { text: `${jName} stopped`, steps: [], errors: bgSession.controller.isAborted ? ['Stopped'] : [], durationMs: bgSession.elapsed });
             pushSessionUpdate(serializeSession(bgSession));
             jarvisDaemonSession = null;
+            releaseJarvisSlot();
           })();
 
           return bgSession.id;
@@ -1258,6 +1298,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           jarvisDaemonSession.abort();
           pushSessionUpdate(serializeSession(jarvisDaemonSession));
           jarvisDaemonSession = null;
+          releaseJarvisSlot();
           return true;
         },
 
@@ -1314,10 +1355,27 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             return true;
           } catch { return false; }
         },
-        getBrainList: () => ({ brains: [], limits: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity } }),
-        renameBrain: () => false,
-        switchBrain: () => false,
-        createBrain: () => null,
+        getBrainList: () => {
+          if (!brainManager) return { brains: [], limits: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity } };
+          return { brains: brainManager.getAll(), limits: brainManager.getLimits() };
+        },
+        renameBrain: (id: string, name: string) => {
+          if (!brainManager) return false;
+          try { brainManager.rename(id, name); return true; } catch { return false; }
+        },
+        switchBrain: (id: string) => {
+          if (!brainManager) return false;
+          return brainManager.activate(id);
+        },
+        createBrain: (name: string, brainType: 'global' | 'local', projectPath?: string) => {
+          if (!brainManager) return null;
+          const brainPath = brainType === 'global'
+            ? join(homedir(), '.spiral-context')
+            : join(projectPath ?? process.cwd(), '.helixmind');
+          const brain = brainManager.register({ name, type: brainType, path: brainPath, projectPath });
+          if (!brainManager.activate(brain.id)) return null;
+          return brain;
+        },
       });
 
       // Wire bug journal change events to brain server
@@ -1465,10 +1523,27 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               return true;
             } catch { return false; }
           },
-        getBrainList: () => ({ brains: [], limits: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity } }),
-        renameBrain: () => false,
-        switchBrain: () => false,
-        createBrain: () => null,
+        getBrainList: () => {
+          if (!brainManager) return { brains: [], limits: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity } };
+          return { brains: brainManager.getAll(), limits: brainManager.getLimits() };
+        },
+        renameBrain: (id: string, name: string) => {
+          if (!brainManager) return false;
+          try { brainManager.rename(id, name); return true; } catch { return false; }
+        },
+        switchBrain: (id: string) => {
+          if (!brainManager) return false;
+          return brainManager.activate(id);
+        },
+        createBrain: (name: string, brainType: 'global' | 'local', projectPath?: string) => {
+          if (!brainManager) return null;
+          const brainPath = brainType === 'global'
+            ? join(homedir(), '.spiral-context')
+            : join(projectPath ?? process.cwd(), '.helixmind');
+          const brain = brainManager.register({ name, type: brainType, path: brainPath, projectPath });
+          if (!brainManager.activate(brain.id)) return null;
+          return brain;
+        },
         }, updateMeta).catch(() => {});
       }
     } catch { /* control protocol optional */ }
@@ -1894,6 +1969,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             jarvisDaemonSession = null;
             jarvisQueue.setDaemonState('stopped');
             jarvisPaused = false;
+            releaseJarvisSlot();
           }
 
           // Clear type-ahead buffer to prevent agent restarting after abort
@@ -2576,6 +2652,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               }
               sessionMgr.complete(bgSession.id, { text: `${jName} stopped`, steps: [], errors: bgSession.controller.isAborted ? ['Stopped'] : [], durationMs: bgSession.elapsed });
               jarvisDaemonSession = null;
+              releaseJarvisSlot();
               renderInfo(chalk.hex('#ff00ff')(`\u{1F916} ${jName} daemon stopped`));
             })();
           },
@@ -4055,6 +4132,14 @@ async function handleSlashCommand(
           if (sl) renderInfo(sl);
           break;
         }
+        // Enforce cross-process Jarvis instance limit
+        const jPlan = (store.get('relay.plan') as string | undefined) ?? 'FREE';
+        const maxJarvis = getJarvisLimitsForPlan(jPlan);
+        if (!acquireJarvisSlot(maxJarvis, process.cwd())) {
+          renderInfo(chalk.yellow(`${jn} instance limit reached (${maxJarvis} max for ${jPlan} plan).`));
+          renderInfo(chalk.dim('Upgrade your plan for more concurrent Jarvis instances, or stop an existing one.'));
+          break;
+        }
         // Onboarding: first run → interactive setup; returning → short greeting
         const identity = jarvisCtx.identity.getIdentity();
         if (!identity.customized) {
@@ -4156,6 +4241,7 @@ async function handleSlashCommand(
         if (!s) { renderInfo(`${jn} is not running.`); break; }
         s.abort();
         jarvisCtx.setSession(null);
+        releaseJarvisSlot();
         // Stop Telegram bot with daemon
         if (jarvisCtx.getTelegramBot()) {
           jarvisCtx.getTelegramBot()!.stop();

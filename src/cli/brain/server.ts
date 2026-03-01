@@ -344,7 +344,11 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           // --- Jarvis ---
           case 'start_jarvis': {
             const sessionId = controlHandlers.startJarvis();
-            sendTo(ws, { type: 'jarvis_started', sessionId, requestId, timestamp: Date.now() });
+            if (sessionId) {
+              sendTo(ws, { type: 'jarvis_started', sessionId, requestId, timestamp: Date.now() });
+            } else {
+              sendTo(ws, { type: 'error', error: 'Jarvis instance limit reached. Upgrade your plan or stop an existing instance.', requestId, timestamp: Date.now() });
+            }
             break;
           }
 

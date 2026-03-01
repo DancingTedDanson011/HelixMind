@@ -376,7 +376,7 @@ export interface ControlHandlers {
   getFindings(): Finding[];
   getBugs(): BugInfo[];
   // Jarvis
-  startJarvis(): string;                    // returns sessionId
+  startJarvis(): string | null;              // returns sessionId or null if limit reached
   stopJarvis(): boolean;
   pauseJarvis(): boolean;
   resumeJarvis(): boolean;
