@@ -216,15 +216,40 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   }, []);
 
   // ── Auto-create or select chat on CLI connect ─────────
+  const autoCreatedForPortRef = useRef<number | null>(null);
   useEffect(() => {
     if (!isConnected) return;
-    // Don't auto-create chat — show guide until user presses New Chat
-    if (!activeChatId && chats.length > 0) {
-      // Select most recent chat so user doesn't need to press New Chat
+    // Already have active chat — nothing to do
+    if (activeChatId) return;
+
+    // Select most recent existing chat
+    if (chats.length > 0) {
       loadChat(chats[0].id);
+      return;
     }
+
+    // No chats at all — auto-create one for this CLI instance
+    const port = connectedPort;
+    if (!port || autoCreatedForPortRef.current === port) return;
+    autoCreatedForPortRef.current = port;
+
+    const instanceName = connection.instanceMeta?.projectName || 'HelixMind';
+    (async () => {
+      try {
+        const res = await fetch('/api/chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode, title: instanceName }),
+        });
+        if (res.ok) {
+          const chat = await res.json();
+          await fetchChats();
+          await loadChat(chat.id);
+        }
+      } catch { /* silent */ }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected]);
+  }, [isConnected, chats.length, activeChatId]);
 
   // ── Auto-detect mode on CLI connect ──────────
   const hasAutoDetectedRef = useRef(false);
@@ -256,7 +281,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
 
   // Reset auto-detect flag on disconnect
   useEffect(() => {
-    if (!isConnected) hasAutoDetectedRef.current = false;
+    if (!isConnected) {
+      hasAutoDetectedRef.current = false;
+      autoCreatedForPortRef.current = null;
+    }
   }, [isConnected]);
 
   // ── Load chat messages ──────────────────────
@@ -1261,8 +1289,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 <Activity size={8} className="text-emerald-400 animate-pulse ml-auto" />
               </div>
             )}
-            {/* Show live CLI terminal when connected + empty chat, otherwise ChatView */}
-            {isConnected && activeChat && activeChat.messages.length === 0 && !isAgentRunning ? (
+            {/* Show live CLI terminal when connected (empty chat or no chat), otherwise ChatView */}
+            {isConnected && (!activeChat || (activeChat.messages.length === 0 && !isAgentRunning)) ? (
               <div className="flex-1 min-h-0">
                 <TerminalViewer lines={cliOutput.lines} fullHeight />
               </div>
