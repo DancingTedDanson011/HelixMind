@@ -44,6 +44,8 @@ import { getSuggestions, getBestCompletion, writeSuggestions, clearSuggestions }
 import { selectMenu, type MenuItem } from '../ui/select-menu.js';
 import { BugJournal } from '../bugs/journal.js';
 import { detectBugReport } from '../bugs/detector.js';
+import { JarvisQueue } from '../jarvis/queue.js';
+import { runJarvisDaemon } from '../jarvis/daemon.js';
 import { BrowserController } from '../browser/controller.js';
 import { VisionProcessor } from '../browser/vision.js';
 import { classifyTask } from '../validation/classifier.js';
@@ -109,6 +111,19 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/monitor', label: '/monitor', description: 'Continuous security monitoring' },
       { cmd: '/sessions', label: '/sessions', description: 'List all sessions & tabs' },
       { cmd: '/local', label: '/local', description: 'Local LLM setup (Ollama)' },
+    ],
+  },
+  {
+    category: 'Jarvis', color: '#ff00ff',
+    items: [
+      { cmd: '/jarvis', label: '/jarvis', description: 'Start Jarvis daemon' },
+      { cmd: '/jarvis task', label: '/jarvis task "..."', description: 'Add task to queue' },
+      { cmd: '/jarvis tasks', label: '/jarvis tasks', description: 'List all tasks' },
+      { cmd: '/jarvis status', label: '/jarvis status [id]', description: 'Show task/daemon status' },
+      { cmd: '/jarvis stop', label: '/jarvis stop', description: 'Stop Jarvis daemon' },
+      { cmd: '/jarvis pause', label: '/jarvis pause', description: 'Pause daemon' },
+      { cmd: '/jarvis resume', label: '/jarvis resume', description: 'Resume daemon' },
+      { cmd: '/jarvis clear', label: '/jarvis clear', description: 'Clear completed tasks' },
     ],
   },
   {
@@ -314,6 +329,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   // Bug journal (persistent bug tracking)
   const bugJournal = new BugJournal(process.cwd());
+
+  // Jarvis task queue (persistent task orchestration)
+  const jarvisQueue = new JarvisQueue(process.cwd());
+  let jarvisDaemonSession: import('../sessions/session.js').Session | null = null;
+  let jarvisPaused = false;
 
   // Browser controller (lazy — instantiated on /browser or agent tool use)
   let browserController: BrowserController | undefined;
@@ -829,6 +849,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           fixedAt: b.fixedAt,
           fixDescription: b.fixDescription,
         })),
+
+        // Jarvis stubs (not yet implemented)
+        startJarvis: () => '',
+        stopJarvis: () => false,
+        pauseJarvis: () => false,
+        resumeJarvis: () => false,
+        addJarvisTask: (_t: string, _d: string) => ({ id: 0, title: '', description: '', status: 'pending' as const, priority: 'medium' as const, createdAt: Date.now(), updatedAt: Date.now(), retries: 0, maxRetries: 3, tags: [] }),
+        listJarvisTasks: () => [],
+        getJarvisStatus: () => ({ daemonState: 'stopped' as const, currentTaskId: null, pendingCount: 0, completedCount: 0, failedCount: 0, totalCount: 0, uptimeMs: 0 }),
       });
 
       // Wire bug journal change events to brain server
@@ -934,6 +963,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             status: b.status, createdAt: b.createdAt, updatedAt: b.updatedAt,
             fixedAt: b.fixedAt, fixDescription: b.fixDescription,
           })),
+          startJarvis: () => '',
+          stopJarvis: () => false,
+          pauseJarvis: () => false,
+          resumeJarvis: () => false,
+          addJarvisTask: () => ({ id: 0, title: '', description: '', status: 'pending' as const, priority: 'medium' as const, createdAt: Date.now(), updatedAt: Date.now(), retries: 0, maxRetries: 3, tags: [] }),
+          listJarvisTasks: () => [],
+          getJarvisStatus: () => ({ daemonState: 'stopped' as const, currentTaskId: null, pendingCount: 0, completedCount: 0, failedCount: 0, totalCount: 0, uptimeMs: 0 }),
         }, updateMeta).catch(() => {});
       }
     } catch { /* control protocol optional */ }
