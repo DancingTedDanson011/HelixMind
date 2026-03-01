@@ -1,0 +1,208 @@
+/**
+ * Jarvis Daemon — persistent autonomous task executor.
+ * Picks tasks from the queue and executes them one by one using the agent loop.
+ */
+import chalk from 'chalk';
+import { renderInfo } from '../ui/chat-view.js';
+import type { JarvisQueue } from './queue.js';
+import type { JarvisTask } from './types.js';
+
+export interface JarvisDaemonCallbacks {
+  sendMessage: (prompt: string) => Promise<string>;
+  isAborted: () => boolean;
+  isPaused: () => boolean;
+  onTaskStart: (task: JarvisTask) => void;
+  onTaskComplete: (task: JarvisTask, result: string) => void;
+  onTaskFailed: (task: JarvisTask, error: string) => void;
+  updateStatus: () => void;
+  storeInSpiral?: (content: string, type: string, tags: string[]) => Promise<void>;
+}
+
+function buildTaskPrompt(task: JarvisTask): string {
+  return `You are JARVIS — HelixMind's autonomous task executor.
+
+TASK #${task.id}: ${task.title}
+${task.description}
+
+RULES:
+- Focus exclusively on this task
+- Work methodically — break into subtasks if needed
+- Use all available tools (read_file, write_file, edit_file, run_command, git_status, etc.)
+- End with a single-line summary starting with "DONE:" describing what you accomplished
+- If you cannot complete the task, explain why and respond with: TASK_FAILED: <reason>`;
+}
+
+function buildRetryPrompt(task: JarvisTask): string {
+  return `You are JARVIS. Retrying TASK #${task.id}: ${task.title}
+
+Previous attempt failed with: ${task.error || 'unknown error'}
+
+Analyze the failure, try a different approach, and complete the task.
+End with "DONE:" or "TASK_FAILED:" as appropriate.`;
+}
+
+function extractResult(text: string): { success: boolean; summary: string } {
+  // Check for failure marker
+  const failMatch = text.match(/TASK_FAILED:\s*(.+)/i);
+  if (failMatch) {
+    const reason = failMatch[1].trim();
+    return { success: false, summary: reason.length > 200 ? reason.slice(0, 197) + '...' : reason };
+  }
+
+  // Check for success marker
+  const doneMatch = text.match(/DONE:\s*(.+)/i);
+  if (doneMatch) {
+    const s = doneMatch[1].trim();
+    return { success: true, summary: s.length > 200 ? s.slice(0, 197) + '...' : s };
+  }
+
+  // Fallback: last non-empty line — treat as success
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  const last = lines[lines.length - 1]?.trim() || text.slice(0, 100);
+  return { success: true, summary: last.length > 200 ? last.slice(0, 197) + '...' : last };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export async function runJarvisDaemon(
+  queue: JarvisQueue,
+  callbacks: JarvisDaemonCallbacks,
+): Promise<number> {
+  let completedCount = 0;
+  let emptyChecks = 0;
+
+  const d = chalk.dim;
+  const j = chalk.hex('#ff00ff');
+
+  process.stdout.write('\n');
+  process.stdout.write(d('\u256D\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E') + '\n');
+  process.stdout.write(d('\u2502  ') + j('\u{1F916} JARVIS MODE') + d('                            \u2502') + '\n');
+  process.stdout.write(d('\u2502') + d('                                             \u2502') + '\n');
+  process.stdout.write(d('\u2502  ') + 'Persistent task queue — executing tasks' + d('    \u2502') + '\n');
+  process.stdout.write(d('\u2502  ') + 'autonomously from .helixmind/jarvis/' + d('       \u2502') + '\n');
+  process.stdout.write(d('\u2502') + d('                                             \u2502') + '\n');
+  process.stdout.write(d('\u2502  ') + d('/jarvis stop or ESC to stop') + d('             \u2502') + '\n');
+  process.stdout.write(d('\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F') + '\n\n');
+
+  queue.setDaemonState('running');
+  callbacks.updateStatus();
+
+  while (!callbacks.isAborted()) {
+    // Handle pause
+    if (callbacks.isPaused()) {
+      await sleep(2000);
+      continue;
+    }
+
+    const task = queue.getNextTask();
+
+    if (!task) {
+      emptyChecks++;
+      if (emptyChecks > 3) {
+        // Deep idle — check every 30s
+        await sleep(30_000);
+      } else {
+        await sleep(5000);
+      }
+      continue;
+    }
+
+    emptyChecks = 0;
+
+    // Start task
+    queue.updateTask(task.id, { status: 'running', startedAt: Date.now() });
+    callbacks.onTaskStart(task);
+    callbacks.updateStatus();
+
+    process.stdout.write(chalk.dim(`  \u2500\u2500 Task #${task.id}: `) + chalk.white(task.title) + chalk.dim(' \u2500'.repeat(10)) + '\n');
+
+    try {
+      const prompt = task.retries > 0 ? buildRetryPrompt(task) : buildTaskPrompt(task);
+      const resultText = await callbacks.sendMessage(prompt);
+
+      if (callbacks.isAborted()) break;
+
+      const { success, summary } = extractResult(resultText);
+
+      if (success) {
+        queue.updateTask(task.id, {
+          status: 'completed',
+          completedAt: Date.now(),
+          result: summary,
+        });
+        completedCount++;
+        callbacks.onTaskComplete(task, summary);
+        renderInfo(chalk.green(`  \u2713 Task #${task.id}: ${summary}`));
+
+        // Store result in spiral memory
+        if (callbacks.storeInSpiral) {
+          try {
+            await callbacks.storeInSpiral(
+              `Jarvis Task #${task.id} completed: ${task.title}\n${summary}`,
+              'pattern',
+              ['jarvis', 'task_result', ...(task.tags || [])],
+            );
+          } catch {
+            // Non-critical — don't fail the task
+          }
+        }
+      } else {
+        // Task reported failure
+        const newRetries = task.retries + 1;
+        if (newRetries < task.maxRetries) {
+          queue.updateTask(task.id, {
+            status: 'pending',
+            retries: newRetries,
+            error: summary,
+          });
+          renderInfo(chalk.yellow(`  \u21BB Task #${task.id} failed, will retry (${newRetries}/${task.maxRetries}): ${summary}`));
+        } else {
+          queue.updateTask(task.id, {
+            status: 'failed',
+            retries: newRetries,
+            error: summary,
+          });
+          callbacks.onTaskFailed(task, summary);
+          renderInfo(chalk.red(`  \u2717 Task #${task.id} failed permanently: ${summary}`));
+        }
+      }
+    } catch (err) {
+      if (callbacks.isAborted()) break;
+
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      const newRetries = task.retries + 1;
+
+      if (newRetries < task.maxRetries) {
+        queue.updateTask(task.id, {
+          status: 'pending',
+          retries: newRetries,
+          error: errorMsg,
+        });
+        renderInfo(chalk.yellow(`  \u21BB Task #${task.id} error, will retry: ${errorMsg}`));
+      } else {
+        queue.updateTask(task.id, {
+          status: 'failed',
+          retries: newRetries,
+          error: errorMsg,
+        });
+        callbacks.onTaskFailed(task, errorMsg);
+        renderInfo(chalk.red(`  \u2717 Task #${task.id} error: ${errorMsg}`));
+      }
+    }
+
+    callbacks.updateStatus();
+  }
+
+  queue.setDaemonState('stopped');
+  callbacks.updateStatus();
+
+  if (callbacks.isAborted()) {
+    process.stdout.write('\n');
+    renderInfo(chalk.yellow(`  \u23F9 Jarvis stopped after ${completedCount} tasks.`));
+    process.stdout.write('\n');
+  }
+
+  return completedCount;
+}

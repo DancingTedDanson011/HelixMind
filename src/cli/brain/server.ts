@@ -339,6 +339,53 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             sendTo(ws, { type: 'bugs_list', bugs, requestId, timestamp: Date.now() });
             break;
           }
+
+          // --- Jarvis ---
+          case 'start_jarvis': {
+            const sessionId = controlHandlers.startJarvis();
+            sendTo(ws, { type: 'jarvis_started', sessionId, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'stop_jarvis': {
+            const success = controlHandlers.stopJarvis();
+            sendTo(ws, { type: 'jarvis_stopped', success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'pause_jarvis': {
+            const success = controlHandlers.pauseJarvis();
+            sendTo(ws, { type: 'jarvis_paused', success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'resume_jarvis': {
+            const success = controlHandlers.resumeJarvis();
+            sendTo(ws, { type: 'jarvis_resumed', success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'add_jarvis_task': {
+            const task = controlHandlers.addJarvisTask(
+              (msg as any).title,
+              (msg as any).description,
+              { priority: (msg as any).priority, dependencies: (msg as any).dependencies, tags: (msg as any).tags },
+            );
+            sendTo(ws, { type: 'jarvis_task_added', task, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'list_jarvis_tasks': {
+            const tasks = controlHandlers.listJarvisTasks();
+            sendTo(ws, { type: 'jarvis_tasks_list', tasks, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'get_jarvis_status': {
+            const status = controlHandlers.getJarvisStatus();
+            sendTo(ws, { type: 'jarvis_status', status, requestId, timestamp: Date.now() });
+            break;
+          }
         }
       }
 

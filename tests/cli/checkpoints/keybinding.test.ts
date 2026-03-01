@@ -22,7 +22,7 @@ describe('Keybinding - Double ESC Detection', () => {
     // First ESC
     processKeypress({ name: 'escape' }, state);
 
-    // Second ESC (within 300ms)
+    // Second ESC (within threshold)
     const result = processKeypress({ name: 'escape' }, state);
     expect(result.action).toBe('open_browser');
     expect(state.lastEscTime).toBe(0); // Reset after detection
@@ -33,7 +33,7 @@ describe('Keybinding - Double ESC Detection', () => {
     processKeypress({ name: 'escape' }, state);
 
     // Simulate time passing beyond threshold
-    state.lastEscTime = Date.now() - 500;
+    state.lastEscTime = Date.now() - 600;
 
     // Second ESC (too late)
     const result = processKeypress({ name: 'escape' }, state);

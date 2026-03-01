@@ -3,8 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
-import { Terminal, Copy, Check, ChevronDown, RefreshCw } from 'lucide-react';
+import { Terminal, Copy, Check, ChevronDown, Download, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { usePwaInstall } from '@/hooks/use-pwa-install';
+import { useRouter } from 'next/navigation';
 
 const INSTALL_KEY = 'helixmind-installed';
 
@@ -26,24 +28,44 @@ const stagger = {
 
 export function Hero() {
   const t = useTranslations('hero');
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [hasCopiedOnce, setHasCopiedOnce] = useState(false);
+  const { canInstall, isInstalled: isPwa, install: installPwa } = usePwaInstall();
 
   useEffect(() => {
-    setIsInstalled(localStorage.getItem(INSTALL_KEY) === 'true');
+    setHasCopiedOnce(localStorage.getItem(INSTALL_KEY) === 'true');
   }, []);
 
-  const installCommand = isInstalled ? t('updateCommand') : t('installCommand');
+  const installCommand = hasCopiedOnce ? t('updateCommand') : t('installCommand');
 
   const copyInstall = () => {
     navigator.clipboard.writeText(installCommand);
     setCopied(true);
-    if (!isInstalled) {
+    if (!hasCopiedOnce) {
       localStorage.setItem(INSTALL_KEY, 'true');
-      setIsInstalled(true);
+      setHasCopiedOnce(true);
     }
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleCtaClick = async () => {
+    if (isPwa) {
+      router.push('/dashboard');
+    } else if (canInstall) {
+      await installPwa();
+    } else {
+      copyInstall();
+    }
+  };
+
+  const ctaLabel = isPwa
+    ? t('ctaOpen')
+    : canInstall
+      ? t('ctaInstall')
+      : t('ctaFallback');
+
+  const CtaIcon = isPwa ? ExternalLink : canInstall ? Download : Copy;
 
   return (
     <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
@@ -120,19 +142,17 @@ export function Hero() {
             </div>
           </button>
 
-          <span className="text-gray-600 text-sm hidden sm:block">\u2022</span>
+          <span className="text-gray-600 text-sm hidden sm:block">{'\u2022'}</span>
 
           <Button
             size="lg"
             className="font-display font-semibold tracking-wide"
-            onClick={copyInstall}
+            onClick={handleCtaClick}
           >
-            {copied ? (
+            {copied && !canInstall && !isPwa ? (
               <span className="flex items-center gap-2"><Check size={16} /> {t('copied')}</span>
-            ) : isInstalled ? (
-              <span className="flex items-center gap-2"><RefreshCw size={16} /> {t('ctaUpdate')}</span>
             ) : (
-              t('cta')
+              <span className="flex items-center gap-2"><CtaIcon size={16} /> {ctaLabel}</span>
             )}
           </Button>
         </motion.div>

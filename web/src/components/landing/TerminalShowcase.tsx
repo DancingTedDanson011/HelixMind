@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, useInView } from 'framer-motion';
-import { useRef, useState, useEffect } from 'react';
+import { useRef } from 'react';
 
 /**
  * Cinematic fake CLI terminal — NO scrollbar, fixed height.
@@ -28,49 +28,71 @@ const c = (text: string, color: string, bold = false): Span => ({ text, color, b
 const d = (text: string): Span => ({ text, dim: true });
 const t = (text: string): Span => ({ text });
 
-// ─── Demo Content (fits ~420px without scrolling) ────────────
+// ─── Banner Gradient Colors ──────────────────────────────────
+
+const bannerGradient = [
+  '#00d4ff', // Cyan
+  '#1a9ae8', // Cyan-Blue
+  '#3070d1', // Blue
+  '#4169e1', // Royal Blue
+  '#6049e0', // Blue-Violet
+  '#8a2be2', // Violet
+  '#7028d0', // Mid accent
+];
+
+// ─── Demo Content ────────────────────────────────────────────
 
 const LINES: TermLine[] = [
-  // Phase 0: User prompt
-  { spans: [c('  \u276F ', '#00d4ff', true), t('Fix the auth middleware \u2014 tokens expire too early')], phase: 0 },
+  // Phase 0: HELIX ASCII Banner (gradient colored per line)
+  { spans: [{ text: '  \u2588\u2588\u2557  \u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557     \u2588\u2588\u2557\u2588\u2588\u2557  \u2588\u2588\u2557', color: bannerGradient[0], bold: true }], phase: 0 },
+  { spans: [{ text: '  \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2551     \u2588\u2588\u2551\u255A\u2588\u2588\u2557\u2588\u2588\u2554\u255D', color: bannerGradient[1], bold: true }], phase: 0 },
+  { spans: [{ text: '  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2551     \u2588\u2588\u2551 \u255A\u2588\u2588\u2588\u2554\u255D ', color: bannerGradient[2], bold: true }], phase: 0 },
+  { spans: [{ text: '  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255D  \u2588\u2588\u2551     \u2588\u2588\u2551 \u2588\u2588\u2554\u2588\u2588\u2557 ', color: bannerGradient[3], bold: true }], phase: 0 },
+  { spans: [{ text: '  \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\u2588\u2588\u2554\u255D \u2588\u2588\u2557', color: bannerGradient[4], bold: true }], phase: 0 },
+  { spans: [{ text: '  \u255A\u2550\u255D  \u255A\u2550\u255D\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u255D\u255A\u2550\u255D  \u255A\u2550\u255D', color: bannerGradient[5], bold: true }], phase: 0 },
+  { spans: [c('      \u2500\u2500\u2500 ', '#8a2be2'), c('Mind', '#00d4ff', true), c(' \u2500\u2500\u2500', '#8a2be2')], phase: 0 },
   { spans: [], phase: 0 },
 
-  // Phase 1: Activity
-  { spans: [c('  \u27E1 ', '#00d4ff'), c('H', '#00d4ff'), c('e', '#0aace0'), c('l', '#2084c0'), c('i', '#385ca0'), c('x', '#5040b0'), c('M', '#7028d0'), c('i', '#8a2be2'), c('n', '#7028d0'), c('d', '#5040b0'), d(' working...  '), d('3s')], phase: 1 },
+  // Phase 1: User prompt
+  { spans: [c('  \u276F ', '#00d4ff', true), t('Fix the auth middleware \u2014 tokens expire too early')], phase: 1 },
   { spans: [], phase: 1 },
 
-  // Phase 2: Tool calls
-  { spans: [d('  \u250C\u2500 Working \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500')], phase: 2 },
-  { spans: [d('  \u2502 '), d('[1] '), t('\uD83D\uDCC4 '), c('read_file', '#4169e1'), d(': src/middleware/auth.ts'), c(' \u2713', '#00ff88'), d(' 847ch')], phase: 2 },
-  { spans: [d('  \u2502 '), d('[2] '), t('\uD83C\uDF00 '), c('spiral_query', '#4169e1'), d(': "JWT token expiry"'), c(' \u2713', '#00ff88'), d(' 3 nodes')], phase: 2 },
-  { spans: [d('  \u2502 '), d('[3] '), t('\u270F\uFE0F  '), c('edit_file', '#4169e1'), d(': src/middleware/auth.ts:42'), c(' \u2713', '#00ff88'), d(' applied')], phase: 2 },
-  { spans: [d('  \u2502 '), d('[4] '), t('\u270F\uFE0F  '), c('edit_file', '#4169e1'), d(': src/config/auth.config.ts'), c(' \u2713', '#00ff88'), d(' applied')], phase: 2 },
-  { spans: [d('  \u2514\u2500\u2500 4 steps \u00B7 2.1s')], phase: 2 },
+  // Phase 2: Activity
+  { spans: [c('  \u27E1 ', '#00d4ff'), c('H', '#00d4ff'), c('e', '#0aace0'), c('l', '#2084c0'), c('i', '#385ca0'), c('x', '#5040b0'), c('M', '#7028d0'), c('i', '#8a2be2'), c('n', '#7028d0'), c('d', '#5040b0'), d(' working...  '), d('3s')], phase: 2 },
   { spans: [], phase: 2 },
 
-  // Phase 3: AI response
-  { spans: [c('  HelixMind', '#8a2be2', true)], phase: 3 },
-  { spans: [c('  \u2502', '#00d4ff'), t(' Found the issue using your '), c('spiral memory', '#00d4ff'), t('.')], phase: 3 },
-  { spans: [c('  \u2502', '#00d4ff'), t(' From last session '), c('(L3 Reference)', '#4169e1'), t(': you switched')], phase: 3 },
-  { spans: [c('  \u2502', '#00d4ff'), t(' to JWT auth. Expiry was hardcoded to 15min.')], phase: 3 },
-  { spans: [c('  \u2502', '#00d4ff')], phase: 3 },
-  { spans: [c('  \u2502', '#00d4ff'), t(' Your pattern '), c('(L2 Active)', '#00ff88'), t(':')], phase: 3 },
-  { spans: [c('  \u2502', '#00d4ff'), t('   \u2022 '), c('24h', '#00d4ff'), t(' tokens for dev, '), c('1h', '#00d4ff'), t(' for prod')], phase: 3 },
-  { spans: [c('  \u2502', '#00d4ff')], phase: 3 },
-  { spans: [c('  \u2502', '#00d4ff'), c(' \u2713', '#00ff88'), t(' Fixed both environments.')], phase: 3 },
+  // Phase 3: Tool calls
+  { spans: [d('  \u250C\u2500 Working \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500')], phase: 3 },
+  { spans: [d('  \u2502 '), d('[1] '), t('\uD83D\uDCC4 '), c('read_file', '#4169e1'), d(': src/middleware/auth.ts'), c(' \u2713', '#00ff88'), d(' 847ch')], phase: 3 },
+  { spans: [d('  \u2502 '), d('[2] '), t('\uD83C\uDF00 '), c('spiral_query', '#4169e1'), d(': "JWT token expiry"'), c(' \u2713', '#00ff88'), d(' 3 nodes')], phase: 3 },
+  { spans: [d('  \u2502 '), d('[3] '), t('\u270F\uFE0F  '), c('edit_file', '#4169e1'), d(': src/middleware/auth.ts:42'), c(' \u2713', '#00ff88'), d(' applied')], phase: 3 },
+  { spans: [d('  \u2502 '), d('[4] '), t('\u270F\uFE0F  '), c('edit_file', '#4169e1'), d(': src/config/auth.config.ts'), c(' \u2713', '#00ff88'), d(' applied')], phase: 3 },
+  { spans: [d('  \u2514\u2500\u2500 4 steps \u00B7 2.1s')], phase: 3 },
   { spans: [], phase: 3 },
 
-  // Phase 4: Spiral update
-  { spans: [c('  \u2713', '#00ff88'), d(' Spiral: '), c('auth-middleware', '#00d4ff'), d(' \u2192 '), c('L1 Focus', '#00ffff')], phase: 4 },
-  { spans: [c('  \u2713', '#00ff88'), d(' Checkpoint '), c('#12', '#6c757d'), d(' created')], phase: 4 },
+  // Phase 4: AI response
+  { spans: [c('  HelixMind', '#8a2be2', true)], phase: 4 },
+  { spans: [c('  \u2502', '#00d4ff'), t(' Found the issue using your '), c('spiral memory', '#00d4ff'), t('.')], phase: 4 },
+  { spans: [c('  \u2502', '#00d4ff'), t(' From last session '), c('(L3 Reference)', '#4169e1'), t(': you switched')], phase: 4 },
+  { spans: [c('  \u2502', '#00d4ff'), t(' to JWT auth. Expiry was hardcoded to 15min.')], phase: 4 },
+  { spans: [c('  \u2502', '#00d4ff')], phase: 4 },
+  { spans: [c('  \u2502', '#00d4ff'), t(' Your pattern '), c('(L2 Active)', '#00ff88'), t(':')], phase: 4 },
+  { spans: [c('  \u2502', '#00d4ff'), t('   \u2022 '), c('24h', '#00d4ff'), t(' tokens for dev, '), c('1h', '#00d4ff'), t(' for prod')], phase: 4 },
+  { spans: [c('  \u2502', '#00d4ff')], phase: 4 },
+  { spans: [c('  \u2502', '#00d4ff'), c(' \u2713', '#00ff88'), t(' Fixed both environments.')], phase: 4 },
   { spans: [], phase: 4 },
 
-  // Phase 5: Web knowledge
-  { spans: [t('  \uD83C\uDF10 '), c('Web Knowledge', '#ffaa00'), d(': JWT best practices stored in '), c('L6', '#ffaa00')], phase: 5 },
+  // Phase 5: Spiral update
+  { spans: [c('  \u2713', '#00ff88'), d(' Spiral: '), c('auth-middleware', '#00d4ff'), d(' \u2192 '), c('L1 Focus', '#00ffff')], phase: 5 },
+  { spans: [c('  \u2713', '#00ff88'), d(' Checkpoint '), c('#12', '#6c757d'), d(' created')], phase: 5 },
+  { spans: [], phase: 5 },
+
+  // Phase 6: Web knowledge
+  { spans: [t('  \uD83C\uDF10 '), c('Web Knowledge', '#ffaa00'), d(': JWT best practices stored in '), c('L6', '#ffaa00')], phase: 6 },
 ];
 
 // Phase timing (seconds delay before each phase starts)
-const PHASE_DELAYS = [0, 0.6, 1.2, 2.8, 4.5, 5.2];
+const PHASE_DELAYS = [0, 0.8, 1.4, 2.0, 3.6, 5.3, 6.0];
 
 // ─── Span Renderer ───────────────────────────────────────────
 
@@ -117,13 +139,13 @@ function StatusBar() {
   return (
     <div className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-2.5 font-mono text-[10px] sm:text-[11px] border-t border-white/[0.06] bg-white/[0.015] select-none overflow-hidden">
       <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-        <span>\uD83C\uDF00</span>
+        <span>{'\uD83C\uDF00'}</span>
         <span style={{ color: '#00ffff' }}>L1</span><span className="text-gray-600">:12</span>
-        <span className="text-gray-700">\u00B7</span>
+        <span className="text-gray-700">{'\u00B7'}</span>
         <span style={{ color: '#00ff88' }}>L2</span><span className="text-gray-600">:45</span>
-        <span className="hidden sm:inline text-gray-700">\u00B7</span>
+        <span className="hidden sm:inline text-gray-700">{'\u00B7'}</span>
         <span className="hidden sm:inline" style={{ color: '#4169e1' }}>L3</span><span className="hidden sm:inline text-gray-600">:128</span>
-        <span className="hidden sm:inline text-gray-700">\u00B7</span>
+        <span className="hidden sm:inline text-gray-700">{'\u00B7'}</span>
         <span className="hidden sm:inline" style={{ color: '#8a2be2' }}>L4</span><span className="hidden sm:inline text-gray-600">:23</span>
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2.5 text-gray-500 shrink-0">
@@ -133,11 +155,11 @@ function StatusBar() {
           </div>
           <span className="text-gray-600">665k</span>
         </div>
-        <span className="hidden sm:inline text-gray-700">\u2502</span>
-        <span style={{ color: '#00ff88' }}>\uD83D\uDEE1 safe</span>
-        <span className="text-gray-700">\u2502</span>
+        <span className="hidden sm:inline text-gray-700">{'\u2502'}</span>
+        <span style={{ color: '#00ff88' }}>{'\uD83D\uDEE1'} safe</span>
+        <span className="text-gray-700">{'\u2502'}</span>
         <span>opus-4.6</span>
-        <span className="hidden sm:inline text-gray-700">\u2502</span>
+        <span className="hidden sm:inline text-gray-700">{'\u2502'}</span>
         <span className="hidden sm:inline" style={{ color: '#00ff88' }}>main</span>
       </div>
     </div>
@@ -201,13 +223,13 @@ export function TerminalShowcase() {
               <div className="terminal-dot bg-[#28c840]/80" />
             </div>
             <span className="text-[11px] text-gray-500 font-mono ml-2 flex-1 text-center tracking-wide">
-              helixmind \u2014 zsh \u2014 120\u00D740
+              helixmind {'\u2014'} zsh {'\u2014'} 120{'\u00D7'}40
             </span>
             <div className="w-[52px]" /> {/* Balance the dots */}
           </div>
 
           {/* Terminal content — NO SCROLL */}
-          <div className="terminal-body" style={{ height: 'clamp(380px, 60vw, 520px)' }}>
+          <div className="terminal-body" style={{ height: 'clamp(520px, 75vw, 700px)' }}>
             {isInView && LINES.map((line, i) => (
               <AnimatedLine key={i} line={line} delay={lineDelays[i]} />
             ))}
@@ -218,7 +240,7 @@ export function TerminalShowcase() {
                 className="whitespace-pre"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 6.0, duration: 0.1 }}
+                transition={{ delay: 6.8, duration: 0.1 }}
               >
                 <span style={{ color: '#00d4ff', fontWeight: 700 }}>  {'\u276F'} </span>
                 <span className="terminal-cursor" />

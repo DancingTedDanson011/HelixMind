@@ -3,30 +3,52 @@
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
-import { Github, Terminal, Check, RefreshCw } from 'lucide-react';
+import { Github, Terminal, Check, Download, Copy, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { usePwaInstall } from '@/hooks/use-pwa-install';
+import { useRouter } from 'next/navigation';
 
 const INSTALL_KEY = 'helixmind-installed';
 
 export function CtaSection() {
   const t = useTranslations('cta');
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [hasCopiedOnce, setHasCopiedOnce] = useState(false);
+  const { canInstall, isInstalled: isPwa, install: installPwa } = usePwaInstall();
 
   useEffect(() => {
-    setIsInstalled(localStorage.getItem(INSTALL_KEY) === 'true');
+    setHasCopiedOnce(localStorage.getItem(INSTALL_KEY) === 'true');
   }, []);
 
   const copyInstall = () => {
-    const cmd = isInstalled ? 'npm update -g helixmind' : 'npm install -g helixmind';
+    const cmd = hasCopiedOnce ? 'npm update -g helixmind' : 'npm install -g helixmind';
     navigator.clipboard.writeText(cmd);
     setCopied(true);
-    if (!isInstalled) {
+    if (!hasCopiedOnce) {
       localStorage.setItem(INSTALL_KEY, 'true');
-      setIsInstalled(true);
+      setHasCopiedOnce(true);
     }
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleCtaClick = async () => {
+    if (isPwa) {
+      router.push('/dashboard');
+    } else if (canInstall) {
+      await installPwa();
+    } else {
+      copyInstall();
+    }
+  };
+
+  const ctaLabel = isPwa
+    ? t('buttonOpen')
+    : canInstall
+      ? t('button')
+      : t('button');
+
+  const CtaIcon = isPwa ? ExternalLink : canInstall ? Download : Copy;
 
   return (
     <section className="py-32 sm:py-40 px-4 relative overflow-hidden">
@@ -60,19 +82,23 @@ export function CtaSection() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" className="font-display font-semibold tracking-wide" onClick={copyInstall}>
-              {copied ? (
+            <Button size="lg" className="font-display font-semibold tracking-wide" onClick={handleCtaClick}>
+              {copied && !canInstall && !isPwa ? (
                 <span className="flex items-center gap-2"><Check size={16} /> {t('copied')}</span>
-              ) : isInstalled ? (
-                <span className="flex items-center gap-2"><RefreshCw size={16} /> {t('buttonUpdate')}</span>
               ) : (
-                t('button')
+                <span className="flex items-center gap-2"><CtaIcon size={16} /> {ctaLabel}</span>
               )}
             </Button>
-            <Button variant="outline" size="lg" className="font-display font-semibold tracking-wide">
-              <Github size={16} />
-              {t('github')}
-            </Button>
+            <a
+              href="https://github.com/DancingTedDanson011/HelixMind"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="outline" size="lg" className="font-display font-semibold tracking-wide">
+                <Github size={16} />
+                {t('github')}
+              </Button>
+            </a>
           </div>
         </motion.div>
       </div>

@@ -13,6 +13,8 @@ import type {
   DefenseRecord,
   ApprovalRequest,
   MonitorStatus,
+  JarvisTaskInfo,
+  JarvisStatusInfo,
 } from '@/lib/cli-types';
 import { registerConnectionWs, unregisterConnectionWs } from '@/lib/cli-ws-registry';
 
@@ -64,6 +66,10 @@ export interface UseCliConnectionReturn {
   approvals: ApprovalRequest[];
   monitorStatus: MonitorStatus | null;
 
+  // Jarvis state
+  jarvisTasks: JarvisTaskInfo[];
+  jarvisStatus: JarvisStatusInfo | null;
+
   connect: () => void;
   disconnect: () => void;
   sendRequest: (type: string, payload?: Record<string, unknown>) => Promise<unknown>;
@@ -78,6 +84,14 @@ export interface UseCliConnectionReturn {
   sendChat: (text: string) => Promise<void>;
   getFindings: () => Promise<Finding[]>;
   getBugs: () => Promise<BugInfo[]>;
+  // Jarvis methods
+  startJarvis: () => Promise<string>;
+  stopJarvis: () => Promise<void>;
+  pauseJarvis: () => Promise<void>;
+  resumeJarvis: () => Promise<void>;
+  addJarvisTask: (title: string, description: string, priority?: string) => Promise<JarvisTaskInfo>;
+  listJarvisTasks: () => Promise<JarvisTaskInfo[]>;
+  getJarvisStatus: () => Promise<JarvisStatusInfo>;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +118,8 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [defenses, setDefenses] = useState<DefenseRecord[]>([]);
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [monitorStatus, setMonitorStatus] = useState<MonitorStatus | null>(null);
+  const [jarvisTasks, setJarvisTasks] = useState<JarvisTaskInfo[]>([]);
+  const [jarvisStatus, setJarvisStatus] = useState<JarvisStatusInfo | null>(null);
   const [wsVersion, setWsVersion] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -309,6 +325,31 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     if (msg.type === 'monitor_status') {
       if (mountedRef.current) {
         setMonitorStatus(msg as unknown as MonitorStatus);
+      }
+      return;
+    }
+
+    // Jarvis events
+    if (msg.type === 'jarvis_task_created') {
+      const task = msg.task as JarvisTaskInfo;
+      if (mountedRef.current) {
+        setJarvisTasks((prev) => [...prev, task]);
+      }
+      return;
+    }
+
+    if (msg.type === 'jarvis_task_updated') {
+      const task = msg.task as JarvisTaskInfo;
+      if (mountedRef.current) {
+        setJarvisTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
+      }
+      return;
+    }
+
+    if (msg.type === 'jarvis_status_changed') {
+      const status = msg.status as JarvisStatusInfo;
+      if (mountedRef.current) {
+        setJarvisStatus(status);
       }
       return;
     }
@@ -523,6 +564,49 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   );
 
   // ---------------------------------------------------------------------------
+  // Jarvis convenience methods
+  // ---------------------------------------------------------------------------
+  const startJarvis = useCallback(async (): Promise<string> => {
+    const res = (await sendRequest('start_jarvis')) as { sessionId: string };
+    return res.sessionId;
+  }, [sendRequest]);
+
+  const stopJarvis = useCallback(async (): Promise<void> => {
+    await sendRequest('stop_jarvis');
+  }, [sendRequest]);
+
+  const pauseJarvis = useCallback(async (): Promise<void> => {
+    await sendRequest('pause_jarvis');
+  }, [sendRequest]);
+
+  const resumeJarvis = useCallback(async (): Promise<void> => {
+    await sendRequest('resume_jarvis');
+  }, [sendRequest]);
+
+  const addJarvisTask = useCallback(
+    async (title: string, description: string, priority?: string): Promise<JarvisTaskInfo> => {
+      const payload: Record<string, unknown> = { title, description };
+      if (priority) payload.priority = priority;
+      const res = (await sendRequest('add_jarvis_task', payload)) as { task: JarvisTaskInfo };
+      return res.task;
+    },
+    [sendRequest],
+  );
+
+  const listJarvisTasks = useCallback(async (): Promise<JarvisTaskInfo[]> => {
+    const res = (await sendRequest('list_jarvis_tasks')) as { tasks: JarvisTaskInfo[] };
+    const list = res.tasks ?? [];
+    setJarvisTasks(list);
+    return list;
+  }, [sendRequest]);
+
+  const getJarvisStatus = useCallback(async (): Promise<JarvisStatusInfo> => {
+    const res = (await sendRequest('get_jarvis_status')) as { status: JarvisStatusInfo };
+    setJarvisStatus(res.status);
+    return res.status;
+  }, [sendRequest]);
+
+  // ---------------------------------------------------------------------------
   // Cleanup on unmount
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -551,6 +635,10 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     approvals,
     monitorStatus,
 
+    // Jarvis state
+    jarvisTasks,
+    jarvisStatus,
+
     connect,
     disconnect,
     sendRequest,
@@ -565,5 +653,13 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     sendChat,
     getFindings,
     getBugs,
+    // Jarvis
+    startJarvis,
+    stopJarvis,
+    pauseJarvis,
+    resumeJarvis,
+    addJarvisTask,
+    listJarvisTasks,
+    getJarvisStatus,
   };
 }

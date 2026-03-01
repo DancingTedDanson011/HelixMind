@@ -13,7 +13,7 @@ export interface KeybindingState {
 export function createKeybindingState(): KeybindingState {
   return {
     lastEscTime: 0,
-    doubleEscThreshold: 300,
+    doubleEscThreshold: 500,
     inBrowser: false,
   };
 }
@@ -49,5 +49,6 @@ export function processKeypress(
     return { action: 'ignore' };
   }
 
+  state.lastEscTime = 0;
   return { action: 'ignore' };
 }

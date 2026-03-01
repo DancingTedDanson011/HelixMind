@@ -4,11 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Download, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+import { usePwaInstall } from '@/hooks/use-pwa-install';
 
 const DISMISS_KEY = 'helixmind-pwa-dismiss';
 const VISIT_KEY = 'helixmind-pwa-visits';
@@ -18,30 +14,23 @@ const MIN_VISITS = 2;
 
 export function InstallPrompt() {
   const t = useTranslations('pwa');
-  const [deferredPrompt, setDeferredPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
+  const { canInstall, isInstalled, install } = usePwaInstall();
   const [showBanner, setShowBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
   const dismiss = useCallback(() => {
     setShowBanner(false);
-    setDeferredPrompt(null);
     localStorage.setItem(DISMISS_KEY, Date.now().toString());
   }, []);
 
-  const install = useCallback(async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setShowBanner(false);
-    }
-    setDeferredPrompt(null);
-  }, [deferredPrompt]);
+  const handleInstall = useCallback(async () => {
+    await install();
+    setShowBanner(false);
+  }, [install]);
 
   useEffect(() => {
     // Already installed as PWA?
-    if (window.matchMedia('(display-mode: standalone)').matches) return;
+    if (isInstalled) return;
 
     // Dismissed recently?
     const dismissedAt = localStorage.getItem(DISMISS_KEY);
@@ -65,20 +54,12 @@ export function InstallPrompt() {
       return () => clearTimeout(timer);
     }
 
-    // Chromium: listen for beforeinstallprompt
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-
-      if (visits >= MIN_VISITS) {
-        const timer = setTimeout(() => setShowBanner(true), SHOW_DELAY_MS);
-        return () => clearTimeout(timer);
-      }
-    };
-
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
+    // Chromium: show after delay when install is available + min visits
+    if (canInstall && visits >= MIN_VISITS) {
+      const timer = setTimeout(() => setShowBanner(true), SHOW_DELAY_MS);
+      return () => clearTimeout(timer);
+    }
+  }, [isInstalled, canInstall]);
 
   return (
     <AnimatePresence>
@@ -123,7 +104,7 @@ export function InstallPrompt() {
                   {t('notNow')}
                 </button>
                 <button
-                  onClick={install}
+                  onClick={handleInstall}
                   className="text-xs font-medium px-4 py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors"
                 >
                   {t('install')}

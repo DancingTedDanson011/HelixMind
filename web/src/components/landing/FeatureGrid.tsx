@@ -3,6 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Brain, Eye, Shield, Globe, Wifi, Layers, Radar } from 'lucide-react';
+import { useState } from 'react';
+import { FeatureModal } from './FeatureModal';
 
 const featureIcons = {
   memory: Brain,
@@ -20,8 +22,11 @@ const featureColors = [
 
 const featureKeys = ['memory', 'brain', 'validation', 'web', 'offline', 'sessions', 'monitor'] as const;
 
+type FeatureKey = (typeof featureKeys)[number];
+
 export function FeatureGrid() {
   const t = useTranslations('features');
+  const [activeFeature, setActiveFeature] = useState<FeatureKey | null>(null);
 
   return (
     <section className="py-24 sm:py-32 px-4 relative">
@@ -78,7 +83,10 @@ export function FeatureGrid() {
                 viewport={{ once: true }}
                 transition={{ delay: 0.1 + i * 0.06, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               >
-                <div className="group relative h-full rounded-xl p-6 border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-300">
+                <button
+                  onClick={() => setActiveFeature(key)}
+                  className="group relative h-full w-full text-left rounded-xl p-6 border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-[0.99]"
+                >
                   <div
                     className="inline-flex p-3 rounded-xl mb-4 transition-transform duration-300 group-hover:scale-110"
                     style={{ background: `${color}10` }}
@@ -97,12 +105,15 @@ export function FeatureGrid() {
                     className="absolute bottom-0 left-1/4 right-1/4 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                     style={{ background: `linear-gradient(90deg, transparent, ${color}30, transparent)` }}
                   />
-                </div>
+                </button>
               </motion.div>
             );
           })}
         </div>
       </div>
+
+      {/* Feature Detail Modal */}
+      <FeatureModal feature={activeFeature} onClose={() => setActiveFeature(null)} />
     </section>
   );
 }

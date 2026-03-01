@@ -62,6 +62,40 @@ export interface BrowserScreenshotInfo {
   analysis?: string;
 }
 
+// --- Jarvis data types ---
+export type JarvisTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused';
+export type JarvisTaskPriority = 'high' | 'medium' | 'low';
+export type JarvisDaemonState = 'stopped' | 'running' | 'paused';
+
+export interface JarvisTaskInfo {
+  id: number;
+  title: string;
+  description: string;
+  status: JarvisTaskStatus;
+  priority: JarvisTaskPriority;
+  createdAt: number;
+  updatedAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  result?: string;
+  error?: string;
+  retries: number;
+  maxRetries: number;
+  sessionId?: string;
+  dependencies?: number[];
+  tags?: string[];
+}
+
+export interface JarvisStatusInfo {
+  daemonState: JarvisDaemonState;
+  currentTaskId: number | null;
+  pendingCount: number;
+  completedCount: number;
+  failedCount: number;
+  totalCount: number;
+  uptimeMs: number;
+}
+
 // ---------------------------------------------------------------------------
 // WS message envelope
 // ---------------------------------------------------------------------------
@@ -97,6 +131,15 @@ export interface StopMonitorRequest extends WSMessage { type: 'stop_monitor' }
 export interface MonitorCommandRequest extends WSMessage { type: 'monitor_command'; command: 'set_mode' | 'rescan' | 'unblock_ip' | 'stop_monitor'; params?: Record<string, string> }
 export interface ApprovalResponseRequest extends WSMessage { type: 'approval_response'; requestId: string; approved: boolean }
 
+// --- Jarvis Requests (Browser → CLI) ---
+export interface StartJarvisRequest extends WSMessage { type: 'start_jarvis' }
+export interface StopJarvisRequest extends WSMessage { type: 'stop_jarvis' }
+export interface PauseJarvisRequest extends WSMessage { type: 'pause_jarvis' }
+export interface ResumeJarvisRequest extends WSMessage { type: 'resume_jarvis' }
+export interface AddJarvisTaskRequest extends WSMessage { type: 'add_jarvis_task'; title: string; description: string; priority?: 'high' | 'medium' | 'low'; dependencies?: number[]; tags?: string[] }
+export interface ListJarvisTasksRequest extends WSMessage { type: 'list_jarvis_tasks' }
+export interface GetJarvisStatusRequest extends WSMessage { type: 'get_jarvis_status' }
+
 // --- Responses (CLI → Browser) ---
 export interface SessionsListResponse extends WSMessage { type: 'sessions_list'; sessions: SessionInfo[] }
 export interface AutoStartedResponse extends WSMessage { type: 'auto_started'; sessionId: string }
@@ -108,6 +151,13 @@ export interface FindingsListResponse extends WSMessage { type: 'findings_list';
 export interface BugsListResponse extends WSMessage { type: 'bugs_list'; bugs: BugInfo[] }
 export interface PongResponse extends WSMessage { type: 'pong' }
 export interface MonitorStartedResponse extends WSMessage { type: 'monitor_started'; sessionId: string; mode: string }
+
+// --- Jarvis Responses (CLI → Browser) ---
+export interface JarvisStartedResponse extends WSMessage { type: 'jarvis_started'; sessionId: string }
+export interface JarvisStoppedResponse extends WSMessage { type: 'jarvis_stopped' }
+export interface JarvisTaskAddedResponse extends WSMessage { type: 'jarvis_task_added'; task: JarvisTaskInfo }
+export interface JarvisTasksListResponse extends WSMessage { type: 'jarvis_tasks_list'; tasks: JarvisTaskInfo[] }
+export interface JarvisStatusResponse extends WSMessage { type: 'jarvis_status'; status: JarvisStatusInfo }
 
 // --- Server-Push Events (CLI → Browser, async) ---
 export interface SessionUpdatedEvent extends WSMessage { type: 'session_updated'; session: SessionInfo }
@@ -124,6 +174,11 @@ export interface ThreatDetectedEvent extends WSMessage { type: 'threat_detected'
 export interface DefenseActivatedEvent extends WSMessage { type: 'defense_activated'; defense: Record<string, unknown> }
 export interface ApprovalRequestEvent extends WSMessage { type: 'approval_request'; request: Record<string, unknown> }
 export interface MonitorStatusEvent extends WSMessage { type: 'monitor_status'; mode: string; uptime: number; threatCount: number; defenseCount: number; lastScan: number }
+
+// --- Jarvis Events (CLI → Browser, async) ---
+export interface JarvisTaskCreatedEvent extends WSMessage { type: 'jarvis_task_created'; task: JarvisTaskInfo }
+export interface JarvisTaskUpdatedEvent extends WSMessage { type: 'jarvis_task_updated'; task: JarvisTaskInfo }
+export interface JarvisStatusChangedEvent extends WSMessage { type: 'jarvis_status_changed'; status: JarvisStatusInfo }
 
 // --- Web Chat Events (CLI → Browser, streamed) ---
 export interface ChatStartedEvent extends WSMessage { type: 'chat_started'; chatId: string }
@@ -148,7 +203,14 @@ export type ControlRequest =
   | SendChatRequest
   | GetFindingsRequest
   | GetBugsRequest
-  | PingRequest;
+  | PingRequest
+  | StartJarvisRequest
+  | StopJarvisRequest
+  | PauseJarvisRequest
+  | ResumeJarvisRequest
+  | AddJarvisTaskRequest
+  | ListJarvisTasksRequest
+  | GetJarvisStatusRequest;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts
@@ -166,6 +228,14 @@ export interface ControlHandlers {
   sendChat(text: string, chatId?: string, mode?: 'normal' | 'skip-permissions'): void;
   getFindings(): Finding[];
   getBugs(): BugInfo[];
+  // Jarvis
+  startJarvis(): string;                    // returns sessionId
+  stopJarvis(): boolean;
+  pauseJarvis(): boolean;
+  resumeJarvis(): boolean;
+  addJarvisTask(title: string, description: string, opts?: { priority?: JarvisTaskPriority; dependencies?: number[]; tags?: string[] }): JarvisTaskInfo;
+  listJarvisTasks(): JarvisTaskInfo[];
+  getJarvisStatus(): JarvisStatusInfo;
 }
 
 // ---------------------------------------------------------------------------
@@ -218,4 +288,31 @@ export function buildInstanceMeta(
 /** Reset instance start time (called once on CLI startup) */
 export function resetInstanceStartTime(): void {
   instanceStartTime = Date.now();
+}
+
+/** Serialize a JarvisTask to JarvisTaskInfo for wire transmission */
+export function serializeJarvisTask(task: {
+  id: number; title: string; description: string; status: string; priority: string;
+  createdAt: number; updatedAt: number; startedAt?: number; completedAt?: number;
+  result?: string; error?: string; retries: number; maxRetries: number;
+  sessionId?: string; dependencies?: number[]; tags?: string[];
+}): JarvisTaskInfo {
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    status: task.status as JarvisTaskStatus,
+    priority: task.priority as JarvisTaskPriority,
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+    startedAt: task.startedAt,
+    completedAt: task.completedAt,
+    result: task.result,
+    error: task.error,
+    retries: task.retries,
+    maxRetries: task.maxRetries,
+    sessionId: task.sessionId,
+    dependencies: task.dependencies,
+    tags: task.tags,
+  };
 }

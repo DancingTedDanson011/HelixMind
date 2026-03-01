@@ -5,7 +5,7 @@ import type { BrainExport } from './exporter.js';
 import type { BrainScope } from '../../utils/config.js';
 import { generateBrainHTML } from './template.js';
 import { startBrainServer, type BrainServer } from './server.js';
-import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo } from './control-protocol.js';
+import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo } from './control-protocol.js';
 
 /** Generate a static HTML file (fallback / export) */
 export function generateBrainFile(data: BrainExport): string {
@@ -322,6 +322,38 @@ export function pushApprovalRequest(request: Record<string, unknown>): void {
   activeBrainServer.pushControlEvent({
     type: 'approval_request',
     request,
+    timestamp: Date.now(),
+  });
+}
+
+// --- Jarvis push events ---
+
+/** Push a jarvis-task-created event to control clients */
+export function pushJarvisTaskCreated(task: JarvisTaskInfo): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'jarvis_task_created',
+    task,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a jarvis-task-updated event to control clients */
+export function pushJarvisTaskUpdated(task: JarvisTaskInfo): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'jarvis_task_updated',
+    task,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a jarvis-status-changed event to control clients */
+export function pushJarvisStatusChanged(status: JarvisStatusInfo): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'jarvis_status_changed',
+    status,
     timestamp: Date.now(),
   });
 }

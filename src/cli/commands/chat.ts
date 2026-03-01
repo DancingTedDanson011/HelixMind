@@ -540,8 +540,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         pushBrowserScreenshot,
         pushControlEvent,
         startRelayClient,
+        pushJarvisTaskCreated,
+        pushJarvisTaskUpdated,
+        pushJarvisStatusChanged,
       } = await import('../brain/generator.js');
-      const { serializeSession, buildInstanceMeta, resetInstanceStartTime } = await import('../brain/control-protocol.js');
+      const { serializeSession, buildInstanceMeta, resetInstanceStartTime, serializeJarvisTask } = await import('../brain/control-protocol.js');
 
       resetInstanceStartTime();
 
@@ -850,14 +853,85 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           fixDescription: b.fixDescription,
         })),
 
-        // Jarvis stubs (not yet implemented)
-        startJarvis: () => '',
-        stopJarvis: () => false,
-        pauseJarvis: () => false,
-        resumeJarvis: () => false,
-        addJarvisTask: (_t: string, _d: string) => ({ id: 0, title: '', description: '', status: 'pending' as const, priority: 'medium' as const, createdAt: Date.now(), updatedAt: Date.now(), retries: 0, maxRetries: 3, tags: [] }),
-        listJarvisTasks: () => [],
-        getJarvisStatus: () => ({ daemonState: 'stopped' as const, currentTaskId: null, pendingCount: 0, completedCount: 0, failedCount: 0, totalCount: 0, uptimeMs: 0 }),
+        startJarvis: () => {
+          if (jarvisDaemonSession && jarvisDaemonSession.status === 'running') return jarvisDaemonSession.id;
+          const bgSession = sessionMgr.create('\u{1F916} Jarvis', '\u{1F916}', agentHistory);
+          bgSession.start();
+          wireSessionOutput(bgSession);
+          pushSessionCreated(serializeSession(bgSession));
+          jarvisDaemonSession = bgSession;
+          jarvisPaused = false;
+
+          (async () => {
+            try {
+              await runJarvisDaemon(jarvisQueue, {
+                sendMessage: async (prompt) => {
+                  bgSession.controller.reset();
+                  const rth = { text: '' };
+                  const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
+                  bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+                  await sendAgentMessage(
+                    prompt, bgSession.history, provider, project, spiralEngine, config,
+                    permissions, bgSession.undoStack, checkpointStore,
+                    bgSession.controller, new ActivityIndicator(), bgSession.buffer,
+                    (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                    () => { sessionToolCalls++; },
+                    undefined, { enabled: false, verbose: false, strict: false },
+                  );
+                  bgSession.buffer.addAssistantSummary = orig;
+                  return rth.text;
+                },
+                isAborted: () => bgSession.controller.isAborted,
+                isPaused: () => jarvisPaused,
+                onTaskStart: (task) => { bgSession.capture(`\u25B6 Task #${task.id}: ${task.title}`); pushSessionUpdate(serializeSession(bgSession)); },
+                onTaskComplete: (task, result) => { bgSession.capture(`\u2713 Task #${task.id} done: ${result.slice(0, 100)}`); pushSessionUpdate(serializeSession(bgSession)); },
+                onTaskFailed: (task, error) => { bgSession.capture(`\u2717 Task #${task.id} failed: ${error.slice(0, 100)}`); pushSessionUpdate(serializeSession(bgSession)); },
+                updateStatus: () => updateStatusBar(),
+                storeInSpiral: spiralEngine ? async (content, type, tags) => {
+                  try { await spiralEngine!.add(content, { type: type as any, tags }); } catch {}
+                } : undefined,
+              });
+            } catch (err) {
+              if (!(err instanceof AgentAbortError)) bgSession.capture(`Jarvis error: ${err}`);
+            }
+            sessionMgr.complete(bgSession.id, { text: 'Jarvis stopped', steps: [], errors: bgSession.controller.isAborted ? ['Stopped'] : [], durationMs: bgSession.elapsed });
+            pushSessionUpdate(serializeSession(bgSession));
+            jarvisDaemonSession = null;
+          })();
+
+          return bgSession.id;
+        },
+
+        stopJarvis: () => {
+          if (!jarvisDaemonSession) return false;
+          jarvisDaemonSession.abort();
+          pushSessionUpdate(serializeSession(jarvisDaemonSession));
+          jarvisDaemonSession = null;
+          return true;
+        },
+
+        pauseJarvis: () => {
+          if (!jarvisDaemonSession || jarvisPaused) return false;
+          jarvisPaused = true;
+          jarvisQueue.setDaemonState('paused');
+          return true;
+        },
+
+        resumeJarvis: () => {
+          if (!jarvisDaemonSession || !jarvisPaused) return false;
+          jarvisPaused = false;
+          jarvisQueue.setDaemonState('running');
+          return true;
+        },
+
+        addJarvisTask: (title, description, opts) => {
+          const task = jarvisQueue.addTask(title, description, opts);
+          return serializeJarvisTask(task);
+        },
+
+        listJarvisTasks: () => jarvisQueue.getAllTasks().map(serializeJarvisTask),
+
+        getJarvisStatus: () => jarvisQueue.getStatus(),
       });
 
       // Wire bug journal change events to brain server
@@ -877,6 +951,16 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           pushBugCreated(bugInfo);
         } else {
           pushBugUpdated(bugInfo);
+        }
+      });
+
+      // Wire Jarvis queue change events to brain server
+      jarvisQueue.setOnChange((event, task) => {
+        const info = serializeJarvisTask(task);
+        if (event === 'task_created') {
+          pushJarvisTaskCreated(info);
+        } else {
+          pushJarvisTaskUpdated(info);
         }
       });
 
@@ -1950,6 +2034,67 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         registerBrainHandlers,
         (active) => { isAtPrompt = active; },
         bugJournal,
+        {
+          queue: jarvisQueue,
+          getSession: () => jarvisDaemonSession,
+          setSession: (s) => { jarvisDaemonSession = s; },
+          isPaused: () => jarvisPaused,
+          setPaused: (v) => { jarvisPaused = v; },
+          startDaemon: () => {
+            const bgSession = sessionMgr.create('\u{1F916} Jarvis', '\u{1F916}', agentHistory);
+            bgSession.start();
+            jarvisDaemonSession = bgSession;
+            jarvisPaused = false;
+            renderInfo(chalk.hex('#ff00ff').bold('\u{1F916} Jarvis daemon started'));
+            renderInfo(chalk.dim('Add tasks with /jarvis task "description"'));
+
+            (async () => {
+              try {
+                await runJarvisDaemon(jarvisQueue, {
+                  sendMessage: async (prompt) => {
+                    bgSession.controller.reset();
+                    const rth = { text: '' };
+                    const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
+                    bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+                    await sendAgentMessage(
+                      prompt, bgSession.history, provider, project, spiralEngine, config,
+                      permissions, bgSession.undoStack, checkpointStore,
+                      bgSession.controller, new ActivityIndicator(), bgSession.buffer,
+                      (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                      () => { sessionToolCalls++; },
+                      undefined, { enabled: false, verbose: false, strict: false },
+                    );
+                    bgSession.buffer.addAssistantSummary = orig;
+                    return rth.text;
+                  },
+                  isAborted: () => bgSession.controller.isAborted,
+                  isPaused: () => jarvisPaused,
+                  onTaskStart: (task) => {
+                    bgSession.capture(`\u25B6 Task #${task.id}: ${task.title}`);
+                    renderInfo(chalk.hex('#ff00ff')(`\u25B6 Jarvis: Starting task #${task.id} \u2014 ${task.title}`));
+                  },
+                  onTaskComplete: (task, result) => {
+                    bgSession.capture(`\u2713 Task #${task.id} done: ${result.slice(0, 100)}`);
+                    renderInfo(chalk.hex('#ff00ff')(`\u2713 Jarvis: Task #${task.id} completed`));
+                  },
+                  onTaskFailed: (task, error) => {
+                    bgSession.capture(`\u2717 Task #${task.id} failed: ${error.slice(0, 100)}`);
+                    renderInfo(chalk.hex('#ff00ff')(`\u2717 Jarvis: Task #${task.id} failed \u2014 ${error.slice(0, 60)}`));
+                  },
+                  updateStatus: () => updateStatusBar(),
+                  storeInSpiral: spiralEngine ? async (content, type, tags) => {
+                    try { await spiralEngine!.add(content, { type: type as any, tags }); } catch {}
+                  } : undefined,
+                });
+              } catch (err) {
+                if (!(err instanceof AgentAbortError)) bgSession.capture(`Jarvis error: ${err}`);
+              }
+              sessionMgr.complete(bgSession.id, { text: 'Jarvis stopped', steps: [], errors: bgSession.controller.isAborted ? ['Stopped'] : [], durationMs: bgSession.elapsed });
+              jarvisDaemonSession = null;
+              renderInfo(chalk.hex('#ff00ff')('\u{1F916} Jarvis daemon stopped'));
+            })();
+          },
+        },
       );
       if (handled === 'exit') {
         spiralEngine?.close();
@@ -2660,6 +2805,14 @@ async function handleSlashCommand(
   onRegisterBrainHandlers?: () => Promise<void>,
   onSubPrompt?: (active: boolean) => void,
   bugJournal?: BugJournal,
+  jarvisCtx?: {
+    queue: JarvisQueue;
+    getSession: () => import('../sessions/session.js').Session | null;
+    setSession: (s: import('../sessions/session.js').Session | null) => void;
+    isPaused: () => boolean;
+    setPaused: (v: boolean) => void;
+    startDaemon: () => void;
+  },
 ): Promise<string | void> {
   const parts = input.split(/\s+/);
   const cmd = parts[0].toLowerCase();
@@ -2689,7 +2842,7 @@ async function handleSlashCommand(
           store, rl, permissions, undoStack, checkpointStore, sessionBuffer,
           sessionTokens, sessionToolCalls,
           onProviderSwitch, onBrainSwitch, currentBrainScope, onAutonomous, onValidation,
-          sessionManager, onRegisterBrainHandlers, onSubPrompt, bugJournal,
+          sessionManager, onRegisterBrainHandlers, onSubPrompt, bugJournal, jarvisCtx,
         );
       }
       break;
@@ -3264,6 +3417,124 @@ async function handleSlashCommand(
         await onAutonomous('security');
       }
       break;
+
+    case '/jarvis': {
+      if (!jarvisCtx) { renderInfo('Jarvis not available.'); break; }
+      const sub = parts[1]?.toLowerCase();
+      const jq = jarvisCtx.queue;
+
+      if (!sub || sub === 'start') {
+        const existing = jarvisCtx.getSession();
+        if (existing && existing.status === 'running') {
+          renderInfo(chalk.hex('#ff00ff')('Jarvis is already running.'));
+          const sl = jq.getStatusLine();
+          if (sl) renderInfo(sl);
+          break;
+        }
+        jarvisCtx.startDaemon();
+
+      } else if (sub === 'task') {
+        const taskText = input.replace(/^\/jarvis\s+task\s*/i, '').trim();
+        if (!taskText) { renderInfo('Usage: /jarvis task "Do something"'); break; }
+        let title = taskText;
+        let description = '';
+        const quoteMatch = taskText.match(/^["'](.+?)["']\s*(.*)/s);
+        if (quoteMatch) {
+          title = quoteMatch[1];
+          description = quoteMatch[2] || title;
+        } else if (taskText.includes('\u2014') || taskText.includes('--')) {
+          const sep = taskText.includes('\u2014') ? '\u2014' : '--';
+          const sepIdx = taskText.indexOf(sep);
+          title = taskText.slice(0, sepIdx).trim();
+          description = taskText.slice(sepIdx + sep.length).trim() || title;
+        } else {
+          description = title;
+        }
+        const task = jq.addTask(title, description);
+        renderInfo(chalk.hex('#ff00ff')(`\u2714 Task #${task.id} added: ${task.title}`));
+
+      } else if (sub === 'tasks') {
+        const tasks = jq.getAllTasks();
+        if (tasks.length === 0) { renderInfo('No tasks in queue. Add with /jarvis task "..."'); break; }
+        const statusIcons: Record<string, string> = {
+          pending: chalk.yellow('\u25CB'), running: chalk.hex('#ff00ff')('\u25CF'),
+          completed: chalk.green('\u2713'), failed: chalk.red('\u2717'), paused: chalk.dim('\u25CB'),
+        };
+        process.stdout.write('\n');
+        for (const t of tasks) {
+          const icon = statusIcons[t.status] || '\u25CB';
+          const priColor = t.priority === 'high' ? '#ff3333' : t.priority === 'medium' ? '#ffaa00' : '#888888';
+          process.stdout.write(`  ${icon} ${chalk.bold('#' + t.id)} ${chalk.hex(priColor)(`[${t.priority}]`)} ${t.title}\n`);
+          if (t.result) process.stdout.write(chalk.dim(`     Result: ${t.result.slice(0, 80)}\n`));
+          if (t.error) process.stdout.write(chalk.red(`     Error: ${t.error.slice(0, 80)}\n`));
+        }
+        process.stdout.write('\n');
+        const sl = jq.getStatusLine();
+        if (sl) renderInfo(sl);
+
+      } else if (sub === 'status') {
+        const taskId = parts[2] ? parseInt(parts[2], 10) : NaN;
+        if (!isNaN(taskId)) {
+          const task = jq.getAllTasks().find((t: any) => t.id === taskId);
+          if (!task) { renderInfo(`Task #${taskId} not found.`); }
+          else {
+            process.stdout.write('\n');
+            process.stdout.write(chalk.hex('#ff00ff').bold(`  Task #${task.id}: ${task.title}\n`));
+            process.stdout.write(`  Status: ${task.status} | Priority: ${task.priority}\n`);
+            process.stdout.write(`  Created: ${new Date(task.createdAt).toLocaleString()}\n`);
+            if (task.startedAt) process.stdout.write(`  Started: ${new Date(task.startedAt).toLocaleString()}\n`);
+            if (task.completedAt) process.stdout.write(`  Completed: ${new Date(task.completedAt).toLocaleString()}\n`);
+            if (task.description !== task.title) process.stdout.write(chalk.dim(`  Description: ${task.description}\n`));
+            if (task.result) process.stdout.write(chalk.green(`  Result: ${task.result}\n`));
+            if (task.error) process.stdout.write(chalk.red(`  Error: ${task.error}\n`));
+            process.stdout.write('\n');
+          }
+        } else {
+          const status = jq.getStatus();
+          process.stdout.write('\n');
+          process.stdout.write(chalk.hex('#ff00ff').bold('  \u{1F916} Jarvis Status\n'));
+          process.stdout.write(`  Daemon: ${status.daemonState}`);
+          if (status.currentTaskId) process.stdout.write(` (task #${status.currentTaskId})`);
+          process.stdout.write('\n');
+          process.stdout.write(`  Pending: ${status.pendingCount} | Completed: ${status.completedCount} | Failed: ${status.failedCount}\n`);
+          if (status.uptimeMs > 0) process.stdout.write(`  Uptime: ${Math.floor(status.uptimeMs / 1000)}s\n`);
+          process.stdout.write('\n');
+        }
+
+      } else if (sub === 'stop') {
+        const s = jarvisCtx.getSession();
+        if (!s) { renderInfo('Jarvis is not running.'); break; }
+        s.abort();
+        jarvisCtx.setSession(null);
+        renderInfo(chalk.hex('#ff00ff')('\u{1F916} Jarvis daemon stopped'));
+
+      } else if (sub === 'pause') {
+        if (!jarvisCtx.getSession() || jarvisCtx.isPaused()) {
+          renderInfo(jarvisCtx.isPaused() ? 'Jarvis is already paused.' : 'Jarvis is not running.');
+          break;
+        }
+        jarvisCtx.setPaused(true);
+        jq.setDaemonState('paused');
+        renderInfo(chalk.hex('#ff00ff')('\u23F8 Jarvis paused'));
+
+      } else if (sub === 'resume') {
+        if (!jarvisCtx.getSession() || !jarvisCtx.isPaused()) {
+          renderInfo(!jarvisCtx.isPaused() ? 'Jarvis is not paused.' : 'Jarvis is not running.');
+          break;
+        }
+        jarvisCtx.setPaused(false);
+        jq.setDaemonState('running');
+        renderInfo(chalk.hex('#ff00ff')('\u25B6 Jarvis resumed'));
+
+      } else if (sub === 'clear') {
+        const removed = jq.clearCompleted();
+        renderInfo(`Cleared ${removed} completed task(s).`);
+
+      } else {
+        renderInfo('Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear]');
+      }
+      break;
+    }
 
     case '/monitor': {
       if (!onAutonomous) break;
