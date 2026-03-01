@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { BrainExport } from './exporter.js';
 import { generateBrainHTML } from './template.js';
@@ -467,6 +468,13 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             }
             if (msg.type === 'activate_model' && typeof msg.model === 'string' && modelActivateHandler) {
               modelActivateHandler(msg.model);
+            }
+            if (msg.type === 'start_ollama') {
+              try {
+                const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore', shell: true });
+                child.unref();
+                sendTo(ws, { type: 'ollama_starting', timestamp: Date.now() });
+              } catch { /* ignore spawn errors */ }
             }
           } catch { /* ignore malformed */ }
         });

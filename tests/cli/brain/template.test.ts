@@ -93,14 +93,15 @@ describe('generateBrainHTML', () => {
     expect(html).toContain('data-level="5"');
   });
 
-  it('should have 5 distinct level colors', () => {
+  it('should have 6 distinct level colors', () => {
     const html = generateBrainHTML(mockData);
-    // L1=Cyan, L2=Green, L3=Blue, L4=Violet, L5=Gray
-    expect(html).toContain('0x00FFFF'); // L1 Cyan
+    // L1=Cyan, L2=Green, L3=Slate Blue, L4=Magenta, L5=Coral, L6=Gold
+    expect(html).toContain('0xE040FB'); // L1 Magenta (Focus)
     expect(html).toContain('0x00FF88'); // L2 Green
-    expect(html).toContain('0x4169E1'); // L3 Blue
-    expect(html).toContain('0x8A2BE2'); // L4 Violet
-    expect(html).toContain('0x6C757D'); // L5 Gray
+    expect(html).toContain('0x7B68EE'); // L3 Medium Slate Blue
+    expect(html).toContain('0x00FFFF'); // L4 Cyan (Archive)
+    expect(html).toContain('0xFF6B6B'); // L5 Coral
+    expect(html).toContain('0xFFD700'); // L6 Gold
   });
 
   it('should include all 5 levels in legend', () => {

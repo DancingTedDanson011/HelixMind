@@ -313,28 +313,9 @@ canvas { display: block; }
 .web-knowledge-popup .wk-progress-bar { height: 100%; background: linear-gradient(90deg, #00ff88, #00d4ff); border-radius: 1px; width: 100%; animation: wkShrink 6s linear forwards; }
 @keyframes wkSlideIn { from { opacity: 0; transform: translateX(60px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
 @keyframes wkShrink { from { width: 100%; } to { width: 0%; } }
-
-#holo-overlay {
-  position: fixed; inset: 0; pointer-events: none; z-index: 1;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,255,200,0.015) 2px,
-      rgba(0,255,200,0.015) 4px
-    ),
-    radial-gradient(
-      ellipse at center,
-      transparent 50%,
-      rgba(0,0,0,0.4) 100%
-    );
-}
 </style>
 </head>
 <body>
-
-<div id="holo-overlay"></div>
 
 <div id="header">
   <h1><span class="live-dot"></span>\u{1F300} HelixMind Brain</h1>
@@ -453,9 +434,6 @@ canvas { display: block; }
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 // ===== DATA =====
 let BRAIN_DATA = ${dataJSON};
@@ -475,8 +453,6 @@ function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 const R = new THREE.WebGLRenderer({ antialias:false, alpha:true, powerPreference:'high-performance' });
 R.setSize(innerWidth, innerHeight);
 R.setPixelRatio(1);
-R.toneMapping = THREE.ACESFilmicToneMapping;
-R.toneMappingExposure = 1.1;
 document.body.prepend(R.domElement);
 
 const scene = new THREE.Scene();
@@ -498,33 +474,12 @@ ctrl.maxPolarAngle = Math.PI * 0.85;
 ctrl.minPolarAngle = Math.PI * 0.15;
 ctrl.update();
 
-// ===== POST-PROCESSING (UnrealBloom at half-res for performance) =====
-const halfRT = new THREE.WebGLRenderTarget(
-  Math.floor(innerWidth/2), Math.floor(innerHeight/2),
-  { type: THREE.HalfFloatType }
-);
-const composer = new EffectComposer(R, halfRT);
-composer.addPass(new RenderPass(scene, cam));
-const bloom = new UnrealBloomPass(
-  new THREE.Vector2(Math.floor(innerWidth/2), Math.floor(innerHeight/2)),
-  0.6,   // strength — slightly reduced
-  0.3,   // radius
-  0.8    // threshold — higher = fewer things bloom
-);
-composer.addPass(bloom);
-
-// ===== STARS (static — dual layer for parallax depth) =====
-const stP = new Float32Array(1500*3);
-for(let i=0;i<1500;i++){ stP[i*3]=(srand(i*31)-.5)*5000; stP[i*3+1]=(srand(i*37)-.5)*5000; stP[i*3+2]=(srand(i*41)-.5)*5000; }
+// ===== STARS (static) =====
+const stP = new Float32Array(700*3);
+for(let i=0;i<700;i++){ stP[i*3]=(srand(i*31)-.5)*5000; stP[i*3+1]=(srand(i*37)-.5)*5000; stP[i*3+2]=(srand(i*41)-.5)*5000; }
 const stG = new THREE.BufferGeometry();
 stG.setAttribute('position', new THREE.BufferAttribute(stP,3));
 scene.add(new THREE.Points(stG, new THREE.PointsMaterial({ size:1.2, color:'#223344', transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true })));
-// Second layer: larger dim stars for depth
-const st2P = new Float32Array(200*3);
-for(let i=0;i<200;i++){ st2P[i*3]=(srand(i*71)-.5)*8000; st2P[i*3+1]=(srand(i*73)-.5)*8000; st2P[i*3+2]=(srand(i*79)-.5)*8000; }
-const st2G = new THREE.BufferGeometry();
-st2G.setAttribute('position', new THREE.BufferAttribute(st2P,3));
-scene.add(new THREE.Points(st2G, new THREE.PointsMaterial({ size:2.5, color:'#1a2a3a', transparent:true, opacity:0.25, blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true })));
 
 // ===== STATIC SHADERS (zero per-frame cost) =====
 const nMat = new THREE.ShaderMaterial({
@@ -549,13 +504,12 @@ const nMat = new THREE.ShaderMaterial({
       if(d>.5)discard;
       float i=exp(-d*d*50.0)*0.9+exp(-d*d*8.0)*0.4+exp(-d*d*2.5)*0.15;
       float core=exp(-d*d*50.0);
-      gl_FragColor=vec4(vC*(1.0+core*2.0),i*vA);
+      gl_FragColor=vec4(vC*(1.0+core*1.0),i*vA);
     }\`,
   transparent:true, depthWrite:false, blending:THREE.NormalBlending
 });
 
 const eMat = new THREE.ShaderMaterial({
-  uniforms: { uBreath: { value: 1.0 } },
   vertexShader: \`
     attribute vec3 color;
     attribute float aA;
@@ -563,10 +517,9 @@ const eMat = new THREE.ShaderMaterial({
     varying float vA;
     void main(){ vC=color; vA=aA; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }\`,
   fragmentShader: \`
-    uniform float uBreath;
     varying vec3 vC;
     varying float vA;
-    void main(){ gl_FragColor=vec4(vC,vA*uBreath); }\`,
+    void main(){ gl_FragColor=vec4(vC,vA); }\`,
   transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
 });
 
@@ -748,14 +701,6 @@ function buildGeometry(P){
 
   pos=new Array(nC);
   for(let i=0;i<nC;i++) pos[i]=new THREE.Vector3(P[i*3],P[i*3+1],P[i*3+2]);
-
-  // Move energy core + rings to node centroid
-  let cx=0,cy=0,cz=0;
-  for(let i=0;i<nC;i++){cx+=P[i*3];cy+=P[i*3+1];cz+=P[i*3+2];}
-  cx/=nC;cy/=nC;cz/=nC;
-  core.position.set(cx,cy,cz);
-  core2.position.set(cx,cy,cz);
-  orbCx=cx;orbCy=cy;orbCz=cz;
 
   // --- NODES ---
   nGeo=new THREE.BufferGeometry();
@@ -1109,65 +1054,7 @@ document.querySelectorAll('[data-edge]').forEach(b=>{
   });
 });
 
-// ===== ENERGY CORE (pulsing center) =====
-const coreGeo = new THREE.IcosahedronGeometry(curSpread * 0.08, 3);
-const coreMat = new THREE.MeshBasicMaterial({
-  color: 0xE040FB, transparent: true, opacity: 0.12,
-  blending: THREE.AdditiveBlending, wireframe: true
-});
-const core = new THREE.Mesh(coreGeo, coreMat);
-scene.add(core);
-const core2Geo = new THREE.IcosahedronGeometry(curSpread * 0.04, 2);
-const core2Mat = new THREE.MeshBasicMaterial({
-  color: 0xffffff, transparent: true, opacity: 0.08,
-  blending: THREE.AdditiveBlending
-});
-const core2 = new THREE.Mesh(core2Geo, core2Mat);
-scene.add(core2);
-
-// ===== ORBIT PARTICLE STREAMS (animated orbital rings) =====
-const ORB_COUNT=120;
-const orbR=curSpread*1.6;
-// Orbit 1: gold, horizontal
-const orb1Pos=new Float32Array(ORB_COUNT*3), orb1Col=new Float32Array(ORB_COUNT*3), orb1Sz=new Float32Array(ORB_COUNT);
-const orb1Phase=new Float32Array(ORB_COUNT);
-for(let i=0;i<ORB_COUNT;i++){
-  orb1Phase[i]=(i/ORB_COUNT)*Math.PI*2+srand(i*53)*0.3;
-  orb1Sz[i]=3+srand(i*67)*4;
-  const gc=new THREE.Color(0xFFD700);
-  orb1Col[i*3]=gc.r;orb1Col[i*3+1]=gc.g;orb1Col[i*3+2]=gc.b;
-}
-const orb1Geo=new THREE.BufferGeometry();
-orb1Geo.setAttribute('position',new THREE.BufferAttribute(orb1Pos,3));
-orb1Geo.setAttribute('aColor',new THREE.BufferAttribute(orb1Col,3));
-orb1Geo.setAttribute('aSize',new THREE.BufferAttribute(orb1Sz,1));
-const orb1Pts=new THREE.Points(orb1Geo,new THREE.ShaderMaterial({
-  vertexShader:\`attribute float aSize;attribute vec3 aColor;varying vec3 vC;void main(){vC=aColor;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=aSize*(800.0/-mv.z);gl_Position=projectionMatrix*mv;}\`,
-  fragmentShader:\`varying vec3 vC;void main(){float d=length(gl_PointCoord-vec2(.5));if(d>.5)discard;float g=exp(-d*d*12.0);gl_FragColor=vec4(vC*1.5,g*0.7);}\`,
-  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
-}));
-scene.add(orb1Pts);
-// Orbit 2: cyan, tilted
-const orb2Pos=new Float32Array(ORB_COUNT*3), orb2Col=new Float32Array(ORB_COUNT*3), orb2Sz=new Float32Array(ORB_COUNT);
-const orb2Phase=new Float32Array(ORB_COUNT);
-const tiltX=Math.PI/2.5, tiltZ=Math.PI/6;
-const cosX=Math.cos(tiltX),sinX=Math.sin(tiltX),cosZ=Math.cos(tiltZ),sinZ=Math.sin(tiltZ);
-for(let i=0;i<ORB_COUNT;i++){
-  orb2Phase[i]=(i/ORB_COUNT)*Math.PI*2+srand(i*59)*0.3;
-  orb2Sz[i]=2.5+srand(i*71)*3.5;
-  const cc=new THREE.Color(0x00FFFF);
-  orb2Col[i*3]=cc.r;orb2Col[i*3+1]=cc.g;orb2Col[i*3+2]=cc.b;
-}
-const orb2Geo=new THREE.BufferGeometry();
-orb2Geo.setAttribute('position',new THREE.BufferAttribute(orb2Pos,3));
-orb2Geo.setAttribute('aColor',new THREE.BufferAttribute(orb2Col,3));
-orb2Geo.setAttribute('aSize',new THREE.BufferAttribute(orb2Sz,1));
-const orb2Pts=new THREE.Points(orb2Geo,orb1Pts.material);
-scene.add(orb2Pts);
-// Orbit center offset (updated by buildGeometry)
-let orbCx=0,orbCy=0,orbCz=0;
-
-// ===== ANIMATE (cinematic: bloom + core pulse + edge breathing) =====
+// ===== ANIMATE (ultra-minimal: only controls + render + tween) =====
 let fpsF=0, lastFT=performance.now();
 const clock=new THREE.Clock();
 
@@ -1183,43 +1070,9 @@ function animate(){
     if(camTw.p>=1)camTw=null;
   }
 
-  // Energy core pulse
-  const t=performance.now();
-  core.rotation.y += dt * 0.1;
-  core.rotation.x += dt * 0.05;
-  core.scale.setScalar(1 + Math.sin(t * 0.001) * 0.05);
-  core2.scale.setScalar(1 + Math.sin(t * 0.0015) * 0.08);
-
-  // Edge breathing
-  eMat.uniforms.uBreath.value = 1.0 + Math.sin(t * 0.0008) * 0.15;
-
-  // Orbit particle streams
-  const oSp=t*0.0003;
-  const o1=orb1Geo.attributes.position;
-  for(let i=0;i<ORB_COUNT;i++){
-    const a=orb1Phase[i]+oSp;
-    o1.array[i*3]=orbCx+Math.cos(a)*orbR;
-    o1.array[i*3+1]=orbCy+(srand(i*89)-0.5)*8;
-    o1.array[i*3+2]=orbCz+Math.sin(a)*orbR;
-  }
-  o1.needsUpdate=true;
-  const o2=orb2Geo.attributes.position;
-  const oSp2=t*0.00025;
-  for(let i=0;i<ORB_COUNT;i++){
-    const a=orb2Phase[i]-oSp2;
-    const lx=Math.cos(a)*orbR, ly=0, lz=Math.sin(a)*orbR;
-    // Apply tilt rotation (X then Z)
-    const ry=ly*cosX-lz*sinX, rz=ly*sinX+lz*cosX;
-    const fx=lx*cosZ-ry*sinZ, fy=lx*sinZ+ry*cosZ;
-    o2.array[i*3]=orbCx+fx;
-    o2.array[i*3+1]=orbCy+fy+(srand(i*97)-0.5)*6;
-    o2.array[i*3+2]=orbCz+rz;
-  }
-  o2.needsUpdate=true;
-
   updateSignals(dt);
   ctrl.update();
-  composer.render();
+  R.render(scene,cam);
 
   fpsF++;
   const now=performance.now();
@@ -1227,7 +1080,7 @@ function animate(){
 }
 
 // ===== RESIZE =====
-addEventListener('resize',()=>{ const w=innerWidth,h=innerHeight; cam.aspect=w/h; cam.updateProjectionMatrix(); R.setSize(w,h); composer.setSize(Math.floor(w/2),Math.floor(h/2)); });
+addEventListener('resize',()=>{ cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix(); R.setSize(innerWidth,innerHeight); });
 
 // ===== WEBSOCKET =====
 let ws=null;
