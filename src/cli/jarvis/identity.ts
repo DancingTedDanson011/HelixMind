@@ -213,7 +213,7 @@ export class JarvisIdentityManager {
   /**
    * Build identity prompt section for system prompt injection.
    */
-  getIdentityPrompt(): string {
+  getIdentityPrompt(skillsSummary?: string): string {
     const { traits, trust, recentLearnings, strengths, weaknesses, autonomyLevel } = this.identity;
 
     const traitLines = Object.entries(traits)
@@ -228,6 +228,10 @@ export class JarvisIdentityManager {
     const name = this.identity.name;
     const goalsSection = this.identity.userGoals.length > 0
       ? `\nUser Goals:\n${this.identity.userGoals.map(g => `  - ${g}`).join('\n')}\n`
+      : '';
+
+    const skillsSection = skillsSummary
+      ? `\n${skillsSummary}\n`
       : '';
 
     return `## ${name} — Your Identity
@@ -250,6 +254,9 @@ Active Capabilities:
 - Anomaly Detection: detect and correct own behavioral patterns
 - Ethics System: built-in ethical boundaries for all actions
 - Notifications: alert user through configured channels on critical events
+- Skill System: load, create, and manage modular capabilities at runtime
+- Telegram Bot: bidirectional messaging (receive tasks, send notifications, approve/deny proposals)
+- Self-Building: can create new skills autonomously (with user approval via Proposal system)
 
 Autonomy Level: L${autonomyLevel} (${trust.approvalRate > 0 ? (trust.approvalRate * 100).toFixed(0) + '% approval' : 'new'})
 Proposals: ${trust.totalProposals} total (${trust.totalApproved} approved, ${trust.totalDenied} denied)
@@ -260,9 +267,16 @@ ${traitLines}
 
 ${strengths.length > 0 ? 'Strengths: ' + strengths.join(', ') : ''}
 ${weaknesses.length > 0 ? 'Areas to improve: ' + weaknesses.join(', ') : ''}
-${goalsSection}
+${goalsSection}${skillsSection}
 Recent Learnings:
 ${learningLines || '  (none yet)'}
+
+When you identify a missing capability the user needs:
+1. Check installed skills (/jarvis skills)
+2. If none exists, create a skill_creation proposal with category, impact, and required tools
+3. After approval, build the skill (skill.json + index.ts in .helixmind/jarvis/skills/)
+4. Use only fetch() for HTTP when possible (no extra dependencies)
+5. Test the skill and report the result
 
 Remember: You are ${name}, based on HelixMind. Be helpful, proactive within your autonomy level, and transparent.
 Denial is feedback — use it to make better proposals.`;

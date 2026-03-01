@@ -54,6 +54,8 @@ import { TriggerManager } from '../jarvis/triggers.js';
 import { WorldModelManager } from '../jarvis/world-model.js';
 import { AutonomyManager } from '../jarvis/autonomy.js';
 import { NotificationManager } from '../jarvis/notifications.js';
+import { SkillManager } from '../jarvis/skills.js';
+import { JarvisTelegramBot, parseTelegramCommand } from '../jarvis/telegram-bot.js';
 import type { ThinkingCallbacks } from '../jarvis/types.js';
 import { BrowserController } from '../browser/controller.js';
 import { VisionProcessor } from '../browser/vision.js';
@@ -137,6 +139,8 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/jarvis local', label: '/jarvis local', description: 'Switch to project-local Jarvis' },
       { cmd: '/jarvis global', label: '/jarvis global', description: 'Switch to global Jarvis' },
       { cmd: '/jarvis name', label: '/jarvis name "..."', description: 'Set Jarvis name' },
+      { cmd: '/jarvis telegram', label: '/jarvis telegram setup|test|off', description: 'Configure Telegram bot' },
+      { cmd: '/jarvis skills', label: '/jarvis skills [list|install|enable|disable]', description: 'Manage Jarvis skills' },
     ],
   },
   {
@@ -374,6 +378,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let jarvisWorldModel: WorldModelManager;
   let jarvisAutonomy: AutonomyManager;
   let jarvisNotifications: NotificationManager;
+  let jarvisSkills: SkillManager;
+  let jarvisTelegramBot: JarvisTelegramBot | null = null;
   let jarvisScope: BrainScope;
   let jarvisDaemonSession: import('../sessions/session.js').Session | null = null;
   let jarvisPaused = false;
@@ -502,6 +508,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   jarvisWorldModel = new WorldModelManager(resolveJarvisRoot(jarvisScope));
   jarvisAutonomy = new AutonomyManager(jarvisIdentity.getIdentity().autonomyLevel);
   jarvisNotifications = new NotificationManager(resolveJarvisRoot(jarvisScope));
+  jarvisSkills = new SkillManager(resolveJarvisRoot(jarvisScope));
+  jarvisSkills.syncRegistry();
 
   let spiralEngine: any = null;
 
@@ -521,6 +529,153 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   if (config.spiral.enabled) {
     spiralEngine = await initSpiralEngine(brainScope);
+  }
+
+  // Build SkillContext for skill activation
+  function buildSkillContext(): import('../jarvis/types.js').SkillContext {
+    return {
+      registerTool: (name, def, handler) => {
+        // Skills register tools into the skill manager's registry
+        // The agent loop checks skill tools as fallback
+        jarvisSkills.getSkillTool(name); // ensure no conflict
+      },
+      unregisterTool: (_name) => { /* handled by SkillManager.deactivateSkill */ },
+      addTask: (title, desc, priority) => jarvisQueue.addTask(title, desc, { priority }),
+      querySpiral: async (query) => {
+        if (!spiralEngine) return '';
+        try {
+          const results = await spiralEngine.query(query, { maxResults: 10 });
+          return results.level_1.concat(results.level_2, results.level_3)
+            .map((n: any) => `[${n.type}] ${n.content}`)
+            .join('\n')
+            .slice(0, 4000);
+        } catch { return ''; }
+      },
+      storeInSpiral: async (content, type, tags) => {
+        if (!spiralEngine) return;
+        try { await spiralEngine.add(content, { type, tags }); } catch {}
+      },
+      notify: async (title, body, urgency) => {
+        await jarvisNotifications.notify(title, body, urgency ?? 'info');
+      },
+      getConfig: (key) => config[key as keyof typeof config] as string | undefined,
+      setConfig: (_key, _value) => { /* config is read-only at runtime */ },
+      log: (msg) => { renderInfo(chalk.dim(`[skill] ${msg}`)); },
+    };
+  }
+
+  // Start Telegram bot if configured (called when daemon starts)
+  function startTelegramBot(): void {
+    if (jarvisTelegramBot?.isRunning) return;
+
+    const teleConfig = jarvisNotifications.getConfig().targets.find(t => t.channel === 'telegram');
+    if (!teleConfig?.enabled || !teleConfig.config.botToken || !teleConfig.config.chatId) return;
+
+    const jn = jarvisIdentity.getIdentity().name;
+    jarvisTelegramBot = new JarvisTelegramBot(teleConfig.config.botToken, teleConfig.config.chatId);
+
+    jarvisTelegramBot.start(
+      // Message handler
+      (text, chatId, username) => {
+        const { command, args } = parseTelegramCommand(text);
+
+        if (command === 'status') {
+          const status = jarvisQueue.getStatus();
+          const skillCount = jarvisSkills.getActiveSkills().length;
+          jarvisTelegramBot?.send(
+            `*${jn} Status*\n` +
+            `Daemon: ${status.daemonState}\n` +
+            `Tasks: ${status.pendingCount} pending, ${status.completedCount} done, ${status.failedCount} failed\n` +
+            `Autonomy: L${status.autonomyLevel ?? '?'}\n` +
+            `Skills: ${skillCount} active`,
+          );
+        } else if (command === 'tasks') {
+          const tasks = jarvisQueue.getAllTasks().filter(t => t.status !== 'completed');
+          if (tasks.length === 0) {
+            jarvisTelegramBot?.send(`${jn}: No pending tasks.`);
+          } else {
+            const lines = tasks.map(t => `#${t.id} [${t.status}] ${t.title}`);
+            jarvisTelegramBot?.send(`*Tasks:*\n${lines.join('\n')}`);
+          }
+        } else if (command === 'task' && args) {
+          const task = jarvisQueue.addTask(
+            args.slice(0, 80),
+            args,
+            { priority: 'medium', tags: ['telegram'] },
+          );
+          jarvisTelegramBot?.send(`\u2705 Task #${task.id} created: "${task.title}"`);
+        } else if (command === 'approve' && args) {
+          const id = parseInt(args, 10);
+          if (!isNaN(id)) {
+            const proposal = jarvisProposals.approve(id);
+            if (proposal) {
+              jarvisIdentity.recordEvent({ type: 'proposal_approved', proposalId: id });
+              const task = jarvisQueue.addTask(proposal.title, proposal.description, {
+                priority: proposal.impact === 'high' ? 'high' : 'medium',
+              });
+              proposal.convertedTaskId = task.id;
+              jarvisTelegramBot?.send(`\u2705 Proposal #${id} approved \u2192 Task #${task.id}`);
+            } else {
+              jarvisTelegramBot?.send(`Proposal #${id} not found or already resolved.`);
+            }
+          }
+        } else if (command === 'deny' && args) {
+          const spaceIdx = args.indexOf(' ');
+          const id = parseInt(spaceIdx > 0 ? args.slice(0, spaceIdx) : args, 10);
+          const reason = spaceIdx > 0 ? args.slice(spaceIdx + 1) : 'denied via telegram';
+          if (!isNaN(id)) {
+            const proposal = jarvisProposals.deny(id, reason);
+            if (proposal) {
+              jarvisIdentity.recordEvent({ type: 'proposal_denied', proposalId: id, reason });
+              jarvisTelegramBot?.send(`\u274C Proposal #${id} denied: ${reason}`);
+            } else {
+              jarvisTelegramBot?.send(`Proposal #${id} not found or already resolved.`);
+            }
+          }
+        } else if (command === 'help') {
+          jarvisTelegramBot?.send(
+            `*${jn} Commands:*\n` +
+            `/status — Show daemon status\n` +
+            `/tasks — List pending tasks\n` +
+            `/task <description> — Create a new task\n` +
+            `/approve <id> — Approve a proposal\n` +
+            `/deny <id> <reason> — Deny a proposal\n` +
+            `Or just send text to create a task.`,
+          );
+        } else {
+          // Free text → create task
+          if (text.trim().length > 2) {
+            const task = jarvisQueue.addTask(
+              `Telegram: ${text.slice(0, 60)}`,
+              text,
+              { priority: 'medium', tags: ['telegram', 'user_message'] },
+            );
+            jarvisTelegramBot?.send(`\u2705 Task #${task.id} created`);
+          }
+        }
+      },
+      // Callback handler (inline buttons)
+      (data, chatId, queryId) => {
+        jarvisTelegramBot?.answerCallback(queryId);
+        if (data.startsWith('approve_')) {
+          const id = parseInt(data.slice(8), 10);
+          const proposal = jarvisProposals.approve(id);
+          if (proposal) {
+            jarvisIdentity.recordEvent({ type: 'proposal_approved', proposalId: id });
+            const task = jarvisQueue.addTask(proposal.title, proposal.description, { priority: 'medium' });
+            proposal.convertedTaskId = task.id;
+            jarvisTelegramBot?.send(`\u2705 Approved #${id} \u2192 Task #${task.id}`);
+          }
+        } else if (data.startsWith('deny_')) {
+          const id = parseInt(data.slice(5), 10);
+          const proposal = jarvisProposals.deny(id, 'denied via telegram button');
+          if (proposal) {
+            jarvisIdentity.recordEvent({ type: 'proposal_denied', proposalId: id, reason: 'denied via telegram' });
+            jarvisTelegramBot?.send(`\u274C Denied #${id}`);
+          }
+        }
+      },
+    );
   }
 
   // Build ThinkingCallbacks for Jarvis AGI thinking loop
@@ -982,6 +1137,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           jarvisDaemonSession = bgSession;
           jarvisPaused = false;
 
+          // Start Telegram bot alongside daemon (if configured)
+          startTelegramBot();
+
           (async () => {
             try {
               await runJarvisDaemon(jarvisQueue, {
@@ -1035,7 +1193,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 } : undefined,
                 getIdentityName: () => jarvisIdentity.getIdentity().name,
                 getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
-                getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(),
+                getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined),
                 thinkingCallbacks: buildThinkingCallbacks(bgSession),
               });
             } catch (err) {
@@ -1738,7 +1896,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Build Jarvis identity context for system prompt injection (when daemon is active)
   function getJarvisContextForPrompt(): string | null {
     if (!jarvisDaemonSession || jarvisDaemonSession.status !== 'running') return null;
-    return jarvisIdentity.getIdentityPrompt();
+    return jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined);
   }
 
   // Update statusbar via BottomChrome row 1 (bottom border with embedded status).
@@ -2260,12 +2418,20 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             jarvisTriggers = new TriggerManager(newRoot);
             jarvisWorldModel = new WorldModelManager(newRoot);
             jarvisNotifications = new NotificationManager(newRoot);
+            jarvisSkills = new SkillManager(newRoot);
+            jarvisSkills.syncRegistry();
             jarvisAutonomy = new AutonomyManager(jarvisIdentity.getIdentity().autonomyLevel);
           },
           getSession: () => jarvisDaemonSession,
           setSession: (s) => { jarvisDaemonSession = s; },
           isPaused: () => jarvisPaused,
           setPaused: (v) => { jarvisPaused = v; },
+          notifications: jarvisNotifications,
+          skills: jarvisSkills,
+          proposals: jarvisProposals,
+          getTelegramBot: () => jarvisTelegramBot,
+          setTelegramBot: (bot: JarvisTelegramBot | null) => { jarvisTelegramBot = bot; },
+          buildSkillContext,
           startDaemon: () => {
             const jName = jarvisIdentity.getIdentity().name;
             const bgSession = sessionMgr.create(`\u{1F916} ${jName}`, '\u{1F916}', agentHistory);
@@ -2274,6 +2440,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             jarvisPaused = false;
             renderInfo(chalk.hex('#ff00ff').bold(`\u{1F916} ${jName} daemon started`));
             renderInfo(chalk.dim('Add tasks with /jarvis task "description"'));
+
+            // Start Telegram bot alongside daemon (if configured)
+            startTelegramBot();
 
             (async () => {
               try {
@@ -2330,7 +2499,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   } : undefined,
                   getIdentityName: () => jarvisIdentity.getIdentity().name,
                   getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
-                  getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(),
+                  getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined),
                   thinkingCallbacks: buildThinkingCallbacks(bgSession),
                 });
               } catch (err) {
@@ -3072,6 +3241,12 @@ async function handleSlashCommand(
     identity: JarvisIdentityManager;
     getScope: () => 'project' | 'global';
     setScope: (scope: 'project' | 'global') => void;
+    notifications: NotificationManager;
+    skills: SkillManager;
+    proposals: ProposalJournal;
+    getTelegramBot: () => JarvisTelegramBot | null;
+    setTelegramBot: (bot: JarvisTelegramBot | null) => void;
+    buildSkillContext: () => import('../jarvis/types.js').SkillContext;
   },
 ): Promise<string | void> {
   const parts = input.split(/\s+/);
@@ -3885,6 +4060,11 @@ async function handleSlashCommand(
         if (!s) { renderInfo(`${jn} is not running.`); break; }
         s.abort();
         jarvisCtx.setSession(null);
+        // Stop Telegram bot with daemon
+        if (jarvisCtx.getTelegramBot()) {
+          jarvisCtx.getTelegramBot()!.stop();
+          jarvisCtx.setTelegramBot(null);
+        }
         renderInfo(chalk.hex('#ff00ff')(`\u{1F916} ${jn} daemon stopped`));
 
       } else if (sub === 'pause') {
@@ -3936,8 +4116,99 @@ async function handleSlashCommand(
         jarvisCtx.identity.setName(cleaned);
         renderInfo(chalk.hex('#ff00ff')(`Name set: ${chalk.bold(cleaned)}`));
 
+      } else if (sub === 'telegram') {
+        const teleCmd = parts[2]?.toLowerCase();
+        if (teleCmd === 'setup') {
+          rl.pause();
+          const token = await new Promise<string>(resolve => {
+            rl.question(chalk.cyan('Telegram Bot Token (from @BotFather): '), resolve);
+          });
+          const chatId = await new Promise<string>(resolve => {
+            rl.question(chalk.cyan('Chat-ID (send /start to your bot, then use @userinfobot): '), resolve);
+          });
+          rl.resume();
+          if (token.trim() && chatId.trim()) {
+            jarvisCtx.notifications.configureTarget('telegram', { botToken: token.trim(), chatId: chatId.trim() }, true);
+            // Verify token
+            const testBot = new JarvisTelegramBot(token.trim(), chatId.trim());
+            const verify = await testBot.verify();
+            if (verify.ok) {
+              renderInfo(chalk.hex('#ff00ff')(`Telegram configured! Bot: @${verify.botName}`));
+            } else {
+              renderInfo(chalk.yellow('Token saved but verification failed — check your token.'));
+            }
+          } else {
+            renderInfo(chalk.yellow('Setup cancelled — token and chat-ID are required.'));
+          }
+        } else if (teleCmd === 'test') {
+          const result = await jarvisCtx.notifications.notify(`${jn} Test`, `${jn} ist verbunden!`, 'info');
+          renderInfo(result.sent.length > 0
+            ? chalk.hex('#ff00ff')('Test message sent to Telegram.')
+            : chalk.yellow(`Error: ${result.errors.join(', ')}`));
+        } else if (teleCmd === 'off') {
+          if (jarvisCtx.getTelegramBot()) {
+            jarvisCtx.getTelegramBot()!.stop();
+            jarvisCtx.setTelegramBot(null);
+          }
+          jarvisCtx.notifications.removeTarget('telegram');
+          renderInfo('Telegram deactivated.');
+        } else if (teleCmd === 'status') {
+          const teleConfig = jarvisCtx.notifications.getConfig().targets.find((t: { channel: string }) => t.channel === 'telegram');
+          if (teleConfig?.enabled) {
+            renderInfo(`Telegram: ${chalk.green('configured')} | Bot polling: ${jarvisCtx.getTelegramBot()?.isRunning ? chalk.green('active') : chalk.dim('inactive')}`);
+          } else {
+            renderInfo(chalk.dim('Telegram not configured. Use /jarvis telegram setup'));
+          }
+        } else {
+          renderInfo('Usage: /jarvis telegram [setup|test|status|off]');
+        }
+
+      } else if (sub === 'skills' || sub === 'skill') {
+        const skillCmd = parts[2]?.toLowerCase();
+        const skillName = parts[3]?.trim();
+
+        if (!skillCmd || skillCmd === 'list') {
+          jarvisCtx.skills.syncRegistry();
+          const skills = jarvisCtx.skills.listSkills();
+          if (skills.length === 0) {
+            renderInfo(chalk.dim('No skills installed. Skills can be created by Jarvis or placed in .helixmind/jarvis/skills/'));
+          } else {
+            const lines = skills.map(s => {
+              const statusIcon = s.status === 'active' ? chalk.green('\u25CF') :
+                s.status === 'error' ? chalk.red('\u25CF') :
+                s.status === 'disabled' ? chalk.dim('\u25CF') :
+                chalk.yellow('\u25CB');
+              const origin = s.manifest.origin === 'jarvis_created' ? chalk.hex('#ff00ff')(' [self-built]') :
+                s.manifest.origin === 'builtin' ? chalk.cyan(' [built-in]') : '';
+              return `  ${statusIcon} ${chalk.bold(s.manifest.name)} v${s.manifest.version} — ${s.manifest.description}${origin} (${s.status})`;
+            });
+            renderInfo(`Skills (${skills.length}):\n${lines.join('\n')}`);
+          }
+        } else if (skillCmd === 'install' && skillName) {
+          renderInfo(chalk.dim(`Installing skill "${skillName}"...`));
+          const result = await jarvisCtx.skills.installSkill(skillName);
+          renderInfo(result.success
+            ? chalk.green(`Skill "${skillName}" installed.`)
+            : chalk.red(`Install failed: ${result.error}`));
+        } else if (skillCmd === 'enable' && skillName) {
+          // Build a basic SkillContext
+          const ctx = jarvisCtx.buildSkillContext();
+          const result = await jarvisCtx.skills.activateSkill(skillName, ctx);
+          renderInfo(result.success
+            ? chalk.green(`Skill "${skillName}" activated.`)
+            : chalk.red(`Activation failed: ${result.error}`));
+        } else if (skillCmd === 'disable' && skillName) {
+          await jarvisCtx.skills.deactivateSkill(skillName);
+          renderInfo(chalk.dim(`Skill "${skillName}" disabled.`));
+        } else if (skillCmd === 'remove' && skillName) {
+          jarvisCtx.skills.removeSkill(skillName);
+          renderInfo(`Skill "${skillName}" removed.`);
+        } else {
+          renderInfo('Usage: /jarvis skills [list|install|enable|disable|remove] <name>');
+        }
+
       } else {
-        renderInfo(`Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear|local|global|name]`);
+        renderInfo(`Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear|local|global|name|telegram|skills]`);
       }
       break;
     }

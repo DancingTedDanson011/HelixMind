@@ -205,6 +205,26 @@ export class NotificationManager {
           // node-notifier not installed — skip silently
         }
         break;
+
+      case 'telegram': {
+        const botToken = target.config.botToken;
+        const chatId = target.config.chatId;
+        if (!botToken || !chatId) throw new Error('Telegram not configured (need botToken + chatId)');
+
+        const emoji = urgency === 'critical' ? '\u{1F6A8}' : urgency === 'important' ? '\u26A0\uFE0F' : '\u2139\uFE0F';
+
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: `${emoji} *${title}*\n\n${body}`,
+            parse_mode: 'Markdown',
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        break;
+      }
     }
   }
 }

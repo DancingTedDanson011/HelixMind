@@ -255,12 +255,14 @@ Analyze:
 1. What patterns do you see in your approvals vs denials?
 2. What should you do more of? Less of?
 3. Any strategic proposals for the project?
+4. Does the user need capabilities you don't have? (e.g. a missing API integration, a new tool, or a workflow automation)
+   If yes, propose a new skill with category "skill_creation".
 
 Respond in this format:
 INSIGHT: <your key insight>
 META_LEARNING: <what you learned about yourself>
 PROPOSAL: <category> | <impact> | <title> | <description> | <rationale>
-(0-2 strategic proposals only)`;
+(0-2 strategic proposals only, use category "skill_creation" for new capability proposals)`;
 
     const response = await callbacks.sendMessage(selfAssessmentPrompt);
 

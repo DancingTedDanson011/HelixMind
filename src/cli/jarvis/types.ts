@@ -73,7 +73,8 @@ export type ProposalStatus = 'pending' | 'approved' | 'denied' | 'expired' | 'su
 export type ProposalCategory =
   | 'bugfix' | 'refactor' | 'test' | 'dependency' | 'security'
   | 'performance' | 'documentation' | 'feature' | 'cleanup' | 'review'
-  | 'infrastructure' | 'style' | 'meta';
+  | 'infrastructure' | 'style' | 'meta'
+  | 'skill_creation' | 'skill_update';
 
 export type ProposalSource =
   | 'thinking_quick' | 'thinking_medium' | 'thinking_deep'
@@ -342,7 +343,7 @@ export interface TriggerData {
 
 // ─── Notifications ────────────────────────────────────────────────────
 
-export type NotificationChannel = 'browser' | 'email' | 'slack' | 'webhook' | 'system';
+export type NotificationChannel = 'browser' | 'email' | 'slack' | 'webhook' | 'system' | 'telegram';
 export type NotificationUrgency = 'info' | 'important' | 'critical';
 
 export interface NotificationTarget {
@@ -466,4 +467,64 @@ export interface NeuronFiredEvent {
   fromOrbit: 'green' | 'yellow';
   trigger: 'thinking' | 'proposal' | 'learning';
   count: number;
+}
+
+// ─── Skill System ────────────────────────────────────────────────────
+
+export type SkillStatus = 'available' | 'installed' | 'active' | 'disabled' | 'error';
+export type SkillOrigin = 'builtin' | 'user' | 'jarvis_created';
+
+export interface SkillManifest {
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  origin: SkillOrigin;
+  main: string;                                    // entry point relative to skill dir
+  dependencies?: Record<string, string>;           // npm packages this skill needs
+  tools?: SkillToolDef[];                          // tools this skill provides
+  triggers?: string[];                             // 'command:name' | 'event:type' | 'pattern:regex'
+  minAutonomy?: AutonomyLevel;                     // minimum autonomy level required
+  permissions?: SkillPermission[];                 // capabilities needed
+}
+
+export type SkillPermission = 'network' | 'filesystem' | 'shell' | 'browser';
+
+export interface SkillToolDef {
+  name: string;
+  description: string;
+  parameters?: Record<string, {
+    type: string;
+    required?: boolean;
+    description?: string;
+  }>;
+}
+
+export type SkillToolHandler = (input: Record<string, unknown>) => Promise<string>;
+
+export interface SkillEntry {
+  manifest: SkillManifest;
+  status: SkillStatus;
+  installedAt: number;
+  lastUsedAt?: number;
+  usageCount: number;
+  errors: string[];
+  path: string;                                    // absolute path to skill directory
+}
+
+export interface SkillRegistryData {
+  version: 1;
+  skills: SkillEntry[];
+}
+
+export interface SkillContext {
+  registerTool: (name: string, def: SkillToolDef, handler: SkillToolHandler) => void;
+  unregisterTool: (name: string) => void;
+  addTask: (title: string, description: string, priority?: JarvisTaskPriority) => JarvisTask;
+  querySpiral: (query: string) => Promise<string>;
+  storeInSpiral: (content: string, type: string, tags: string[]) => Promise<void>;
+  notify: (title: string, body: string, urgency?: NotificationUrgency) => Promise<void>;
+  getConfig: (key: string) => string | undefined;
+  setConfig: (key: string, value: string) => void;
+  log: (message: string) => void;
 }
