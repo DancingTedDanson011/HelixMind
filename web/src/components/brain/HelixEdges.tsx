@@ -4,23 +4,12 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import type { DemoNode, DemoEdge } from './brain-demo-data';
 import { computeNodePositions } from './HelixNodes';
+import { LEVEL_COLORS } from '@/lib/constants';
 
 interface HelixEdgesProps {
   nodes: DemoNode[];
   edges: DemoEdge[];
 }
-
-const EDGE_COLORS: Record<string, string> = {
-  imports: '#00ff88',
-  calls: '#ffdd00',
-  depends_on: '#ffdd00',
-  related_to: '#4488ff',
-  similar_to: '#4488ff',
-  implements: '#00d4ff',
-  supersedes: '#8a2be2',
-  part_of: '#00d4ff',
-  fixes: '#ff4444',
-};
 
 export function HelixEdges({ nodes, edges }: HelixEdgesProps) {
   const positions = useMemo(() => computeNodePositions(nodes), [nodes]);
@@ -31,23 +20,24 @@ export function HelixEdges({ nodes, edges }: HelixEdgesProps) {
     return map;
   }, [nodes]);
 
-  // Single batched geometry for all edges — 1 draw call
+  // Single batched geometry — edge color derived from source node's level
   const { linePositions, lineColors } = useMemo(() => {
-    const validEdges: Array<{ si: number; ti: number; color: string }> = [];
+    const validEdges: Array<{ si: number; ti: number }> = [];
     for (const edge of edges) {
       const si = nodeIdxMap[edge.source];
       const ti = nodeIdxMap[edge.target];
       if (si !== undefined && ti !== undefined) {
-        validEdges.push({ si, ti, color: EDGE_COLORS[edge.type] || '#4488ff' });
+        validEdges.push({ si, ti });
       }
     }
 
-    const posArr = new Float32Array(validEdges.length * 6); // 2 vertices * 3 coords
-    const colArr = new Float32Array(validEdges.length * 6); // 2 vertices * 3 color channels
-    const tmpColor = new THREE.Color();
+    const posArr = new Float32Array(validEdges.length * 6);
+    const colArr = new Float32Array(validEdges.length * 6);
+    const startColor = new THREE.Color();
+    const endColor = new THREE.Color();
 
     for (let i = 0; i < validEdges.length; i++) {
-      const { si, ti, color } = validEdges[i];
+      const { si, ti } = validEdges[i];
       const start = positions[si];
       const end = positions[ti];
       const offset = i * 6;
@@ -59,17 +49,22 @@ export function HelixEdges({ nodes, edges }: HelixEdgesProps) {
       posArr[offset + 4] = end.y;
       posArr[offset + 5] = end.z;
 
-      tmpColor.set(color);
-      colArr[offset] = tmpColor.r;
-      colArr[offset + 1] = tmpColor.g;
-      colArr[offset + 2] = tmpColor.b;
-      colArr[offset + 3] = tmpColor.r;
-      colArr[offset + 4] = tmpColor.g;
-      colArr[offset + 5] = tmpColor.b;
+      // Use each node's own level color — gradient from source to target
+      const srcLevel = nodes[si].level as keyof typeof LEVEL_COLORS;
+      const tgtLevel = nodes[ti].level as keyof typeof LEVEL_COLORS;
+      startColor.set(LEVEL_COLORS[srcLevel] || 0x4488ff);
+      endColor.set(LEVEL_COLORS[tgtLevel] || 0x4488ff);
+
+      colArr[offset] = startColor.r;
+      colArr[offset + 1] = startColor.g;
+      colArr[offset + 2] = startColor.b;
+      colArr[offset + 3] = endColor.r;
+      colArr[offset + 4] = endColor.g;
+      colArr[offset + 5] = endColor.b;
     }
 
     return { linePositions: posArr, lineColors: colArr };
-  }, [edges, nodeIdxMap, positions]);
+  }, [edges, nodeIdxMap, positions, nodes]);
 
   return (
     <lineSegments>
@@ -77,7 +72,7 @@ export function HelixEdges({ nodes, edges }: HelixEdgesProps) {
         <bufferAttribute attach="attributes-position" args={[linePositions, 3]} />
         <bufferAttribute attach="attributes-color" args={[lineColors, 3]} />
       </bufferGeometry>
-      <lineBasicMaterial vertexColors transparent opacity={0.3} />
+      <lineBasicMaterial vertexColors transparent opacity={0.2} />
     </lineSegments>
   );
 }

@@ -32,17 +32,17 @@ export const colors = {
 // Each level is a distinct horizontal zone, spreading along X-axis
 export const HELIX_PARAMS = {
   // Level 1 (Focus) - compact front-center cluster
-  1: { xCenter: 0,    yBase: 0,    zBase: 0,    spread: 120,  height: 150,  depth: 80,  jitter: 12 },
-  // Level 2 (Active) - larger zone to the right
-  2: { xCenter: 250,  yBase: 50,   zBase: 80,   spread: 200,  height: 200,  depth: 120, jitter: 18 },
-  // Level 3 (Reference) - middle-right, taller
-  3: { xCenter: 500,  yBase: 0,    zBase: 0,    spread: 280,  height: 350,  depth: 200, jitter: 22 },
-  // Level 4 (Archive) - back-right, wider
-  4: { xCenter: 800,  yBase: -30,  zBase: -100, spread: 350,  height: 400,  depth: 250, jitter: 28 },
-  // Level 5 (Deep Archive) - far back, compressed
-  5: { xCenter: 1100, yBase: 20,   zBase: 50,   spread: 400,  height: 300,  depth: 180, jitter: 35 },
-  // Level 6 (Web Knowledge) - orbiting outer zone
-  6: { xCenter: 600,  yBase: 350,  zBase: -200, spread: 600,  height: 200,  depth: 500, jitter: 40 },
+  1: { xCenter: 0,    yBase: 0,    zBase: 0,    spread: 200,  height: 220,  depth: 140,  jitter: 18 },
+  // Level 2 (Active) - larger zone, more separation
+  2: { xCenter: 400,  yBase: 60,   zBase: 120,  spread: 300,  height: 280,  depth: 200, jitter: 24 },
+  // Level 3 (Reference) - middle-right, tall and wide
+  3: { xCenter: 850,  yBase: 0,    zBase: 0,    spread: 400,  height: 450,  depth: 300, jitter: 30 },
+  // Level 4 (Archive) - back-right, spacious
+  4: { xCenter: 1350, yBase: -40,  zBase: -150, spread: 450,  height: 500,  depth: 350, jitter: 35 },
+  // Level 5 (Deep Archive) - far back, spread out
+  5: { xCenter: 1900, yBase: 30,   zBase: 80,   spread: 500,  height: 400,  depth: 280, jitter: 40 },
+  // Level 6 (Web Knowledge) - orbiting outer zone, wide
+  6: { xCenter: 1000, yBase: 500,  zBase: -300, spread: 800,  height: 300,  depth: 600, jitter: 50 },
 } as const;
 
 // Type-based spatial offsets within each level zone

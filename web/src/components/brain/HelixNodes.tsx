@@ -17,15 +17,10 @@ function seededRandom(seed: number) {
 }
 
 export function computeNodePositions(nodes: DemoNode[]) {
-  // Group by level AND by type for clustered layout
-  const levelBuckets: Record<number, number[]> = {};
   const typeInLevel: Record<string, number[]> = {};
-  
+
   nodes.forEach((node, i) => {
-    const lvl = node.level;
-    const key = `${lvl}-${node.type}`;
-    if (!levelBuckets[lvl]) levelBuckets[lvl] = [];
-    levelBuckets[lvl].push(i);
+    const key = `${node.level}-${node.type}`;
     if (!typeInLevel[key]) typeInLevel[key] = [];
     typeInLevel[key].push(i);
   });
@@ -36,25 +31,18 @@ export function computeNodePositions(nodes: DemoNode[]) {
     const lvl = node.level;
     const params = HELIX_PARAMS[lvl as keyof typeof HELIX_PARAMS] || HELIX_PARAMS[3];
     const sector = TYPE_SECTORS[node.type as keyof typeof TYPE_SECTORS] || { xOff: 0, yOff: 0, zOff: 0 };
-    
-    // Count nodes of same type within same level for distribution
+
     const key = `${lvl}-${node.type}`;
     const sameTypeNodes = typeInLevel[key] || [];
     const indexInType = sameTypeNodes.indexOf(i);
     const countInType = sameTypeNodes.length || 1;
-    
-    // Spread nodes within the level zone using 3D grid-like distribution
+
     const typeSpread = countInType > 1 ? indexInType / (countInType - 1) : 0.5;
-    
-    // Calculate position within elongated zone
-    // X: spread along the main axis
+
     const xSpread = (typeSpread - 0.5) * params.spread;
-    // Y: vertical distribution
     const ySpread = (seededRandom(i * 17) - 0.5) * params.height;
-    // Z: depth distribution
     const zSpread = (seededRandom(i * 23) - 0.5) * params.depth;
-    
-    // Add jitter for organic feel
+
     const jitterX = (seededRandom(i * 3) - 0.5) * params.jitter;
     const jitterY = (seededRandom(i * 7) - 0.5) * params.jitter * 0.6;
     const jitterZ = (seededRandom(i * 11) - 0.5) * params.jitter * 0.4;
@@ -75,7 +63,33 @@ export function HelixNodes({ nodes }: HelixNodesProps) {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const tempColor = useMemo(() => new THREE.Color(), []);
 
-  // Set per-instance colors using setColorAt
+  // Track birth times for smooth fade-in
+  const birthTimesRef = useRef<Float32Array>(new Float32Array(0));
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const clockRef = useRef(0);
+
+  // Detect new nodes and assign birth times
+  useEffect(() => {
+    const prevIds = knownIdsRef.current;
+    const newBirths = new Float32Array(nodes.length);
+    const now = clockRef.current;
+
+    nodes.forEach((node, i) => {
+      if (prevIds.has(node.id)) {
+        // Existing node — keep old birth time or 0 (fully visible)
+        const oldIdx = Array.from(prevIds).indexOf(node.id);
+        newBirths[i] = birthTimesRef.current[oldIdx] ?? 0;
+      } else {
+        // New node — set birth to current time for fade-in
+        newBirths[i] = now > 0 ? now : -1; // -1 = initial load, show instantly
+      }
+    });
+
+    birthTimesRef.current = newBirths;
+    knownIdsRef.current = new Set(nodes.map((n) => n.id));
+  }, [nodes]);
+
+  // Set per-instance colors
   useEffect(() => {
     if (!meshRef.current) return;
     nodes.forEach((node, i) => {
@@ -92,12 +106,13 @@ export function HelixNodes({ nodes }: HelixNodesProps) {
   useFrame((state) => {
     if (!meshRef.current) return;
     frameRef.current++;
+    clockRef.current = state.clock.elapsedTime;
 
-    // Only update matrices every 3rd frame — imperceptible visual difference
     if (frameRef.current % 3 !== 0) return;
 
     const time = state.clock.elapsedTime;
     const n = nodes.length;
+    const FADE_DURATION = 1.2; // seconds for smooth scale-in
 
     for (let i = 0; i < n; i++) {
       const node = nodes[i];
@@ -120,8 +135,20 @@ export function HelixNodes({ nodes }: HelixNodesProps) {
         baseScale = node.level === 6 ? 5 : 6 - node.level * 0.6;
         pulse = 1 + Math.sin(time * (0.8 + node.level * 0.2) + i) * 0.1;
       }
-      dummy.scale.setScalar(baseScale * pulse);
 
+      // Smooth fade-in: scale from 0 → target over FADE_DURATION
+      let fadeScale = 1;
+      const birth = birthTimesRef.current[i] ?? -1;
+      if (birth > 0) {
+        const age = time - birth;
+        if (age < FADE_DURATION) {
+          // Ease-out cubic for smooth appearance
+          const t = age / FADE_DURATION;
+          fadeScale = 1 - Math.pow(1 - t, 3);
+        }
+      }
+
+      dummy.scale.setScalar(baseScale * pulse * fadeScale);
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(i, dummy.matrix);
     }

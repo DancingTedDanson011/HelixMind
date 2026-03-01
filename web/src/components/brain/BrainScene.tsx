@@ -10,7 +10,7 @@ import { demoNodes, demoEdges } from './brain-demo-data';
 export function BrainScene() {
   return (
     <Canvas
-      camera={{ position: [550, 200, 700], fov: 50, near: 1, far: 12000 }}
+      camera={{ position: [900, 300, 1200], fov: 50, near: 1, far: 15000 }}
       gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
       dpr={1}
       style={{ background: 'transparent' }}
