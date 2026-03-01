@@ -547,10 +547,10 @@ const EDGE_COL={references:'#7B68EE',depends_on:'#E040FB',related_to:'#556',evol
 function srand(s) { const x=Math.sin(s*9301+49297)*49297; return x-Math.floor(x); }
 function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ===== RENDERER (max perf: no AA, pixelRatio 1) =====
-const R = new THREE.WebGLRenderer({ antialias:false, alpha:true, powerPreference:'high-performance' });
+// ===== RENDERER (sharp: AA + native pixel ratio) =====
+const R = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:'high-performance' });
 R.setSize(innerWidth, innerHeight);
-R.setPixelRatio(1);
+R.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 R.toneMapping = THREE.ACESFilmicToneMapping;
 R.toneMappingExposure = 1.1;
 document.body.prepend(R.domElement);
@@ -574,18 +574,17 @@ ctrl.maxPolarAngle = Math.PI * 0.85;
 ctrl.minPolarAngle = Math.PI * 0.15;
 ctrl.update();
 
-// ===== POST-PROCESSING (UnrealBloom at half-res for performance) =====
-const halfRT = new THREE.WebGLRenderTarget(
-  Math.floor(innerWidth/2), Math.floor(innerHeight/2),
-  { type: THREE.HalfFloatType }
-);
-const composer = new EffectComposer(R, halfRT);
+// ===== POST-PROCESSING (UnrealBloom at full res for sharp output) =====
+const dpr = Math.min(window.devicePixelRatio, 2);
+const rtW = Math.floor(innerWidth * dpr), rtH = Math.floor(innerHeight * dpr);
+const fullRT = new THREE.WebGLRenderTarget(rtW, rtH, { type: THREE.HalfFloatType });
+const composer = new EffectComposer(R, fullRT);
 composer.addPass(new RenderPass(scene, cam));
 const bloom = new UnrealBloomPass(
-  new THREE.Vector2(Math.floor(innerWidth/2), Math.floor(innerHeight/2)),
-  0.6,   // strength — slightly reduced
+  new THREE.Vector2(rtW, rtH),
+  0.5,   // strength
   0.3,   // radius
-  0.8    // threshold — higher = fewer things bloom
+  0.85   // threshold
 );
 composer.addPass(bloom);
 
@@ -840,9 +839,10 @@ function buildGeometry(P){
     const p=pos[i], n=nodes[i];
     nP[i*3]=p.x; nP[i*3+1]=p.y; nP[i*3+2]=p.z;
     if(n.level===1){
-      const h=(289+( srand(i*137)-0.5)*60)/360;
-      const s=0.75+srand(i*173)*0.25;
-      const l=0.5+srand(i*211)*0.2;
+      // L1 Focus: full spectrum color play — each node a different hue
+      const h=srand(i*137+42);
+      const s=0.7+srand(i*173)*0.3;
+      const l=0.45+srand(i*211)*0.2;
       tc.setHSL(h,s,l);
     } else {
       tc.set(LVL_HEX[n.level]||0x00FFFF);
@@ -1451,7 +1451,7 @@ function animate(){
 }
 
 // ===== RESIZE =====
-addEventListener('resize',()=>{ const w=innerWidth,h=innerHeight; cam.aspect=w/h; cam.updateProjectionMatrix(); R.setSize(w,h); composer.setSize(Math.floor(w/2),Math.floor(h/2)); });
+addEventListener('resize',()=>{ const w=innerWidth,h=innerHeight,d=Math.min(window.devicePixelRatio,2); cam.aspect=w/h; cam.updateProjectionMatrix(); R.setSize(w,h); composer.setSize(Math.floor(w*d),Math.floor(h*d)); });
 
 // ===== WEBSOCKET =====
 let ws=null;
