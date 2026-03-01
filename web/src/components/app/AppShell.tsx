@@ -67,13 +67,16 @@ export interface ChatFull {
 
 /* ─── Session tab assignment helper ──────────── */
 
-function getSessionTab(name: string, jarvisName?: string): 'console' | 'monitor' | 'jarvis' {
+function getSessionTab(name: string, jarvisName?: string, daemonRunning?: boolean): 'console' | 'monitor' | 'jarvis' {
   const lower = name.toLowerCase();
   if (lower.includes('monitor')) return 'monitor';
-  if (lower.includes('jarvis')) return 'jarvis';
-  // Match custom Jarvis name (e.g. "Olaf")
-  if (jarvisName && lower === jarvisName.toLowerCase()) return 'jarvis';
-  return 'console'; // auto, security, etc. → Console
+  // Jarvis sessions only count when daemon is actually running
+  if (daemonRunning) {
+    if (lower.includes('jarvis')) return 'jarvis';
+    // Match custom Jarvis name (e.g. "🤖 Olaf" contains "olaf")
+    if (jarvisName && lower.includes(jarvisName.toLowerCase())) return 'jarvis';
+  }
+  return 'console'; // auto, security, everything else → Console
 }
 
 /* ─── Session icon helper ────────────────────── */
@@ -214,7 +217,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     const runningSessions = connection.sessions.filter(s => s.status === 'running' && s.id !== 'main');
     if (runningSessions.length > 0) {
       const firstSession = runningSessions[0];
-      const tab = getSessionTab(firstSession.name, connection.jarvisStatus?.jarvisName);
+      const tab = getSessionTab(firstSession.name, connection.jarvisStatus?.jarvisName, connection.jarvisStatus?.daemonState === 'running');
       setActiveTab(tab);
       if (tab === 'console') setConsoleSessionId(firstSession.id);
       if (tab === 'monitor') setMonitorSessionId(firstSession.id);
@@ -289,9 +292,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
 
   // ── Sessions filtered by tab type ──
   const jName = connection.jarvisStatus?.jarvisName;
-  const consoleSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName) === 'console');
-  const monitorSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName) === 'monitor');
-  const jarvisSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName) === 'jarvis');
+  const jRunning = connection.jarvisStatus?.daemonState === 'running';
+  const consoleSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'console');
+  const monitorSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'monitor');
+  const jarvisSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'jarvis');
 
   // ── Selected session IDs for sidebar tabs ──
   const [monitorSessionId, setMonitorSessionId] = useState<string | null>(null);
@@ -334,7 +338,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const openSessionInTab = useCallback((sessionId: string) => {
     const session = connection.sessions.find(s => s.id === sessionId);
     if (!session) return;
-    const tab = getSessionTab(session.name, connection.jarvisStatus?.jarvisName);
+    const tab = getSessionTab(session.name, connection.jarvisStatus?.jarvisName, connection.jarvisStatus?.daemonState === 'running');
     if (tab === 'monitor') {
       setMonitorSessionId(sessionId);
       setActiveTab('monitor');
@@ -351,12 +355,12 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     if (!consoleSessionId) return;
     const session = connection.sessions.find(s => s.id === consoleSessionId);
     if (!session) return;
-    const expectedTab = getSessionTab(session.name, connection.jarvisStatus?.jarvisName);
+    const expectedTab = getSessionTab(session.name, connection.jarvisStatus?.jarvisName, connection.jarvisStatus?.daemonState === 'running');
     if (expectedTab !== 'console' && activeTab === 'console') {
       setActiveTab(expectedTab);
       setConsoleSessionId(null);
     }
-  }, [connection.sessions, consoleSessionId, activeTab]);
+  }, [connection.sessions, consoleSessionId, activeTab, connection.jarvisStatus]);
 
   // ── Auto-switch to correct tab when new session created ──
   const prevSessionCountRef = useRef(connection.sessions.length);
@@ -366,7 +370,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       // New session added — find it (last one)
       const newSession = connection.sessions[connection.sessions.length - 1];
       if (newSession && newSession.id !== 'main') {
-        const tab = getSessionTab(newSession.name, connection.jarvisStatus?.jarvisName);
+        const tab = getSessionTab(newSession.name, connection.jarvisStatus?.jarvisName, connection.jarvisStatus?.daemonState === 'running');
         setActiveTab(tab);
         if (tab === 'console') setConsoleSessionId(newSession.id);
         if (tab === 'monitor') setMonitorSessionId(newSession.id);

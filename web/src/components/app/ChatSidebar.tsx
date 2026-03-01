@@ -28,7 +28,7 @@ type SidebarItem =
 function isJarvisSession(name: string, jarvisName?: string): boolean {
   const lower = name.toLowerCase();
   if (lower.includes('jarvis')) return true;
-  if (jarvisName && lower === jarvisName.toLowerCase()) return true;
+  if (jarvisName && lower.includes(jarvisName.toLowerCase())) return true;
   return false;
 }
 

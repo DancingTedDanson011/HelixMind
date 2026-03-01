@@ -17,14 +17,21 @@ export class JarvisQueue {
     this.onChange = onChange;
     this.data = this.load();
 
-    // Crash recovery: reset any stale 'running' tasks back to 'pending'
+    // Crash recovery: reset stale state from previous run
+    let needsSave = false;
     for (const task of this.data.tasks) {
       if (task.status === 'running') {
         task.status = 'pending';
         task.updatedAt = Date.now();
+        needsSave = true;
       }
     }
-    if (this.data.tasks.some(t => t.status === 'pending')) {
+    // Reset daemonState — no daemon is running at construction time
+    if (this.data.daemonState !== 'stopped') {
+      this.data.daemonState = 'stopped';
+      needsSave = true;
+    }
+    if (needsSave) {
       this.save();
     }
   }
