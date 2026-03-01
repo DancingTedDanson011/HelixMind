@@ -802,7 +802,18 @@
     "quickAutoReview": "Auto-Analyse",
     "quickSecurityAudit": "Sicherheitsaudit",
     "quickMonitor": "Datei-Monitor",
-    "quickJarvis": "Jarvis AGI"
+    "quickJarvis": "Jarvis AGI",
+    "consoleInfoDocs": "Konsole-Dokumentation",
+    "monitorInfoDocs": "Monitor-Dokumentation",
+    "jarvisInfoTitle": "Jarvis AGI",
+    "jarvisInfoDesc": "Autonomer KI-Assistent der deine Aufgaben-Warteschlange verwaltet. Jarvis plant, fuehrt aus und lernt von deinem Projekt — arbeitet im Hintergrund waehrend du dich auf das Wesentliche konzentrierst.",
+    "jarvisInfoFeature1Title": "Aufgabenverwaltung",
+    "jarvisInfoFeature1Desc": "Fuege Aufgaben mit Prioritaeten hinzu. Jarvis nimmt sie auf, plant die Ausfuehrung und arbeitet sie autonom ab.",
+    "jarvisInfoFeature2Title": "Tiefes Denken",
+    "jarvisInfoFeature2Desc": "Mehrphasige Denkzyklen — schnelle Checks, mittlere Analyse und tiefes Reasoning fuer komplexe Entscheidungen.",
+    "jarvisInfoFeature3Title": "Multi-Worker-Ausfuehrung",
+    "jarvisInfoFeature3Desc": "Parallele Aufgabenausfuehrung mit mehreren Workern. Vorschlaege erfordern deine Genehmigung vor kritischen Aenderungen.",
+    "jarvisInfoDocs": "Jarvis-Dokumentation"
   },
   "ticket": {
     "createTitle": "Neues Ticket erstellen",

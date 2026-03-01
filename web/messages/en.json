@@ -802,7 +802,18 @@
     "quickAutoReview": "Auto Review",
     "quickSecurityAudit": "Security Audit",
     "quickMonitor": "File Monitor",
-    "quickJarvis": "Jarvis AGI"
+    "quickJarvis": "Jarvis AGI",
+    "consoleInfoDocs": "Console Documentation",
+    "monitorInfoDocs": "Monitor Documentation",
+    "jarvisInfoTitle": "Jarvis AGI",
+    "jarvisInfoDesc": "Autonomous AI assistant that manages your task queue. Jarvis plans, executes, and learns from your project — working in the background while you focus on what matters.",
+    "jarvisInfoFeature1Title": "Task Management",
+    "jarvisInfoFeature1Desc": "Add tasks with priorities. Jarvis picks them up, plans execution, and works through them autonomously.",
+    "jarvisInfoFeature2Title": "Deep Thinking",
+    "jarvisInfoFeature2Desc": "Multi-phase thinking cycles — quick checks, medium analysis, and deep reasoning for complex decisions.",
+    "jarvisInfoFeature3Title": "Multi-Worker Execution",
+    "jarvisInfoFeature3Desc": "Parallel task execution with multiple workers. Proposals require your approval before critical changes.",
+    "jarvisInfoDocs": "Jarvis Documentation"
   },
   "ticket": {
     "createTitle": "Create New Ticket",

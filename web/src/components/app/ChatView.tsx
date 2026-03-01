@@ -5,10 +5,8 @@ import { useTranslations } from 'next-intl';
 import { MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle, Wifi } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
-import { InlineBugPanel } from './InlineBugPanel';
 import type { ChatMessage } from './AppShell';
 import type { ActiveTool } from '@/hooks/use-cli-chat';
-import type { BugInfo } from '@/lib/cli-types';
 
 /* ─── Tool display helpers ────────────────────── */
 
@@ -44,11 +42,6 @@ interface ChatViewProps {
   onExecutePrompt?: (prompt: string) => void;
   isConnected?: boolean;
   isExecuting?: boolean;
-  bugs?: BugInfo[];
-  showBugPanel?: boolean;
-  onCloseBugPanel?: () => void;
-  onFixBug?: (bugId: number) => void;
-  onFixAll?: () => void;
 }
 
 export function ChatView({
@@ -64,11 +57,6 @@ export function ChatView({
   onExecutePrompt,
   isConnected = false,
   isExecuting = false,
-  bugs = [],
-  showBugPanel = false,
-  onCloseBugPanel,
-  onFixBug,
-  onFixAll,
 }: ChatViewProps) {
   const t = useTranslations('app');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -122,19 +110,6 @@ export function ChatView({
   if (messages.length === 0 && !isAgentRunning) {
     return (
       <div className="flex flex-col h-full">
-        {/* Bug panel in empty state */}
-        {showBugPanel && (
-          <div className="px-4 pt-4">
-            <InlineBugPanel
-              bugs={bugs}
-              isConnected={isConnected}
-              onFixBug={onFixBug ?? (() => {})}
-              onFixAll={onFixAll ?? (() => {})}
-              onClose={onCloseBugPanel ?? (() => {})}
-            />
-          </div>
-        )}
-
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-4 max-w-md px-6">
             {isConnected ? (
@@ -167,17 +142,6 @@ export function ChatView({
         onScroll={handleScroll}
         className="h-full overflow-y-auto px-4 py-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
       >
-        {/* Inline Bug Panel */}
-        {showBugPanel && (
-          <InlineBugPanel
-            bugs={bugs}
-            isConnected={isConnected}
-            onFixBug={onFixBug ?? (() => {})}
-            onFixAll={onFixAll ?? (() => {})}
-            onClose={onCloseBugPanel ?? (() => {})}
-          />
-        )}
-
         <div className="max-w-3xl mx-auto space-y-4">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />

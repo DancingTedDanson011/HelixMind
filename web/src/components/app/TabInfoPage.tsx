@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { FileText } from 'lucide-react';
 
 interface Feature {
   icon: ReactNode;
@@ -15,6 +16,9 @@ interface TabInfoPageProps {
   features: Feature[];
   actions?: ReactNode;
   accentColor: 'cyan' | 'purple' | 'fuchsia' | 'amber';
+  /** Link to docs page for this feature */
+  docsHref?: string;
+  docsLabel?: string;
 }
 
 const gradients: Record<string, string> = {
@@ -38,7 +42,14 @@ const featureBorders: Record<string, string> = {
   amber: 'hover:border-amber-500/20',
 };
 
-export function TabInfoPage({ icon, title, description, features, actions, accentColor }: TabInfoPageProps) {
+const linkColors: Record<string, string> = {
+  cyan: 'text-cyan-400/60 hover:text-cyan-400',
+  purple: 'text-purple-400/60 hover:text-purple-400',
+  fuchsia: 'text-fuchsia-400/60 hover:text-fuchsia-400',
+  amber: 'text-amber-400/60 hover:text-amber-400',
+};
+
+export function TabInfoPage({ icon, title, description, features, actions, accentColor, docsHref, docsLabel }: TabInfoPageProps) {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
       <div className="max-w-xl mx-auto space-y-6">
@@ -73,6 +84,19 @@ export function TabInfoPage({ icon, title, description, features, actions, accen
         {actions && (
           <div className="flex flex-wrap gap-2 justify-center pt-2">
             {actions}
+          </div>
+        )}
+
+        {/* Docs link */}
+        {docsHref && (
+          <div className="flex justify-center pt-1">
+            <a
+              href={docsHref}
+              className={`flex items-center gap-1.5 text-[11px] ${linkColors[accentColor]} transition-colors`}
+            >
+              <FileText size={12} />
+              {docsLabel || 'Documentation'}
+            </a>
           </div>
         )}
       </div>

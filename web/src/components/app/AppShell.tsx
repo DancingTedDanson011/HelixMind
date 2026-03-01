@@ -23,6 +23,7 @@ import {
   Bug, Bot, Search, ListChecks, ShieldCheck,
 } from 'lucide-react';
 import { JarvisPanel } from '@/components/jarvis/JarvisPanel';
+import { InlineBugPanel } from './InlineBugPanel';
 import { TabInfoPage } from './TabInfoPage';
 
 /* ─── Tab color scheme ──────────────────────── */
@@ -916,12 +917,15 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               ]}
             />
           ) : activeTab === 'jarvis' ? (
-            <SessionSidebar
-              sessions={jarvisSessions}
-              selectedId={null}
-              onSelect={() => {}}
-              onAbort={handleAbortSession}
-              emptyLabel={t('jarvisNoTasks')}
+            <ChatSidebar
+              chats={chats}
+              sessions={isConnected ? connection.sessions : undefined}
+              activeChatId={activeChatId}
+              onSelect={handleChatSelect}
+              onSessionClick={openSessionInTab}
+              onCreate={createChat}
+              onDelete={deleteChat}
+              onRename={renameChat}
             />
           ) : null}
         </div>
@@ -1039,51 +1043,14 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             </div>
           )}
 
-          {/* Bug panel toggle — visible when connected and in chat tab */}
-          {isConnected && activeTab === 'chat' && (
-            <button
-              onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
-                showBugPanel
-                  ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                  : connection.bugs.filter(b => b.status === 'open').length > 0
-                    ? 'bg-red-500/5 border-red-500/10 text-red-400 hover:bg-red-500/10'
-                    : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
-              }`}
-            >
-              <Bug size={11} />
-              {connection.bugs.filter(b => b.status === 'open').length > 0 && (
-                <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
-                  {connection.bugs.filter(b => b.status === 'open').length}
-                </span>
-              )}
-            </button>
-          )}
-
           {/* CLI Connection badge */}
           {isConnected && connection.instanceMeta ? (
-            activeTab === 'chat' ? (
-              <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-                <div className="hidden sm:flex items-center gap-1 text-emerald-400">
-                  <Wifi size={11} />
-                </div>
-                <div className="flex items-center gap-1 text-gray-400">
-                  <Cpu size={10} />
-                  <span>{connection.instanceMeta.model}</span>
-                </div>
-                <div className="flex items-center gap-1 text-gray-500">
-                  <Clock size={10} />
-                  <span>{formatUptime(connection.instanceMeta.uptime)}</span>
-                </div>
-              </div>
-            ) : (
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-emerald-400">{connection.instanceMeta.projectName}</span>
-                <span className="text-gray-600">:{connectedPort}</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                <Wifi size={11} className="text-emerald-400 hidden sm:block" />
+                <span className="text-emerald-400 font-medium">HelixMind</span>
+                <span className="text-gray-600 hidden sm:inline">:{connectedPort}</span>
               </div>
-            )
           ) : isConnecting ? (
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] text-cyan-400/80 bg-cyan-500/5 border border-cyan-500/10 animate-pulse">
               <RefreshCw size={11} className="animate-spin" />
@@ -1245,11 +1212,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onExecutePrompt={handleExecutePrompt}
               isConnected={isConnected}
               isExecuting={cliExecuting}
-              bugs={connection.bugs}
-              showBugPanel={showBugPanel}
-              onCloseBugPanel={() => setShowBugPanel(false)}
-              onFixBug={handleFixBug}
-              onFixAll={handleFixAllBugs}
             />
           </div>
         ) : activeTab === 'console' ? (
@@ -1262,6 +1224,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 title={t('consoleInfoTitle')}
                 description={t('consoleInfoDesc')}
                 accentColor="cyan"
+                docsHref="/docs/console"
+                docsLabel={t('consoleInfoDocs')}
                 features={[
                   { icon: <Zap size={16} />, title: t('consoleInfoFeature1Title'), description: t('consoleInfoFeature1Desc') },
                   { icon: <ShieldCheck size={16} />, title: t('consoleInfoFeature2Title'), description: t('consoleInfoFeature2Desc') },
@@ -1317,6 +1281,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   title={t('monitorInfoTitle')}
                   description={t('monitorInfoDesc')}
                   accentColor="purple"
+                  docsHref="/docs/monitor"
+                  docsLabel={t('monitorInfoDocs')}
                   features={[
                     { icon: <Eye size={16} />, title: t('monitorInfoFeature1Title'), description: t('monitorInfoFeature1Desc') },
                     { icon: <Shield size={16} />, title: t('monitorInfoFeature2Title'), description: t('monitorInfoFeature2Desc') },
@@ -1466,7 +1432,41 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           </div>
         ) : null}
 
+        {/* Bug panel — sticky above input, visible in chat tab */}
+        {activeTab === 'chat' && showBugPanel && (
+          <div className="px-4 pt-2 border-t border-white/5 bg-surface/50 backdrop-blur-sm">
+            <InlineBugPanel
+              bugs={connection.bugs}
+              isConnected={isConnected}
+              onFixBug={handleFixBug}
+              onFixAll={handleFixAllBugs}
+              onClose={() => setShowBugPanel(false)}
+            />
+          </div>
+        )}
+
         {/* Input — always visible */}
+        <div className="relative">
+          {/* Bug toggle button — floating above input right side */}
+          {isConnected && activeTab === 'chat' && (
+            <button
+              onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
+              className={`absolute -top-8 right-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
+                showBugPanel
+                  ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                  : connection.bugs.filter(b => b.status === 'open').length > 0
+                    ? 'bg-red-500/5 border-red-500/10 text-red-400 hover:bg-red-500/10'
+                    : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
+              }`}
+            >
+              <Bug size={11} />
+              {connection.bugs.filter(b => b.status === 'open').length > 0 && (
+                <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
+                  {connection.bugs.filter(b => b.status === 'open').length}
+                </span>
+              )}
+            </button>
+          )}
         <ChatInput
           onSend={sendMessage}
           isAgentRunning={isAgentRunning}
@@ -1478,6 +1478,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           hasChat={!!activeChat}
           isConnected={isConnected}
         />
+        </div>
       </div>
 
       {/* Instance Picker Modal */}

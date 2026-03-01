@@ -15,6 +15,7 @@ import type {
 import { ProposalCard } from './ProposalCard';
 import { IdentityCard } from './IdentityCard';
 import { ConsciousnessStream } from './ConsciousnessStream';
+import { TabInfoPage } from '@/components/app/TabInfoPage';
 
 /* ─── Types ───────────────────────────────────── */
 
@@ -222,23 +223,30 @@ export function JarvisPanel({
             )}
           </div>
         ) : (
-          <div className="text-center py-8 space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-500/10 to-purple-500/10 border border-white/5 flex items-center justify-center">
-              <Bot size={28} className="text-fuchsia-500/50" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">{t('jarvisIdle')}</p>
-              <p className="text-xs text-gray-600 mt-1">{t('jarvisIdleHint')}</p>
-            </div>
-            <button
-              onClick={onStartJarvis}
-              disabled={!isConnected}
-              className="px-4 py-2 rounded-lg text-sm text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Play size={14} className="inline mr-1.5" />
-              {t('jarvisStart')}
-            </button>
-          </div>
+          <TabInfoPage
+            icon={<Bot size={28} />}
+            title={t('jarvisInfoTitle')}
+            description={t('jarvisInfoDesc')}
+            accentColor="fuchsia"
+            docsHref="/docs/jarvis"
+            docsLabel={t('jarvisInfoDocs')}
+            features={[
+              { icon: <Zap size={16} />, title: t('jarvisInfoFeature1Title'), description: t('jarvisInfoFeature1Desc') },
+              { icon: <Brain size={16} />, title: t('jarvisInfoFeature2Title'), description: t('jarvisInfoFeature2Desc') },
+              { icon: <Users size={16} />, title: t('jarvisInfoFeature3Title'), description: t('jarvisInfoFeature3Desc') },
+            ]}
+            actions={
+              isConnected ? (
+                <button
+                  onClick={onStartJarvis}
+                  className="px-4 py-2 rounded-lg text-sm text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                >
+                  <Play size={14} className="inline mr-1.5" />
+                  {t('jarvisStart')}
+                </button>
+              ) : undefined
+            }
+          />
         )}
 
         {/* ─── Identity Card ─── */}
