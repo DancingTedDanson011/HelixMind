@@ -18,6 +18,7 @@ import {
   FileText,
   Settings,
   Shield,
+  Terminal,
 } from 'lucide-react';
 
 /* ─── Types ───────────────────────────────────── */
@@ -52,6 +53,7 @@ const mockActivity = [
 ];
 
 const quickLinks = [
+  { label: 'Open App', href: '/app', icon: Terminal, color: 'text-cyan-400' },
   { label: 'Profile', href: '/dashboard/profile', icon: User, color: 'text-primary' },
   { label: 'Billing', href: '/dashboard/billing', icon: CreditCard, color: 'text-success' },
   { label: 'API Keys', href: '/dashboard/api-keys', icon: Key, color: 'text-warning' },

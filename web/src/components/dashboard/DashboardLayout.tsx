@@ -7,15 +7,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
-import { useCliDiscovery } from '@/hooks/use-cli-discovery';
 import {
   LayoutDashboard,
   User,
   CreditCard,
   Key,
   LifeBuoy,
-  Terminal,
-  Shield,
   Menu,
   X,
   ChevronRight,
@@ -43,8 +40,6 @@ interface DashboardLayoutProps {
 
 const navItemDefs: { key: string; labelKey: string; href: string; icon: typeof LayoutDashboard }[] = [
   { key: 'home', labelKey: 'nav.home', href: '/dashboard', icon: LayoutDashboard },
-  { key: 'console', labelKey: 'nav.console', href: '/dashboard/console', icon: Terminal },
-  { key: 'monitor', labelKey: 'nav.monitor', href: '/dashboard/monitor', icon: Shield },
   { key: 'profile', labelKey: 'nav.profile', href: '/dashboard/profile', icon: User },
   { key: 'billing', labelKey: 'nav.billing', href: '/dashboard/billing', icon: CreditCard },
   { key: 'api-keys', labelKey: 'nav.apiKeys', href: '/dashboard/api-keys', icon: Key },
@@ -68,9 +63,6 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
   const t = useTranslations('dashboard');
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { instances } = useCliDiscovery();
-  const hasCliInstance = instances.length > 0;
-
   const navItems: NavItem[] = navItemDefs.map((item) => ({
     key: item.key,
     label: t(item.labelKey),
@@ -129,9 +121,6 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                     >
                       <item.icon size={16} />
                       <span className="flex-1">{item.label}</span>
-                      {hasCliInstance && (item.key === 'console' || item.key === 'monitor') && (
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      )}
                       {active && <ChevronRight size={14} className="opacity-50" />}
                     </Link>
                   );
@@ -188,9 +177,6 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                       >
                         <item.icon size={16} />
                         <span className="flex-1">{item.label}</span>
-                        {hasCliInstance && (item.key === 'console' || item.key === 'monitor') && (
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        )}
                       </Link>
                     );
                   })}

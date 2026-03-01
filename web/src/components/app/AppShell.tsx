@@ -10,6 +10,7 @@ import { useCliContext } from './CliConnectionProvider';
 import { useCliOutput } from '@/hooks/use-cli-output';
 import { useBrainstormChat } from '@/hooks/use-brainstorm-chat';
 import { TerminalViewer } from '@/components/cli/TerminalViewer';
+import { SessionSidebar } from './SessionSidebar';
 // BugJournal tab removed — bugs now shown inline in ChatView
 import type { DiscoveredInstance } from '@/lib/cli-types';
 import {
@@ -54,10 +55,11 @@ export interface ChatFull {
 
 /* ─── Session tab assignment helper ──────────── */
 
-function getSessionTab(name: string): 'console' | 'monitor' {
+function getSessionTab(name: string): 'console' | 'monitor' | 'jarvis' {
   const lower = name.toLowerCase();
   if (lower.includes('monitor')) return 'monitor';
-  return 'console'; // auto, security, jarvis, etc. → Console
+  if (lower.includes('jarvis')) return 'jarvis';
+  return 'console'; // auto, security, etc. → Console
 }
 
 /* ─── Session icon helper ────────────────────── */
@@ -216,6 +218,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   // ── Sessions filtered by tab type ──
   const consoleSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name) === 'console');
   const monitorSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name) === 'monitor');
+  const jarvisSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name) === 'jarvis');
+
+  // ── Selected session IDs for sidebar tabs ──
+  const [monitorSessionId, setMonitorSessionId] = useState<string | null>(null);
 
   // ── Session actions ───────────────────────────
   const handleStartAuto = useCallback((goal?: string) => {
@@ -255,7 +261,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     if (!session) return;
     const tab = getSessionTab(session.name);
     if (tab === 'monitor') {
+      setMonitorSessionId(sessionId);
       setActiveTab('monitor');
+    } else if (tab === 'jarvis') {
+      setActiveTab('jarvis');
     } else {
       setConsoleSessionId(sessionId);
       setActiveTab('console');
@@ -268,11 +277,28 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     const session = connection.sessions.find(s => s.id === consoleSessionId);
     if (!session) return;
     const expectedTab = getSessionTab(session.name);
-    if (expectedTab === 'monitor' && activeTab === 'console') {
-      setActiveTab('monitor');
+    if (expectedTab !== 'console' && activeTab === 'console') {
+      setActiveTab(expectedTab);
       setConsoleSessionId(null);
     }
   }, [connection.sessions, consoleSessionId, activeTab]);
+
+  // ── Auto-switch to correct tab when new session created ──
+  const prevSessionCountRef = useRef(connection.sessions.length);
+  useEffect(() => {
+    const currentCount = connection.sessions.length;
+    if (currentCount > prevSessionCountRef.current) {
+      // New session added — find it (last one)
+      const newSession = connection.sessions[connection.sessions.length - 1];
+      if (newSession && newSession.id !== 'main') {
+        const tab = getSessionTab(newSession.name);
+        setActiveTab(tab);
+        if (tab === 'console') setConsoleSessionId(newSession.id);
+        if (tab === 'monitor') setMonitorSessionId(newSession.id);
+      }
+    }
+    prevSessionCountRef.current = currentCount;
+  }, [connection.sessions]);
 
   // ── Bug fix handlers ────────────────────────
   const sendBugFixMessage = useCallback(async (fixPrompt: string) => {
@@ -1204,36 +1230,22 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             />
           </div>
         ) : activeTab === 'console' ? (
-          <>
-            {/* Console session selector — only console-type sessions */}
-            {consoleSessions.length > 0 && (
-              <div className="flex gap-1.5 px-4 py-2 border-b border-white/5 overflow-x-auto bg-[#0a0a1a]/50">
-                {consoleSessions.map(session => (
-                  <button
-                    key={session.id}
-                    onClick={() => setConsoleSessionId(session.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all flex-shrink-0 border ${
-                      consoleSessionId === session.id
-                        ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
-                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-300'
-                    }`}
-                  >
-                    <SessionIcon name={session.name} size={11} className="text-gray-400" />
-                    <span>{session.name}</span>
-                    {session.status === 'running' && (
-                      <Activity size={8} className="text-emerald-400 animate-pulse" />
-                    )}
-                    {session.status === 'done' && (
-                      <span className="text-[9px] text-emerald-500">done</span>
-                    )}
-                    {session.status === 'error' && (
-                      <span className="text-[9px] text-red-400">error</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-
+          <div className="flex-1 flex overflow-hidden">
+            {/* Session sidebar */}
+            <div className="border-r border-white/5 flex-shrink-0">
+              <SessionSidebar
+                sessions={consoleSessions}
+                selectedId={consoleSessionId}
+                onSelect={(id) => setConsoleSessionId(id)}
+                onAbort={handleAbortSession}
+                emptyLabel={t('consoleNoSessions')}
+                emptyHint={t('consoleTabHint')}
+                actions={[
+                  { label: 'Start Auto', icon: Zap, onClick: () => handleStartAuto(), color: 'text-gray-400', hoverColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
+                  { label: 'Start Security', icon: Shield, onClick: handleStartSecurity, color: 'text-gray-400', hoverColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+                ]}
+              />
+            </div>
             {/* Terminal output */}
             <div className="flex-1 overflow-hidden">
               {consoleSessionId ? (
@@ -1242,24 +1254,34 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center space-y-3 px-6">
                     <Terminal size={32} className="mx-auto text-gray-700" />
-                    <p className="text-sm text-gray-500">
-                      {connection.sessions.length === 0
-                        ? t('consoleNoSessions')
-                        : t('consoleSelectSession')}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {connection.sessions.length === 0
-                        ? t('consoleTabHint')
-                        : t('consoleHint')}
-                    </p>
+                    <p className="text-sm text-gray-500">{t('consoleSelectSession')}</p>
+                    <p className="text-xs text-gray-600 mt-1">{t('consoleHint')}</p>
                   </div>
                 </div>
               )}
             </div>
-          </>
+          </div>
         ) : activeTab === 'monitor' ? (
           /* ─── Monitor Tab ─── */
-          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+          <div className="flex-1 flex overflow-hidden">
+            {/* Session sidebar */}
+            <div className="border-r border-white/5 flex-shrink-0">
+              <SessionSidebar
+                sessions={monitorSessions}
+                selectedId={monitorSessionId}
+                onSelect={(id) => setMonitorSessionId(id)}
+                onAbort={handleAbortSession}
+                emptyLabel={t('monitorIdle')}
+                emptyHint={t('monitorTabHint')}
+                actions={[
+                  { label: t('monitorStartPassive'), icon: Eye, onClick: () => handleStartMonitor('passive'), color: 'text-gray-400', hoverColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+                  { label: t('monitorStartDefensive'), icon: Shield, onClick: () => handleStartMonitor('defensive'), color: 'text-gray-400', hoverColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+                  { label: t('monitorStartActive'), icon: ShieldAlert, onClick: () => handleStartMonitor('active'), color: 'text-gray-400', hoverColor: 'bg-red-500/10 text-red-400 border-red-500/20' },
+                ]}
+              />
+            </div>
+            {/* Monitor content */}
+            <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             <div className="max-w-3xl mx-auto space-y-4">
 
               {/* Monitor status header */}
@@ -1419,8 +1441,22 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               )}
             </div>
           </div>
+          </div>
         ) : activeTab === 'jarvis' ? (
           /* ─── Jarvis Tab ─── */
+          <div className="flex-1 flex overflow-hidden">
+            {/* Session sidebar */}
+            <div className="border-r border-white/5 flex-shrink-0">
+              <SessionSidebar
+                sessions={jarvisSessions}
+                selectedId={null}
+                onSelect={() => {}}
+                onAbort={handleAbortSession}
+                emptyLabel={t('jarvisNoTasks')}
+              />
+            </div>
+            {/* Jarvis content */}
+            <div className="flex-1 overflow-hidden">
           <JarvisPanel
             tasks={connection.jarvisTasks}
             status={connection.jarvisStatus}
@@ -1435,6 +1471,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             }}
             isConnected={isConnected}
           />
+            </div>
+          </div>
         ) : null}
 
         {/* Input — always visible */}
