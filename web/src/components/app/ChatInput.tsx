@@ -2,7 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send, Square, ChevronDown, Shield, ShieldOff } from 'lucide-react';
+import {
+  Send, Square, ChevronDown, Shield, ShieldOff,
+  Zap, Eye, Activity, ShieldAlert, Bot,
+} from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (content: string) => void;
@@ -12,6 +15,10 @@ interface ChatInputProps {
   onModeChange: (mode: 'normal' | 'skip-permissions') => void;
   disabled: boolean;
   hasLLMKey?: boolean;
+  /** Whether there's an active chat open */
+  hasChat?: boolean;
+  /** Whether CLI is connected */
+  isConnected?: boolean;
 }
 
 export function ChatInput({
@@ -22,6 +29,8 @@ export function ChatInput({
   onModeChange,
   disabled,
   hasLLMKey = false,
+  hasChat = false,
+  isConnected = false,
 }: ChatInputProps) {
   const t = useTranslations('app');
   const [value, setValue] = useState('');
@@ -65,9 +74,45 @@ export function ChatInput({
     }
   }, [handleSend]);
 
+  const showQuickActions = hasChat && isConnected && !isAgentRunning;
+
   return (
     <div className="border-t border-white/5 bg-surface/50 backdrop-blur-sm px-4 py-3">
       <div className="max-w-3xl mx-auto">
+        {/* Quick action buttons — above input, only when in a chat with CLI */}
+        {showQuickActions && (
+          <div className="flex items-center gap-1.5 mb-2 px-1">
+            <button
+              onClick={() => onSend('Run an automatic code review and improvement analysis on the current project. Look for bugs, code smells, and potential improvements.')}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20 transition-all"
+            >
+              <Zap size={10} />
+              Auto
+            </button>
+            <button
+              onClick={() => onSend('Perform a comprehensive security audit on the current project. Check for vulnerabilities, exposed secrets, unsafe dependencies, and security best practices.')}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20 transition-all"
+            >
+              <ShieldAlert size={10} />
+              Security
+            </button>
+            <button
+              onClick={() => onSend('Start monitoring the project for file changes and potential issues. Watch for errors, test failures, and code quality problems.')}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20 transition-all"
+            >
+              <Eye size={10} />
+              Monitor
+            </button>
+            <button
+              onClick={() => onSend('Analyze the current project structure, identify all open tasks and issues, and create a prioritized action plan for improvements.')}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20 transition-all"
+            >
+              <Bot size={10} />
+              Jarvis
+            </button>
+          </div>
+        )}
+
         <div className="relative flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] focus-within:border-cyan-500/25 focus-within:bg-white/[0.05] transition-all">
           {/* Mode selector — inside the input box */}
           <div className="relative flex-shrink-0 self-end" ref={modeRef}>

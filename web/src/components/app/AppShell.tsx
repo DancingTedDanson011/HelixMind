@@ -6,6 +6,7 @@ import { ChatSidebar } from './ChatSidebar';
 import { ChatView } from './ChatView';
 import { ChatInput } from './ChatInput';
 import { InstancePicker } from './InstancePicker';
+import { SpawnDialog } from './SpawnDialog';
 import { useCliContext } from './CliConnectionProvider';
 import { useCliOutput } from '@/hooks/use-cli-output';
 import { useBrainstormChat } from '@/hooks/use-brainstorm-chat';
@@ -15,7 +16,7 @@ import { SessionSidebar } from './SessionSidebar';
 import type { DiscoveredInstance } from '@/lib/cli-types';
 import {
   Brain, PanelLeftClose, PanelLeft, Menu,
-  Wifi, WifiOff, RefreshCw, Terminal,
+  Wifi, WifiOff, RefreshCw, Terminal, Plus,
   Cpu, Clock, Plug, Shield, Zap,
   AlertTriangle, Activity, X, MessageSquare,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
@@ -105,6 +106,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   );
   const [consoleSessionId, setConsoleSessionId] = useState<string | null>(initialSession || null);
   const [showInstancePicker, setShowInstancePicker] = useState(false);
+  const [showSpawnDialog, setShowSpawnDialog] = useState(false);
   const [showBugPanel, setShowBugPanel] = useState(false);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
   const [hasLLMKey, setHasLLMKey] = useState(false);
@@ -212,7 +214,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
 
   // ── Active sessions (auto, security, monitor) — exclude main "Chat" session ──
   const activeSessions = connection.sessions.filter(s => s.status === 'running' && s.id !== 'main');
-  const recentFindings = connection.findings.slice(-5);
   const threatCount = connection.threats.length;
 
   // ── Sessions filtered by tab type ──
@@ -810,125 +811,15 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         <div className="flex flex-col h-full">
           <ChatSidebar
             chats={chats}
+            sessions={isConnected ? connection.sessions : undefined}
             activeChatId={activeChatId}
             onSelect={handleChatSelect}
+            onSessionClick={openSessionInTab}
             onCreate={createChat}
             onDelete={deleteChat}
             onRename={renameChat}
           />
 
-          {/* Sessions & Quick Actions (bottom of sidebar) */}
-          {isConnected && (
-            <div className="border-t border-white/5 p-3 space-y-2 flex-shrink-0">
-              {/* Active sessions — clickable to open console */}
-              {activeSessions.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">Sessions</p>
-                  {activeSessions.map((session) => (
-                    <button
-                      key={session.id}
-                      onClick={() => openSessionInTab(session.id)}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.03] hover:bg-cyan-500/5 border border-white/5 hover:border-cyan-500/10 group text-left transition-all"
-                    >
-                      <SessionIcon name={session.name} size={11} className="text-gray-400 flex-shrink-0" />
-                      <span className="flex-1 text-[11px] text-gray-300 truncate">{session.name}</span>
-                      <Activity size={10} className="text-emerald-400 animate-pulse" />
-                      <span
-                        onClick={(e) => { e.stopPropagation(); handleAbortSession(session.id); }}
-                        className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all cursor-pointer"
-                      >
-                        <X size={10} />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* All sessions (completed too) — exclude main */}
-              {connection.sessions.filter(s => s.status !== 'running' && s.id !== 'main').length > 0 && (
-                <div className="space-y-1">
-                  {connection.sessions.filter(s => s.status !== 'running' && s.id !== 'main').map((session) => (
-                    <button
-                      key={session.id}
-                      onClick={() => openSessionInTab(session.id)}
-                      className="w-full flex items-center gap-2 px-2 py-1 rounded-md bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.03] text-left transition-all"
-                    >
-                      <SessionIcon name={session.name} size={10} className="text-gray-600 flex-shrink-0" />
-                      <span className="flex-1 text-[10px] text-gray-500 truncate">{session.name}</span>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
-                        session.status === 'done' ? 'bg-emerald-500/5 text-emerald-500' :
-                        session.status === 'error' ? 'bg-red-500/5 text-red-400' :
-                        'bg-white/5 text-gray-500'
-                      }`}>
-                        {session.status}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Quick actions */}
-              <div className="flex gap-1">
-                <button
-                  onClick={() => handleStartAuto()}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[10px] text-gray-400 bg-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/20 transition-all"
-                  title="Auto Agent"
-                >
-                  <Zap size={10} />
-                  Auto
-                </button>
-                <button
-                  onClick={handleStartSecurity}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[10px] text-gray-400 bg-white/5 hover:bg-amber-500/10 hover:text-amber-400 border border-white/5 hover:border-amber-500/20 transition-all"
-                  title="Security Audit"
-                >
-                  <Shield size={10} />
-                  Security
-                </button>
-                <button
-                  onClick={() => handleStartMonitor('passive')}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[10px] text-gray-400 bg-white/5 hover:bg-purple-500/10 hover:text-purple-400 border border-white/5 hover:border-purple-500/20 transition-all"
-                  title="Monitor"
-                >
-                  <Activity size={10} />
-                  Monitor
-                </button>
-              </div>
-
-              {/* Findings badge */}
-              {recentFindings.length > 0 && (
-                <div className="px-2 py-1.5 rounded-md bg-amber-500/5 border border-amber-500/10">
-                  <p className="text-[10px] text-amber-400 font-medium">{connection.findings.length} Findings</p>
-                  <p className="text-[10px] text-gray-500 truncate">{recentFindings[recentFindings.length - 1]?.finding}</p>
-                </div>
-              )}
-
-              {/* Bug badge */}
-              {connection.bugs.filter(b => b.status === 'open').length > 0 && (
-                <button
-                  onClick={() => { setActiveTab('chat'); setShowBugPanel(true); connection.getBugs().catch(() => {}); }}
-                  className="w-full px-2 py-1.5 rounded-md bg-red-500/5 border border-red-500/10 text-left hover:bg-red-500/10 transition-colors"
-                >
-                  <div className="flex items-center gap-1">
-                    <Bug size={10} className="text-red-400" />
-                    <p className="text-[10px] text-red-400 font-medium">
-                      {connection.bugs.filter(b => b.status === 'open').length} Bugs
-                    </p>
-                  </div>
-                </button>
-              )}
-
-              {/* Threat badge */}
-              {threatCount > 0 && (
-                <div className="px-2 py-1.5 rounded-md bg-red-500/5 border border-red-500/10">
-                  <div className="flex items-center gap-1">
-                    <AlertTriangle size={10} className="text-red-400" />
-                    <p className="text-[10px] text-red-400 font-medium">{threatCount} Threats</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -1052,14 +943,16 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             </div>
           )}
 
-          {/* Bug panel toggle — visible when connected and bugs exist */}
-          {isConnected && connection.bugs.length > 0 && activeTab === 'chat' && (
+          {/* Bug panel toggle — visible when connected and in chat tab */}
+          {isConnected && activeTab === 'chat' && (
             <button
               onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
               className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
                 showBugPanel
                   ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                  : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
+                  : connection.bugs.filter(b => b.status === 'open').length > 0
+                    ? 'bg-red-500/5 border-red-500/10 text-red-400 hover:bg-red-500/10'
+                    : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
               }`}
             >
               <Bug size={11} />
@@ -1110,14 +1003,25 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             </button>
           )}
 
-          {/* Brain button — opens in new browser tab */}
+          {/* Spawn agent button */}
           <button
-            onClick={handleBrainClick}
+            onClick={() => setShowSpawnDialog(true)}
             className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors"
-            title={t('brain')}
+            title="Spawn Agent"
           >
-            <Brain size={18} />
+            <Plus size={18} />
           </button>
+
+          {/* Brain button — only visible when CLI connected */}
+          {isConnected && (
+            <button
+              onClick={handleBrainClick}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors"
+              title={t('brain')}
+            >
+              <Brain size={18} />
+            </button>
+          )}
         </div>
 
         {/* Connection panel when disconnected */}
@@ -1484,6 +1388,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           onModeChange={setMode}
           disabled={!isConnected && !hasLLMKey}
           hasLLMKey={isConnected || hasLLMKey}
+          hasChat={!!activeChat}
+          isConnected={isConnected}
         />
       </div>
 
@@ -1492,6 +1398,16 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         open={showInstancePicker}
         onClose={() => setShowInstancePicker(false)}
         onConnect={handleConnectAndExecute}
+      />
+
+      {/* Spawn Dialog */}
+      <SpawnDialog
+        open={showSpawnDialog}
+        onClose={() => setShowSpawnDialog(false)}
+        onSpawned={() => {
+          // Trigger rescan so discovery finds the new instance
+          rescan();
+        }}
       />
     </div>
   );

@@ -119,7 +119,7 @@ export function ChatView({
     return (
       <div className="flex flex-col h-full">
         {/* Bug panel in empty state */}
-        {showBugPanel && bugs.length > 0 && (
+        {showBugPanel && (
           <div className="px-4 pt-4">
             <InlineBugPanel
               bugs={bugs}
@@ -164,7 +164,7 @@ export function ChatView({
         className="h-full overflow-y-auto px-4 py-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
       >
         {/* Inline Bug Panel */}
-        {showBugPanel && bugs.length > 0 && (
+        {showBugPanel && (
           <InlineBugPanel
             bugs={bugs}
             isConnected={isConnected}

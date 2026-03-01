@@ -2,13 +2,60 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, Trash2, Pencil, MessageSquare, Check, X } from 'lucide-react';
+import {
+  Plus, Trash2, Pencil, MessageSquare, Check, X,
+  Shield, Zap, Activity, Bot,
+} from 'lucide-react';
 import type { ChatSummary } from './AppShell';
+
+/* ─── Session info (matches cli-types) ─────── */
+
+interface SessionEntry {
+  id: string;
+  name: string;
+  status: string;
+  elapsed: number;
+}
+
+/* ─── Session mode color ─────────────────────── */
+
+function sessionModeColor(name: string): { bg: string; text: string; border: string } {
+  const lower = name.toLowerCase();
+  if (lower.includes('security') || lower.includes('audit') || lower.includes('auto'))
+    return { bg: 'bg-cyan-500/5', text: 'text-cyan-400', border: 'border-cyan-500/10' };
+  if (lower.includes('monitor'))
+    return { bg: 'bg-purple-500/5', text: 'text-purple-400', border: 'border-purple-500/10' };
+  if (lower.includes('jarvis'))
+    return { bg: 'bg-fuchsia-500/5', text: 'text-fuchsia-400', border: 'border-fuchsia-500/10' };
+  return { bg: 'bg-white/[0.03]', text: 'text-gray-300', border: 'border-white/5' };
+}
+
+function SessionIcon({ name, size = 12, className = '' }: { name: string; size?: number; className?: string }) {
+  const lower = name.toLowerCase();
+  if (lower.includes('security') || lower.includes('audit')) return <Shield size={size} className={className} />;
+  if (lower.includes('auto')) return <Zap size={size} className={className} />;
+  if (lower.includes('monitor')) return <Activity size={size} className={className} />;
+  if (lower.includes('jarvis')) return <Bot size={size} className={className} />;
+  return <MessageSquare size={size} className={className} />;
+}
+
+function formatElapsed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
+/* ─── Props ──────────────────────────────────── */
 
 interface ChatSidebarProps {
   chats: ChatSummary[];
+  sessions?: SessionEntry[];
   activeChatId: string | null;
   onSelect: (id: string) => void;
+  onSessionClick?: (sessionId: string) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
@@ -16,8 +63,10 @@ interface ChatSidebarProps {
 
 export function ChatSidebar({
   chats,
+  sessions,
   activeChatId,
   onSelect,
+  onSessionClick,
   onCreate,
   onDelete,
   onRename,
@@ -47,6 +96,9 @@ export function ChatSidebar({
     setDeletingId(null);
   };
 
+  // Sessions to show (exclude main, only non-empty)
+  const visibleSessions = sessions?.filter(s => s.id !== 'main') ?? [];
+
   return (
     <div className="flex flex-col h-full w-72">
       {/* New chat button */}
@@ -60,8 +112,55 @@ export function ChatSidebar({
         </button>
       </div>
 
-      {/* Chat list */}
+      {/* Chat list + sessions */}
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        {/* Active CLI Sessions */}
+        {visibleSessions.length > 0 && (
+          <div>
+            <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-600">
+              Active Sessions
+            </div>
+            <div className="space-y-0.5">
+              {visibleSessions.map((session) => {
+                const colors = sessionModeColor(session.name);
+                return (
+                  <button
+                    key={session.id}
+                    onClick={() => onSessionClick?.(session.id)}
+                    className={`
+                      w-full text-left px-3 py-2 rounded-lg text-sm transition-all
+                      ${colors.bg} ${colors.border} border hover:brightness-125
+                    `}
+                  >
+                    <div className="flex items-center gap-2">
+                      <SessionIcon name={session.name} size={14} className={`flex-shrink-0 ${colors.text}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className={`truncate text-xs font-medium ${colors.text}`}>
+                          {session.name}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {session.status === 'running' && (
+                          <Activity size={8} className="text-emerald-400 animate-pulse" />
+                        )}
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                          session.status === 'running' ? 'bg-emerald-500/10 text-emerald-400' :
+                          session.status === 'done' ? 'bg-emerald-500/5 text-emerald-500' :
+                          session.status === 'error' ? 'bg-red-500/5 text-red-400' :
+                          'bg-white/5 text-gray-500'
+                        }`}>
+                          {session.status === 'running' ? formatElapsed(session.elapsed) : session.status}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Chats grouped by date */}
         {grouped.map(({ label, items }) => (
           <div key={label}>
             <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-600">
@@ -160,7 +259,7 @@ export function ChatSidebar({
           </div>
         ))}
 
-        {chats.length === 0 && (
+        {chats.length === 0 && visibleSessions.length === 0 && (
           <div className="text-center text-gray-600 text-xs py-8">
             {t('noMessages')}
           </div>

@@ -30,7 +30,25 @@ export function InlineBugPanel({ bugs, isConnected, onFixBug, onFixAll, onClose 
   const openCount = bugs.filter(b => b.status === 'open').length;
   const fixedCount = bugs.filter(b => b.status === 'fixed' || b.status === 'verified').length;
 
-  if (bugs.length === 0) return null;
+  if (bugs.length === 0) {
+    return (
+      <div className="mx-auto max-w-3xl mb-4">
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 text-xs">
+            <Bug size={13} className="text-gray-500 flex-shrink-0" />
+            <span className="text-gray-500">No bugs detected</span>
+            <div className="flex-1" />
+            <span
+              onClick={onClose}
+              className="p-0.5 rounded text-gray-600 hover:text-gray-300 transition-colors cursor-pointer"
+            >
+              <X size={12} />
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl mb-4">
