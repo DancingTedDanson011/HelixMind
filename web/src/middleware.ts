@@ -18,8 +18,8 @@ function getPathWithoutLocale(pathname: string): string {
 export default function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Skip API/static/serwist
-  if (pathname.startsWith('/serwist') || pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.includes('.')) {
+  // Skip API/static/service-worker
+  if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.includes('.')) {
     return NextResponse.next();
   }
 

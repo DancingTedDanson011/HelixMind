@@ -10,7 +10,7 @@ export function ServiceWorkerRegister() {
       process.env.NODE_ENV === 'production'
     ) {
       navigator.serviceWorker
-        .register('/serwist/sw.js', { scope: '/' })
+        .register('/sw.js', { scope: '/' })
         .catch((err) => {
           console.warn('SW registration failed:', err);
         });
