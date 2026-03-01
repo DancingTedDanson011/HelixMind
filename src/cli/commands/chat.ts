@@ -1261,6 +1261,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         registerProject: () => null,
         getWorkers: () => [],
         getConfig: () => ({ provider: config.provider, apiKey: config.apiKey, model: config.model }),
+        switchModel: (newProvider: string, newModel: string) => {
+          try {
+            provider = createProvider(newProvider, config.apiKey, newModel, config.providers?.[newProvider]?.baseURL);
+            config = { ...config, provider: newProvider, model: newModel };
+            return true;
+          } catch { return false; }
+        },
         getBrainList: () => ({ brains: [], limits: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity } }),
         renameBrain: () => false,
         switchBrain: () => false,
@@ -1405,6 +1412,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           registerProject: () => null,
           getWorkers: () => [],
           getConfig: () => ({ provider: config.provider, apiKey: config.apiKey, model: config.model }),
+          switchModel: (newProvider: string, newModel: string) => {
+            try {
+              provider = createProvider(newProvider, config.apiKey, newModel, config.providers?.[newProvider]?.baseURL);
+              config = { ...config, provider: newProvider, model: newModel };
+              return true;
+            } catch { return false; }
+          },
         getBrainList: () => ({ brains: [], limits: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity } }),
         renameBrain: () => false,
         switchBrain: () => false,

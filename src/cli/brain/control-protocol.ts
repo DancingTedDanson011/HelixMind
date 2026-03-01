@@ -215,6 +215,7 @@ export interface ListProjectsRequest extends WSMessage { type: 'list_projects' }
 export interface RegisterProjectRequest extends WSMessage { type: 'register_project'; path: string; name?: string }
 export interface GetWorkersRequest extends WSMessage { type: 'get_workers' }
 export interface GetConfigRequest extends WSMessage { type: 'get_config' }
+export interface SwitchModelRequest extends WSMessage { type: 'switch_model'; provider: string; model: string }
 
 // --- Responses (CLI → Browser) ---
 export interface SessionsListResponse extends WSMessage { type: 'sessions_list'; sessions: SessionInfo[] }
@@ -354,6 +355,7 @@ export type ControlRequest =
   | SwitchBrainRequest
   | CreateBrainRequest
   | GetConfigRequest
+  | SwitchModelRequest
   | RemoteToolCallResult;
 
 // ---------------------------------------------------------------------------
@@ -404,6 +406,7 @@ export interface ControlHandlers {
   createBrain(name: string, brainType: 'global' | 'local', projectPath?: string): BrainInstance | null;
   // Config sharing (local connections only)
   getConfig(): { provider: string; apiKey: string; model: string };
+  switchModel(provider: string, model: string): boolean;
 }
 
 // ---------------------------------------------------------------------------

@@ -18,7 +18,7 @@ import {
   Brain, PanelLeftClose, PanelLeft, Menu, ChevronDown,
   Wifi, WifiOff, RefreshCw, Terminal, Plus,
   Cpu, Clock, Plug, Shield, Zap,
-  AlertTriangle, Activity, X, MessageSquare,
+  AlertTriangle, Activity, X, MessageSquare, Square,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
   Bug, Bot, Search, ListChecks, ShieldCheck,
 } from 'lucide-react';
@@ -121,6 +121,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     (initialTab === 'console' || initialTab === 'monitor' || initialTab === 'jarvis') ? initialTab as any : 'chat'
   );
   const [consoleSessionId, setConsoleSessionId] = useState<string | null>(initialSession || null);
+  const [monitorSessionId, setMonitorSessionId] = useState<string | null>(null);
   const [showInstancePicker, setShowInstancePicker] = useState(false);
   const [showSpawnDialog, setShowSpawnDialog] = useState(false);
   const [showBugPanel, setShowBugPanel] = useState(false);
@@ -151,6 +152,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const cliOutput = useCliOutput({
     connection,
     sessionId: activeTab === 'console' ? consoleSessionId
+      : activeTab === 'monitor' ? monitorSessionId
       : jarvisSessionIdForOutput,
   });
 
@@ -323,9 +325,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const monitorSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'monitor');
   const jarvisSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'jarvis');
 
-  // ── Selected session IDs for sidebar tabs ──
-  const [monitorSessionId, setMonitorSessionId] = useState<string | null>(null);
-
   // ── Session actions ───────────────────────────
   const handleStartAuto = useCallback((goal?: string) => {
     connection.startAuto(goal).catch(() => {});
@@ -343,10 +342,11 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     connection.abortSession(sessionId).catch(() => {});
   }, [connection]);
 
-  // ── Brain: open CLI's local brain server in popup window ───────────────
+  // ── Brain: in-app iframe overlay ───────────────
+  const [showBrainOverlay, setShowBrainOverlay] = useState(false);
   const handleBrainClick = useCallback(() => {
     if (connectedPort) {
-      window.open(`http://127.0.0.1:${connectedPort}`, 'helix-brain', 'width=1200,height=800,menubar=no,toolbar=no');
+      setShowBrainOverlay(true);
     }
   }, [connectedPort]);
 
@@ -359,6 +359,14 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       }
     }
   }, [activeTab, consoleSessionId, consoleSessions]);
+
+  // ── Auto-select first monitor session for monitor tab ─────
+  useEffect(() => {
+    if (activeTab === 'monitor' && !monitorSessionId && monitorSessions.length > 0) {
+      const running = monitorSessions.find(s => s.status === 'running');
+      setMonitorSessionId(running?.id ?? monitorSessions[0].id);
+    }
+  }, [activeTab, monitorSessionId, monitorSessions]);
 
   // ── Open session in correct tab ────────────────
   const openSessionInTab = useCallback((sessionId: string) => {
@@ -1256,9 +1264,31 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             />
           </div>
         ) : activeTab === 'console' ? (
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {/* Running session stop header */}
+            {consoleSessionId && (() => {
+              const s = consoleSessions.find(cs => cs.id === consoleSessionId);
+              return s?.status === 'running' ? (
+                <div className="flex items-center justify-between px-4 py-2 bg-white/[0.03] border-b border-white/5 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Activity size={12} className="text-emerald-400 animate-pulse" />
+                    <span className="text-xs font-medium text-gray-300">{s.name}</span>
+                    <span className="text-[10px] text-gray-500">{formatUptime(Math.floor(s.elapsed / 1000))}</span>
+                  </div>
+                  <button
+                    onClick={() => handleAbortSession(s.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
+                  >
+                    <Square size={12} />
+                    Stop
+                  </button>
+                </div>
+              ) : null;
+            })()}
             {consoleSessionId ? (
-              <TerminalViewer lines={cliOutput.lines} fullHeight />
+              <div className="flex-1 min-h-0">
+                <TerminalViewer lines={cliOutput.lines} fullHeight />
+              </div>
             ) : (
               <TabInfoPage
                 icon={<Terminal size={28} />}
@@ -1288,160 +1318,170 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             )}
           </div>
         ) : activeTab === 'monitor' ? (
-          /* ─── Monitor Tab ─── */
-          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-            <div className="max-w-3xl mx-auto space-y-4">
+          /* ─── Monitor Tab — Split: Status/Threats top, Terminal bottom ─── */
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {/* Top: Status + Threats (scrollable, capped when terminal visible) */}
+            <div className={`${monitorSessionId ? 'flex-shrink-0 max-h-[50%]' : 'flex-1'} overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent`}>
+              <div className="max-w-3xl mx-auto space-y-4">
 
-              {/* Monitor status header */}
-              {connection.monitorStatus ? (
-                <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                      <Radio size={18} className="text-emerald-400 animate-pulse" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-200">
-                        {t('monitorMode')}: <span className="text-cyan-400 capitalize">{connection.monitorStatus.mode}</span>
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {t('monitorUptime')}: {formatUptime(connection.monitorStatus.uptime)}
-                        {' · '}{connection.monitorStatus.threatCount} {t('monitorThreats').toLowerCase()}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => connection.stopMonitor().catch(() => {})}
-                    className="px-3 py-1.5 rounded-lg text-xs text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
-                  >
-                    {t('monitorStop')}
-                  </button>
-                </div>
-              ) : (
-                <TabInfoPage
-                  icon={<Eye size={28} />}
-                  title={t('monitorInfoTitle')}
-                  description={t('monitorInfoDesc')}
-                  accentColor="purple"
-                  docsHref="/docs/monitor"
-                  docsLabel={t('monitorInfoDocs')}
-                  features={[
-                    { icon: <Eye size={16} />, title: t('monitorInfoFeature1Title'), description: t('monitorInfoFeature1Desc') },
-                    { icon: <Shield size={16} />, title: t('monitorInfoFeature2Title'), description: t('monitorInfoFeature2Desc') },
-                    { icon: <ShieldAlert size={16} />, title: t('monitorInfoFeature3Title'), description: t('monitorInfoFeature3Desc') },
-                  ]}
-                  actions={isConnected ? (
-                    <>
-                      <button onClick={() => handleStartMonitor('passive')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-400 transition-all">
-                        <Eye size={12} className="inline mr-1.5" />{t('monitorStartPassive')}
-                      </button>
-                      <button onClick={() => handleStartMonitor('defensive')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all">
-                        <Shield size={12} className="inline mr-1.5" />{t('monitorStartDefensive')}
-                      </button>
-                      <button onClick={() => handleStartMonitor('active')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all">
-                        <ShieldAlert size={12} className="inline mr-1.5" />{t('monitorStartActive')}
-                      </button>
-                    </>
-                  ) : undefined}
-                />
-              )}
-
-              {/* Pending approvals */}
-              {connection.approvals.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-xs font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <AlertTriangle size={12} />
-                    {t('monitorApprovals')} ({connection.approvals.length})
-                  </h3>
-                  {connection.approvals.map((approval) => (
-                    <div key={approval.id} className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 space-y-2">
-                      <p className="text-sm text-gray-300">{approval.action}: {approval.target}</p>
-                      <p className="text-xs text-gray-500">{approval.reason}</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => connection.respondApproval(approval.id, true).catch(() => {})}
-                          className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
-                        >
-                          <CheckCircle2 size={12} />
-                          {t('monitorApprove')}
-                        </button>
-                        <button
-                          onClick={() => connection.respondApproval(approval.id, false).catch(() => {})}
-                          className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
-                        >
-                          <XCircle size={12} />
-                          {t('monitorDeny')}
-                        </button>
+                {/* Monitor status header */}
+                {connection.monitorStatus ? (
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                        <Radio size={18} className="text-emerald-400 animate-pulse" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-200">
+                          {t('monitorMode')}: <span className="text-cyan-400 capitalize">{connection.monitorStatus.mode}</span>
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {t('monitorUptime')}: {formatUptime(connection.monitorStatus.uptime)}
+                          {' · '}{connection.monitorStatus.threatCount} {t('monitorThreats').toLowerCase()}
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Threats */}
-              <div className="space-y-2">
-                <h3 className="text-xs font-medium text-red-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldAlert size={12} />
-                  {t('monitorThreats')} ({connection.threats.length})
-                </h3>
-                {connection.threats.length === 0 ? (
-                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center">
-                    <p className="text-xs text-gray-600">{t('monitorNoThreats')}</p>
+                    <button
+                      onClick={() => connection.stopMonitor().catch(() => {})}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
+                    >
+                      <Square size={12} />
+                      {t('monitorStop')}
+                    </button>
                   </div>
                 ) : (
-                  <div className="space-y-1.5">
-                    {connection.threats.slice().reverse().map((threat, i) => (
-                      <div key={i} className="p-3 rounded-xl bg-red-500/5 border border-red-500/10">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-300">{threat.title}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">{threat.details}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-                                threat.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                threat.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                                threat.severity === 'medium' ? 'bg-amber-500/20 text-amber-400' :
-                                'bg-gray-500/20 text-gray-400'
-                              }`}>{threat.severity}</span>
-                              <span className="text-[10px] text-gray-600">{threat.source}</span>
-                              <span className="text-[10px] text-gray-600">{new Date(threat.timestamp).toLocaleTimeString()}</span>
-                            </div>
-                          </div>
+                  <TabInfoPage
+                    icon={<Eye size={28} />}
+                    title={t('monitorInfoTitle')}
+                    description={t('monitorInfoDesc')}
+                    accentColor="purple"
+                    docsHref="/docs/monitor"
+                    docsLabel={t('monitorInfoDocs')}
+                    features={[
+                      { icon: <Eye size={16} />, title: t('monitorInfoFeature1Title'), description: t('monitorInfoFeature1Desc') },
+                      { icon: <Shield size={16} />, title: t('monitorInfoFeature2Title'), description: t('monitorInfoFeature2Desc') },
+                      { icon: <ShieldAlert size={16} />, title: t('monitorInfoFeature3Title'), description: t('monitorInfoFeature3Desc') },
+                    ]}
+                    actions={isConnected ? (
+                      <>
+                        <button onClick={() => handleStartMonitor('passive')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-400 transition-all">
+                          <Eye size={12} className="inline mr-1.5" />{t('monitorStartPassive')}
+                        </button>
+                        <button onClick={() => handleStartMonitor('defensive')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all">
+                          <Shield size={12} className="inline mr-1.5" />{t('monitorStartDefensive')}
+                        </button>
+                        <button onClick={() => handleStartMonitor('active')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all">
+                          <ShieldAlert size={12} className="inline mr-1.5" />{t('monitorStartActive')}
+                        </button>
+                      </>
+                    ) : undefined}
+                  />
+                )}
+
+                {/* Pending approvals */}
+                {connection.approvals.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertTriangle size={12} />
+                      {t('monitorApprovals')} ({connection.approvals.length})
+                    </h3>
+                    {connection.approvals.map((approval) => (
+                      <div key={approval.id} className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 space-y-2">
+                        <p className="text-sm text-gray-300">{approval.action}: {approval.target}</p>
+                        <p className="text-xs text-gray-500">{approval.reason}</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => connection.respondApproval(approval.id, true).catch(() => {})}
+                            className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
+                          >
+                            <CheckCircle2 size={12} />
+                            {t('monitorApprove')}
+                          </button>
+                          <button
+                            onClick={() => connection.respondApproval(approval.id, false).catch(() => {})}
+                            className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
+                          >
+                            <XCircle size={12} />
+                            {t('monitorDeny')}
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
 
-              {/* Defenses */}
-              {connection.defenses.length > 0 && (
+                {/* Threats */}
                 <div className="space-y-2">
-                  <h3 className="text-xs font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Shield size={12} />
-                    {t('monitorDefenses')} ({connection.defenses.length})
+                  <h3 className="text-xs font-medium text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldAlert size={12} />
+                    {t('monitorThreats')} ({connection.threats.length})
                   </h3>
-                  <div className="space-y-1.5">
-                    {connection.defenses.slice().reverse().map((defense, i) => (
-                      <div key={i} className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                        <div className="flex items-start gap-2">
-                          <CheckCircle2 size={14} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-300">{defense.action}: {defense.target}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">{defense.reason}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              {defense.autoApproved && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">auto</span>}
-                              {defense.reversible && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400">reversible</span>}
-                              <span className="text-[10px] text-gray-600">{new Date(defense.timestamp).toLocaleTimeString()}</span>
+                  {connection.threats.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center">
+                      <p className="text-xs text-gray-600">{t('monitorNoThreats')}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {connection.threats.slice().reverse().map((threat, i) => (
+                        <div key={i} className="p-3 rounded-xl bg-red-500/5 border border-red-500/10">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-300">{threat.title}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{threat.details}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                                  threat.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
+                                  threat.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                                  threat.severity === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                                  'bg-gray-500/20 text-gray-400'
+                                }`}>{threat.severity}</span>
+                                <span className="text-[10px] text-gray-600">{threat.source}</span>
+                                <span className="text-[10px] text-gray-600">{new Date(threat.timestamp).toLocaleTimeString()}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Defenses */}
+                {connection.defenses.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Shield size={12} />
+                      {t('monitorDefenses')} ({connection.defenses.length})
+                    </h3>
+                    <div className="space-y-1.5">
+                      {connection.defenses.slice().reverse().map((defense, i) => (
+                        <div key={i} className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 size={14} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-300">{defense.action}: {defense.target}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{defense.reason}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {defense.autoApproved && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">auto</span>}
+                                {defense.reversible && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400">reversible</span>}
+                                <span className="text-[10px] text-gray-600">{new Date(defense.timestamp).toLocaleTimeString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+            {/* Bottom: Terminal output */}
+            {monitorSessionId && (
+              <div className="flex-1 min-h-0 border-t border-white/5">
+                <TerminalViewer lines={cliOutput.lines} fullHeight />
+              </div>
+            )}
           </div>
         ) : activeTab === 'jarvis' ? (
           /* ─── Jarvis Tab ─── */
@@ -1547,6 +1587,25 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         instances={instances}
         onConnect={(inst) => { connectTo(inst); setShowSpawnDialog(false); }}
       />
+
+      {/* Brain 3D Overlay — in-app iframe */}
+      {showBrainOverlay && connectedPort && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm">
+          <div className="relative w-full h-full">
+            <button
+              onClick={() => setShowBrainOverlay(false)}
+              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
+            >
+              <X size={18} />
+            </button>
+            <iframe
+              src={`http://127.0.0.1:${connectedPort}`}
+              className="w-full h-full border-0 bg-black"
+              title="HelixMind Brain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

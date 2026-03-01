@@ -491,6 +491,12 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             break;
           }
 
+          case 'switch_model': {
+            const success = controlHandlers.switchModel((msg as any).provider, (msg as any).model);
+            sendTo(ws, { type: 'model_switched', success, requestId, timestamp: Date.now() });
+            break;
+          }
+
           // --- Brain Management ---
           case 'get_brain_list': {
             const { brains, limits } = controlHandlers.getBrainList();

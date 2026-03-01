@@ -159,6 +159,7 @@ export interface ThinkingCallbacks {
   captureProjectState: () => Promise<ProjectModel>;
   getScheduledTasks: () => ScheduleEntry[];
   checkTriggers: (delta: ProjectDelta) => TriggerResult[];
+  getMoodAnalysis: () => MoodAnalysis;
   updateStatus: () => void;
 }
 
@@ -170,6 +171,7 @@ export interface IdentityTraits {
   proactivity: number;  // 0.0-1.0
   verbosity: number;    // 0.0-1.0
   creativity: number;   // 0.0-1.0
+  empathy: number;      // 0.0-1.0 — Stimmungsbewusstsein
 }
 
 export interface TrustMetrics {
@@ -190,7 +192,8 @@ export type IdentityEvent =
   | { type: 'task_failed'; taskId: number; error: string }
   | { type: 'autonomy_changed'; oldLevel: AutonomyLevel; newLevel: AutonomyLevel; reason: string }
   | { type: 'anomaly_detected'; description: string }
-  | { type: 'meta_learning'; insight: string };
+  | { type: 'meta_learning'; insight: string }
+  | { type: 'sentiment_shift'; from: UserSentiment; to: UserSentiment; frustrationLevel: number };
 
 export interface JarvisIdentity {
   name: string;
@@ -527,4 +530,29 @@ export interface SkillContext {
   getConfig: (key: string) => string | undefined;
   setConfig: (key: string, value: string) => void;
   log: (message: string) => void;
+}
+
+// ─── Sentiment / Emotional Intelligence ──────────────────────────────
+
+export type UserSentiment = 'frustrated' | 'satisfied' | 'curious' | 'stressed' | 'neutral' | 'confused';
+
+export interface SentimentReading {
+  sentiment: UserSentiment;
+  confidence: number;     // 0.0-1.0
+  timestamp: number;
+  trigger?: string;       // Welches Keyword/Muster hat ausgeloest
+}
+
+export interface MoodAnalysis {
+  current: UserSentiment;
+  trend: 'improving' | 'stable' | 'declining';
+  dominantSentiment: UserSentiment;
+  frustrationLevel: number;  // 0.0-1.0
+  sessionReadings: number;
+}
+
+export interface SentimentData {
+  version: 1;
+  history: SentimentReading[];
+  sessionStart: number;
 }

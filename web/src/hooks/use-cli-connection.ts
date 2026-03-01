@@ -129,6 +129,8 @@ export interface UseCliConnectionReturn {
   fetchConfig: () => Promise<{ provider: string; apiKey: string; model: string } | null>;
   /** Whether config has been synced from CLI in this session */
   configSynced: boolean;
+  /** Switch CLI model/provider remotely */
+  switchModel: (provider: string, model: string) => Promise<boolean>;
 }
 
 // ---------------------------------------------------------------------------
@@ -841,6 +843,14 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   }, [sendRequest]);
 
   // ---------------------------------------------------------------------------
+  // Model switching
+  // ---------------------------------------------------------------------------
+  const switchModel = useCallback(async (provider: string, model: string): Promise<boolean> => {
+    const res = (await sendRequest('switch_model', { provider, model })) as { success: boolean };
+    return res.success ?? false;
+  }, [sendRequest]);
+
+  // ---------------------------------------------------------------------------
   // Cleanup on unmount
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -923,5 +933,6 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     getWorkers,
     fetchConfig,
     configSynced,
+    switchModel,
   };
 }
