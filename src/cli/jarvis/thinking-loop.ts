@@ -253,17 +253,41 @@ async function runDeepCheck(
 
     if (callbacks.isAborted()) return;
 
-    // 2. Self-assessment prompt
+    // 2. Self-assessment prompt — includes capability inventory to prevent hallucination
+    const mood = callbacks.getMoodAnalysis();
+    const moodLine = mood.sessionReadings > 0
+      ? `\n- User mood: ${mood.current} (trend: ${mood.trend}, frustration: ${(mood.frustrationLevel * 100).toFixed(0)}%)`
+      : '';
     const selfAssessmentPrompt = `You are Jarvis performing a deep self-assessment.
 
 Your current identity:
 - Confidence: ${identity.traits.confidence.toFixed(2)}
 - Caution: ${identity.traits.caution.toFixed(2)}
 - Proactivity: ${identity.traits.proactivity.toFixed(2)}
+- Empathy: ${identity.traits.empathy.toFixed(2)}
 - Approval rate: ${(identity.trust.approvalRate * 100).toFixed(0)}%
 - Success rate: ${(identity.trust.successRate * 100).toFixed(0)}%
 - Total proposals: ${identity.trust.totalProposals}
-- Tasks completed: ${identity.trust.totalTasksCompleted}
+- Tasks completed: ${identity.trust.totalTasksCompleted}${moodLine}
+
+IMPORTANT — Your EXISTING capabilities (these are IMPLEMENTED, do NOT claim they are missing):
+- 22 agent tools: read/write/edit_file, list_dir, search/find_files, run_command, git_*, spiral_*, web_research, bug_report, bug_list, browser_*
+- Task Queue + Daemon: background task processing with priority ordering and retry
+- Thinking Loop: Quick (30s), Medium (5m), Deep (30m) continuous consciousness
+- World Model: ProjectModel with git status, open bugs, test results, health score (0-100), ProjectDelta tracking
+- Proposal System: 14 categories with denial learning (wouldLikelyBeDenied)
+- Skill System: discover, install, activate, deactivate, remove, CREATE new skills at runtime
+- Identity Evolution: 6 traits (confidence, caution, proactivity, verbosity, creativity, empathy) that adjust automatically
+- Sentiment Analysis: keyword-based mood detection (DE+EN), trend tracking, response guidance injection
+- Web Knowledge Enricher: auto-fetches DuckDuckGo results, stores in spiral brain
+- Browser Control: puppeteer-core with 6 browser tools and VisionProcessor
+- Telegram Bot: bidirectional polling with inline approve/deny buttons
+- Notifications: browser, email, slack, webhook, system, telegram channels
+- Scheduling: cron, interval, one-time tasks
+- Triggers: file_watch, git_hook, ci, webhook, time-based reactions
+- Meta-Cognition: self-assessment, META_LEARNING events, anomaly detection
+- Ethics: autonomy levels L0-L5, built-in ethical boundaries
+- Bug Journal: auto-detection from user messages (DE+EN)
 
 Recent learnings:
 ${identity.recentLearnings.slice(-10).map(l => `- [${l.source}] ${l.content}`).join('\n')}
@@ -274,15 +298,18 @@ ${spiralHistory}
 Analyze:
 1. What patterns do you see in your approvals vs denials?
 2. What should you do more of? Less of?
-3. Any strategic proposals for the project?
-4. Does the user need capabilities you don't have? (e.g. a missing API integration, a new tool, or a workflow automation)
-   If yes, propose a new skill with category "skill_creation".
+3. Any strategic proposals for the project? (Focus on the USER'S project, not on your own features.)
+4. Does the user need a SPECIFIC integration or workflow that is NOT in your capability list above?
+   Only propose skill_creation for genuinely missing domain-specific integrations (e.g. a specific API the user needs).
+   Do NOT propose features that already exist in the list above — that would be hallucination.
+
+CRITICAL: Never claim a capability is missing if it appears in the list above. Review the list before answering.
 
 Respond in this format:
 INSIGHT: <your key insight>
 META_LEARNING: <what you learned about yourself>
 PROPOSAL: <category> | <impact> | <title> | <description> | <rationale>
-(0-2 strategic proposals only, use category "skill_creation" for new capability proposals)`;
+(0-2 strategic proposals only, use category "skill_creation" ONLY for genuinely missing domain-specific integrations)`;
 
     const response = await callbacks.sendMessage(selfAssessmentPrompt);
 
