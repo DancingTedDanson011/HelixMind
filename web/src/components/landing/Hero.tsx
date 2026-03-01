@@ -3,8 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
-import { Terminal, Copy, Check, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { Terminal, Copy, Check, ChevronDown, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+
+const INSTALL_KEY = 'helixmind-installed';
 
 // Orchestrated stagger animation
 const stagger = {
@@ -25,10 +27,21 @@ const stagger = {
 export function Hero() {
   const t = useTranslations('hero');
   const [copied, setCopied] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    setIsInstalled(localStorage.getItem(INSTALL_KEY) === 'true');
+  }, []);
+
+  const installCommand = isInstalled ? t('updateCommand') : t('installCommand');
 
   const copyInstall = () => {
-    navigator.clipboard.writeText(t('installCommand'));
+    navigator.clipboard.writeText(installCommand);
     setCopied(true);
+    if (!isInstalled) {
+      localStorage.setItem(INSTALL_KEY, 'true');
+      setIsInstalled(true);
+    }
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -93,7 +106,7 @@ export function Hero() {
             className="group relative flex items-center gap-2 sm:gap-3 rounded-xl px-4 sm:px-6 py-3 sm:py-3.5 font-mono text-xs sm:text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] bg-white/[0.04] border border-white/[0.08] hover:border-primary/30 hover:bg-primary/[0.04]"
           >
             <span className="text-primary font-bold">$</span>
-            <span className="text-gray-200">{t('installCommand')}</span>
+            <span className="text-gray-200">{installCommand}</span>
             {copied ? (
               <Check size={15} className="text-success" />
             ) : (
@@ -116,6 +129,8 @@ export function Hero() {
           >
             {copied ? (
               <span className="flex items-center gap-2"><Check size={16} /> {t('copied')}</span>
+            ) : isInstalled ? (
+              <span className="flex items-center gap-2"><RefreshCw size={16} /> {t('ctaUpdate')}</span>
             ) : (
               t('cta')
             )}

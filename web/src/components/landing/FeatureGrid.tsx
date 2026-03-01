@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import { Brain, Eye, Shield, Globe, Wifi, Layers } from 'lucide-react';
+import { Brain, Eye, Shield, Globe, Wifi, Layers, Radar } from 'lucide-react';
 
 const featureIcons = {
   memory: Brain,
@@ -11,13 +11,14 @@ const featureIcons = {
   web: Globe,
   offline: Wifi,
   sessions: Layers,
+  monitor: Radar,
 };
 
 const featureColors = [
-  '#00d4ff', '#00ff88', '#4169e1', '#ffaa00', '#8a2be2', '#ff6b6b',
+  '#00d4ff', '#00ff88', '#4169e1', '#ffaa00', '#8a2be2', '#ff6b6b', '#ff4444',
 ];
 
-const featureKeys = ['memory', 'brain', 'validation', 'web', 'offline', 'sessions'] as const;
+const featureKeys = ['memory', 'brain', 'validation', 'web', 'offline', 'sessions', 'monitor'] as const;
 
 export function FeatureGrid() {
   const t = useTranslations('features');
@@ -71,6 +72,7 @@ export function FeatureGrid() {
             return (
               <motion.div
                 key={key}
+                className={i === featureKeys.length - 1 ? 'sm:col-span-2 lg:col-start-2 lg:col-span-1' : undefined}
                 initial={{ opacity: 0, y: 24, filter: 'blur(4px)' }}
                 whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                 viewport={{ once: true }}

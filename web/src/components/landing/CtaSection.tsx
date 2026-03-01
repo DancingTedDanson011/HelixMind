@@ -3,16 +3,28 @@
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
-import { Github, Terminal, Check } from 'lucide-react';
-import { useState } from 'react';
+import { Github, Terminal, Check, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+
+const INSTALL_KEY = 'helixmind-installed';
 
 export function CtaSection() {
   const t = useTranslations('cta');
   const [copied, setCopied] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    setIsInstalled(localStorage.getItem(INSTALL_KEY) === 'true');
+  }, []);
 
   const copyInstall = () => {
-    navigator.clipboard.writeText('npm install -g helixmind');
+    const cmd = isInstalled ? 'npm update -g helixmind' : 'npm install -g helixmind';
+    navigator.clipboard.writeText(cmd);
     setCopied(true);
+    if (!isInstalled) {
+      localStorage.setItem(INSTALL_KEY, 'true');
+      setIsInstalled(true);
+    }
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -51,6 +63,8 @@ export function CtaSection() {
             <Button size="lg" className="font-display font-semibold tracking-wide" onClick={copyInstall}>
               {copied ? (
                 <span className="flex items-center gap-2"><Check size={16} /> {t('copied')}</span>
+              ) : isInstalled ? (
+                <span className="flex items-center gap-2"><RefreshCw size={16} /> {t('buttonUpdate')}</span>
               ) : (
                 t('button')
               )}

@@ -19,8 +19,10 @@
     "titleHighlight": "erinnert sich.",
     "subtitle": "Das einzige AI-Coding-Tool mit persistentem Spiral-Memory. Jedes Pattern, jede Entscheidung, jeder Kontext — bewahrt und weiterentwickelt über Sessions hinweg.",
     "cta": "App installieren",
+    "ctaUpdate": "App aktualisieren",
     "ctaSecondary": "In Aktion sehen",
     "installCommand": "npm install -g helixmind",
+    "updateCommand": "npm update -g helixmind",
     "requirement": "Erfordert Node.js 18+",
     "copied": "Kopiert!",
     "openSource": "Open Source",
@@ -75,6 +77,10 @@
     "sessions": {
       "title": "Multi-Session Agent",
       "desc": "Hintergrund-Security-Audits, parallele Code-Analyse. Jede mit eigenem Kontext."
+    },
+    "monitor": {
+      "title": "Security Monitor",
+      "desc": "Autonomer System-Wächter. Erkennt Bedrohungen, blockiert Angriffe und rotiert Secrets — passiv, defensiv oder aktiv."
     }
   },
   "comparison": {
@@ -172,6 +178,7 @@
     "title": "Starte mit Memory zu bauen",
     "subtitle": "Installiere HelixMind in 30 Sekunden. Für immer kostenlos für Einzelnutzer.",
     "button": "App installieren",
+    "buttonUpdate": "App aktualisieren",
     "github": "Auf GitHub staren",
     "readyToInstall": "Bereit zur Installation",
     "copied": "Kopiert!"
