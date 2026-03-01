@@ -30,6 +30,7 @@ import { registerConnectionWs, unregisterConnectionWs } from '@/lib/cli-ws-regis
 // ---------------------------------------------------------------------------
 
 const PING_INTERVAL_MS = 15_000;
+const SYNC_INTERVAL_MS = 10_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const RECONNECT_MAX_MS = 15_000;
 
@@ -177,6 +178,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const mountedRef = useRef(true);
   const pendingRef = useRef<Map<string, PendingRequest>>(new Map());
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intentionalCloseRef = useRef(false);
@@ -199,6 +201,10 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     if (pingRef.current !== null) {
       clearInterval(pingRef.current);
       pingRef.current = null;
+    }
+    if (syncRef.current !== null) {
+      clearInterval(syncRef.current);
+      syncRef.current = null;
     }
     if (reconnectTimerRef.current !== null) {
       clearTimeout(reconnectTimerRef.current);
@@ -255,6 +261,26 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Internal: sync sessions from CLI (initial + periodic)
+  // ---------------------------------------------------------------------------
+  const syncSessions = useCallback(() => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+    const requestId = crypto.randomUUID();
+    const timer = setTimeout(() => {
+      pendingRef.current.delete(requestId);
+    }, REQUEST_TIMEOUT_MS);
+    pendingRef.current.set(requestId, {
+      resolve: (res: unknown) => {
+        const list = (res as { sessions?: SessionInfo[] }).sessions ?? [];
+        if (mountedRef.current) setSessions(list);
+      },
+      reject: () => {},
+      timer,
+    });
+    sendRaw({ type: 'list_sessions', requestId, timestamp: Date.now() });
+  }, [sendRaw]);
+
+  // ---------------------------------------------------------------------------
   // Internal: handle incoming messages
   // ---------------------------------------------------------------------------
   const handleMessage = useCallback((msg: WSIncoming) => {
@@ -273,6 +299,13 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
         updateConnectionState('connected');
         setError(null);
         reconnectAttemptRef.current = 0;
+
+        // Initial sync: fetch full session list to catch sessions created before connection
+        syncSessions();
+
+        // Periodic sync: keep sessions in sync (catches missed events)
+        if (syncRef.current !== null) clearInterval(syncRef.current);
+        syncRef.current = setInterval(syncSessions, SYNC_INTERVAL_MS);
       }
       return;
     }
@@ -481,7 +514,8 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
       // Just log — the proposal_created event will handle the UI update
       return;
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncSessions]);
 
   // ---------------------------------------------------------------------------
   // Internal: connect
