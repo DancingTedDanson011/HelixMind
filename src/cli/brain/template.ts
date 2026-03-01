@@ -838,6 +838,11 @@ function buildGeometry(P){
   for(let i=0;i<nC;i++){
     const p=pos[i], n=nodes[i];
     nP[i*3]=p.x; nP[i*3+1]=p.y; nP[i*3+2]=p.z;
+    // Distance from centroid for fade effect
+    const dx=p.x-cx,dy=p.y-cy,dz=p.z-cz;
+    const dist=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    const maxD=curSpread*1.2;
+    const distRatio=Math.min(dist/maxD,1); // 0=center, 1=far edge
     if(n.level===1){
       // L1 Focus: primarily magenta/fuchsia (characteristic L1) with subtle hue variation
       const h=0.78+srand(i*137+42)*0.1; // hue 0.78-0.88 (magenta–fuchsia range)
@@ -846,6 +851,12 @@ function buildGeometry(P){
       tc.setHSL(h,s,l);
     } else {
       tc.set(LVL_HEX[n.level]||0x00FFFF);
+    }
+    // Distant nodes fade to light blue/gray
+    if(distRatio>0.55){
+      const fade=Math.min((distRatio-0.55)/0.45,1); // 0 at 55%, 1 at 100%
+      const coolC=new THREE.Color().setHSL(0.58,0.15+0.1*(1-fade),0.65+fade*0.15);
+      tc.lerp(coolC,fade*0.85);
     }
     nCol[i*3]=tc.r; nCol[i*3+1]=tc.g; nCol[i*3+2]=tc.b;
     nSz[i]=LVL_SIZE[n.level]||36;
@@ -1434,11 +1445,11 @@ function animate(){
   const corePulse=1 + Math.sin(t * 0.001) * 0.08;
   core.scale.setScalar(corePulse);
   core2.scale.setScalar(1 + Math.sin(t * 0.0015) * 0.1);
-  // Core HSL color cycling through spectrum
-  const coreHue=(t*0.00008)%1;
-  const _coreC=new THREE.Color().setHSL(coreHue,0.8,0.5);
+  // Core gold/orange spectrum pulse (always warm golden)
+  const coreHue=0.07+Math.sin(t*0.0003)*0.04; // hue 0.03-0.11 (gold–orange)
+  const _coreC=new THREE.Color().setHSL(coreHue,0.9,0.55);
   coreMat.color.copy(_coreC);
-  core2Mat.color.copy(new THREE.Color().setHSL((coreHue+0.15)%1,0.7,0.55));
+  core2Mat.color.copy(new THREE.Color().setHSL(coreHue+0.02,0.85,0.6));
   coreLight.color.copy(_coreC);
   coreMat.opacity=0.06+Math.sin(t*0.002)*0.04;
   core2Mat.opacity=0.05+Math.sin(t*0.0025)*0.03;
