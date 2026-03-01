@@ -270,6 +270,53 @@ body {
 }
 .animate-brain-glow { animation: brain-glow 3s ease-in-out infinite; }
 
+/* ─── Chat Message Entry Animation ────────── */
+
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-message-in {
+  animation: message-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Helix Thinking Animation ────────────── */
+
+@keyframes helix-strand-a {
+  0%, 100% { transform: scaleY(0.3); opacity: 0.3; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes helix-strand-b {
+  0%, 100% { transform: scaleY(1); opacity: 1; }
+  50% { transform: scaleY(0.3); opacity: 0.3; }
+}
+
+@keyframes helix-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(0, 212, 255, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(138, 43, 226, 0.4); }
+}
+
+/* ─── Terminal Line Entry ─────────────────── */
+
+@keyframes line-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-line-in {
+  animation: line-in 0.15s ease-out both;
+}
+
 .animate-reveal-up {
   animation: reveal-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

@@ -22,9 +22,16 @@ export function TerminalViewer({ lines, maxLines = 500, fullHeight = false }: Te
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const autoScrollRef = useRef(true);
+  const prevLineCountRef = useRef(0);
 
   // Trim lines to maxLines
   const visibleLines = lines.length > maxLines ? lines.slice(lines.length - maxLines) : lines;
+
+  // Track which lines are "new" for animation
+  const newLineStart = prevLineCountRef.current;
+  useEffect(() => {
+    prevLineCountRef.current = lines.length;
+  }, [lines.length]);
 
   // ── Scroll tracking ─────────────────────────────
 
@@ -38,11 +45,11 @@ export function TerminalViewer({ lines, maxLines = 500, fullHeight = false }: Te
     setIsScrolledUp(!isAtBottom);
   }, []);
 
-  // ── Auto-scroll on new lines ───────────────────
+  // ── Auto-scroll on new lines (smooth) ───────────
 
   useEffect(() => {
     if (autoScrollRef.current && containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [lines.length]);
 
@@ -51,7 +58,7 @@ export function TerminalViewer({ lines, maxLines = 500, fullHeight = false }: Te
   const scrollToBottom = useCallback(() => {
     const el = containerRef.current;
     if (el) {
-      el.scrollTop = el.scrollHeight;
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       autoScrollRef.current = true;
       setIsScrolledUp(false);
     }
@@ -77,8 +84,9 @@ export function TerminalViewer({ lines, maxLines = 500, fullHeight = false }: Te
                   ? lines.length - maxLines + i + 1
                   : i + 1;
 
+                const isNew = i >= newLineStart && newLineStart > 0;
                 return (
-                  <tr key={i} className="hover:bg-white/[0.02]">
+                  <tr key={i} className={`hover:bg-white/[0.02] ${isNew ? 'animate-line-in' : ''}`}>
                     <td className="text-right pr-3 py-0 select-none text-gray-600 w-10 align-top whitespace-nowrap">
                       {lineNum}
                     </td>

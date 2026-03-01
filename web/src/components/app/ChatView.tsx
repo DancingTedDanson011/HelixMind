@@ -75,10 +75,14 @@ export function ChatView({
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const autoScrollRef = useRef(true);
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((instant = false) => {
     const el = containerRef.current;
     if (el) {
-      el.scrollTop = el.scrollHeight;
+      if (instant) {
+        el.scrollTop = el.scrollHeight;
+      } else {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      }
       autoScrollRef.current = true;
       setShowScrollBtn(false);
     }
@@ -224,13 +228,7 @@ export function ChatView({
 
           {/* Streaming indicator */}
           {isAgentRunning && (
-            <div className="flex gap-3">
-              <style>{`
-                @keyframes helixPulse {
-                  0%, 100% { transform: scaleY(0.4); opacity: 0.4; }
-                  50% { transform: scaleY(1); opacity: 1; }
-                }
-              `}</style>
+            <div className="flex gap-3 animate-message-in">
               <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
                 <Bot size={14} className="text-cyan-400" />
               </div>
@@ -238,20 +236,31 @@ export function ChatView({
                 {streamingContent ? (
                   <div className="prose prose-invert prose-sm max-w-none">
                     {streamingContent}
-                    <span className="inline-block w-2 h-4 rounded-sm bg-gradient-to-b from-cyan-400 to-purple-400 animate-pulse ml-0.5" />
+                    <span className="inline-block w-2 h-5 rounded-sm bg-gradient-to-b from-cyan-400 to-purple-400 ml-0.5" style={{ animation: 'helix-glow 1.5s ease-in-out infinite, blink 1s step-end infinite' }} />
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 text-sm text-gray-500">
-                    <div className="flex items-center gap-0.5">
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <span
-                          key={i}
-                          className="w-1 rounded-full bg-gradient-to-t from-cyan-400 to-purple-400"
-                          style={{
-                            height: '12px',
-                            animation: `helixPulse 1.5s ease-in-out ${i * 0.15}s infinite`,
-                          }}
-                        />
+                    {/* Helix DNA thinking animation */}
+                    <div className="flex items-end gap-[2px]">
+                      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="flex flex-col gap-[2px]">
+                          <span
+                            className="w-[3px] rounded-full bg-cyan-400"
+                            style={{
+                              height: '14px',
+                              animation: `helix-strand-a 1.8s ease-in-out ${i * 0.12}s infinite`,
+                              transformOrigin: 'bottom',
+                            }}
+                          />
+                          <span
+                            className="w-[3px] rounded-full bg-purple-400"
+                            style={{
+                              height: '14px',
+                              animation: `helix-strand-b 1.8s ease-in-out ${i * 0.12}s infinite`,
+                              transformOrigin: 'top',
+                            }}
+                          />
+                        </div>
                       ))}
                     </div>
                     <span className="animate-pulse">{t('thinking')}</span>
@@ -266,7 +275,7 @@ export function ChatView({
       {/* Scroll to bottom */}
       {showScrollBtn && (
         <button
-          onClick={scrollToBottom}
+          onClick={() => scrollToBottom()}
           className="absolute bottom-4 right-4 p-2 rounded-full bg-surface/90 border border-white/10 text-gray-400 hover:text-white shadow-lg backdrop-blur-sm transition-all hover:scale-105"
         >
           <ArrowDown size={16} />

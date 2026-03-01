@@ -14,7 +14,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
   if (isUser) {
     return (
-      <div className="flex gap-3 justify-end">
+      <div className="flex gap-3 justify-end animate-message-in">
         <div className="max-w-[80%] min-w-0">
           <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl rounded-tr-md px-4 py-2.5 text-sm text-gray-200 whitespace-pre-wrap break-words">
             {message.content}
@@ -29,7 +29,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
   // Assistant message — parse for code blocks and tool calls
   return (
-    <div className="flex gap-3">
+    <div className="flex gap-3 animate-message-in">
       <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
         <Bot size={14} className="text-cyan-400" />
       </div>
