@@ -41,42 +41,22 @@ export async function requireAuth(): Promise<ConfigStore> {
     return store;
   }
 
-  // ─── Choice Screen ─────────────────────────────────────────
+  // ─── Choice Screen (compact side-by-side) ──────────────────
   w('\n');
-  w(d('  ╭────────────────────────────────────────────────────────────╮') + '\n');
-  w(d('  │  ') + p('🌀 Welcome to HelixMind') + d('                                   │') + '\n');
-  w(d('  │                                                            │') + '\n');
-
-  // Option 1: Login (FREE+) — the recommended choice
-  w(d('  │  ') + g('★') + chalk.white.bold(' [1] Login') + d(' — free, unlock everything') + d('                   │') + '\n');
-  w(d('  │                                                            │') + '\n');
-  w(d('  │      ') + g('✓') + ' Jarvis AGI' + d(' — autonomous coding agent              │') + '\n');
-  w(d('  │      ') + g('✓') + ' Validation Matrix' + d(' — auto-checks your code          │') + '\n');
-  w(d('  │      ') + g('✓') + ' Security Monitor' + d(' — continuous vulnerability scan   │') + '\n');
-  w(d('  │      ') + g('✓') + ' Autonomous Mode' + d(' — finds & fixes issues on its own  │') + '\n');
-  w(d('  │      ') + g('✓') + ' 3D Brain Management' + d(' — visualize your knowledge      │') + '\n');
-  w(d('  │      ') + g('✓') + ' 3 Brains' + d(' (1 global + 2 local)                      │') + '\n');
-  w(d('  │      ') + g('✓') + ' Live Brain WebSocket' + d(' — real-time visualization      │') + '\n');
-  w(d('  │                                                            │') + '\n');
-  w(d('  │      ') + dim('One-time setup — works offline afterwards.') + d('        │') + '\n');
-  w(d('  │      ') + dim('No credit card. No trial. Free forever.') + d('           │') + '\n');
-  w(d('  │                                                            │') + '\n');
-
-  // Divider
-  w(d('  │  ') + d('──────────────────────────────────────────────────────') + d('  │') + '\n');
-  w(d('  │                                                            │') + '\n');
-
-  // Option 2: Open Source — limited but functional
-  w(d('  │  ') + chalk.white.bold('  [2] Open Source') + d(' — no account needed') + d('                    │') + '\n');
-  w(d('  │                                                            │') + '\n');
-  w(d('  │      ') + dim('✓ AI Agent + 22 Tools') + d('                                │') + '\n');
-  w(d('  │      ') + dim('✓ Spiral Memory (1 local brain)') + d('                      │') + '\n');
-  w(d('  │      ') + dim('✓ All providers (Anthropic/OpenAI/Ollama)') + d('             │') + '\n');
-  w(d('  │                                                            │') + '\n');
-  w(d('  │      ') + chalk.red('✗') + dim(' No Jarvis · No Validation · No Monitor') + d('          │') + '\n');
-  w(d('  │      ') + chalk.red('✗') + dim(' No Brain Management · No Security Audit') + d('         │') + '\n');
-  w(d('  │                                                            │') + '\n');
-  w(d('  ╰────────────────────────────────────────────────────────────╯') + '\n\n');
+  w(d('  ╭' + '─'.repeat(76) + '╮') + '\n');
+  w(d('  │  ') + p('🌀 Welcome to HelixMind') + d(' '.repeat(51) + '│') + '\n');
+  w(d('  │' + ' '.repeat(76) + '│') + '\n');
+  w(d('  │  ') + g('★') + chalk.white.bold(' [1] Login') + d(' — free, unlock everything') + '  ' + chalk.white.bold('[2] Open Source') + d(' '.repeat(19) + '│') + '\n');
+  w(d('  │' + ' '.repeat(76) + '│') + '\n');
+  w(d('  │    ') + g('✓') + ' Jarvis AGI' + ' '.repeat(26) + dim('✓ AI Agent + 22 Tools') + d(' '.repeat(13) + '│') + '\n');
+  w(d('  │    ') + g('✓') + ' Validation Matrix' + ' '.repeat(19) + dim('✓ Spiral Memory') + d(' '.repeat(19) + '│') + '\n');
+  w(d('  │    ') + g('✓') + ' Security Monitor' + ' '.repeat(20) + dim('✓ Anthropic/OpenAI/Ollama') + d(' '.repeat(9) + '│') + '\n');
+  w(d('  │    ') + g('✓') + ' Autonomous Mode' + ' '.repeat(21) + chalk.red('✗') + dim(' No Jarvis · No Validation') + d(' '.repeat(7) + '│') + '\n');
+  w(d('  │    ') + g('✓') + ' 3D Brain Management' + ' '.repeat(17) + chalk.red('✗') + dim(' No Monitor · No Security Audit') + d(' '.repeat(2) + '│') + '\n');
+  w(d('  │    ') + g('✓') + ' 3 Brains · Live Brain WebSocket' + ' '.repeat(5) + chalk.red('✗') + dim(' No Brain Management') + d(' '.repeat(13) + '│') + '\n');
+  w(d('  │' + ' '.repeat(76) + '│') + '\n');
+  w(d('  │    ') + dim('No credit card · Free forever · works offline') + d(' '.repeat(27) + '│') + '\n');
+  w(d('  ╰' + '─'.repeat(76) + '╯') + '\n\n');
 
   const choice = await promptChoice();
 
