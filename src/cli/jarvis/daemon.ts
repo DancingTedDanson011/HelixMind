@@ -92,8 +92,23 @@ function extractResult(text: string): { success: boolean; summary: string } {
   return { success: true, summary: last.length > 200 ? last.slice(0, 197) + '...' : last };
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * Abortable sleep — resolves after `ms` or immediately when `isAborted()` returns true.
+ * Checks abort flag every 500ms so ESC response is near-instant.
+ */
+function abortableSleep(ms: number, isAborted: () => boolean): Promise<void> {
+  return new Promise(resolve => {
+    if (isAborted()) { resolve(); return; }
+    const interval = 500;
+    let elapsed = 0;
+    const timer = setInterval(() => {
+      elapsed += interval;
+      if (isAborted() || elapsed >= ms) {
+        clearInterval(timer);
+        resolve();
+      }
+    }, interval);
+  });
 }
 
 export async function runJarvisDaemon(
@@ -129,7 +144,7 @@ export async function runJarvisDaemon(
   while (!callbacks.isAborted()) {
     // Handle pause
     if (callbacks.isPaused()) {
-      await sleep(2000);
+      await abortableSleep(2000, callbacks.isAborted);
       continue;
     }
 
@@ -145,10 +160,10 @@ export async function runJarvisDaemon(
           );
         } catch {
           // Thinking loop error — fall back to simple idle
-          await sleep(30_000);
+          await abortableSleep(30_000, callbacks.isAborted);
         }
       } else {
-        await sleep(30_000);
+        await abortableSleep(30_000, callbacks.isAborted);
       }
       continue;
     }

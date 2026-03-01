@@ -1664,6 +1664,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           sessionMgr.abortAll();
           autonomousMode = false;
 
+          // Stop Jarvis daemon if running
+          if (jarvisDaemonSession && jarvisDaemonSession.status === 'running') {
+            jarvisDaemonSession.abort();
+            jarvisDaemonSession = null;
+            jarvisQueue.setDaemonState('stopped');
+            jarvisPaused = false;
+          }
+
           // Clear type-ahead buffer to prevent agent restarting after abort
           typeAheadBuffer.length = 0;
 
@@ -3066,17 +3074,46 @@ async function handleSlashCommand(
   let cmd = parts[0].toLowerCase();
 
   // ─── Feature Gate Helper ─────────────────────────────────
-  // Shows a login-or-upgrade prompt when a gated feature is used.
-  const gateCheck = (feature: Feature, label: string): boolean => {
+  // Shows a login prompt when a gated feature is used.
+  // If user picks [1], triggers inline login and returns true on success.
+  const gateCheck = async (feature: Feature, label: string): Promise<boolean> => {
     if (isFeatureAvailable(store, feature)) return true;
     process.stdout.write('\n');
     process.stdout.write(chalk.dim('  ╭──────────────────────────────────────────────────╮') + '\n');
     process.stdout.write(chalk.dim('  │  ') + theme.primary(`🔒 ${label}`) + chalk.dim(' requires login'.padEnd(48 - label.length - 4)) + chalk.dim('│') + '\n');
     process.stdout.write(chalk.dim('  │                                                  │') + '\n');
-    process.stdout.write(chalk.dim('  │  ') + chalk.white('[1]') + ' Run ' + chalk.white('helixmind login') + chalk.dim(' to unlock (free)      │') + '\n');
+    process.stdout.write(chalk.dim('  │  ') + chalk.white('[1]') + ' Login now' + chalk.dim(' (free, unlocks everything)    │') + '\n');
     process.stdout.write(chalk.dim('  │  ') + chalk.white('[2]') + ' Continue in Open Source mode' + chalk.dim('             │') + '\n');
-    process.stdout.write(chalk.dim('  │      ') + chalk.gray('Full agent · 22 Tools · Spiral Memory') + chalk.dim('   │') + '\n');
-    process.stdout.write(chalk.dim('  ╰──────────────────────────────────────────────────╯') + '\n\n');
+    process.stdout.write(chalk.dim('  ╰──────────────────────────────────────────────────╯') + '\n');
+
+    // Capture choice inline — pause main readline so we can prompt
+    const choice = await new Promise<string>((resolve) => {
+      const gateRl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      gateRl.question(chalk.dim('  ') + chalk.green('→') + ' ' + chalk.white.bold('[1]') + chalk.dim('/2: '), (answer) => {
+        gateRl.close();
+        resolve(answer.trim());
+      });
+    });
+
+    if (choice === '1') {
+      const { loginFlow } = await import('../auth/login.js');
+      const loggedIn = await loginFlow(store, {});
+      if (loggedIn) {
+        try {
+          const { refreshPlanInfo } = await import('../auth/feature-gate.js');
+          await refreshPlanInfo(store);
+        } catch { /* offline */ }
+        // Refresh blocked commands
+        const stillBlocked: string[] = [];
+        if (!isFeatureAvailable(store, 'jarvis')) stillBlocked.push('/jarvis');
+        if (!isFeatureAvailable(store, 'monitor')) stillBlocked.push('/auto', '/security', '/monitor');
+        if (!isFeatureAvailable(store, 'validation_basic')) stillBlocked.push('/validation');
+        setBlockedCommands(stillBlocked);
+        // Re-check if the specific feature is now available
+        return isFeatureAvailable(store, feature);
+      }
+    }
+    process.stdout.write('\n');
     return false;
   };
 
@@ -3558,7 +3595,7 @@ async function handleSlashCommand(
     }
 
     case '/validation': {
-      if (!gateCheck('validation_basic', 'Validation Matrix')) break;
+      if (!(await gateCheck('validation_basic', 'Validation Matrix'))) break;
       const vArg = parts[1]?.toLowerCase();
       if (onValidation) {
         onValidation(vArg || 'status');
@@ -3613,8 +3650,22 @@ async function handleSlashCommand(
     }
 
     case '/login': {
-      const { loginCommand } = await import('./auth.js');
-      await loginCommand({});
+      const { loginFlow } = await import('../auth/login.js');
+      const loggedIn = await loginFlow(store, {});
+      if (loggedIn) {
+        // Refresh plan info from server
+        try {
+          const { refreshPlanInfo } = await import('../auth/feature-gate.js');
+          await refreshPlanInfo(store);
+        } catch { /* offline — use cached plan */ }
+        // Unblock gated commands now that user is logged in
+        const stillBlocked: string[] = [];
+        if (!isFeatureAvailable(store, 'jarvis')) stillBlocked.push('/jarvis');
+        if (!isFeatureAvailable(store, 'monitor')) stillBlocked.push('/auto', '/security', '/monitor');
+        if (!isFeatureAvailable(store, 'validation_basic')) stillBlocked.push('/validation');
+        setBlockedCommands(stillBlocked);
+        renderInfo(chalk.green('Login successful') + chalk.dim(' — all features unlocked.'));
+      }
       return 'drain';
     }
 
@@ -3649,7 +3700,7 @@ async function handleSlashCommand(
 
     case '/auto':
     case '/dontstop': {
-      if (!gateCheck('monitor', 'Autonomous Mode')) break;
+      if (!(await gateCheck('monitor', 'Autonomous Mode'))) break;
       if (!onAutonomous) break;
       // Extract goal text after "/auto " (e.g. "/auto fix all TypeScript errors")
       const autoGoal = input.replace(/^\/(auto|dontstop)\s*/i, '').trim() || undefined;
@@ -3687,14 +3738,14 @@ async function handleSlashCommand(
       break;
 
     case '/security':
-      if (!gateCheck('monitor', 'Security Audit')) break;
+      if (!(await gateCheck('monitor', 'Security Audit'))) break;
       if (onAutonomous) {
         await onAutonomous('security');
       }
       break;
 
     case '/jarvis': {
-      if (!gateCheck('jarvis', 'Jarvis AGI')) break;
+      if (!(await gateCheck('jarvis', 'Jarvis AGI'))) break;
       if (!jarvisCtx) { renderInfo('Jarvis not available.'); break; }
       const sub = parts[1]?.toLowerCase();
       const jq = jarvisCtx.queue;
@@ -3867,7 +3918,7 @@ async function handleSlashCommand(
     }
 
     case '/monitor': {
-      if (!gateCheck('monitor', 'Security Monitor')) break;
+      if (!(await gateCheck('monitor', 'Security Monitor'))) break;
       if (!onAutonomous) break;
       const { MONITOR_MODES, MONITOR_WARNINGS } = await import('../agent/autonomous.js');
 
