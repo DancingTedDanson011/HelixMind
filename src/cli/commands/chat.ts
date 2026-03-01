@@ -932,6 +932,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         listJarvisTasks: () => jarvisQueue.getAllTasks().map(serializeJarvisTask),
 
         getJarvisStatus: () => jarvisQueue.getStatus(),
+
+        clearJarvisCompleted: () => jarvisQueue.clearCompleted(),
       });
 
       // Wire bug journal change events to brain server
@@ -1054,6 +1056,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           addJarvisTask: () => ({ id: 0, title: '', description: '', status: 'pending' as const, priority: 'medium' as const, createdAt: Date.now(), updatedAt: Date.now(), retries: 0, maxRetries: 3, tags: [] }),
           listJarvisTasks: () => [],
           getJarvisStatus: () => ({ daemonState: 'stopped' as const, currentTaskId: null, pendingCount: 0, completedCount: 0, failedCount: 0, totalCount: 0, uptimeMs: 0 }),
+          clearJarvisCompleted: () => {},
         }, updateMeta).catch(() => {});
       }
     } catch { /* control protocol optional */ }

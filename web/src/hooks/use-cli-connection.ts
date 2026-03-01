@@ -123,6 +123,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [wsVersion, setWsVersion] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const connectionStateRef = useRef<ConnectionState>('disconnected');
   const mountedRef = useRef(true);
   const pendingRef = useRef<Map<string, PendingRequest>>(new Map());
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -134,6 +135,12 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   // Keep latest params in a ref so callbacks always see current values
   const paramsRef = useRef(params);
   paramsRef.current = params;
+
+  // Wrapper to update both state and ref in sync
+  const updateConnectionState = useCallback((state: ConnectionState) => {
+    connectionStateRef.current = state;
+    updateConnectionState(state);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Internal: cleanup resources
@@ -213,7 +220,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     // Auth responses
     if (msg.type === 'auth_ok') {
       if (mountedRef.current) {
-        setConnectionState('connected');
+        updateConnectionState('connected');
         setError(null);
         reconnectAttemptRef.current = 0;
       }
@@ -222,7 +229,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
 
     if (msg.type === 'auth_fail') {
       if (mountedRef.current) {
-        setConnectionState('error');
+        updateConnectionState('error');
         setError(String(msg.reason ?? 'Authentication failed'));
       }
       return;
@@ -367,7 +374,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     if (m === 'local') {
       if (!p) {
         setError('Port is required for local connections');
-        setConnectionState('error');
+        updateConnectionState('error');
         return;
       }
       url = `ws://127.0.0.1:${p}`;
@@ -375,7 +382,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
       url = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/relay/web`;
     }
 
-    setConnectionState('connecting');
+    updateConnectionState('connecting');
     setError(null);
     intentionalCloseRef.current = false;
 
@@ -387,7 +394,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     ws.onopen = () => {
       if (!mountedRef.current) return;
 
-      setConnectionState('authenticating');
+      updateConnectionState('authenticating');
 
       // Send authentication
       if (m === 'local' && t) {
@@ -422,8 +429,8 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     ws.onclose = () => {
       if (!mountedRef.current) return;
 
-      const wasConnected = connectionState === 'connected';
-      setConnectionState('disconnected');
+      const wasConnected = connectionStateRef.current === 'connected';
+      updateConnectionState('disconnected');
 
       if (!intentionalCloseRef.current) {
         if (wasConnected) {
@@ -446,7 +453,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
 
   const disconnect = useCallback(() => {
     intentionalCloseRef.current = true;
-    setConnectionState('disconnected');
+    updateConnectionState('disconnected');
     setError(null);
     cleanup();
   }, [cleanup]);

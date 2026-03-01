@@ -567,7 +567,6 @@
     "stopAll": "Stop All",
     "abort": "Abort",
     "confirm": "Confirm",
-    "cancel": "Cancel",
     "confirmDisconnect": "Disconnect from this CLI instance?",
     "confirmStopAll": "Stop all running sessions?",
     "autoGoalPlaceholder": "Describe the goal (optional)...",

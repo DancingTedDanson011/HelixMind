@@ -139,6 +139,7 @@ export interface ResumeJarvisRequest extends WSMessage { type: 'resume_jarvis' }
 export interface AddJarvisTaskRequest extends WSMessage { type: 'add_jarvis_task'; title: string; description: string; priority?: 'high' | 'medium' | 'low'; dependencies?: number[]; tags?: string[] }
 export interface ListJarvisTasksRequest extends WSMessage { type: 'list_jarvis_tasks' }
 export interface GetJarvisStatusRequest extends WSMessage { type: 'get_jarvis_status' }
+export interface ClearJarvisCompletedRequest extends WSMessage { type: 'clear_jarvis_completed' }
 
 // --- Responses (CLI → Browser) ---
 export interface SessionsListResponse extends WSMessage { type: 'sessions_list'; sessions: SessionInfo[] }
@@ -210,7 +211,8 @@ export type ControlRequest =
   | ResumeJarvisRequest
   | AddJarvisTaskRequest
   | ListJarvisTasksRequest
-  | GetJarvisStatusRequest;
+  | GetJarvisStatusRequest
+  | ClearJarvisCompletedRequest;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts
@@ -236,6 +238,7 @@ export interface ControlHandlers {
   addJarvisTask(title: string, description: string, opts?: { priority?: JarvisTaskPriority; dependencies?: number[]; tags?: string[] }): JarvisTaskInfo;
   listJarvisTasks(): JarvisTaskInfo[];
   getJarvisStatus(): JarvisStatusInfo;
+  clearJarvisCompleted(): void;
 }
 
 // ---------------------------------------------------------------------------

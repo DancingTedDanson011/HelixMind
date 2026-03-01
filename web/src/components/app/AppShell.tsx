@@ -15,7 +15,7 @@ import type { DiscoveredInstance } from '@/lib/cli-types';
 import {
   Brain, PanelLeftClose, PanelLeft, Menu,
   Wifi, WifiOff, RefreshCw, Terminal,
-  Cpu, Clock, Plug, Shield, Zap, Sparkles,
+  Cpu, Clock, Plug, Shield, Zap,
   AlertTriangle, Activity, X, MessageSquare,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
   Bug, Bot,
@@ -106,6 +106,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const [showBugPanel, setShowBugPanel] = useState(false);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
   const [hasLLMKey, setHasLLMKey] = useState(false);
+  const [pendingExecPrompt, setPendingExecPrompt] = useState<{ prompt: string; chatId: string; mode: 'normal' | 'skip-permissions' } | null>(null);
 
   const brainstormChat = useBrainstormChat();
 
@@ -314,6 +315,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       });
     } catch { /* silent */ }
 
+    setCliExecuting(true);
     cliChat.sendMessage(fixPrompt, chatId, mode);
   }, [activeChatId, isConnected, cliChat, mode, fetchChats, loadChat, activeTab]);
 
@@ -424,6 +426,13 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           setActiveTab('chat');
           return;
         case 'jarvis':
+          if (arg.startsWith('task ')) {
+            const taskTitle = arg.slice(5).replace(/^["']|["']$/g, '').trim();
+            if (taskTitle && isConnected) {
+              connection.addJarvisTask(taskTitle, '', 'medium').catch(() => {});
+              addSystemMessage(`Task added: "${taskTitle}"`);
+            }
+          }
           setActiveTab('jarvis');
           connection.listJarvisTasks().catch(() => {});
           connection.getJarvisStatus().catch(() => {});
@@ -623,11 +632,15 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     if (cliExecuting) {
       cliChat.abort();
       setCliExecuting(false);
+      // Also abort on CLI side
+      if (isConnected) {
+        connection.abortSession('main').catch(() => {});
+      }
     }
     if (brainstormChat.state.isProcessing) {
       brainstormChat.abort();
     }
-  }, [cliExecuting, cliChat, brainstormChat]);
+  }, [cliExecuting, cliChat, brainstormChat, isConnected, connection]);
 
   // ── Create Agent Prompt ─────────────────────
   const handleCreatePrompt = useCallback(async () => {
@@ -700,10 +713,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     setShowInstancePicker(false);
     setMode(execMode);
 
-    // Connect to instance
-    connectTo(instance);
-
-    // Wait for connection then send the agent prompt
     const prompt = activeChat?.agentPrompt;
     if (prompt && activeChatId) {
       // Update chat status
@@ -716,51 +725,44 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         setActiveChat(prev => prev ? { ...prev, status: 'executing' } : null);
       } catch { /* silent */ }
 
-      // Wait a bit for connection to establish, then send
-      const waitForConnection = () => {
-        return new Promise<void>((resolve) => {
-          const check = setInterval(() => {
-            if (connection.connectionState === 'connected') {
-              clearInterval(check);
-              resolve();
-            }
-          }, 200);
-          // Timeout after 10s
-          setTimeout(() => { clearInterval(check); resolve(); }, 10000);
-        });
-      };
-
-      await waitForConnection();
-
-      // Send agent prompt as chat message
-      const userMsg: ChatMessage = {
-        id: `agent-prompt-${Date.now()}`,
-        chatId: activeChatId,
-        role: 'user',
-        content: prompt,
-        metadata: { isAgentPrompt: true },
-        createdAt: new Date().toISOString(),
-      };
-
-      setActiveChat(prev => prev ? {
-        ...prev,
-        messages: [...prev.messages, userMsg],
-      } : null);
-
-      // Save to DB
-      try {
-        await fetch(`/api/chats/${activeChatId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role: 'user', content: prompt, metadata: { isAgentPrompt: true } }),
-        });
-      } catch { /* silent */ }
-
-      // Send to CLI
-      setCliExecuting(true);
-      cliChat.sendMessage(prompt, activeChatId, execMode);
+      // Store pending prompt — will be sent when connection establishes
+      setPendingExecPrompt({ prompt, chatId: activeChatId, mode: execMode });
     }
-  }, [activeChat?.agentPrompt, activeChatId, connectTo, connection.connectionState, cliChat]);
+
+    // Connect to instance (triggers re-render → useEffect below fires)
+    connectTo(instance);
+  }, [activeChat?.agentPrompt, activeChatId, connectTo]);
+
+  // ── Execute pending prompt when connection establishes ──
+  useEffect(() => {
+    if (!pendingExecPrompt || !isConnected) return;
+
+    const { prompt, chatId, mode: execMode } = pendingExecPrompt;
+    setPendingExecPrompt(null);
+
+    const userMsg: ChatMessage = {
+      id: `agent-prompt-${Date.now()}`,
+      chatId,
+      role: 'user',
+      content: prompt,
+      metadata: { isAgentPrompt: true },
+      createdAt: new Date().toISOString(),
+    };
+
+    setActiveChat(prev => prev ? {
+      ...prev,
+      messages: [...prev.messages, userMsg],
+    } : null);
+
+    fetch(`/api/chats/${chatId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'user', content: prompt, metadata: { isAgentPrompt: true } }),
+    }).catch(() => {});
+
+    setCliExecuting(true);
+    cliChat.sendMessage(prompt, chatId, execMode);
+  }, [pendingExecPrompt, isConnected, cliChat]);
 
   // ── Format uptime ────────────────────────────
   const formatUptime = (seconds: number) => {

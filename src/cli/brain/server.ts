@@ -386,6 +386,12 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             sendTo(ws, { type: 'jarvis_status', status, requestId, timestamp: Date.now() });
             break;
           }
+
+          case 'clear_jarvis_completed': {
+            controlHandlers.clearJarvisCompleted();
+            sendTo(ws, { type: 'jarvis_cleared', requestId, timestamp: Date.now() });
+            break;
+          }
         }
       }
 
@@ -546,5 +552,9 @@ function isControlRequest(type: string): boolean {
     'list_sessions', 'start_auto', 'start_security',
     'abort_session', 'subscribe_output', 'unsubscribe_output',
     'send_chat', 'get_findings', 'get_bugs', 'ping',
+    'start_monitor', 'stop_monitor', 'monitor_command', 'approval_response',
+    'start_jarvis', 'stop_jarvis', 'pause_jarvis', 'resume_jarvis',
+    'add_jarvis_task', 'list_jarvis_tasks', 'get_jarvis_status',
+    'clear_jarvis_completed',
   ].includes(type);
 }
