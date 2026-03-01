@@ -56,7 +56,8 @@ import { AutonomyManager } from '../jarvis/autonomy.js';
 import { NotificationManager } from '../jarvis/notifications.js';
 import { SkillManager } from '../jarvis/skills.js';
 import { JarvisTelegramBot, parseTelegramCommand } from '../jarvis/telegram-bot.js';
-import type { ThinkingCallbacks } from '../jarvis/types.js';
+import type { ThinkingCallbacks, MoodAnalysis } from '../jarvis/types.js';
+import { SentimentAnalyzer } from '../jarvis/sentiment.js';
 import { BrowserController } from '../browser/controller.js';
 import { VisionProcessor } from '../browser/vision.js';
 import { classifyTask } from '../validation/classifier.js';
@@ -379,6 +380,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let jarvisAutonomy: AutonomyManager;
   let jarvisNotifications: NotificationManager;
   let jarvisSkills: SkillManager;
+  let jarvisSentiment: SentimentAnalyzer;
   let jarvisTelegramBot: JarvisTelegramBot | null = null;
   let jarvisScope: BrainScope;
   let jarvisDaemonSession: import('../sessions/session.js').Session | null = null;
@@ -510,6 +512,16 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   jarvisNotifications = new NotificationManager(resolveJarvisRoot(jarvisScope));
   jarvisSkills = new SkillManager(resolveJarvisRoot(jarvisScope));
   jarvisSkills.syncRegistry();
+  jarvisSentiment = new SentimentAnalyzer(resolveJarvisRoot(jarvisScope), {
+    onShift: (from, to, frustrationLevel) => {
+      jarvisIdentity.recordEvent({ type: 'sentiment_shift', from, to, frustrationLevel });
+      import('../brain/generator.js').then(mod => {
+        if (mod.isBrainServerRunning?.()) {
+          mod.pushNeuronFired?.('yellow', '#ff6b6b', 'sentiment');
+        }
+      }).catch(() => {});
+    },
+  });
 
   let spiralEngine: any = null;
 
@@ -734,6 +746,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           }
         }).catch(() => {});
       },
+      getMoodAnalysis: () => jarvisSentiment.analyzeMood(),
       captureProjectState: () => jarvisWorldModel.captureProjectState(),
       getScheduledTasks: () => jarvisScheduler.listSchedules().filter(s => s.enabled),
       checkTriggers: (delta) => jarvisTriggers.checkTriggers(delta),
@@ -1193,7 +1206,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 } : undefined,
                 getIdentityName: () => jarvisIdentity.getIdentity().name,
                 getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
-                getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined),
+                getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined, jarvisSentiment.getResponseGuidance() || undefined),
                 thinkingCallbacks: buildThinkingCallbacks(bgSession),
               });
             } catch (err) {
@@ -1912,7 +1925,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Build Jarvis identity context for system prompt injection (when daemon is active)
   function getJarvisContextForPrompt(): string | null {
     if (!jarvisDaemonSession || jarvisDaemonSession.status !== 'running') return null;
-    return jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined);
+    const sentimentGuidance = jarvisSentiment.getResponseGuidance();
+    return jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined, sentimentGuidance || undefined);
   }
 
   // Update statusbar via BottomChrome row 1 (bottom border with embedded status).
@@ -2423,6 +2437,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         {
           queue: jarvisQueue,
           identity: jarvisIdentity,
+          sentiment: jarvisSentiment,
           getScope: () => jarvisScope,
           setScope: (scope: 'project' | 'global') => {
             jarvisScope = scope;
@@ -2436,6 +2451,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             jarvisNotifications = new NotificationManager(newRoot);
             jarvisSkills = new SkillManager(newRoot);
             jarvisSkills.syncRegistry();
+            jarvisSentiment = new SentimentAnalyzer(newRoot, {
+              onShift: (from, to, frustrationLevel) => {
+                jarvisIdentity.recordEvent({ type: 'sentiment_shift', from, to, frustrationLevel });
+              },
+            });
             jarvisAutonomy = new AutonomyManager(jarvisIdentity.getIdentity().autonomyLevel);
           },
           getSession: () => jarvisDaemonSession,
@@ -2515,7 +2535,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   } : undefined,
                   getIdentityName: () => jarvisIdentity.getIdentity().name,
                   getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
-                  getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined),
+                  getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined, jarvisSentiment.getResponseGuidance() || undefined),
                   thinkingCallbacks: buildThinkingCallbacks(bgSession),
                 });
               } catch (err) {
@@ -2559,6 +2579,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     // Track user message in session buffer
     sessionBuffer.addUserMessage(input);
+
+    // Sentiment detection on every user message
+    const sentimentReading = jarvisSentiment.detectSentiment(input);
+    jarvisSentiment.recordReading(sentimentReading);
 
     // Auto-detect bug reports from user messages
     const bugDetection = detectBugReport(input);
@@ -3270,6 +3294,7 @@ async function handleSlashCommand(
     setPaused: (v: boolean) => void;
     startDaemon: () => void;
     identity: JarvisIdentityManager;
+    sentiment: SentimentAnalyzer;
     getScope: () => 'project' | 'global';
     setScope: (scope: 'project' | 'global') => void;
     notifications: NotificationManager;

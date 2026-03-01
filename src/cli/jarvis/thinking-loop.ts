@@ -99,7 +99,23 @@ async function runQuickCheck(
       });
     }
 
-    // 6. Check open bugs
+    // 6. Check user frustration level
+    const mood = callbacks.getMoodAnalysis();
+    if (mood.frustrationLevel > 0.7) {
+      addObservation(state, {
+        type: 'pattern_detected',
+        summary: `User frustration high: ${(mood.frustrationLevel * 100).toFixed(0)}% — mood: ${mood.current}, trend: ${mood.trend}`,
+        severity: 'high',
+      });
+      callbacks.pushEvent('sentiment_detected', {
+        sentiment: mood.current,
+        frustrationLevel: mood.frustrationLevel,
+        trend: mood.trend,
+        timestamp: Date.now(),
+      });
+    }
+
+    // 7. Check open bugs
     if (projectState.openBugs > 0) {
       addObservation(state, {
         type: 'bug_detected',
@@ -146,9 +162,13 @@ async function runMediumCheck(
       .join('\n');
 
     const identity = callbacks.getIdentity();
+    const mood = callbacks.getMoodAnalysis();
+    const moodContext = mood.sessionReadings > 0
+      ? `\nUser mood: ${mood.current} (trend: ${mood.trend}, frustration: ${(mood.frustrationLevel * 100).toFixed(0)}%)`
+      : '';
     const prompt = `You are Jarvis, an autonomous AI assistant analyzing project observations.
 
-Your personality traits: confidence=${identity.traits.confidence.toFixed(2)}, caution=${identity.traits.caution.toFixed(2)}, proactivity=${identity.traits.proactivity.toFixed(2)}
+Your personality traits: confidence=${identity.traits.confidence.toFixed(2)}, caution=${identity.traits.caution.toFixed(2)}, proactivity=${identity.traits.proactivity.toFixed(2)}, empathy=${identity.traits.empathy.toFixed(2)}${moodContext}
 
 Recent observations:
 ${observationList}

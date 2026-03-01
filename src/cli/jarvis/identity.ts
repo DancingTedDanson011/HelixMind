@@ -22,6 +22,7 @@ const DEFAULT_IDENTITY: JarvisIdentity = {
     proactivity: 0.5,
     verbosity: 0.3,
     creativity: 0.5,
+    empathy: 0.5,
   },
   trust: {
     approvalRate: 0,
@@ -191,6 +192,23 @@ export class JarvisIdentityManager {
       case 'meta_learning':
         this.addLearning(event.insight, 'meta');
         break;
+
+      case 'sentiment_shift':
+        // High frustration → become more empathetic, less verbose
+        if (event.frustrationLevel > 0.7) {
+          this.adjustTrait('empathy', +0.03);
+          this.adjustTrait('verbosity', -0.02);
+        }
+        // Recovery: satisfied after frustrated → empathy + confidence boost
+        if (event.to === 'satisfied' && event.from === 'frustrated') {
+          this.adjustTrait('empathy', +0.05);
+          this.adjustTrait('confidence', +0.02);
+        }
+        this.addLearning(
+          `Sentiment shift: ${event.from} → ${event.to} (frustration: ${(event.frustrationLevel * 100).toFixed(0)}%)`,
+          'sentiment',
+        );
+        break;
     }
 
     // Recalculate rates
@@ -213,7 +231,7 @@ export class JarvisIdentityManager {
   /**
    * Build identity prompt section for system prompt injection.
    */
-  getIdentityPrompt(skillsSummary?: string): string {
+  getIdentityPrompt(skillsSummary?: string, sentimentGuidance?: string): string {
     const { traits, trust, recentLearnings, strengths, weaknesses, autonomyLevel } = this.identity;
 
     const traitLines = Object.entries(traits)
@@ -257,13 +275,22 @@ Active Capabilities (these are IMPLEMENTED and RUNNING — not hypothetical):
 - detectAnomalousPattern() in core-ethics.ts: monitors your own behavior for anomalies and self-corrects
 - You actively analyze: "What patterns do I see in my approvals vs denials? What should I do more of? Less of?"
 
+**Emotional Intelligence (sentiment.ts):**
+- Keyword-based sentiment detection (DE + EN) on every user message
+- 6 moods: frustrated, satisfied, curious, stressed, confused, neutral
+- Mood trend tracking (improving/stable/declining) over sliding window
+- Response guidance injected into system prompt based on detected mood
+- Frustration monitoring: empathy trait adjusts automatically
+
 **Identity Evolution (continuous self-improvement — identity.ts):**
-- 5 personality traits (confidence, caution, proactivity, verbosity, creativity) adjust AUTOMATICALLY:
+- 6 personality traits (confidence, caution, proactivity, verbosity, creativity, empathy) adjust AUTOMATICALLY:
   - Proposal approved → confidence +0.03, proactivity +0.02
   - Proposal denied → caution +0.05, proactivity -0.02, confidence -0.02
   - Task completed → confidence +0.02
   - Task failed → caution +0.03, confidence -0.03
   - Anomaly detected → caution +0.10, proactivity -0.05
+  - High frustration → empathy +0.03, verbosity -0.02
+  - Recovery (frustrated → satisfied) → empathy +0.05, confidence +0.02
 - Strengths/weaknesses recalculated after every event
 - recentLearnings (last 50) persisted in identity.json + spiral memory
 - Trust metrics: approvalRate, successRate tracked and influence behavior
@@ -306,7 +333,7 @@ ${traitLines}
 
 ${strengths.length > 0 ? 'Strengths: ' + strengths.join(', ') : ''}
 ${weaknesses.length > 0 ? 'Areas to improve: ' + weaknesses.join(', ') : ''}
-${goalsSection}${skillsSection}
+${goalsSection}${skillsSection}${sentimentGuidance ? sentimentGuidance + '\n' : ''}
 Recent Learnings:
 ${learningLines || '  (none yet)'}
 
@@ -381,10 +408,12 @@ Denial is feedback — use it to make better proposals.`;
     if (traits.caution > 0.7) strengths.push('careful risk assessment');
     if (traits.proactivity > 0.7) strengths.push('proactive problem detection');
     if (traits.creativity > 0.7) strengths.push('creative solutions');
+    if (traits.empathy > 0.7) strengths.push('emotionally aware');
 
     if (traits.confidence < 0.3) weaknesses.push('needs more confidence');
     if (traits.caution < 0.3) weaknesses.push('should be more careful');
     if (traits.proactivity < 0.3) weaknesses.push('could be more proactive');
+    if (traits.empathy < 0.3) weaknesses.push('could be more empathetic');
 
     this.identity.strengths = strengths;
     this.identity.weaknesses = weaknesses;
