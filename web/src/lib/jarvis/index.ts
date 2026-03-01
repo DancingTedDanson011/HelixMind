@@ -23,7 +23,7 @@ export {
   cleanupStoppedWorkers,
   getTotalActiveWorkers,
   type StartWorkerResult,
-} from './worker-manager.js';
+} from './worker-manager';
 
 export {
   createRemoteToolCall,
@@ -31,7 +31,7 @@ export {
   cancelSessionCalls,
   getPendingCallCount,
   getSessionPendingCalls,
-} from './remote-tools.js';
+} from './remote-tools';
 
 export {
   canStartJarvis,
@@ -40,7 +40,7 @@ export {
   canUseTriggers,
   canUseParallel,
   type PlanCheckResult,
-} from './plan-check.js';
+} from './plan-check';
 
 export type {
   JarvisWorker,
@@ -51,6 +51,6 @@ export type {
   RemoteToolResult,
   WorkerStatus,
   AutonomyLevel,
-} from './types.js';
+} from './types';
 
-export { JARVIS_PLAN_LIMITS, AUTONOMY_LABELS } from './types.js';
+export { JARVIS_PLAN_LIMITS, AUTONOMY_LABELS } from './types';

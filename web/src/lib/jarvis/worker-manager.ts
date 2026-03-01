@@ -4,8 +4,8 @@
  * Workers run the Jarvis LLM loop server-side and proxy tool calls to the CLI.
  */
 import { randomUUID } from 'crypto';
-import { canStartJarvis } from './plan-check.js';
-import type { JarvisWorker, WorkerStatus, AutonomyLevel, JarvisTask } from './types.js';
+import { canStartJarvis } from './plan-check';
+import type { JarvisWorker, WorkerStatus, AutonomyLevel, JarvisTask } from './types';
 
 // ---------------------------------------------------------------------------
 // In-Memory Worker Pool (will be DB-backed in production)

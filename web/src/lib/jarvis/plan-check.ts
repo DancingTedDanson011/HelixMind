@@ -2,7 +2,7 @@
  * Plan Check — Validates whether a user can start/use Jarvis features
  * based on their subscription plan.
  */
-import { JARVIS_PLAN_LIMITS, type JarvisPlanLimits } from './types.js';
+import { JARVIS_PLAN_LIMITS, type JarvisPlanLimits } from './types';
 
 export interface PlanCheckResult {
   allowed: boolean;

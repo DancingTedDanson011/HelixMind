@@ -11,7 +11,7 @@
  * This module manages the pending tool call queue and resolution.
  */
 import { randomUUID } from 'crypto';
-import type { RemoteToolCall, RemoteToolResult } from './types.js';
+import type { RemoteToolCall, RemoteToolResult } from './types';
 
 // ---------------------------------------------------------------------------
 // Pending Tool Calls
