@@ -33,7 +33,7 @@ export class SessionBuffer {
 
   /** Topics already covered — prevents repetitive responses */
   private topicsCovered: string[] = [];
-  private static readonly MAX_TOPICS = 15;
+  private static readonly MAX_TOPICS = 25;
 
   addUserMessage(message: string): void {
     this.push({
@@ -69,7 +69,7 @@ export class SessionBuffer {
   addAssistantSummary(text: string): void {
     this.push({
       type: 'assistant_summary',
-      summary: text.length > 300 ? text.slice(0, 300) + '...' : text,
+      summary: text.length > 500 ? text.slice(0, 500) + '...' : text,
       timestamp: Date.now(),
     });
   }
@@ -175,7 +175,7 @@ export class SessionBuffer {
     // Recent assistant summaries (last 3)
     const recentAssistant = this.events
       .filter(e => e.type === 'assistant_summary')
-      .slice(-3);
+      .slice(-5);
     if (recentAssistant.length > 0) {
       lines.push('\nRecent responses:');
       for (const ev of recentAssistant) {
@@ -361,7 +361,7 @@ export class SessionBuffer {
 }
 
 /**
- * Extract a concise topic summary (max ~80 chars) from an assistant response.
+ * Extract a concise topic summary (max ~150 chars) from an assistant response.
  * Uses heuristics: first sentence, heading, or key phrase extraction.
  */
 function extractTopic(text: string): string | null {
@@ -390,14 +390,14 @@ function extractTopic(text: string): string | null {
     const isSkip = skipPhrases.some(p => p.test(sentence));
     if (isSkip) continue;
 
-    // Found a meaningful sentence — truncate to ~80 chars
-    if (sentence.length <= 80) return sentence;
+    // Found a meaningful sentence — truncate to ~150 chars
+    if (sentence.length <= 150) return sentence;
     // Cut at word boundary
-    const cut = sentence.slice(0, 80).replace(/\s+\S*$/, '');
-    return cut || sentence.slice(0, 80);
+    const cut = sentence.slice(0, 150).replace(/\s+\S*$/, '');
+    return cut || sentence.slice(0, 150);
   }
 
   // Fallback: use first 80 chars of cleaned text
-  const fallback = clean.slice(0, 80).replace(/\s+\S*$/, '');
+  const fallback = clean.slice(0, 150).replace(/\s+\S*$/, '');
   return fallback || null;
 }

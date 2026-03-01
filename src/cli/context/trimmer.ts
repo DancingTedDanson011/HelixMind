@@ -55,7 +55,7 @@ export function trimConversation(
   }
 
   // Minimum messages to keep (current user message + some context)
-  const minKeep = Math.min(6, history.length);
+  const minKeep = Math.min(10, history.length);
 
   // Binary search for how many messages to drop from the front
   let dropCount = 0;
@@ -143,7 +143,7 @@ function summarizeDropped(dropped: ToolMessage[], sessionBuffer: SessionBuffer):
       const text = msg.content.trim();
       if (text.length > 30) {
         // Save a condensed decision
-        sessionBuffer.addDecision(text.slice(0, 300));
+        sessionBuffer.addDecision(text.slice(0, 500));
         // Also extract topic so the model knows what was already discussed
         sessionBuffer.addTopicFromResponse(text);
       }

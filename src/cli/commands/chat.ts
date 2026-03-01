@@ -2948,7 +2948,12 @@ async function sendAgentMessage(
 
   if (spiralEngine) {
     try {
-      spiralContext = await spiralEngine.query(input, config.spiral.maxTokensBudget);
+      // Cap spiral budget to 15% of model context (prevents flooding small-context models)
+      const spiralBudget = Math.min(
+        config.spiral.maxTokensBudget,
+        Math.floor(provider.maxContextLength * 0.15),
+      );
+      spiralContext = await spiralEngine.query(input, spiralBudget);
     } catch {
       // Spiral query failed, continue without
     }
@@ -2970,6 +2975,16 @@ async function sendAgentMessage(
   const systemTokens = estimateTokens([{ role: 'user', content: systemPrompt }]);
   const maxBudget = Math.floor(provider.maxContextLength * 0.85) - systemTokens;
   trimConversation(agentHistory, maxBudget, sessionBuffer);
+
+  // Inject anti-repetition hint into the user message itself (weak models respect
+  // user content more than system instructions like deepseek-reasoner)
+  const coveredTopics = sessionBuffer.getTopicsCovered();
+  if (coveredTopics.length > 0) {
+    const last = agentHistory[agentHistory.length - 1];
+    if (last?.role === 'user' && typeof last.content === 'string') {
+      last.content += `\n\n[Context: You already covered: ${coveredTopics.slice(-8).join('; ')}. Build on prior answers, don't restart.]`;
+    }
+  }
 
   // Start the glowing activity indicator (reserves bottom row via scroll region)
   activity.start();

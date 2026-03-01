@@ -21,6 +21,12 @@ describe('trimConversation', () => {
       { role: 'assistant', content: 'D'.repeat(200) },
       { role: 'user', content: 'E'.repeat(200) },
       { role: 'assistant', content: 'F'.repeat(200) },
+      { role: 'user', content: 'G'.repeat(200) },
+      { role: 'assistant', content: 'H'.repeat(200) },
+      { role: 'user', content: 'I'.repeat(200) },
+      { role: 'assistant', content: 'J'.repeat(200) },
+      { role: 'user', content: 'K'.repeat(200) },
+      { role: 'assistant', content: 'L'.repeat(200) },
       { role: 'user', content: 'Recent question' },
       { role: 'assistant', content: 'Recent answer' },
     ];
@@ -51,11 +57,17 @@ describe('trimConversation', () => {
           { type: 'tool_result', tool_use_id: 'toolu_abc', content: 'file1.ts\nfile2.ts' },
         ],
       },  // 2: user with tool_result (paired with index 1)
-      { role: 'assistant', content: 'D'.repeat(200) },  // 3: assistant text
-      { role: 'user', content: 'E'.repeat(200) },       // 4: user text
-      { role: 'assistant', content: 'F'.repeat(200) },   // 5: assistant text
-      { role: 'user', content: 'Recent question' },      // 6: recent
-      { role: 'assistant', content: 'Recent answer' },    // 7: recent
+      { role: 'assistant', content: 'D'.repeat(200) },  // 3
+      { role: 'user', content: 'E'.repeat(200) },       // 4
+      { role: 'assistant', content: 'F'.repeat(200) },   // 5
+      { role: 'user', content: 'G'.repeat(200) },        // 6
+      { role: 'assistant', content: 'H'.repeat(200) },   // 7
+      { role: 'user', content: 'I'.repeat(200) },        // 8
+      { role: 'assistant', content: 'J'.repeat(200) },   // 9
+      { role: 'user', content: 'K'.repeat(200) },        // 10
+      { role: 'assistant', content: 'L'.repeat(200) },   // 11
+      { role: 'user', content: 'Recent question' },      // 12: recent
+      { role: 'assistant', content: 'Recent answer' },    // 13: recent
     ];
 
     const dropped = trimConversation(history, 800);
@@ -107,6 +119,12 @@ describe('trimConversation', () => {
         content: [{ type: 'tool_result', tool_use_id: 'toolu_2', content: 'content b' }],
       },
       { role: 'assistant', content: 'Final answer' },
+      { role: 'user', content: 'G'.repeat(200) },
+      { role: 'assistant', content: 'H'.repeat(200) },
+      { role: 'user', content: 'I'.repeat(200) },
+      { role: 'assistant', content: 'J'.repeat(200) },
+      { role: 'user', content: 'K'.repeat(200) },
+      { role: 'assistant', content: 'L'.repeat(200) },
       { role: 'user', content: 'Next question' },
       { role: 'assistant', content: 'Next answer' },
     ];

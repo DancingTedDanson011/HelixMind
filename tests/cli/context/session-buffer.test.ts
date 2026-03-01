@@ -150,7 +150,7 @@ describe('SessionBuffer', () => {
           `Unique topic number ${i}: explanation about completely different subject matter ${i * 1000}`,
         );
       }
-      expect(buffer.getTopicsCovered().length).toBeLessThanOrEqual(15);
+      expect(buffer.getTopicsCovered().length).toBeLessThanOrEqual(25);
     });
   });
 });

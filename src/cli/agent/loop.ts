@@ -313,8 +313,13 @@ export async function runAgentLoop(
 
           if (stepStatus === 'done') consecutiveErrors = 0;
 
-          // Store in spiral (fire-and-forget)
-          if (toolContext.spiralEngine) {
+          // Store in spiral (fire-and-forget) — skip read-only tools to reduce noise
+          const readOnlyTools = new Set([
+            'read_file', 'search_files', 'find_files', 'list_directory',
+            'git_status', 'git_log', 'git_diff', 'spiral_query',
+            'bug_list', 'browser_screenshot',
+          ]);
+          if (toolContext.spiralEngine && !readOnlyTools.has(block.name)) {
             const insight = `Tool ${block.name}: ${JSON.stringify(block.input).slice(0, 200)}`;
             toolContext.spiralEngine.store(insight, 'code', { tags: ['tool_use', block.name] }).catch(() => {});
           }

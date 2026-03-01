@@ -110,7 +110,12 @@ export async function handleWebChat(
 
     if (spiralEngine) {
       try {
-        spiralContext = await spiralEngine.query(text, config.spiral?.maxTokensBudget);
+        // Cap spiral budget to 15% of model context (prevents flooding small-context models)
+        const spiralBudget = Math.min(
+          config.spiral?.maxTokensBudget ?? 40000,
+          Math.floor(provider.maxContextLength * 0.15),
+        );
+        spiralContext = await spiralEngine.query(text, spiralBudget);
       } catch { /* continue without spiral */ }
     }
 
