@@ -10,6 +10,27 @@ import type { ChatMessage } from './AppShell';
 import type { ActiveTool } from '@/hooks/use-cli-chat';
 import type { BugInfo } from '@/lib/cli-types';
 
+/* ─── Tool display helpers ────────────────────── */
+
+function toolLabel(name: string): string {
+  const labels: Record<string, string> = {
+    read_file: 'Reading', write_file: 'Writing', edit_file: 'Editing',
+    run_command: 'Running', search_files: 'Searching', find_files: 'Finding',
+    list_dir: 'Listing', web_research: 'Researching', git_status: 'Git Status',
+    git_diff: 'Git Diff', git_commit: 'Committing',
+  };
+  return labels[name] || name;
+}
+
+function toolDetail(tool: ActiveTool): string | null {
+  const input = tool.toolInput;
+  if (input?.path) return String(input.path);
+  if (input?.command) return String(input.command).slice(0, 100);
+  if (input?.query) return `"${String(input.query)}"`;
+  if (input?.pattern) return String(input.pattern);
+  return null;
+}
+
 interface ChatViewProps {
   messages: ChatMessage[];
   isAgentRunning: boolean;
@@ -176,25 +197,25 @@ export function ChatView({
               {activeTools.map((tool) => (
                 <div
                   key={tool.stepNum}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-xs"
+                  className="flex flex-col gap-0.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 text-xs"
                 >
-                  {tool.status === 'running' ? (
-                    <Loader2 size={12} className="text-cyan-400 animate-spin flex-shrink-0" />
-                  ) : tool.status === 'done' ? (
-                    <CheckCircle2 size={12} className="text-emerald-400 flex-shrink-0" />
-                  ) : (
-                    <XCircle size={12} className="text-red-400 flex-shrink-0" />
-                  )}
-                  <span className="text-gray-400 font-mono">{tool.toolName}</span>
-                  {tool.toolInput?.path != null && (
-                    <span className="text-gray-600 truncate max-w-[200px]">
-                      {String(tool.toolInput.path)}
-                    </span>
-                  )}
-                  {tool.status !== 'running' && tool.result != null && (
-                    <span className="text-gray-600 truncate max-w-[300px] ml-auto">
-                      {String(tool.result).slice(0, 80)}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    {tool.status === 'running' ? (
+                      <Loader2 size={12} className="text-cyan-400 animate-spin flex-shrink-0" />
+                    ) : tool.status === 'done' ? (
+                      <CheckCircle2 size={12} className="text-emerald-400 flex-shrink-0" />
+                    ) : (
+                      <XCircle size={12} className="text-red-400 flex-shrink-0" />
+                    )}
+                    <span className="text-cyan-400 font-medium">{toolLabel(tool.toolName)}</span>
+                    {toolDetail(tool) && (
+                      <span className="text-gray-500 font-mono truncate max-w-[300px]">{toolDetail(tool)}</span>
+                    )}
+                  </div>
+                  {tool.status !== 'running' && tool.result && (
+                    <div className="text-gray-600 text-[11px] pl-5 truncate max-w-full">
+                      {String(tool.result).slice(0, 150)}
+                    </div>
                   )}
                 </div>
               ))}
@@ -204,6 +225,12 @@ export function ChatView({
           {/* Streaming indicator */}
           {isAgentRunning && (
             <div className="flex gap-3">
+              <style>{`
+                @keyframes helixPulse {
+                  0%, 100% { transform: scaleY(0.4); opacity: 0.4; }
+                  50% { transform: scaleY(1); opacity: 1; }
+                }
+              `}</style>
               <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
                 <Bot size={14} className="text-cyan-400" />
               </div>
@@ -211,16 +238,23 @@ export function ChatView({
                 {streamingContent ? (
                   <div className="prose prose-invert prose-sm max-w-none">
                     {streamingContent}
-                    <span className="inline-block w-2 h-4 bg-cyan-400 animate-pulse ml-0.5" />
+                    <span className="inline-block w-2 h-4 rounded-sm bg-gradient-to-b from-cyan-400 to-purple-400 animate-pulse ml-0.5" />
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="flex items-center gap-3 text-sm text-gray-500">
+                    <div className="flex items-center gap-0.5">
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <span
+                          key={i}
+                          className="w-1 rounded-full bg-gradient-to-t from-cyan-400 to-purple-400"
+                          style={{
+                            height: '12px',
+                            animation: `helixPulse 1.5s ease-in-out ${i * 0.15}s infinite`,
+                          }}
+                        />
+                      ))}
                     </div>
-                    {t('thinking')}
+                    <span className="animate-pulse">{t('thinking')}</span>
                   </div>
                 )}
               </div>

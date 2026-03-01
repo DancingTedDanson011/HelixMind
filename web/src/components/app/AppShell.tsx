@@ -18,8 +18,9 @@ import {
   Cpu, Clock, Plug, Shield, Zap, Sparkles,
   AlertTriangle, Activity, X, MessageSquare,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
-  Bug,
+  Bug, Bot,
 } from 'lucide-react';
+import { JarvisPanel } from '@/components/jarvis/JarvisPanel';
 
 /* ─── Types ───────────────────────────────────── */
 
@@ -51,6 +52,14 @@ export interface ChatFull {
   messages: ChatMessage[];
 }
 
+/* ─── Session tab assignment helper ──────────── */
+
+function getSessionTab(name: string): 'console' | 'monitor' {
+  const lower = name.toLowerCase();
+  if (lower.includes('monitor')) return 'monitor';
+  return 'console'; // auto, security, jarvis, etc. → Console
+}
+
 /* ─── Session icon helper ────────────────────── */
 
 function SessionIcon({ name, size = 12, className = '' }: { name: string; size?: number; className?: string }) {
@@ -58,6 +67,7 @@ function SessionIcon({ name, size = 12, className = '' }: { name: string; size?:
   if (lower.includes('security') || lower.includes('audit')) return <Shield size={size} className={className} />;
   if (lower.includes('auto')) return <Zap size={size} className={className} />;
   if (lower.includes('monitor')) return <Activity size={size} className={className} />;
+  if (lower.includes('jarvis')) return <Bot size={size} className={className} />;
   return <MessageSquare size={size} className={className} />;
 }
 
@@ -88,8 +98,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     }
   }, []);
   const [mode, setMode] = useState<'normal' | 'skip-permissions'>('normal');
-  const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor'>(
-    (initialTab === 'console' || initialTab === 'monitor') ? initialTab : 'chat'
+  const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor' | 'jarvis'>(
+    (initialTab === 'console' || initialTab === 'monitor' || initialTab === 'jarvis') ? initialTab as any : 'chat'
   );
   const [consoleSessionId, setConsoleSessionId] = useState<string | null>(initialSession || null);
   const [showInstancePicker, setShowInstancePicker] = useState(false);
@@ -202,6 +212,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const recentFindings = connection.findings.slice(-5);
   const threatCount = connection.threats.length;
 
+  // ── Sessions filtered by tab type ──
+  const consoleSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name) === 'console');
+  const monitorSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name) === 'monitor');
+
   // ── Session actions ───────────────────────────
   const handleStartAuto = useCallback((goal?: string) => {
     connection.startAuto(goal).catch(() => {});
@@ -224,22 +238,40 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     window.open('/brain.html', 'helix-brain', 'width=1200,height=800,menubar=no,toolbar=no');
   }, []);
 
-  // ── Auto-select first non-main session for console ─────
+  // ── Auto-select first console-type session for console tab ─────
   useEffect(() => {
     if (activeTab === 'console' && !consoleSessionId) {
-      const nonMain = connection.sessions.filter(s => s.id !== 'main');
-      if (nonMain.length > 0) {
-        const running = nonMain.find(s => s.status === 'running');
-        setConsoleSessionId(running?.id ?? nonMain[0].id);
+      if (consoleSessions.length > 0) {
+        const running = consoleSessions.find(s => s.status === 'running');
+        setConsoleSessionId(running?.id ?? consoleSessions[0].id);
       }
     }
-  }, [activeTab, consoleSessionId, connection.sessions]);
+  }, [activeTab, consoleSessionId, consoleSessions]);
 
-  // ── Open session in console ────────────────────
-  const openSessionConsole = useCallback((sessionId: string) => {
-    setConsoleSessionId(sessionId);
-    setActiveTab('console');
-  }, []);
+  // ── Open session in correct tab ────────────────
+  const openSessionInTab = useCallback((sessionId: string) => {
+    const session = connection.sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    const tab = getSessionTab(session.name);
+    if (tab === 'monitor') {
+      setActiveTab('monitor');
+    } else {
+      setConsoleSessionId(sessionId);
+      setActiveTab('console');
+    }
+  }, [connection.sessions]);
+
+  // ── Auto-switch tab when session mode changes ──
+  useEffect(() => {
+    if (!consoleSessionId) return;
+    const session = connection.sessions.find(s => s.id === consoleSessionId);
+    if (!session) return;
+    const expectedTab = getSessionTab(session.name);
+    if (expectedTab === 'monitor' && activeTab === 'console') {
+      setActiveTab('monitor');
+      setConsoleSessionId(null);
+    }
+  }, [connection.sessions, consoleSessionId, activeTab]);
 
   // ── Bug fix handlers ────────────────────────
   const sendBugFixMessage = useCallback(async (fixPrompt: string) => {
@@ -390,6 +422,11 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           return;
         case 'chat':
           setActiveTab('chat');
+          return;
+        case 'jarvis':
+          setActiveTab('jarvis');
+          connection.listJarvisTasks().catch(() => {});
+          connection.getJarvisStatus().catch(() => {});
           return;
         case 'journal':
         case 'bugs':
@@ -762,7 +799,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   {activeSessions.map((session) => (
                     <button
                       key={session.id}
-                      onClick={() => openSessionConsole(session.id)}
+                      onClick={() => openSessionInTab(session.id)}
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.03] hover:bg-cyan-500/5 border border-white/5 hover:border-cyan-500/10 group text-left transition-all"
                     >
                       <SessionIcon name={session.name} size={11} className="text-gray-400 flex-shrink-0" />
@@ -785,7 +822,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   {connection.sessions.filter(s => s.status !== 'running' && s.id !== 'main').map((session) => (
                     <button
                       key={session.id}
-                      onClick={() => openSessionConsole(session.id)}
+                      onClick={() => openSessionInTab(session.id)}
                       className="w-full flex items-center gap-2 px-2 py-1 rounded-md bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.03] text-left transition-all"
                     >
                       <SessionIcon name={session.name} size={10} className="text-gray-600 flex-shrink-0" />
@@ -948,7 +985,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               >
                 <Terminal size={11} />
                 Console
-                {activeSessions.length > 0 && (
+                {consoleSessions.some(s => s.status === 'running') && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 )}
               </button>
@@ -962,8 +999,26 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               >
                 <Eye size={11} />
                 {t('monitorTab')}
-                {(threatCount > 0 || connection.approvals.length > 0) && (
+                {(monitorSessions.some(s => s.status === 'running') || threatCount > 0 || connection.approvals.length > 0) && (
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('jarvis');
+                  connection.listJarvisTasks().catch(() => {});
+                  connection.getJarvisStatus().catch(() => {});
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                  activeTab === 'jarvis'
+                    ? 'bg-white/10 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <Bot size={11} />
+                {t('jarvisTab')}
+                {connection.jarvisStatus?.daemonState === 'running' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-pulse" />
                 )}
               </button>
             </div>
@@ -990,20 +1045,28 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
 
           {/* CLI Connection badge */}
           {isConnected && connection.instanceMeta ? (
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-              <div className="hidden sm:flex items-center gap-1 text-emerald-400">
-                <Wifi size={11} />
+            activeTab === 'chat' ? (
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                <div className="hidden sm:flex items-center gap-1 text-emerald-400">
+                  <Wifi size={11} />
+                </div>
+                <div className="flex items-center gap-1 text-gray-400">
+                  <Cpu size={10} />
+                  <span>{connection.instanceMeta.model}</span>
+                </div>
+                <div className="flex items-center gap-1 text-gray-500">
+                  <Clock size={10} />
+                  <span>{formatUptime(connection.instanceMeta.uptime)}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-gray-400">
-                <Cpu size={10} />
-                <span>{connection.instanceMeta.model}</span>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400">{connection.instanceMeta.projectName}</span>
+                <span className="text-gray-600">:{connectedPort}</span>
               </div>
-              <div className="flex items-center gap-1 text-gray-500">
-                <Clock size={10} />
-                <span>{formatUptime(connection.instanceMeta.uptime)}</span>
-              </div>
-            </div>
+            )
           ) : isConnecting ? (
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] text-cyan-400/80 bg-cyan-500/5 border border-cyan-500/10 animate-pulse">
               <RefreshCw size={11} className="animate-spin" />
@@ -1083,7 +1146,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             {activeSessions.map((session) => (
               <button
                 key={session.id}
-                onClick={() => openSessionConsole(session.id)}
+                onClick={() => openSessionInTab(session.id)}
                 className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] border flex-shrink-0 transition-all ${
                   consoleSessionId === session.id && activeTab === 'console'
                     ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
@@ -1140,10 +1203,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           </div>
         ) : activeTab === 'console' ? (
           <>
-            {/* Console session selector — exclude main Chat session */}
-            {connection.sessions.filter(s => s.id !== 'main').length > 0 && (
+            {/* Console session selector — only console-type sessions */}
+            {consoleSessions.length > 0 && (
               <div className="flex gap-1.5 px-4 py-2 border-b border-white/5 overflow-x-auto bg-[#0a0a1a]/50">
-                {connection.sessions.filter(s => s.id !== 'main').map(session => (
+                {consoleSessions.map(session => (
                   <button
                     key={session.id}
                     onClick={() => setConsoleSessionId(session.id)}
@@ -1354,6 +1417,22 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               )}
             </div>
           </div>
+        ) : activeTab === 'jarvis' ? (
+          /* ─── Jarvis Tab ─── */
+          <JarvisPanel
+            tasks={connection.jarvisTasks}
+            status={connection.jarvisStatus}
+            onStartJarvis={() => connection.startJarvis().catch(() => {})}
+            onStopJarvis={() => connection.stopJarvis().catch(() => {})}
+            onPauseJarvis={() => connection.pauseJarvis().catch(() => {})}
+            onResumeJarvis={() => connection.resumeJarvis().catch(() => {})}
+            onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
+            onClearCompleted={() => {
+              connection.sendRequest('clear_jarvis_completed').catch(() => {});
+              connection.listJarvisTasks().catch(() => {});
+            }}
+            isConnected={isConnected}
+          />
         ) : null}
 
         {/* Input — always visible */}
