@@ -17,7 +17,13 @@ interface SessionEntry {
   elapsed: number;
 }
 
-/* ─── Session mode color ─────────────────────── */
+/* ─── Unified sidebar item ───────────────────── */
+
+type SidebarItem =
+  | { kind: 'chat'; chat: ChatSummary }
+  | { kind: 'session'; session: SessionEntry };
+
+/* ─── Session helpers ────────────────────────── */
 
 function sessionModeColor(name: string): { bg: string; text: string; border: string } {
   const lower = name.toLowerCase();
@@ -76,9 +82,6 @@ export function ChatSidebar({
   const [editTitle, setEditTitle] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Group chats by date
-  const grouped = groupByDate(chats);
-
   const startRename = (chat: ChatSummary) => {
     setEditingId(chat.id);
     setEditTitle(chat.title);
@@ -96,8 +99,9 @@ export function ChatSidebar({
     setDeletingId(null);
   };
 
-  // Sessions to show (exclude main, only non-empty)
+  // Merge sessions into the unified timeline
   const visibleSessions = sessions?.filter(s => s.id !== 'main') ?? [];
+  const grouped = groupByDateWithSessions(chats, visibleSessions);
 
   return (
     <div className="flex flex-col h-full w-72">
@@ -112,149 +116,41 @@ export function ChatSidebar({
         </button>
       </div>
 
-      {/* Chat list + sessions */}
+      {/* Unified list */}
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-        {/* Active CLI Sessions */}
-        {visibleSessions.length > 0 && (
-          <div>
-            <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-600">
-              Active Sessions
-            </div>
-            <div className="space-y-0.5">
-              {visibleSessions.map((session) => {
-                const colors = sessionModeColor(session.name);
-                return (
-                  <button
-                    key={session.id}
-                    onClick={() => onSessionClick?.(session.id)}
-                    className={`
-                      w-full text-left px-3 py-2 rounded-lg text-sm transition-all
-                      ${colors.bg} ${colors.border} border hover:brightness-125
-                    `}
-                  >
-                    <div className="flex items-center gap-2">
-                      <SessionIcon name={session.name} size={14} className={`flex-shrink-0 ${colors.text}`} />
-                      <div className="flex-1 min-w-0">
-                        <div className={`truncate text-xs font-medium ${colors.text}`}>
-                          {session.name}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {session.status === 'running' && (
-                          <Activity size={8} className="text-emerald-400 animate-pulse" />
-                        )}
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
-                          session.status === 'running' ? 'bg-emerald-500/10 text-emerald-400' :
-                          session.status === 'done' ? 'bg-emerald-500/5 text-emerald-500' :
-                          session.status === 'error' ? 'bg-red-500/5 text-red-400' :
-                          'bg-white/5 text-gray-500'
-                        }`}>
-                          {session.status === 'running' ? formatElapsed(session.elapsed) : session.status}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Chats grouped by date */}
         {grouped.map(({ label, items }) => (
           <div key={label}>
             <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-600">
               {label}
             </div>
             <div className="space-y-0.5">
-              {items.map((chat) => (
-                <div key={chat.id} className="group relative">
-                  {editingId === chat.id ? (
-                    /* Rename mode */
-                    <div className="flex items-center gap-1 px-2 py-1.5">
-                      <input
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') confirmRename();
-                          if (e.key === 'Escape') setEditingId(null);
-                        }}
-                        className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-500/50"
-                        autoFocus
-                      />
-                      <button onClick={confirmRename} className="p-1 text-green-400 hover:text-green-300">
-                        <Check size={14} />
-                      </button>
-                      <button onClick={() => setEditingId(null)} className="p-1 text-gray-500 hover:text-gray-300">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : deletingId === chat.id ? (
-                    /* Delete confirmation */
-                    <div className="px-2 py-2 rounded-lg bg-red-500/5 border border-red-500/20">
-                      <p className="text-xs text-red-400 mb-2">{t('confirmDelete')}</p>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => confirmDelete(chat.id)}
-                          className="flex-1 px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-                        >
-                          {t('deleteChat')}
-                        </button>
-                        <button
-                          onClick={() => setDeletingId(null)}
-                          className="px-2 py-1 rounded text-xs text-gray-400 hover:text-white transition-colors"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Normal chat item */
-                    <button
-                      onClick={() => onSelect(chat.id)}
-                      className={`
-                        w-full text-left px-3 py-2 rounded-lg text-sm transition-all
-                        ${activeChatId === chat.id
-                          ? 'bg-white/10 text-white'
-                          : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
-                        }
-                      `}
-                    >
-                      <div className="flex items-start gap-2">
-                        <MessageSquare size={14} className="mt-0.5 flex-shrink-0 opacity-40" />
-                        <div className="flex-1 min-w-0">
-                          <div className="truncate text-xs font-medium">
-                            {chat.title}
-                          </div>
-                          {chat.messages[0] && (
-                            <div className="truncate text-[11px] text-gray-600 mt-0.5">
-                              {chat.messages[0].content.slice(0, 60)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Hover actions */}
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0.5">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); startRename(chat); }}
-                          className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
-                          title={t('renameChat')}
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDeletingId(chat.id); }}
-                          className="p-1 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                          title={t('deleteChat')}
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </button>
-                  )}
-                </div>
-              ))}
+              {items.map((item) =>
+                item.kind === 'session' ? (
+                  <SessionItem
+                    key={`session-${item.session.id}`}
+                    session={item.session}
+                    onClick={() => onSessionClick?.(item.session.id)}
+                  />
+                ) : (
+                  <ChatItem
+                    key={`chat-${item.chat.id}`}
+                    chat={item.chat}
+                    isActive={activeChatId === item.chat.id}
+                    editingId={editingId}
+                    editTitle={editTitle}
+                    deletingId={deletingId}
+                    onSelect={() => onSelect(item.chat.id)}
+                    onStartRename={() => startRename(item.chat)}
+                    onConfirmRename={confirmRename}
+                    onCancelRename={() => setEditingId(null)}
+                    onEditTitleChange={setEditTitle}
+                    onStartDelete={() => setDeletingId(item.chat.id)}
+                    onConfirmDelete={() => confirmDelete(item.chat.id)}
+                    onCancelDelete={() => setDeletingId(null)}
+                    t={t}
+                  />
+                ),
+              )}
             </div>
           </div>
         ))}
@@ -269,26 +165,189 @@ export function ChatSidebar({
   );
 }
 
+/* ─── Session item ───────────────────────────── */
+
+function SessionItem({ session, onClick }: { session: SessionEntry; onClick: () => void }) {
+  const colors = sessionModeColor(session.name);
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        w-full text-left px-3 py-2 rounded-lg text-sm transition-all
+        ${colors.bg} ${colors.border} border hover:brightness-125
+      `}
+    >
+      <div className="flex items-center gap-2">
+        <SessionIcon name={session.name} size={14} className={`flex-shrink-0 ${colors.text}`} />
+        <div className="flex-1 min-w-0">
+          <div className={`truncate text-xs font-medium ${colors.text}`}>
+            {session.name}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {session.status === 'running' && (
+            <Activity size={8} className="text-emerald-400 animate-pulse" />
+          )}
+          <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+            session.status === 'running' ? 'bg-emerald-500/10 text-emerald-400' :
+            session.status === 'done' ? 'bg-emerald-500/5 text-emerald-500' :
+            session.status === 'error' ? 'bg-red-500/5 text-red-400' :
+            'bg-white/5 text-gray-500'
+          }`}>
+            {session.status === 'running' ? formatElapsed(session.elapsed) : session.status}
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+/* ─── Chat item ──────────────────────────────── */
+
+function ChatItem({
+  chat, isActive, editingId, editTitle, deletingId,
+  onSelect, onStartRename, onConfirmRename, onCancelRename, onEditTitleChange,
+  onStartDelete, onConfirmDelete, onCancelDelete, t,
+}: {
+  chat: ChatSummary;
+  isActive: boolean;
+  editingId: string | null;
+  editTitle: string;
+  deletingId: string | null;
+  onSelect: () => void;
+  onStartRename: () => void;
+  onConfirmRename: () => void;
+  onCancelRename: () => void;
+  onEditTitleChange: (v: string) => void;
+  onStartDelete: () => void;
+  onConfirmDelete: () => void;
+  onCancelDelete: () => void;
+  t: (key: string) => string;
+}) {
+  if (editingId === chat.id) {
+    return (
+      <div className="flex items-center gap-1 px-2 py-1.5">
+        <input
+          value={editTitle}
+          onChange={(e) => onEditTitleChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onConfirmRename();
+            if (e.key === 'Escape') onCancelRename();
+          }}
+          className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-500/50"
+          autoFocus
+        />
+        <button onClick={onConfirmRename} className="p-1 text-green-400 hover:text-green-300">
+          <Check size={14} />
+        </button>
+        <button onClick={onCancelRename} className="p-1 text-gray-500 hover:text-gray-300">
+          <X size={14} />
+        </button>
+      </div>
+    );
+  }
+
+  if (deletingId === chat.id) {
+    return (
+      <div className="px-2 py-2 rounded-lg bg-red-500/5 border border-red-500/20">
+        <p className="text-xs text-red-400 mb-2">{t('confirmDelete')}</p>
+        <div className="flex gap-1">
+          <button
+            onClick={onConfirmDelete}
+            className="flex-1 px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+          >
+            {t('deleteChat')}
+          </button>
+          <button
+            onClick={onCancelDelete}
+            className="px-2 py-1 rounded text-xs text-gray-400 hover:text-white transition-colors"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group relative">
+      <button
+        onClick={onSelect}
+        className={`
+          w-full text-left px-3 py-2 rounded-lg text-sm transition-all
+          ${isActive
+            ? 'bg-white/10 text-white'
+            : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+          }
+        `}
+      >
+        <div className="flex items-start gap-2">
+          <MessageSquare size={14} className="mt-0.5 flex-shrink-0 opacity-40" />
+          <div className="flex-1 min-w-0">
+            <div className="truncate text-xs font-medium">
+              {chat.title}
+            </div>
+            {chat.messages[0] && (
+              <div className="truncate text-[11px] text-gray-600 mt-0.5">
+                {chat.messages[0].content.slice(0, 60)}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Hover actions */}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); onStartRename(); }}
+            className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+            title={t('renameChat')}
+          >
+            <Pencil size={12} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onStartDelete(); }}
+            className="p-1 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            title={t('deleteChat')}
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </button>
+    </div>
+  );
+}
+
 /* ─── Helpers ────────────────────────────────── */
 
-function groupByDate(chats: ChatSummary[]): { label: string; items: ChatSummary[] }[] {
+function groupByDateWithSessions(
+  chats: ChatSummary[],
+  sessions: SessionEntry[],
+): { label: string; items: SidebarItem[] }[] {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);
 
-  const groups: { label: string; items: ChatSummary[] }[] = [];
-  const todayItems: ChatSummary[] = [];
-  const yesterdayItems: ChatSummary[] = [];
-  const olderItems: ChatSummary[] = [];
+  const groups: { label: string; items: SidebarItem[] }[] = [];
+  const todayItems: SidebarItem[] = [];
+  const yesterdayItems: SidebarItem[] = [];
+  const olderItems: SidebarItem[] = [];
 
+  // Sessions are always "now" — they go to Today, running first
+  const running = sessions.filter(s => s.status === 'running');
+  const done = sessions.filter(s => s.status !== 'running');
+  for (const s of [...running, ...done]) {
+    todayItems.push({ kind: 'session', session: s });
+  }
+
+  // Chats sorted into date buckets
   for (const chat of chats) {
     const chatDate = new Date(chat.updatedAt);
     if (chatDate >= today) {
-      todayItems.push(chat);
+      todayItems.push({ kind: 'chat', chat });
     } else if (chatDate >= yesterday) {
-      yesterdayItems.push(chat);
+      yesterdayItems.push({ kind: 'chat', chat });
     } else {
-      olderItems.push(chat);
+      olderItems.push({ kind: 'chat', chat });
     }
   }
 
