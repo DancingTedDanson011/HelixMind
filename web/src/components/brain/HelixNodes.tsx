@@ -132,13 +132,7 @@ export function HelixNodes({ nodes }: HelixNodesProps) {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, nodes.length]}>
       <icosahedronGeometry args={[1, 1]} />
-      <meshStandardMaterial
-        toneMapped={false}
-        emissive="#ffffff"
-        emissiveIntensity={0.4}
-        roughness={0.2}
-        metalness={0.5}
-      />
+      <meshBasicMaterial toneMapped={false} />
     </instancedMesh>
   );
 }

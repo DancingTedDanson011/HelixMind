@@ -2,7 +2,6 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { HelixNodes } from './HelixNodes';
 import { HelixEdges } from './HelixEdges';
 import { BackgroundStars } from './BackgroundStars';
@@ -18,23 +17,10 @@ export function BrainScene() {
       frameloop="always"
     >
       <color attach="background" args={['#050510']} />
-      <ambientLight intensity={0.5} />
-      <pointLight position={[600, 300, 0]} intensity={0.7} color="#00d4ff" />
-      <pointLight position={[0, -200, 400]} intensity={0.4} color="#8a2be2" />
-      <pointLight position={[1100, 100, -300]} intensity={0.3} color="#00ff88" />
 
       <BackgroundStars />
       <HelixNodes nodes={demoNodes} />
       <HelixEdges nodes={demoNodes} edges={demoEdges} />
-
-      <EffectComposer>
-        <Bloom
-          intensity={0.35}
-          luminanceThreshold={0.4}
-          luminanceSmoothing={0.3}
-          mipmapBlur
-        />
-      </EffectComposer>
 
       <OrbitControls
         enableZoom={false}

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 
 export function BackgroundStars() {
   const ref = useRef<THREE.Points>(null!);
-  const count = 800;
+  const count = 300;
 
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3);

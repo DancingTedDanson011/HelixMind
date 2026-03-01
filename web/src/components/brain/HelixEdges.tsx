@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Line } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DemoNode, DemoEdge } from './brain-demo-data';
 import { computeNodePositions } from './HelixNodes';
@@ -32,34 +31,53 @@ export function HelixEdges({ nodes, edges }: HelixEdgesProps) {
     return map;
   }, [nodes]);
 
-  const lines = useMemo(() => {
-    return edges
-      .map((edge) => {
-        const si = nodeIdxMap[edge.source];
-        const ti = nodeIdxMap[edge.target];
-        if (si === undefined || ti === undefined) return null;
+  // Single batched geometry for all edges — 1 draw call
+  const { linePositions, lineColors } = useMemo(() => {
+    const validEdges: Array<{ si: number; ti: number; color: string }> = [];
+    for (const edge of edges) {
+      const si = nodeIdxMap[edge.source];
+      const ti = nodeIdxMap[edge.target];
+      if (si !== undefined && ti !== undefined) {
+        validEdges.push({ si, ti, color: EDGE_COLORS[edge.type] || '#4488ff' });
+      }
+    }
 
-        const start = positions[si];
-        const end = positions[ti];
-        const color = EDGE_COLORS[edge.type] || '#4488ff';
+    const posArr = new Float32Array(validEdges.length * 6); // 2 vertices * 3 coords
+    const colArr = new Float32Array(validEdges.length * 6); // 2 vertices * 3 color channels
+    const tmpColor = new THREE.Color();
 
-        return { start, end, color, opacity: 0.15 + edge.weight * 0.25 };
-      })
-      .filter(Boolean) as Array<{ start: THREE.Vector3; end: THREE.Vector3; color: string; opacity: number }>;
+    for (let i = 0; i < validEdges.length; i++) {
+      const { si, ti, color } = validEdges[i];
+      const start = positions[si];
+      const end = positions[ti];
+      const offset = i * 6;
+
+      posArr[offset] = start.x;
+      posArr[offset + 1] = start.y;
+      posArr[offset + 2] = start.z;
+      posArr[offset + 3] = end.x;
+      posArr[offset + 4] = end.y;
+      posArr[offset + 5] = end.z;
+
+      tmpColor.set(color);
+      colArr[offset] = tmpColor.r;
+      colArr[offset + 1] = tmpColor.g;
+      colArr[offset + 2] = tmpColor.b;
+      colArr[offset + 3] = tmpColor.r;
+      colArr[offset + 4] = tmpColor.g;
+      colArr[offset + 5] = tmpColor.b;
+    }
+
+    return { linePositions: posArr, lineColors: colArr };
   }, [edges, nodeIdxMap, positions]);
 
   return (
-    <group>
-      {lines.map((line, i) => (
-        <Line
-          key={i}
-          points={[line.start, line.end]}
-          color={line.color}
-          lineWidth={0.5}
-          transparent
-          opacity={line.opacity}
-        />
-      ))}
-    </group>
+    <lineSegments>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[linePositions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[lineColors, 3]} />
+      </bufferGeometry>
+      <lineBasicMaterial vertexColors transparent opacity={0.3} />
+    </lineSegments>
   );
 }
