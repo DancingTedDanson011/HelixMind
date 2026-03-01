@@ -70,13 +70,18 @@ canvas { display: block; }
 #search-input::placeholder { color: #445; }
 
 .toggle-btn {
-  display: inline-block; padding: 3px 8px; margin: 1px;
-  background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.15);
-  border-radius: 4px; color: #668; cursor: pointer; font-size: 10px;
-  transition: all 0.3s; user-select: none;
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; margin: 1px;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px; color: #334; cursor: pointer; font-size: 10px;
+  transition: all 0.3s; user-select: none; opacity: 0.35;
 }
-.toggle-btn.active { background: rgba(0,212,255,0.15); border-color: rgba(0,212,255,0.4); color: #00d4ff; }
-.toggle-btn:hover { background: rgba(0,212,255,0.1); color: #aad; }
+.toggle-btn .ldot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; transition: all 0.3s; filter: saturate(0.2) brightness(0.4); }
+.toggle-btn .lcount { font-size: 9px; opacity: 0.5; margin-left: 2px; }
+.toggle-btn.active { opacity: 1; }
+.toggle-btn.active .ldot { filter: saturate(1) brightness(1); }
+.toggle-btn:hover { opacity: 0.8; }
+.toggle-btn[data-edge] { opacity: 0.4; }
+.toggle-btn[data-edge].active { opacity: 1; background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.3); color: #00d4ff; }
 
 #sidebar {
   position: fixed; right: -380px; top: 0; bottom: 0; width: 380px; z-index: 30;
@@ -429,12 +434,12 @@ canvas { display: block; }
 <div id="controls">
   <div class="control-group">
     <label>Levels</label>
-    <span class="toggle-btn active" data-level="5" style="border-color:rgba(108,117,125,0.5);color:#6c757d"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#6c757d;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #6c757d"></span>L5 Deep</span>
-    <span class="toggle-btn active" data-level="4" style="border-color:rgba(138,43,226,0.5);color:#8a2be2"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#8a2be2;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #8a2be2"></span>L4 Archive</span>
-    <span class="toggle-btn active" data-level="3" style="border-color:rgba(65,105,225,0.5);color:#4169e1"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#4169e1;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #4169e1"></span>L3 Ref</span>
-    <span class="toggle-btn active" data-level="2" style="border-color:rgba(0,255,136,0.5);color:#00ff88"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00ff88;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #00ff88"></span>L2 Active</span>
-    <span class="toggle-btn active" data-level="1" style="border-color:rgba(0,255,255,0.5);color:#00ffff"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00ffff;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #00ffff"></span>L1 Focus</span>
-    <span class="toggle-btn active" data-level="6" style="border-color:rgba(255,170,0,0.5);color:#ffaa00"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ffaa00;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #ffaa00"></span>L6 Web</span>
+    <span class="toggle-btn active" data-level="5" data-color="#6c757d"><span class="ldot" style="background:#6c757d;box-shadow:0 0 6px #6c757d"></span>L5 Deep<span class="lcount" id="lc5"></span></span>
+    <span class="toggle-btn active" data-level="4" data-color="#8a2be2"><span class="ldot" style="background:#8a2be2;box-shadow:0 0 6px #8a2be2"></span>L4 Archive<span class="lcount" id="lc4"></span></span>
+    <span class="toggle-btn active" data-level="3" data-color="#4169e1"><span class="ldot" style="background:#4169e1;box-shadow:0 0 6px #4169e1"></span>L3 Ref<span class="lcount" id="lc3"></span></span>
+    <span class="toggle-btn active" data-level="2" data-color="#00ff88"><span class="ldot" style="background:#00ff88;box-shadow:0 0 6px #00ff88"></span>L2 Active<span class="lcount" id="lc2"></span></span>
+    <span class="toggle-btn active" data-level="1" data-color="#00ffff"><span class="ldot" style="background:#00ffff;box-shadow:0 0 6px #00ffff"></span>L1 Focus<span class="lcount" id="lc1"></span></span>
+    <span class="toggle-btn active" data-level="6" data-color="#ffaa00"><span class="ldot" style="background:#ffaa00;box-shadow:0 0 6px #ffaa00"></span>L6 Web<span class="lcount" id="lc6"></span></span>
   </div>
   <div class="control-group">
     <label>Relations</label>
@@ -591,15 +596,15 @@ const EDGE_COLORS = {
   belongs_to: '#ff6600', part_of: '#ff6600', supersedes: '#ff4444',
   default: '#334466',
 };
-// Inverted funnel: L5 (wisdom) small at TOP, L6 (web) large at BOTTOM
-// Each layer gets progressively wider as we go down — like the OG brain
+// Organic nebula layout — layers spread wide and overlap slightly
+// Not a strict funnel but an organic cloud where each layer bleeds into neighbors
 const SPATIAL = {
-  5: { iR: 10,  oR: 60,   yBase: 550,  yS: 35,  size: 52, pulse: 0.3 },
-  4: { iR: 20,  oR: 120,  yBase: 380,  yS: 40,  size: 42, pulse: 0.5 },
-  3: { iR: 40,  oR: 200,  yBase: 210,  yS: 50,  size: 36, pulse: 0.8 },
-  2: { iR: 60,  oR: 300,  yBase: 30,   yS: 55,  size: 28, pulse: 1.2 },
-  1: { iR: 80,  oR: 420,  yBase: -170, yS: 65,  size: 22, pulse: 2.0 },
-  6: { iR: 100, oR: 550,  yBase: -400, yS: 75,  size: 30, pulse: 0.6 },
+  5: { iR: 5,   oR: 90,   yBase: 450,  yS: 120, size: 52, pulse: 0.3 },
+  4: { iR: 15,  oR: 180,  yBase: 280,  yS: 130, size: 42, pulse: 0.5 },
+  3: { iR: 30,  oR: 280,  yBase: 100,  yS: 140, size: 36, pulse: 0.8 },
+  2: { iR: 50,  oR: 380,  yBase: -90,  yS: 150, size: 28, pulse: 1.2 },
+  1: { iR: 70,  oR: 480,  yBase: -280, yS: 160, size: 22, pulse: 2.0 },
+  6: { iR: 90,  oR: 580,  yBase: -480, yS: 170, size: 30, pulse: 0.6 },
 };
 const MAX_RENDERED_EDGES = 8000; // cap for performance + clarity
 
@@ -735,6 +740,7 @@ let pData = [];
 let nCount = 0;
 let eCount = 0;
 let pCount = 0;
+let orbitRings = [];
 
 const PARTICLES_PER_EDGE = 3;
 const tc = new THREE.Color();
@@ -745,6 +751,8 @@ function rebuildScene() {
   if (nodeGeo) { nodeGeo.dispose(); scene.remove(nodePoints); }
   if (edgeGeo) { edgeGeo.dispose(); scene.remove(edgeLines); }
   if (particleGeo) { particleGeo.dispose(); scene.remove(particlePoints); }
+  orbitRings.forEach(r => { r.geometry.dispose(); r.material.dispose(); scene.remove(r); });
+  orbitRings = [];
 
   nodes = BRAIN_DATA.nodes;
   nCount = nodes.length;
@@ -763,11 +771,18 @@ function rebuildScene() {
     const s = SPATIAL[lv] || SPATIAL[3];
     const c = indices.length;
     indices.forEach((ni, j) => {
-      const angle = (j / Math.max(c, 1)) * Math.PI * 2;
+      const angle = (j / Math.max(c, 1)) * Math.PI * 2 + (srand(ni * 19) - 0.5) * 0.6;
       const r = s.iR + srand(ni * 7) * (s.oR - s.iR);
-      const spiral = angle + r * 0.004;
+      const spiral = angle + r * 0.003 + srand(ni * 23) * 0.4;
       const y = (s.yBase || 0) + (srand(ni * 11) - 0.5) * s.yS;
-      positions[ni] = new THREE.Vector3(Math.cos(spiral) * r, y, Math.sin(spiral) * r);
+      // Add organic jitter so it doesn't look like perfect rings
+      const jitterX = (srand(ni * 29) - 0.5) * r * 0.15;
+      const jitterZ = (srand(ni * 37) - 0.5) * r * 0.15;
+      positions[ni] = new THREE.Vector3(
+        Math.cos(spiral) * r + jitterX,
+        y,
+        Math.sin(spiral) * r + jitterZ
+      );
     });
   }
 
@@ -815,6 +830,25 @@ function rebuildScene() {
   nodeGeo.setAttribute('aPulse', new THREE.BufferAttribute(nPulse, 1));
   nodePoints = new THREE.Points(nodeGeo, nodeMat);
   scene.add(nodePoints);
+
+  // ---- ORBIT RINGS (one per layer) ----
+  for (let lv = 1; lv <= 6; lv++) {
+    const s = SPATIAL[lv];
+    if (!s || !(byLevel[lv] || []).length) continue;
+    const ringRadius = s.oR * 0.85;
+    const ringGeo = new THREE.RingGeometry(ringRadius - 0.3, ringRadius + 0.3, 96);
+    const ringColor = new THREE.Color(LEVEL_COLORS_HEX[lv] || 0x00FFFF);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: ringColor, transparent: true, opacity: 0.08, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = s.yBase;
+    ring.userData.level = lv;
+    scene.add(ring);
+    orbitRings.push(ring);
+  }
 
   // ---- EDGES (LineSegments) ----
   // Prioritize cross-level edges (vertical) over intra-level (horizontal)
@@ -899,10 +933,17 @@ function rebuildScene() {
     ' \\u00B7 ' + BRAIN_DATA.meta.projectName;
   document.getElementById('web-count').textContent = webCount > 0 ? '\\u{1F310} ' + webCount + ' web' : '';
 
+  // Update level counts in buttons
+  for (let lv = 1; lv <= 6; lv++) {
+    const el = document.getElementById('lc' + lv);
+    if (el) el.textContent = (byLevel[lv] || []).length;
+  }
+
   // Reset level toggles to all active
   levelToggles = {};
   document.querySelectorAll('[data-level]').forEach(btn => {
     levelToggles[parseInt(btn.dataset.level)] = btn.classList.contains('active');
+    updateLevelBtnStyle(btn);
   });
 
   // Reset interaction state
@@ -1042,6 +1083,12 @@ function updateHighlights() {
     ea.array[i * 2 + 1] = a;
   }
   ea.needsUpdate = true;
+
+  // Update orbit ring visibility
+  orbitRings.forEach(ring => {
+    const lv = ring.userData.level;
+    ring.material.opacity = levelToggles[lv] === false ? 0 : 0.08;
+  });
 }
 
 function getActiveEdgeTypes() {
@@ -1144,11 +1191,28 @@ document.getElementById('search-input').addEventListener('input', () => {
 });
 
 // =========== LEVEL TOGGLES ===========
+function updateLevelBtnStyle(btn) {
+  const active = btn.classList.contains('active');
+  const col = btn.dataset.color || '#00d4ff';
+  if (active) {
+    btn.style.borderColor = col + '80';
+    btn.style.color = col;
+    btn.style.background = col + '18';
+    btn.style.textShadow = '0 0 8px ' + col + '60';
+  } else {
+    btn.style.borderColor = 'rgba(255,255,255,0.06)';
+    btn.style.color = '#334';
+    btn.style.background = 'rgba(255,255,255,0.02)';
+    btn.style.textShadow = 'none';
+  }
+}
 document.querySelectorAll('[data-level]').forEach(btn => {
+  updateLevelBtnStyle(btn); // initial style
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
     const level = parseInt(btn.dataset.level);
     levelToggles[level] = btn.classList.contains('active');
+    updateLevelBtnStyle(btn);
     updateHighlights();
   });
 });

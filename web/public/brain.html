@@ -106,14 +106,14 @@ const LEVEL_NAMES = {
   1: 'Focus', 2: 'Active', 3: 'Reference',
   4: 'Archive', 5: 'Deep Archive', 6: 'Web Knowledge',
 };
-// Inverted funnel: L5 (wisdom) small at TOP, L6 (web) large at BOTTOM
+// Organic nebula layout — layers spread wide and overlap slightly
 const SPATIAL = {
-  5: { iR: 10,  oR: 60,   yBase: 550,  yS: 35,  size: 52, pulse: 0.3 },
-  4: { iR: 20,  oR: 120,  yBase: 380,  yS: 40,  size: 42, pulse: 0.5 },
-  3: { iR: 40,  oR: 200,  yBase: 210,  yS: 50,  size: 36, pulse: 0.8 },
-  2: { iR: 60,  oR: 300,  yBase: 30,   yS: 55,  size: 28, pulse: 1.2 },
-  1: { iR: 80,  oR: 420,  yBase: -170, yS: 65,  size: 22, pulse: 2.0 },
-  6: { iR: 100, oR: 550,  yBase: -400, yS: 75,  size: 30, pulse: 0.6 },
+  5: { iR: 5,   oR: 90,   yBase: 450,  yS: 120, size: 52, pulse: 0.3 },
+  4: { iR: 15,  oR: 180,  yBase: 280,  yS: 130, size: 42, pulse: 0.5 },
+  3: { iR: 30,  oR: 280,  yBase: 100,  yS: 140, size: 36, pulse: 0.8 },
+  2: { iR: 50,  oR: 380,  yBase: -90,  yS: 150, size: 28, pulse: 1.2 },
+  1: { iR: 70,  oR: 480,  yBase: -280, yS: 160, size: 22, pulse: 2.0 },
+  6: { iR: 90,  oR: 580,  yBase: -480, yS: 170, size: 30, pulse: 0.6 },
 };
 
 function srand(s){const x=Math.sin(s*9301+49297)*49297;return x-Math.floor(x)}
@@ -223,11 +223,13 @@ for(const[lv,indices]of Object.entries(byLevel)){
   const s = SPATIAL[lv]||SPATIAL[3];
   const c = indices.length;
   indices.forEach((ni,j)=>{
-    const angle=(j/Math.max(c,1))*Math.PI*2;
+    const angle=(j/Math.max(c,1))*Math.PI*2+(srand(ni*19)-.5)*0.6;
     const r=s.iR+srand(ni*7)*(s.oR-s.iR);
-    const spiral=angle+r*0.004;
+    const spiral=angle+r*0.003+srand(ni*23)*0.4;
     const y=(s.yBase||0)+(srand(ni*11)-.5)*s.yS;
-    positions[ni]=new THREE.Vector3(Math.cos(spiral)*r,y,Math.sin(spiral)*r);
+    const jx=(srand(ni*29)-.5)*r*0.15;
+    const jz=(srand(ni*37)-.5)*r*0.15;
+    positions[ni]=new THREE.Vector3(Math.cos(spiral)*r+jx,y,Math.sin(spiral)*r+jz);
   });
 }
 
