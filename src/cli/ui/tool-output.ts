@@ -106,6 +106,31 @@ export function renderToolResult(name: string, result: string): void {
 }
 
 /**
+ * Display the LLM's thinking/reasoning text inline before tool execution.
+ * Shows as a dimmed, compact block inside the tool section.
+ */
+export function renderThinkingText(text: string): void {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+
+  // Shorten to max 3 lines for compact display
+  const lines = trimmed.split('\n').filter(l => l.trim());
+  const maxLines = 3;
+  const shown = lines.slice(0, maxLines);
+  const maxLen = Math.max(30, (process.stdout.columns || 80) - 12);
+
+  const pfx = toolBlockOpen ? `  ${chalk.dim('\u2502')} ` : '  ';
+  process.stdout.write(`${pfx}${chalk.hex('#00d4ff')('\u25B8')} ${chalk.hex('#00d4ff').italic('Thinking:')}\n`);
+  for (const line of shown) {
+    const display = line.length > maxLen ? line.slice(0, maxLen - 1) + '\u2026' : line;
+    process.stdout.write(`${pfx}  ${chalk.dim.italic(display)}\n`);
+  }
+  if (lines.length > maxLines) {
+    process.stdout.write(`${pfx}  ${chalk.dim(`... +${lines.length - maxLines} more`)}\n`);
+  }
+}
+
+/**
  * Display when user denies a tool call.
  */
 export function renderToolDenied(name: string): void {

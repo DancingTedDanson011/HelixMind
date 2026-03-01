@@ -83,6 +83,8 @@ export interface SpiralStoreResult {
   level: SpiralLevel;
   connections: number;
   token_count: number;
+  /** True if this content already existed and was refreshed instead of duplicated */
+  deduplicated?: boolean;
 }
 
 export interface SpiralStatusResult {

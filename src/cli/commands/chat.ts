@@ -17,7 +17,7 @@ import {
   renderMarkdown,
   renderUserMessage,
 } from '../ui/chat-view.js';
-import { isInsideToolBlock } from '../ui/tool-output.js';
+import { isInsideToolBlock, renderThinkingText } from '../ui/tool-output.js';
 import { renderFeedProgress, renderFeedSummary } from '../ui/progress.js';
 import type { FeedProgress } from '../feed/pipeline.js';
 import { ActivityIndicator } from '../ui/activity.js';
@@ -2406,6 +2406,12 @@ async function sendAgentMessage(
       },
       onStepEnd: (_num, _tool, status) => {
         if (status === 'error') activity.setError();
+      },
+      onThinkingText: (text) => {
+        // Show intermediate LLM reasoning before tool calls
+        activity.pauseAnimation();
+        renderThinkingText(text);
+        activity.resumeAnimation();
       },
       onBeforeAnswer: () => {
         activity.stop(); // Writes colorful "HelixMind Done" replacing animation

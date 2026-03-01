@@ -17,6 +17,7 @@ export interface FeedResult {
   filesScanned: number;
   filesRead: number;
   nodesCreated: number;
+  nodesSkipped: number;
   relationsCreated: number;
   modules: DetectedModule[];
   architecture: string;
@@ -50,7 +51,7 @@ export async function runFeedPipeline(
 
   if (scanned.length === 0) {
     return {
-      filesScanned: 0, filesRead: 0, nodesCreated: 0, relationsCreated: 0,
+      filesScanned: 0, filesRead: 0, nodesCreated: 0, nodesSkipped: 0, relationsCreated: 0,
       modules: [], architecture: 'Unknown', techStack: [], summary: 'No files found',
     };
   }
@@ -74,10 +75,12 @@ export async function runFeedPipeline(
   onProgress?.({ stage: 'spiraling', current: 0, total: parsed.length + analysis.modules.length + 1 });
 
   let nodesCreated = 0;
+  let nodesSkipped = 0;
   let relationsCreated = 0;
   const fileNodeIds = new Map<string, string>(); // relativePath → nodeId
 
   // 5a: Store individual file nodes (Level 1 — Focus)
+  // Engine.store() deduplicates by content hash — identical files are refreshed, not duplicated.
   for (let i = 0; i < parsed.length; i++) {
     const file = parsed[i];
     onProgress?.({
@@ -95,7 +98,11 @@ export async function runFeedPipeline(
         tags: ['feed', 'file'],
       });
       fileNodeIds.set(file.relativePath, result.node_id);
-      nodesCreated++;
+      if (result.deduplicated) {
+        nodesSkipped++;
+      } else {
+        nodesCreated++;
+      }
     } catch {
       // Skip on error
     }
@@ -259,6 +266,7 @@ export async function runFeedPipeline(
     filesScanned: scanned.length,
     filesRead: readResult.length,
     nodesCreated,
+    nodesSkipped,
     relationsCreated,
     modules: analysis.modules,
     architecture: analysis.architecture,

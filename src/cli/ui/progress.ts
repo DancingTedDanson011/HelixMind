@@ -67,6 +67,7 @@ export function renderFeedSummary(result: {
   filesScanned: number;
   filesRead: number;
   nodesCreated: number;
+  nodesSkipped?: number;
   relationsCreated: number;
   modules: Array<{ name: string; files: string[]; description: string }>;
   architecture: string;
@@ -84,7 +85,8 @@ export function renderFeedSummary(result: {
   process.stdout.write('\n');
   process.stdout.write(`${theme.accent('\u{1F300}')} ${theme.bold('Feed Complete!')}\n\n`);
   process.stdout.write(`${indent}${theme.primary('\u{1F4C1}')} Scanned: ${result.filesScanned} files (${result.filesRead} relevant)\n`);
-  process.stdout.write(`${indent}${theme.primary('\u{1F9E0}')} Created: ${result.nodesCreated} context nodes\n`);
+  const skipNote = result.nodesSkipped ? ` ${theme.dim(`(${result.nodesSkipped} unchanged)`)}` : '';
+  process.stdout.write(`${indent}${theme.primary('\u{1F9E0}')} Created: ${result.nodesCreated} context nodes${skipNote}\n`);
   process.stdout.write(`${indent}${theme.primary('\u{1F517}')} Relations: ${result.relationsCreated} connections\n`);
 
   if (result.modules.length > 0) {

@@ -16,6 +16,7 @@ interface NodeRow {
   id: string;
   type: string;
   content: string;
+  content_hash: string | null;
   summary: string | null;
   level: number;
   relevance_score: number;
@@ -49,18 +50,19 @@ export class NodeStore {
     this.db = db;
   }
 
-  create(input: CreateNodeInput): ContextNode {
+  create(input: CreateNodeInput & { content_hash?: string }): ContextNode {
     const id = randomUUID();
     const now = Date.now();
     const tokenCount = estimateTokens(input.content);
 
     this.db.raw.prepare(`
-      INSERT INTO nodes (id, type, content, summary, level, relevance_score, token_count, metadata, created_at, updated_at, accessed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO nodes (id, type, content, content_hash, summary, level, relevance_score, token_count, metadata, created_at, updated_at, accessed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       input.type,
       input.content,
+      input.content_hash ?? null,
       input.summary ?? null,
       input.level ?? 1,
       input.relevance_score ?? 1.0,
@@ -84,6 +86,29 @@ export class NodeStore {
       updated_at: now,
       accessed_at: now,
     };
+  }
+
+  /**
+   * Find a node by its content hash (for deduplication).
+   * Returns null if no matching node exists.
+   */
+  findByContentHash(hash: string): ContextNode | null {
+    const row = this.db.raw.prepare(
+      'SELECT * FROM nodes WHERE content_hash = ? LIMIT 1'
+    ).get(hash) as NodeRow | undefined;
+    return row ? rowToNode(row) : null;
+  }
+
+  /**
+   * Update an existing node's content, metadata, and access time (for dedup refresh).
+   */
+  refreshNode(id: string, content: string, metadata: NodeMetadata, contentHash: string): void {
+    const now = Date.now();
+    const tokenCount = estimateTokens(content);
+    this.db.raw.prepare(`
+      UPDATE nodes SET content = ?, content_hash = ?, token_count = ?, metadata = ?, updated_at = ?, accessed_at = ?
+      WHERE id = ?
+    `).run(content, contentHash, tokenCount, JSON.stringify(metadata), now, now, id);
   }
 
   getById(id: string): ContextNode | null {

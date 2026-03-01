@@ -1,6 +1,6 @@
-﻿<div align="center">
+<div align="center">
 
-# 🧠  HelixMind
+# HelixMind
 
 **AI Coding Assistant with Persistent Spiral Memory**
 
@@ -11,25 +11,25 @@
 
 *Remembers context across sessions. Learns from every interaction. Full SaaS platform with CLI + Web Dashboard.*
 
-[Installation](#-installation) • [Features](#-features) • [Quick Start](#-quick-start) • [Web Platform](#-web-platform) • [Documentation](#-documentation)
+[Installation](#installation) &bull; [Features](#features) &bull; [Quick Start](#quick-start) &bull; [Web Platform](#web-platform) &bull; [Documentation](#documentation)
 
 </div>
 
 ---
 
-## ✨ Features
+## Features
 
 <table>
 <tr>
 <td width="50%">
 
-### 🔄 Spiral Memory
+### Spiral Memory
 **5-level hierarchical memory** that persists across sessions. Context flows between levels based on relevance and recency.
 
 </td>
 <td width="50%">
 
-### 🤖 Multi-Provider
+### Multi-Provider
 **Claude, GPT-4, Ollama** and more. Switch seamlessly between AI providers with rate limiting and model limits.
 
 </td>
@@ -37,13 +37,13 @@
 <tr>
 <td width="50%">
 
-### ⚡ Autonomous Agent
-AI can **edit files, run commands, commit changes, and browse the web** — with a permission system and sandbox for safety.
+### Autonomous Agent
+AI can **edit files, run commands, commit changes, and browse the web** with a permission system and sandbox for safety.
 
 </td>
 <td width="50%">
 
-### 🎯 Smart Context
+### Smart Context
 **Auto-assembles relevant code** from your project. Session buffer, context trimming, and dependency tracking.
 
 </td>
@@ -51,13 +51,13 @@ AI can **edit files, run commands, commit changes, and browse the web** — with
 <tr>
 <td width="50%">
 
-### 🌐 Web Dashboard
+### Web Dashboard
 **Next.js 15 platform** with 3D brain visualization, admin panel, billing (Stripe), support tickets, and CLI remote control.
 
 </td>
 <td width="50%">
 
-### 🔬 Validation Matrix
+### Validation Matrix
 **Automatic output validation** with static checks, dynamic checks, spiral checks, autofix, and quality classification.
 
 </td>
@@ -65,27 +65,27 @@ AI can **edit files, run commands, commit changes, and browse the web** — with
 <tr>
 <td width="50%">
 
-### 📊 SWE-Bench Integration
-**Built-in benchmark suite** — run SWE-bench Lite/Verified, compare runs, measure Spiral Memory impact.
+### SWE-Bench Integration
+**Built-in benchmark suite** &mdash; run SWE-bench Lite/Verified, compare runs, measure Spiral Memory impact.
 
 </td>
 <td width="50%">
 
-### 🌍 Web Knowledge
-**Cloud-enriched context** — topic detection, web search, content extraction, and automatic knowledge integration.
+### Web Knowledge
+**Cloud-enriched context** &mdash; topic detection, web search, content extraction, and automatic knowledge integration.
 
 </td>
 </tr>
 <tr>
 <td width="50%">
 
-### 🐛 Bug Tracking
-**Automatic bug detection** and persistent journal — track bugs across sessions with evidence and status.
+### Bug Tracking
+**Automatic bug detection** and persistent journal &mdash; track bugs across sessions with evidence and status.
 
 </td>
 <td width="50%">
 
-### 💾 Checkpoints & Sessions
+### Checkpoints & Sessions
 **Save and revert** to any checkpoint, multi-session tab view, session lifecycle management.
 
 </td>
@@ -93,28 +93,28 @@ AI can **edit files, run commands, commit changes, and browse the web** — with
 <tr>
 <td width="50%">
 
-### 🌐 Browser Automation
-**Puppeteer-based browser control** — navigate, click, type, screenshot, visual analysis with Chrome integration.
+### Browser Automation
+**Puppeteer-based browser control** &mdash; navigate, click, type, screenshot, visual analysis with Chrome integration.
 
 </td>
 <td width="50%">
 
-### ðŸ” Authentication & Security
-**OAuth login, API keys, feature gating** — secure access control with subscription tier enforcement.
+### Authentication & Security
+**OAuth login, API keys, feature gating** &mdash; secure access control with subscription tier enforcement.
 
 </td>
 </tr>
 <tr>
 <td width="50%">
 
-### 🛡️ Security Monitor
-**Continuous security monitoring** — threat detection, automated defenses, real-time dashboard with approval queue.
+### Security Monitor
+**Continuous security monitoring** &mdash; threat detection, automated defenses, real-time dashboard with approval queue.
 
 </td>
 <td width="50%">
 
-### 📈 MCP Integration
-**Model Context Protocol** — works with Claude Code, Cursor, VS Code, Windsurf, Codex, JetBrains AI.
+### MCP Integration
+**Model Context Protocol** &mdash; works with Claude Code, Cursor, VS Code, Windsurf, Codex, JetBrains AI.
 
 </td>
 </tr>
@@ -122,21 +122,23 @@ AI can **edit files, run commands, commit changes, and browse the web** — with
 
 ---
 
-## 🧠  Brain Visualization
-
-Watch the 3D brain in action:
+## Brain Visualization
 
 <div align="center">
-  <video src="assets/brain_3d_vision.mp4" controls width="800">
-    Your browser does not support the video tag.
-  </video>
-  <p><em>Interactive 3D brain visualization showing memory layers and connections</em></p>
-  <p><small><em>Note: The video may not auto-play in GitHub's web view. You can <a href="assets/brain_3d_vision.mp4" download>download it directly</a> or clone the repository to view it.</em></small></p>
+
+https://github.com/user-attachments/assets/brain_3d_vision.mp4
+
+[![Watch the 3D Brain in action](https://img.shields.io/badge/Watch-3D_Brain_Demo-blue?style=for-the-badge&logo=youtube)](assets/brain_3d_vision.mp4)
+
+*Interactive 3D brain visualization showing memory layers and connections*
+
 </div>
+
+> **Note:** If the video above does not play, [download it directly](assets/brain_3d_vision.mp4) or clone the repository to view it locally.
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ```bash
 # Run directly (no install needed)
@@ -149,7 +151,7 @@ helixmind
 
 ---
 
-## 🎮 Quick Start
+## Quick Start
 
 ```bash
 # Start interactive chat (default command)
@@ -161,7 +163,7 @@ npx helixmind init
 # Send a single message
 npx helixmind chat -m "fix all lint errors in src/"
 
-# YOLO mode — auto-approve everything
+# YOLO mode - auto-approve everything
 npx helixmind chat --yolo
 
 # Skip permission prompts
@@ -176,74 +178,76 @@ npx helixmind feed src/ --watch
 
 ---
 
-## 📋 CLI Commands
+## CLI Commands
 
 | Command | Description |
 |:--------|:------------|
-| `helixmind` / `helixmind chat` | 🎯 Start interactive chat (default) |
-| `helixmind helix` | 🎯 Alias for interactive chat |
-| `helixmind init` | ⚙️ Initialize HelixMind in project |
-| `helixmind chat -m "..."` | 💬 Send a single message |
-| `helixmind chat --yolo` | 🚀 Auto-approve all operations |
-| `helixmind chat --no-validation` | 🔇 Disable output validation |
-| `helixmind chat --validation-verbose` | 🔍 Detailed validation output |
-| `helixmind chat --validation-strict` | 🚫 Treat validation warnings as errors |
-| `helixmind feed [paths...]` | 📂 Feed files/dirs into spiral |
-| `helixmind feed --deep` | 🔍 Deep analysis with intent detection |
-| `helixmind feed --watch` | 👁️ Watch and auto-update spiral |
-| `helixmind spiral status` | 📊 Show spiral metrics |
-| `helixmind spiral search <query>` | 🔎 Search spiral context |
-| `helixmind spiral compact` | 🗜️ Trigger spiral compaction |
-| `helixmind config set <k> <v>` | ⚙️ Set config value |
-| `helixmind config get <key>` | 📖 Get config value |
-| `helixmind config list` | 📋 Show all config |
-| `helixmind export [dir]` | ðŸ“¦ Export spiral to .helixmind.zip |
-| `helixmind import <zip>` | 📥 Import spiral from archive |
-| `helixmind login` | 🔑 Authenticate with web platform |
-| `helixmind logout` | 🚪 Remove stored auth |
-| `helixmind whoami` | 👤 Show auth status |
-| `helixmind bench run` | 🏋️ Run SWE-bench benchmark |
-| `helixmind bench results` | 📈 Show benchmark results |
-| `helixmind bench compare` | ⚖️ Compare benchmark runs |
-| `helixmind bench list` | 📋 List past runs |
+| `helixmind` / `helixmind chat` | Start interactive chat (default) |
+| `helixmind helix` | Alias for interactive chat |
+| `helixmind init` | Initialize HelixMind in project |
+| `helixmind chat -m "..."` | Send a single message |
+| `helixmind chat --yolo` | Auto-approve all operations |
+| `helixmind chat --no-validation` | Disable output validation |
+| `helixmind chat --validation-verbose` | Detailed validation output |
+| `helixmind chat --validation-strict` | Treat validation warnings as errors |
+| `helixmind feed [paths...]` | Feed files/dirs into spiral |
+| `helixmind feed --deep` | Deep analysis with intent detection |
+| `helixmind feed --watch` | Watch and auto-update spiral |
+| `helixmind spiral status` | Show spiral metrics |
+| `helixmind spiral search <query>` | Search spiral context |
+| `helixmind spiral compact` | Trigger spiral compaction |
+| `helixmind config set <k> <v>` | Set config value |
+| `helixmind config get <key>` | Get config value |
+| `helixmind config list` | Show all config |
+| `helixmind export [dir]` | Export spiral to .helixmind.zip |
+| `helixmind import <zip>` | Import spiral from archive |
+| `helixmind login` | Authenticate with web platform |
+| `helixmind logout` | Remove stored auth |
+| `helixmind whoami` | Show auth status |
+| `helixmind bench run` | Run SWE-bench benchmark |
+| `helixmind bench results` | Show benchmark results |
+| `helixmind bench compare` | Compare benchmark runs |
+| `helixmind bench list` | List past runs |
 
-### ⌨️ Keyboard Shortcuts
+### Keyboard Shortcuts
 
 | Key | Action |
 |:----|:-------|
-| `Ctrl+C` | 🛑 Exit |
-| `Ctrl+L` | 🧠¹ Clear screen |
-| `Ctrl+D` | 🐛 Toggle debug mode |
-| `Tab` | ✨ Autocomplete command |
+| `ESC ESC` | Emergency stop (abort all sessions) |
+| `Ctrl+C` | Exit |
+| `Ctrl+L` | Clear screen |
+| `Ctrl+D` | Toggle debug mode |
+| `Ctrl+PageUp/Down` | Switch session tabs |
+| `Tab` | Autocomplete command |
 
 ---
 
-## 🧠  Memory Architecture
+## Memory Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Level 1 — 🔍 Focus                                 │
-│  Most relevant, recent context                      │
-├─────────────────────────────────────────────────────┤
-│  Level 2 — ⚡ Active                                │
-│  Related files, dependencies                        │
-├─────────────────────────────────────────────────────┤
-│  Level 3 — ðŸ“š Reference                             │
-│  Decisions, patterns, code structure                │
-├─────────────────────────────────────────────────────┤
-│  Level 4 — ðŸ“¦ Archive                               │
-│  Compressed summaries, old sessions                 │
-├─────────────────────────────────────────────────────┤
-│  Level 5 — ðŸ—„ï¸ Deep Archive                          │
-│  Long-term knowledge, project history               │
-└─────────────────────────────────────────────────────┘
++-----------------------------------------------------+
+|  Level 1 - Focus                                    |
+|  Most relevant, recent context                      |
++-----------------------------------------------------+
+|  Level 2 - Active                                   |
+|  Related files, dependencies                        |
++-----------------------------------------------------+
+|  Level 3 - Reference                                |
+|  Decisions, patterns, code structure                |
++-----------------------------------------------------+
+|  Level 4 - Archive                                  |
+|  Compressed summaries, old sessions                 |
++-----------------------------------------------------+
+|  Level 5 - Deep Archive                             |
+|  Long-term knowledge, project history               |
++-----------------------------------------------------+
 ```
 
 Context automatically flows between levels based on relevance and recency. Cloud enrichment adds web knowledge via topic detection and content extraction.
 
 ---
 
-## 🌐 Web Platform
+## Web Platform
 
 The web dashboard (available at [helix-mind.ai](https://helix-mind.ai)) is a separate **Next.js 15** application:
 
@@ -252,7 +256,7 @@ The web dashboard (available at [helix-mind.ai](https://helix-mind.ai)) is a sep
 | **3D Brain View** | Interactive Three.js visualization of your spiral memory |
 | **Dashboard** | Manage API keys, billing, profile, and CLI connections |
 | **Admin Panel** | User management, ticket system, plans, settings, stats |
-| **CLI Integration** | WebSocket bridge — control your CLI from the browser |
+| **CLI Integration** | WebSocket bridge &mdash; control your CLI from the browser |
 | **Support System** | Built-in ticket system with detail views |
 | **Blog & Docs** | MDX-based with i18n (DE/EN), sidebar navigation |
 | **Auth** | NextAuth with OAuth, staff login, CLI authorization |
@@ -260,10 +264,9 @@ The web dashboard (available at [helix-mind.ai](https://helix-mind.ai)) is a sep
 | **PWA** | Service worker, install prompt, offline support |
 | **Cookie Consent** | GDPR-compliant cookie banner and settings |
 
-
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 Create `.helixmind/config.json` in your project:
 
@@ -280,7 +283,7 @@ Create `.helixmind/config.json` in your project:
 }
 ```
 
-### 🔑 Environment Variables
+### Environment Variables
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...    # For Claude
@@ -290,7 +293,7 @@ OPENAI_API_KEY=sk-...           # For OpenAI/GPT
 
 ---
 
-## ðŸ› ï¸ Tech Stack
+## Tech Stack
 
 ### CLI
 
@@ -319,7 +322,7 @@ OPENAI_API_KEY=sk-...           # For OpenAI/GPT
 
 ---
 
-## ðŸ—ï¸ Development
+## Development
 
 ```bash
 # Clone repo
@@ -349,7 +352,7 @@ npm run dev
 
 ---
 
-## ðŸ“š Documentation
+## Documentation
 
 Complete documentation is available in the web dashboard and includes:
 
@@ -366,17 +369,16 @@ Complete documentation is available in the web dashboard and includes:
 
 ---
 
-## ðŸ“„ License
+## License
 
-[AGPL-3.0](LICENSE) — Free for open-source use. Commercial licenses available.
+[AGPL-3.0](LICENSE) &mdash; Free for open-source use. Commercial licenses available.
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by [HelixMind](https://github.com/DancingTedDanson011)**
+**Made with care by [HelixMind](https://helix-mind.ai)**
 
-[⬆ Back to Top](#-helixmind)
+[Back to Top](#helixmind)
 
 </div>
-

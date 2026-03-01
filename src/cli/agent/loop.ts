@@ -40,6 +40,8 @@ export interface AgentLoopOptions {
   onBeforeAnswer?: () => void;
   /** Called when the LLM produces a text block — used by web chat to stream text */
   onTextBlock?: (text: string) => void;
+  /** Called when the LLM produces a thinking/reasoning text BEFORE tool calls in the same response */
+  onThinkingText?: (text: string) => void;
   /** Called when a tool call is about to execute — used by web chat to stream tool details */
   onToolCallDetail?: (stepNum: number, name: string, input: Record<string, unknown>) => void;
   maxIterations?: number;
@@ -83,6 +85,7 @@ export async function runAgentLoop(
     onThinking,
     onBeforeAnswer,
     onTextBlock,
+    onThinkingText,
     onToolCallDetail,
     maxIterations = 200,
   } = options;
@@ -187,17 +190,30 @@ export async function runAgentLoop(
     const assistantContent: ContentBlock[] = [...response.content];
     let hasToolUse = false;
     const toolUseBlocks: ToolUseBlock[] = [];
+    const textBlocks: string[] = [];
 
-    // Buffer all text — rendered formatted at the end (no inline streaming)
+    // First pass: separate text and tool_use blocks
     for (const block of response.content) {
       if (block.type === 'text' && block.text) {
-        totalText += block.text;
-        onTextBlock?.(block.text);
+        textBlocks.push(block.text);
       }
       if (block.type === 'tool_use') {
         hasToolUse = true;
         toolUseBlocks.push(block);
       }
+    }
+
+    // Handle text: if tool calls follow in the same response, show text as "thinking"
+    // (intermediate reasoning). Only the final answer text (no tool calls) gets rendered formatted.
+    for (const text of textBlocks) {
+      if (hasToolUse) {
+        // This is intermediate thinking — show inline before tools execute
+        onThinkingText?.(text);
+      } else {
+        // This is the final answer — collect for formatted rendering
+        totalText += text;
+      }
+      onTextBlock?.(text);
     }
 
     // Execute all tool calls and collect results

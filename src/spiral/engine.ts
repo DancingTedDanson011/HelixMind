@@ -20,6 +20,7 @@ import { CompressionService, type EvolutionResult } from './compression.js';
 import { logger } from '../utils/logger.js';
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 
 /**
  * Core engine that orchestrates all spiral operations.
@@ -84,6 +85,7 @@ export class SpiralEngine {
 
   /**
    * Store new context in the spiral.
+   * Deduplicates by content hash — identical content is refreshed, not duplicated.
    */
   async store(
     content: string,
@@ -91,11 +93,42 @@ export class SpiralEngine {
     metadata?: NodeMetadata,
     relations?: string[],
   ): Promise<SpiralStoreResult> {
-    // Create the node
+    const meta = metadata ?? {};
+    const contentHash = createHash('sha256').update(content).digest('hex');
+
+    // Dedup check: if identical content already exists, refresh it instead of creating a new node
+    const existing = this.nodes.findByContentHash(contentHash);
+    if (existing) {
+      // Merge tags from new metadata into existing
+      const existingMeta = existing.metadata;
+      if (meta.tags && Array.isArray(meta.tags)) {
+        const existingTags = Array.isArray(existingMeta.tags) ? existingMeta.tags as string[] : [];
+        const merged = [...new Set([...existingTags, ...meta.tags as string[]])];
+        existingMeta.tags = merged;
+      }
+      // Copy over any new metadata keys (except tags, already merged)
+      for (const [key, val] of Object.entries(meta)) {
+        if (key !== 'tags') existingMeta[key] = val;
+      }
+
+      this.nodes.refreshNode(existing.id, content, existingMeta, contentHash);
+      logger.debug(`Dedup: refreshed existing node ${existing.id} (type: ${type})`);
+
+      return {
+        node_id: existing.id,
+        level: existing.level,
+        connections: 0,
+        token_count: existing.token_count,
+        deduplicated: true,
+      };
+    }
+
+    // Create the node with content hash
     const node = this.nodes.create({
       type,
       content,
-      metadata: metadata ?? {},
+      metadata: meta,
+      content_hash: contentHash,
     });
 
     // Generate and store embedding
@@ -306,6 +339,7 @@ export class SpiralEngine {
 
   /**
    * Import a node directly (for ZIP import). Returns store result.
+   * Uses content hash for deduplication.
    */
   importNode(input: {
     type: ContextType;
@@ -314,12 +348,27 @@ export class SpiralEngine {
     relevanceScore?: number;
     metadata?: NodeMetadata;
   }): SpiralStoreResult {
+    const contentHash = createHash('sha256').update(input.content).digest('hex');
+
+    // Dedup: skip if identical content already exists
+    const existing = this.nodes.findByContentHash(contentHash);
+    if (existing) {
+      return {
+        node_id: existing.id,
+        level: existing.level,
+        connections: 0,
+        token_count: existing.token_count,
+        deduplicated: true,
+      };
+    }
+
     const node = this.nodes.create({
       type: input.type,
       content: input.content,
       metadata: input.metadata ?? {},
       level: input.level,
       relevance_score: input.relevanceScore,
+      content_hash: contentHash,
     });
 
     return {

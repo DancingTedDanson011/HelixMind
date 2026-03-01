@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS nodes (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL,
   content TEXT NOT NULL,
+  content_hash TEXT,
   summary TEXT,
   level INTEGER NOT NULL DEFAULT 1 CHECK(level IN (1, 2, 3, 4, 5)),
   relevance_score REAL NOT NULL DEFAULT 1.0,
@@ -34,6 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_level ON nodes(level);
 CREATE INDEX IF NOT EXISTS idx_nodes_relevance ON nodes(relevance_score);
 CREATE INDEX IF NOT EXISTS idx_nodes_updated ON nodes(updated_at);
 CREATE INDEX IF NOT EXISTS idx_nodes_accessed ON nodes(accessed_at);
+CREATE INDEX IF NOT EXISTS idx_nodes_content_hash ON nodes(content_hash);
 CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source_id);
 CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_id);
 CREATE INDEX IF NOT EXISTS idx_edges_type ON edges(relation_type);
@@ -108,12 +110,14 @@ export class Database {
             ALTER TABLE nodes RENAME TO nodes_old;
             CREATE TABLE nodes (
               id TEXT PRIMARY KEY, type TEXT NOT NULL, content TEXT NOT NULL,
+              content_hash TEXT,
               summary TEXT, level INTEGER NOT NULL DEFAULT 1 CHECK(level IN (1, 2, 3, 4, 5)),
               relevance_score REAL NOT NULL DEFAULT 1.0,
               token_count INTEGER NOT NULL DEFAULT 0, metadata TEXT NOT NULL DEFAULT '{}',
               created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, accessed_at INTEGER NOT NULL
             );
-            INSERT INTO nodes SELECT * FROM nodes_old;
+            INSERT INTO nodes (id, type, content, summary, level, relevance_score, token_count, metadata, created_at, updated_at, accessed_at)
+              SELECT id, type, content, summary, level, relevance_score, token_count, metadata, created_at, updated_at, accessed_at FROM nodes_old;
             DROP TABLE nodes_old;
 
             ALTER TABLE edges RENAME TO edges_old;
@@ -133,6 +137,7 @@ export class Database {
             CREATE INDEX IF NOT EXISTS idx_nodes_relevance ON nodes(relevance_score);
             CREATE INDEX IF NOT EXISTS idx_nodes_updated ON nodes(updated_at);
             CREATE INDEX IF NOT EXISTS idx_nodes_accessed ON nodes(accessed_at);
+            CREATE INDEX IF NOT EXISTS idx_nodes_content_hash ON nodes(content_hash);
             CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source_id);
             CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_id);
             CREATE INDEX IF NOT EXISTS idx_edges_type ON edges(relation_type);
@@ -145,9 +150,21 @@ export class Database {
         this.raw.exec('PRAGMA foreign_keys = ON');
       }
 
-      // Set version
+      // Set version to 4 (includes content_hash)
       this.raw.exec('DELETE FROM schema_version');
-      this.raw.prepare('INSERT INTO schema_version (version) VALUES (?)').run(3);
+      this.raw.prepare('INSERT INTO schema_version (version) VALUES (?)').run(4);
+    }
+
+    // Migration v3 → v4: add content_hash column for deduplication
+    if (currentVersion === 3) {
+      try {
+        this.raw.exec('ALTER TABLE nodes ADD COLUMN content_hash TEXT');
+        this.raw.exec('CREATE INDEX IF NOT EXISTS idx_nodes_content_hash ON nodes(content_hash)');
+      } catch {
+        // Column may already exist
+      }
+      this.raw.exec('DELETE FROM schema_version');
+      this.raw.prepare('INSERT INTO schema_version (version) VALUES (?)').run(4);
     }
   }
 
