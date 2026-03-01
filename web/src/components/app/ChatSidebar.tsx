@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Plus, Trash2, Pencil, MessageSquare, Check, X, XCircle,
-  Shield, Zap, Activity, Bot,
+  Shield, Zap, Activity, Bot, Terminal, Square,
 } from 'lucide-react';
 import type { ChatSummary } from './AppShell';
+import type { InstanceMeta } from '@/lib/cli-types';
 
 /* ─── Session info (matches cli-types) ─────── */
 
@@ -74,6 +75,11 @@ interface ChatSidebarProps {
   onCreate: () => void;
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
+  instanceMeta?: InstanceMeta;
+  instanceMode?: 'safe' | 'skip-permissions' | 'yolo';
+  onInstanceClick?: () => void;
+  onInstanceStop?: () => void;
+  isInstanceActive?: boolean;
 }
 
 export function ChatSidebar({
@@ -87,6 +93,11 @@ export function ChatSidebar({
   onCreate,
   onDelete,
   onRename,
+  instanceMeta,
+  instanceMode,
+  onInstanceClick,
+  onInstanceStop,
+  isInstanceActive,
 }: ChatSidebarProps) {
   const t = useTranslations('app');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -126,6 +137,19 @@ export function ChatSidebar({
           {t('newChat')}
         </button>
       </div>
+
+      {/* CLI Instance */}
+      {instanceMeta && (
+        <div className="px-2 pb-1">
+          <CliInstanceItem
+            meta={instanceMeta}
+            mode={instanceMode || 'safe'}
+            onStop={() => onInstanceStop?.()}
+            onClick={() => onInstanceClick?.()}
+            isActive={isInstanceActive || false}
+          />
+        </div>
+      )}
 
       {/* Unified list */}
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
@@ -338,6 +362,50 @@ function ChatItem({
             <Trash2 size={12} />
           </button>
         </div>
+      </button>
+    </div>
+  );
+}
+
+/* ─── CLI Instance item ──────────────────────── */
+
+function CliInstanceItem({ meta, mode, onStop, onClick, isActive }: {
+  meta: InstanceMeta;
+  mode: 'safe' | 'skip-permissions' | 'yolo';
+  onStop: () => void;
+  onClick: () => void;
+  isActive: boolean;
+}) {
+  const folderName = meta.projectPath.split(/[/\\]/).filter(Boolean).pop() || meta.projectName;
+  const modeColor = mode === 'yolo' ? 'border-red-500/60'
+    : mode === 'skip-permissions' ? 'border-amber-500/60'
+    : 'border-emerald-500/60';
+
+  return (
+    <div className="group relative">
+      <button
+        onClick={onClick}
+        className={`
+          w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all
+          border-2 ${modeColor}
+          ${isActive ? 'bg-cyan-500/10' : 'bg-white/[0.02] hover:bg-white/5'}
+        `}
+      >
+        <div className="flex items-center gap-2">
+          <Terminal size={14} className="text-emerald-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="truncate text-xs font-semibold text-white">{folderName}</div>
+            <div className="truncate text-[10px] text-gray-500">{meta.projectPath}</div>
+          </div>
+          <Activity size={8} className="text-emerald-400 animate-pulse flex-shrink-0" />
+        </div>
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onStop(); }}
+        className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center justify-center w-6 h-6 rounded text-red-400 hover:bg-red-500/10 transition-all"
+        title="Stop"
+      >
+        <Square size={10} />
       </button>
     </div>
   );

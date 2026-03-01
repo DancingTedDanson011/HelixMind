@@ -799,6 +799,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   // === Start Brain Server BEFORE prompt (no async output during typing) ===
   let brainUrl: string | null = null;
+  let updateMetaFn: (() => void) | null = null;
   if (spiralEngine && config.spiral.enabled) {
     try {
       const { exportBrainData } = await import('../brain/exporter.js');
@@ -840,6 +841,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       // Set instance metadata for discovery
       const instanceId = (await import('node:crypto')).randomUUID().slice(0, 8);
+      const getPermissionMode = (): 'safe' | 'skip-permissions' | 'yolo' => {
+        if (permissions.isYolo()) return 'yolo';
+        if (permissions.isSkipPermissions()) return 'skip-permissions';
+        return 'safe';
+      };
       const updateMeta = () => {
         const meta = buildInstanceMeta(
           project.name || 'HelixMind',
@@ -848,11 +854,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           config.provider,
           '0.1.0',
           instanceId,
+          getPermissionMode(),
         );
         setInstanceMeta(meta);
         return meta;
       };
       updateMeta();
+      updateMetaFn = updateMeta;
 
       // Wire output streaming: when any session captures output, push to control clients
       const wireSessionOutput = (session: import('../sessions/session.js').Session) => {
@@ -2572,6 +2580,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             })();
           },
         },
+        () => updateMetaFn?.(),
       );
       if (handled === 'exit') {
         spiralEngine?.close();
@@ -3329,6 +3338,7 @@ async function handleSlashCommand(
     setTelegramBot: (bot: JarvisTelegramBot | null) => void;
     buildSkillContext: () => import('../jarvis/types.js').SkillContext;
   },
+  onModeChange?: () => void,
 ): Promise<string | void> {
   const parts = input.split(/\s+/);
   let cmd = parts[0].toLowerCase();
@@ -3429,6 +3439,7 @@ async function handleSlashCommand(
           sessionTokens, sessionToolCalls,
           onProviderSwitch, onBrainSwitch, currentBrainScope, onAutonomous, onValidation,
           sessionManager, onRegisterBrainHandlers, onSubPrompt, bugJournal, jarvisCtx,
+          onModeChange,
         );
       }
       break;
@@ -3754,9 +3765,11 @@ async function handleSlashCommand(
       if (arg === 'on') {
         permissions.setYolo(true);
         renderInfo('YOLO mode ON \u2014 ALL operations auto-approved');
+        onModeChange?.();
       } else if (arg === 'off') {
         permissions.setYolo(false);
         renderInfo('YOLO mode OFF');
+        onModeChange?.();
       } else {
         renderInfo(`YOLO mode: ${permissions.isYolo() ? 'ON' : 'OFF'}`);
       }
@@ -3768,9 +3781,11 @@ async function handleSlashCommand(
       if (arg === 'on') {
         permissions.setSkipPermissions(true);
         renderInfo('Skip-permissions ON \u2014 write operations auto-approved (dangerous still asks)');
+        onModeChange?.();
       } else if (arg === 'off') {
         permissions.setSkipPermissions(false);
         renderInfo('Skip-permissions OFF \u2014 write operations require confirmation');
+        onModeChange?.();
       } else {
         renderInfo(`Skip-permissions: ${permissions.isSkipPermissions() ? 'ON' : 'OFF'}`);
       }

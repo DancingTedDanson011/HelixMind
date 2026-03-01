@@ -21,6 +21,7 @@ export interface InstanceMeta {
   provider: string;
   uptime: number;
   version: string;
+  permissionMode?: 'safe' | 'skip-permissions' | 'yolo';
 }
 
 // ---------------------------------------------------------------------------

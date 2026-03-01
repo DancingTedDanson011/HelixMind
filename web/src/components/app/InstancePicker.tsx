@@ -11,7 +11,7 @@ import type { DiscoveredInstance } from '@/lib/cli-types';
 interface InstancePickerProps {
   open: boolean;
   onClose: () => void;
-  onConnect: (instance: DiscoveredInstance, mode: 'normal' | 'skip-permissions') => void;
+  onConnect: (instance: DiscoveredInstance, mode: 'normal' | 'skip-permissions' | 'yolo') => void;
 }
 
 export function InstancePicker({ open, onClose, onConnect }: InstancePickerProps) {

@@ -6,6 +6,7 @@
  * Sessions are displayed as terminal tabs (tab-view.ts).
  */
 import { randomUUID } from 'node:crypto';
+import { basename } from 'node:path';
 import { Session, type SessionResult, type SessionStatus } from './session.js';
 import type { ToolMessage } from '../providers/types.js';
 import { renderTabBar } from './tab-view.js';
@@ -32,8 +33,8 @@ export class SessionManager {
   constructor(opts: SessionManagerOptions) {
     this.opts = opts;
 
-    // Create the main (interactive) session — always exists
-    const main = new Session('main', 'Chat', '\u{1F4AC}', opts.flags);
+    // Create the main (interactive) session — always exists, named after cwd folder
+    const main = new Session('main', basename(process.cwd()) || 'Chat', '\u{1F4AC}', opts.flags);
     main.status = 'running';
     main.startTime = Date.now();
     this.sessions.set('main', main);

@@ -17,6 +17,7 @@ export interface InstanceMeta {
   provider: string;
   uptime: number;
   version: string;
+  permissionMode: 'safe' | 'skip-permissions' | 'yolo';
 }
 
 export interface SessionInfo {
@@ -444,6 +445,7 @@ export function buildInstanceMeta(
   provider: string,
   version: string,
   instanceId: string,
+  permissionMode: 'safe' | 'skip-permissions' | 'yolo' = 'safe',
 ): InstanceMeta {
   return {
     instanceId,
@@ -453,6 +455,7 @@ export function buildInstanceMeta(
     provider,
     uptime: Math.floor((Date.now() - instanceStartTime) / 1000),
     version,
+    permissionMode,
   };
 }
 

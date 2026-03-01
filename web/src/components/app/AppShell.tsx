@@ -117,7 +117,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       setSidebarOpen(false);
     }
   }, []);
-  const [mode, setMode] = useState<'normal' | 'skip-permissions'>('normal');
+  const [mode, setMode] = useState<'normal' | 'skip-permissions' | 'yolo'>('normal');
   const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor' | 'jarvis'>(
     (initialTab === 'console' || initialTab === 'monitor' || initialTab === 'jarvis') ? initialTab as any : 'chat'
   );
@@ -136,6 +136,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
 
   const isConnected = connection.connectionState === 'connected';
   const isConnecting = connection.connectionState === 'connecting' || connection.connectionState === 'authenticating';
+
+  // Map 3-value permission mode to 2-value chat protocol mode (yolo → skip-permissions for wire)
+  const chatMode: 'normal' | 'skip-permissions' = mode === 'normal' ? 'normal' : 'skip-permissions';
 
   // CLI execution state (only when user confirms prompt execution)
   const [cliExecuting, setCliExecuting] = useState(false);
@@ -196,6 +199,12 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         setHasLLMKey(true);
       }
     }).catch(() => {});
+
+    // Read permission mode from instance meta
+    const pm = connection.instanceMeta?.permissionMode;
+    if (pm === 'yolo') setMode('yolo');
+    else if (pm === 'skip-permissions') setMode('skip-permissions');
+    else setMode('normal');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]);
 
@@ -203,6 +212,15 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   useEffect(() => {
     if (!isConnected) configSyncedRef.current = false;
   }, [isConnected]);
+
+  // Track permission mode changes from CLI (live updates via instance_meta events)
+  useEffect(() => {
+    if (!isConnected) return;
+    const pm = connection.instanceMeta?.permissionMode;
+    if (pm === 'yolo') setMode('yolo');
+    else if (pm === 'skip-permissions') setMode('skip-permissions');
+    else if (pm === 'safe') setMode('normal');
+  }, [isConnected, connection.instanceMeta?.permissionMode]);
 
   // ── Close connect popover on outside click ──
   useEffect(() => {
@@ -295,7 +313,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         const data: ChatFull = await res.json();
         setActiveChat(data);
         setActiveChatId(chatId);
-        setMode(data.mode as 'normal' | 'skip-permissions');
+        setMode(data.mode as 'normal' | 'skip-permissions' | 'yolo');
       }
     } catch { /* silent */ }
   }, []);
@@ -487,8 +505,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     } catch { /* silent */ }
 
     setCliExecuting(true);
-    cliChat.sendMessage(fixPrompt, chatId, mode);
-  }, [activeChatId, isConnected, cliChat, mode, fetchChats, loadChat, activeTab]);
+    cliChat.sendMessage(fixPrompt, chatId, chatMode);
+  }, [activeChatId, isConnected, cliChat, chatMode, fetchChats, loadChat, activeTab]);
 
   const handleFixBug = useCallback((bugId: number) => {
     const bug = connection.bugs.find(b => b.id === bugId);
@@ -700,7 +718,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     // Route to CLI agent if connected, otherwise brainstorm
     if (isConnected) {
       setCliExecuting(true);
-      cliChat.sendMessage(trimmed, chatId, mode);
+      cliChat.sendMessage(trimmed, chatId, chatMode);
     } else if (hasLLMKey) {
       brainstormChat.sendMessage(trimmed, chatId);
     }
@@ -876,11 +894,11 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     } catch { /* silent */ }
 
     setCliExecuting(true);
-    cliChat.sendMessage(prompt, activeChatId, mode);
+    cliChat.sendMessage(prompt, activeChatId, chatMode);
   }, [activeChatId, isConnected, cliChat, mode]);
 
   // ── Connect Instance & Execute ──────────────
-  const handleConnectAndExecute = useCallback(async (instance: DiscoveredInstance, execMode: 'normal' | 'skip-permissions') => {
+  const handleConnectAndExecute = useCallback(async (instance: DiscoveredInstance, execMode: 'normal' | 'skip-permissions' | 'yolo') => {
     setShowInstancePicker(false);
     setMode(execMode);
 
@@ -897,7 +915,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       } catch { /* silent */ }
 
       // Store pending prompt — will be sent when connection establishes
-      setPendingExecPrompt({ prompt, chatId: activeChatId, mode: execMode });
+      setPendingExecPrompt({ prompt, chatId: activeChatId, mode: execMode === 'normal' ? 'normal' : 'skip-permissions' });
     }
 
     // Connect to instance (triggers re-render → useEffect below fires)
@@ -965,6 +983,11 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onCreate={createChat}
               onDelete={deleteChat}
               onRename={renameChat}
+              instanceMeta={isConnected ? connection.instanceMeta ?? undefined : undefined}
+              instanceMode={mode === 'yolo' ? 'yolo' : mode === 'skip-permissions' ? 'skip-permissions' : 'safe'}
+              onInstanceClick={() => setActiveTab('chat')}
+              onInstanceStop={() => { connection.abortSession('main').catch(() => {}); }}
+              isInstanceActive={activeTab === 'chat'}
             />
           ) : activeTab === 'console' ? (
             <SessionSidebar
@@ -1007,6 +1030,11 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onCreate={() => { createChat(); setActiveTab('chat'); }}
               onDelete={deleteChat}
               onRename={renameChat}
+              instanceMeta={isConnected ? connection.instanceMeta ?? undefined : undefined}
+              instanceMode={mode === 'yolo' ? 'yolo' : mode === 'skip-permissions' ? 'skip-permissions' : 'safe'}
+              onInstanceClick={() => setActiveTab('chat')}
+              onInstanceStop={() => { connection.abortSession('main').catch(() => {}); }}
+              isInstanceActive={false}
             />
           ) : null}
         </div>
@@ -1023,118 +1051,62 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-surface/50 backdrop-blur-sm">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 md:p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-          >
-            {sidebarOpen ? <PanelLeftClose size={18} /> : (
-              <>
-                <Menu size={20} className="md:hidden" />
-                <PanelLeft size={18} className="hidden md:block" />
-              </>
-            )}
-          </button>
+        <div className="border-b border-white/5 bg-surface/50 backdrop-blur-sm">
+          {/* Row 1: Hamburger + Title + Connection badge */}
+          <div className="flex items-center gap-2 px-4 py-2">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 md:p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors flex-shrink-0"
+            >
+              {sidebarOpen ? <PanelLeftClose size={18} /> : (
+                <>
+                  <Menu size={20} className="md:hidden" />
+                  <PanelLeft size={18} className="hidden md:block" />
+                </>
+              )}
+            </button>
 
-          <div className="flex-1 min-w-0 flex items-center gap-2">
-            <h2 className="text-sm font-medium text-gray-200 truncate">
-              {activeTab === 'chat'
-                ? (activeChat?.title || t('noMessages'))
-                : (connection.sessions.find(s => s.id === consoleSessionId)?.name || 'Console')}
-            </h2>
+            <div className="flex-1 min-w-0 flex items-center gap-2">
+              <h2 className="text-sm font-medium text-gray-200 truncate">
+                {activeTab === 'chat'
+                  ? (activeChat?.title || t('noMessages'))
+                  : (connection.sessions.find(s => s.id === consoleSessionId)?.name || 'Console')}
+              </h2>
 
-            {/* Use in Helix button — always visible when >= 2 messages */}
-            {activeTab === 'chat' && activeChat &&
-              activeChat.messages.length >= 2 && !activeChat.agentPrompt && (
-              <button
-                onClick={handleCreatePrompt}
-                disabled={creatingPrompt}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all disabled:opacity-50"
-              >
-                {creatingPrompt ? (
-                  <Loader2 size={10} className="animate-spin" />
-                ) : (
-                  <FileText size={10} />
-                )}
-                {creatingPrompt ? t('creatingPrompt') : t('useInHelix')}
-              </button>
-            )}
+              {/* Use in Helix button — always visible when >= 2 messages */}
+              {activeTab === 'chat' && activeChat &&
+                activeChat.messages.length >= 2 && !activeChat.agentPrompt && (
+                <button
+                  onClick={handleCreatePrompt}
+                  disabled={creatingPrompt}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all disabled:opacity-50 hidden sm:flex"
+                >
+                  {creatingPrompt ? (
+                    <Loader2 size={10} className="animate-spin" />
+                  ) : (
+                    <FileText size={10} />
+                  )}
+                  {creatingPrompt ? t('creatingPrompt') : t('useInHelix')}
+                </button>
+              )}
 
-            {/* Prompt ready badge */}
-            {activeChat?.status === 'prompt_ready' && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <CheckCircle2 size={9} />
-                {t('promptReady')}
-              </span>
-            )}
-          </div>
-
-          {/* Tab switcher */}
-          {isConnected && (
-            <div className="flex gap-0.5 bg-white/5 rounded-lg p-0.5 overflow-x-auto scrollbar-none flex-nowrap">
-              <button
-                onClick={() => setActiveTab('chat')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  activeTab === 'chat' ? TAB_COLORS.chat.active : TAB_COLORS.chat.inactive
-                }`}
-              >
-                <MessageSquare size={11} />
-                Chat
-                {isConnected && connection.sessions.find(s => s.id === 'main')?.status === 'running' && (
-                  <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.chat.dot} animate-pulse`} />
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('console')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  activeTab === 'console' ? TAB_COLORS.console.active : TAB_COLORS.console.inactive
-                }`}
-              >
-                <Terminal size={11} />
-                Console
-                {consoleSessions.some(s => s.status === 'running') && (
-                  <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.console.dot} animate-pulse`} />
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('monitor')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  activeTab === 'monitor' ? TAB_COLORS.monitor.active : TAB_COLORS.monitor.inactive
-                }`}
-              >
-                <Eye size={11} />
-                {t('monitorTab')}
-                {(monitorSessions.some(s => s.status === 'running') || threatCount > 0 || connection.approvals.length > 0) && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('jarvis');
-                  connection.listJarvisTasks().catch(() => {});
-                  connection.getJarvisStatus().catch(() => {});
-                }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  activeTab === 'jarvis' ? TAB_COLORS.jarvis.active : TAB_COLORS.jarvis.inactive
-                }`}
-              >
-                <Bot size={11} />
-                {t('jarvisTab')}
-                {connection.jarvisStatus?.daemonState === 'running' && (
-                  <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.jarvis.dot} animate-pulse`} />
-                )}
-              </button>
+              {/* Prompt ready badge */}
+              {activeChat?.status === 'prompt_ready' && (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <CheckCircle2 size={9} />
+                  {t('promptReady')}
+                </span>
+              )}
             </div>
-          )}
 
-          {/* CLI Connection badge */}
-          {isConnected && connection.instanceMeta ? (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-                <Wifi size={11} className="text-emerald-400 hidden sm:block" />
-                <span className="text-emerald-400 font-medium">HelixMind</span>
-                <span className="text-gray-600 hidden sm:inline">:{connectedPort}</span>
-              </div>
+            {/* CLI Connection badge */}
+            {isConnected && connection.instanceMeta ? (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10 flex-shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                  <Wifi size={11} className="text-emerald-400 hidden sm:block" />
+                  <span className="text-emerald-400 font-medium hidden sm:inline">HelixMind</span>
+                  <span className="text-gray-600 hidden sm:inline">:{connectedPort}</span>
+                </div>
           ) : isConnecting ? (
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] text-cyan-400/80 bg-cyan-500/5 border border-cyan-500/10 animate-pulse">
               <RefreshCw size={11} className="animate-spin" />
@@ -1214,6 +1186,67 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           </button>
         </div>
 
+          {/* Row 2: Tab switcher — own row, scrollable on mobile */}
+          {isConnected && (
+            <div className="flex gap-0.5 px-4 py-1.5 overflow-x-auto scrollbar-none flex-nowrap">
+              <div className="flex gap-0.5 bg-white/5 rounded-lg p-0.5">
+                <button
+                  onClick={() => setActiveTab('chat')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${
+                    activeTab === 'chat' ? TAB_COLORS.chat.active : TAB_COLORS.chat.inactive
+                  }`}
+                >
+                  <MessageSquare size={11} />
+                  Chat
+                  {isConnected && connection.sessions.find(s => s.id === 'main')?.status === 'running' && (
+                    <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.chat.dot} animate-pulse`} />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('console')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${
+                    activeTab === 'console' ? TAB_COLORS.console.active : TAB_COLORS.console.inactive
+                  }`}
+                >
+                  <Terminal size={11} />
+                  Console
+                  {consoleSessions.some(s => s.status === 'running') && (
+                    <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.console.dot} animate-pulse`} />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('monitor')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${
+                    activeTab === 'monitor' ? TAB_COLORS.monitor.active : TAB_COLORS.monitor.inactive
+                  }`}
+                >
+                  <Eye size={11} />
+                  {t('monitorTab')}
+                  {(monitorSessions.some(s => s.status === 'running') || threatCount > 0 || connection.approvals.length > 0) && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('jarvis');
+                    connection.listJarvisTasks().catch(() => {});
+                    connection.getJarvisStatus().catch(() => {});
+                  }}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${
+                    activeTab === 'jarvis' ? TAB_COLORS.jarvis.active : TAB_COLORS.jarvis.inactive
+                  }`}
+                >
+                  <Bot size={11} />
+                  {t('jarvisTab')}
+                  {connection.jarvisStatus?.daemonState === 'running' && (
+                    <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.jarvis.dot} animate-pulse`} />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Active sessions strip + Jarvis tile */}
         {isConnected && (activeSessions.length > 0 || connection.jarvisStatus?.daemonState === 'running') && (
           <div className="flex items-center gap-2 px-4 py-1.5 border-b border-white/5 bg-surface/30 overflow-x-auto">
@@ -1285,11 +1318,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           <div className="flex-1 overflow-hidden flex flex-col">
             {/* CLI active session indicator */}
             {isConnected && (
-              <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/[0.03] border-b border-emerald-500/10 flex-shrink-0">
-                <Terminal size={12} className="text-emerald-400" />
-                <span className="text-[11px] text-emerald-400 font-medium">CLI Active</span>
-                <span className="text-[10px] text-gray-500">{connection.instanceMeta?.projectName || ''}</span>
-                <Activity size={8} className="text-emerald-400 animate-pulse ml-auto" />
+              <div className="flex items-center gap-2 px-4 py-1 bg-emerald-500/[0.03] border-b border-emerald-500/10 flex-shrink-0">
+                <Activity size={8} className="text-emerald-400 animate-pulse" />
+                <span className="text-[10px] text-emerald-400">{connection.instanceMeta?.projectName || ''}</span>
+                <span className="text-[9px] text-gray-600 ml-auto">{mode === 'yolo' ? 'YOLO' : mode === 'skip-permissions' ? 'Skip' : 'Safe'}</span>
               </div>
             )}
             {/* Always show ChatView — structured messages, not raw terminal */}
@@ -1576,6 +1608,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 hasLLMKey={isConnected || hasLLMKey}
                 hasChat={true}
                 isConnected={isConnected}
+                activeTab="jarvis"
               />
             </div>
           </div>
@@ -1627,6 +1660,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               hasLLMKey={isConnected || hasLLMKey}
               hasChat={!!activeChat}
               isConnected={isConnected}
+              activeTab={activeTab}
             />
           </div>
         )}
