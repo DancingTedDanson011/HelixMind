@@ -307,7 +307,7 @@ export function ConsolePage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Link
-                        href="/app"
+                        href={`/app?tab=console&session=${session.id}`}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all"
                       >
                         <MessageSquare size={12} />

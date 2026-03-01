@@ -711,7 +711,14 @@
     "bugUpdatedAt": "Updated at",
     "bugConnectToFix": "Connect a CLI instance to fix bugs",
     "bugNewDetected": "New bug detected",
-    "bugStatusUpdated": "Bug status updated"
+    "bugStatusUpdated": "Bug status updated",
+    "alreadyConnected": "Already connected to CLI instance.",
+    "noCliFound": "No CLI instances found. Start HelixMind CLI with: npx helixmind",
+    "connectingTo": "Connecting to {name}...",
+    "chatTabHint": "Send messages to your AI agent. Connect a CLI instance for full agent capabilities.",
+    "consoleTabHint": "Terminal output of your running sessions. Start with /auto or /security.",
+    "monitorTabHint": "Security dashboard for threats, defenses, and approvals.",
+    "helpCommands": "**Available commands:**\n`/auto [goal]` — Start auto agent\n`/security` — Run security audit\n`/monitor [mode]` — Start security monitor\n`/connect` — Connect to CLI instance\n`/disconnect` — Disconnect CLI\n`/console` — Switch to console tab\n`/chat` — Switch to chat tab\n`/brain` — Open 3D brain visualization\n`/bugs` — Toggle bug journal\n`/bugfix` — Fix all open bugs\n`/stop [id]` — Stop sessions\n`/help` — Show this help"
   },
   "ticket": {
     "createTitle": "Create New Ticket",

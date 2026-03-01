@@ -63,7 +63,12 @@ function SessionIcon({ name, size = 12, className = '' }: { name: string; size?:
 
 /* ─── Component ───────────────────────────────── */
 
-export function AppShell() {
+interface AppShellProps {
+  initialTab?: string;
+  initialSession?: string;
+}
+
+export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const t = useTranslations('app');
   const {
     connection, chat: cliChat,
@@ -83,8 +88,10 @@ export function AppShell() {
     }
   }, []);
   const [mode, setMode] = useState<'normal' | 'skip-permissions'>('normal');
-  const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor'>('chat');
-  const [consoleSessionId, setConsoleSessionId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor'>(
+    (initialTab === 'console' || initialTab === 'monitor') ? initialTab : 'chat'
+  );
+  const [consoleSessionId, setConsoleSessionId] = useState<string | null>(initialSession || null);
   const [showInstancePicker, setShowInstancePicker] = useState(false);
   const [showBugPanel, setShowBugPanel] = useState(false);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
@@ -328,6 +335,20 @@ export function AppShell() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connection.bugs.length]);
 
+  // ── Add local system message to chat ───────────
+  const addSystemMessage = useCallback((content: string) => {
+    if (!activeChat) return;
+    const sysMsg: ChatMessage = {
+      id: `system-${Date.now()}`,
+      chatId: activeChat.id,
+      role: 'assistant',
+      content,
+      metadata: { isSystemMessage: true },
+      createdAt: new Date().toISOString(),
+    };
+    setActiveChat(prev => prev ? { ...prev, messages: [...prev.messages, sysMsg] } : null);
+  }, [activeChat]);
+
   // ── Send message (with slash command support) ──
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -389,9 +410,22 @@ export function AppShell() {
         case 'disconnect':
           disconnectCli();
           return;
-        case 'help':
-          // Show help as system message in chat
-          break; // fall through to send as regular message
+        case 'connect': {
+          if (isConnected) {
+            addSystemMessage(t('alreadyConnected'));
+          } else if (instances.length > 0) {
+            addSystemMessage(t('connectingTo', { name: instances[0].meta.projectName }));
+            connectTo(instances[0]);
+          } else {
+            rescan();
+            addSystemMessage(t('noCliFound'));
+          }
+          return;
+        }
+        case 'help': {
+          addSystemMessage(t('helpCommands'));
+          return;
+        }
         default:
           // Unknown slash command — send as regular message to CLI
           break;
@@ -446,13 +480,16 @@ export function AppShell() {
       });
     } catch { /* silent */ }
 
-    // ALWAYS use brainstorm (own API key) — CLI is only for on-demand execution
-    if (hasLLMKey) {
+    // Route to CLI agent if connected, otherwise brainstorm
+    if (isConnected) {
+      setCliExecuting(true);
+      cliChat.sendMessage(trimmed, chatId, mode);
+    } else if (hasLLMKey) {
       brainstormChat.sendMessage(trimmed, chatId);
     }
-  }, [activeChatId, brainstormChat, mode, hasLLMKey, fetchChats, loadChat, activeTab,
+  }, [activeChatId, brainstormChat, mode, hasLLMKey, isConnected, cliChat, fetchChats, loadChat, activeTab,
       handleStartAuto, handleStartSecurity, handleStartMonitor, handleAbortSession,
-      handleBrainClick, activeSessions, disconnectCli]);
+      handleBrainClick, activeSessions, disconnectCli, addSystemMessage, instances, connectTo, rescan, t]);
 
   // ── CLI completion callback (event-based, not ref-tracking) ──
   const handleCliComplete = useCallback((text: string, tools: import('@/hooks/use-cli-chat').ActiveTool[]) => {
@@ -1144,11 +1181,11 @@ export function AppShell() {
                         ? t('consoleNoSessions')
                         : t('consoleSelectSession')}
                     </p>
-                    {connection.sessions.length === 0 && (
-                      <p className="text-xs text-gray-600">
-                        {t('consoleHint')}
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-600 mt-1">
+                      {connection.sessions.length === 0
+                        ? t('consoleTabHint')
+                        : t('consoleHint')}
+                    </p>
                   </div>
                 </div>
               )}
@@ -1190,7 +1227,7 @@ export function AppShell() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">{t('monitorIdle')}</p>
-                    <p className="text-xs text-gray-600 mt-1">{t('monitorIdleHint')}</p>
+                    <p className="text-xs text-gray-600 mt-1">{t('monitorTabHint')}</p>
                   </div>
                   <div className="flex gap-2 justify-center">
                     <button
@@ -1325,8 +1362,8 @@ export function AppShell() {
           onStop={handleStop}
           mode={mode}
           onModeChange={setMode}
-          disabled={!hasLLMKey}
-          hasLLMKey={hasLLMKey}
+          disabled={!isConnected && !hasLLMKey}
+          hasLLMKey={isConnected || hasLLMKey}
         />
       </div>
 

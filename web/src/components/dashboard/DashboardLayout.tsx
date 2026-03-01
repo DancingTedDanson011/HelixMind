@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
+import { useCliDiscovery } from '@/hooks/use-cli-discovery';
 import {
   LayoutDashboard,
   User,
@@ -67,6 +68,8 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
   const t = useTranslations('dashboard');
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { instances } = useCliDiscovery();
+  const hasCliInstance = instances.length > 0;
 
   const navItems: NavItem[] = navItemDefs.map((item) => ({
     key: item.key,
@@ -126,6 +129,9 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                     >
                       <item.icon size={16} />
                       <span className="flex-1">{item.label}</span>
+                      {hasCliInstance && (item.key === 'console' || item.key === 'monitor') && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      )}
                       {active && <ChevronRight size={14} className="opacity-50" />}
                     </Link>
                   );
@@ -181,7 +187,10 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                         `}
                       >
                         <item.icon size={16} />
-                        <span>{item.label}</span>
+                        <span className="flex-1">{item.label}</span>
+                        {hasCliInstance && (item.key === 'console' || item.key === 'monitor') && (
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        )}
                       </Link>
                     );
                   })}
