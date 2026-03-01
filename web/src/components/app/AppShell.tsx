@@ -151,7 +151,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     : null;
   const cliOutput = useCliOutput({
     connection,
-    sessionId: activeTab === 'console' ? consoleSessionId
+    sessionId: activeTab === 'chat' ? (isConnected ? 'main' : null)
+      : activeTab === 'console' ? consoleSessionId
       : activeTab === 'monitor' ? monitorSessionId
       : jarvisSessionIdForOutput,
   });
@@ -1251,33 +1252,37 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         {activeTab === 'chat' ? (
           <div className="flex-1 overflow-hidden flex flex-col">
             {/* CLI active session indicator */}
-            {isConnected && (() => {
-              const mainSession = connection.sessions.find(s => s.id === 'main');
-              return mainSession?.status === 'running' ? (
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/[0.03] border-b border-emerald-500/10 flex-shrink-0">
-                  <Terminal size={12} className="text-emerald-400" />
-                  <span className="text-[11px] text-emerald-400 font-medium">CLI Active</span>
-                  <span className="text-[10px] text-gray-500">{connection.instanceMeta?.projectName || ''}</span>
-                  <Activity size={8} className="text-emerald-400 animate-pulse ml-auto" />
-                </div>
-              ) : null;
-            })()}
-            <div className="flex-1 overflow-hidden">
-              <ChatView
-                messages={activeChat?.messages || []}
-                isAgentRunning={isAgentRunning}
-                streamingContent={streamingContent}
-                activeTools={cliExecuting ? cliChat.state.activeTools : []}
-                hasChat={!!activeChat}
-                agentPrompt={activeChat?.agentPrompt}
-                chatStatus={activeChat?.status}
-                onEditPrompt={handleEditPrompt}
-                onConnectInstance={() => setShowInstancePicker(true)}
-                onExecutePrompt={handleExecutePrompt}
-                isConnected={isConnected}
-                isExecuting={cliExecuting}
-              />
-            </div>
+            {isConnected && (
+              <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/[0.03] border-b border-emerald-500/10 flex-shrink-0">
+                <Terminal size={12} className="text-emerald-400" />
+                <span className="text-[11px] text-emerald-400 font-medium">CLI Active</span>
+                <span className="text-[10px] text-gray-500">{connection.instanceMeta?.projectName || ''}</span>
+                <Activity size={8} className="text-emerald-400 animate-pulse ml-auto" />
+              </div>
+            )}
+            {/* Show live CLI terminal when connected + empty chat, otherwise ChatView */}
+            {isConnected && activeChat && activeChat.messages.length === 0 && !isAgentRunning ? (
+              <div className="flex-1 min-h-0">
+                <TerminalViewer lines={cliOutput.lines} fullHeight />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-hidden">
+                <ChatView
+                  messages={activeChat?.messages || []}
+                  isAgentRunning={isAgentRunning}
+                  streamingContent={streamingContent}
+                  activeTools={cliExecuting ? cliChat.state.activeTools : []}
+                  hasChat={!!activeChat}
+                  agentPrompt={activeChat?.agentPrompt}
+                  chatStatus={activeChat?.status}
+                  onEditPrompt={handleEditPrompt}
+                  onConnectInstance={() => setShowInstancePicker(true)}
+                  onExecutePrompt={handleExecutePrompt}
+                  isConnected={isConnected}
+                  isExecuting={cliExecuting}
+                />
+              </div>
+            )}
           </div>
         ) : activeTab === 'console' ? (
           <div className="flex-1 overflow-hidden flex flex-col">
