@@ -796,7 +796,11 @@
     "monitorInfoFeature2Title": "Defensive Mode",
     "monitorInfoFeature2Desc": "Automatically blocks common threats and asks for approval on critical ones.",
     "monitorInfoFeature3Title": "Active Mode",
-    "monitorInfoFeature3Desc": "Aggressive threat response — automatically takes defensive action on all detected threats."
+    "monitorInfoFeature3Desc": "Aggressive threat response — automatically takes defensive action on all detected threats.",
+    "quickAutoReview": "Auto Review",
+    "quickSecurityAudit": "Security Audit",
+    "quickMonitor": "File Monitor",
+    "quickJarvis": "Jarvis AGI"
   },
   "ticket": {
     "createTitle": "Create New Ticket",

@@ -274,15 +274,15 @@ function ChatItem({
       <button
         onClick={onSelect}
         className={`
-          w-full text-left px-3 py-2 rounded-lg text-sm transition-all
+          w-full text-left px-3 py-2 rounded-lg text-sm transition-all border-l-2
           ${isActive
-            ? 'bg-white/10 text-white'
-            : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+            ? 'bg-cyan-500/10 text-white border-cyan-400'
+            : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border-transparent hover:border-cyan-400/30'
           }
         `}
       >
         <div className="flex items-start gap-2">
-          <MessageSquare size={14} className="mt-0.5 flex-shrink-0 opacity-40" />
+          <MessageSquare size={14} className={`mt-0.5 flex-shrink-0 ${isActive ? 'text-cyan-400' : 'opacity-40'}`} />
           <div className="flex-1 min-w-0">
             <div className="truncate text-xs font-medium">
               {chat.title}

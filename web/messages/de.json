@@ -796,7 +796,11 @@
     "monitorInfoFeature2Title": "Defensiv-Modus",
     "monitorInfoFeature2Desc": "Blockiert automatisch gaengige Bedrohungen und fragt bei kritischen um Genehmigung.",
     "monitorInfoFeature3Title": "Aktiv-Modus",
-    "monitorInfoFeature3Desc": "Aggressive Bedrohungsabwehr — reagiert automatisch auf alle erkannten Bedrohungen."
+    "monitorInfoFeature3Desc": "Aggressive Bedrohungsabwehr — reagiert automatisch auf alle erkannten Bedrohungen.",
+    "quickAutoReview": "Auto-Analyse",
+    "quickSecurityAudit": "Sicherheitsaudit",
+    "quickMonitor": "Datei-Monitor",
+    "quickJarvis": "Jarvis AGI"
   },
   "ticket": {
     "createTitle": "Neues Ticket erstellen",

@@ -25,6 +25,15 @@ import {
 import { JarvisPanel } from '@/components/jarvis/JarvisPanel';
 import { TabInfoPage } from './TabInfoPage';
 
+/* ─── Tab color scheme ──────────────────────── */
+
+const TAB_COLORS = {
+  chat:    { active: 'bg-cyan-500/15 text-cyan-400',    inactive: 'text-cyan-400/40 hover:text-cyan-400/70',    dot: 'bg-cyan-400' },
+  console: { active: 'bg-emerald-500/15 text-emerald-400', inactive: 'text-emerald-400/40 hover:text-emerald-400/70', dot: 'bg-emerald-400' },
+  monitor: { active: 'bg-purple-500/15 text-purple-400',  inactive: 'text-purple-400/40 hover:text-purple-400/70',  dot: 'bg-purple-400' },
+  jarvis:  { active: 'bg-fuchsia-500/15 text-fuchsia-400', inactive: 'text-fuchsia-400/40 hover:text-fuchsia-400/70', dot: 'bg-fuchsia-400' },
+} as const;
+
 /* ─── Types ───────────────────────────────────── */
 
 export interface ChatSummary {
@@ -170,12 +179,49 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // ── Auto-create chat on CLI connect ─────────
+  // ── Auto-create or select chat on CLI connect ─────────
   useEffect(() => {
-    if (isConnected && chats.length === 0 && !activeChatId) {
+    if (!isConnected) return;
+    if (chats.length === 0 && !activeChatId) {
       createChat();
+    } else if (!activeChatId && chats.length > 0) {
+      // Select most recent chat so user doesn't need to press New Chat
+      loadChat(chats[0].id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
+
+  // ── Auto-detect mode on CLI connect ──────────
+  const hasAutoDetectedRef = useRef(false);
+  useEffect(() => {
+    if (!isConnected || hasAutoDetectedRef.current) return;
+    hasAutoDetectedRef.current = true;
+
+    // Fetch Jarvis status to check if daemon is running
+    connection.getJarvisStatus().then(() => {
+      // Navigate to Jarvis tab if daemon is running
+      if (connection.jarvisStatus?.daemonState === 'running') {
+        setActiveTab('jarvis');
+        return;
+      }
+    }).catch(() => {});
+    connection.listJarvisTasks().catch(() => {});
+
+    // Check active sessions and navigate to appropriate tab
+    const runningSessions = connection.sessions.filter(s => s.status === 'running' && s.id !== 'main');
+    if (runningSessions.length > 0) {
+      const firstSession = runningSessions[0];
+      const tab = getSessionTab(firstSession.name);
+      setActiveTab(tab);
+      if (tab === 'console') setConsoleSessionId(firstSession.id);
+      if (tab === 'monitor') setMonitorSessionId(firstSession.id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
+
+  // Reset auto-detect flag on disconnect
+  useEffect(() => {
+    if (!isConnected) hasAutoDetectedRef.current = false;
   }, [isConnected]);
 
   // ── Load chat messages ──────────────────────
@@ -944,9 +990,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               <button
                 onClick={() => setActiveTab('chat')}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  activeTab === 'chat'
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-300'
+                  activeTab === 'chat' ? TAB_COLORS.chat.active : TAB_COLORS.chat.inactive
                 }`}
               >
                 <MessageSquare size={11} />
@@ -955,23 +999,19 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               <button
                 onClick={() => setActiveTab('console')}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  activeTab === 'console'
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-300'
+                  activeTab === 'console' ? TAB_COLORS.console.active : TAB_COLORS.console.inactive
                 }`}
               >
                 <Terminal size={11} />
                 Console
                 {consoleSessions.some(s => s.status === 'running') && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.console.dot} animate-pulse`} />
                 )}
               </button>
               <button
                 onClick={() => setActiveTab('monitor')}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  activeTab === 'monitor'
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-300'
+                  activeTab === 'monitor' ? TAB_COLORS.monitor.active : TAB_COLORS.monitor.inactive
                 }`}
               >
                 <Eye size={11} />
@@ -987,15 +1027,13 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   connection.getJarvisStatus().catch(() => {});
                 }}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  activeTab === 'jarvis'
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-300'
+                  activeTab === 'jarvis' ? TAB_COLORS.jarvis.active : TAB_COLORS.jarvis.inactive
                 }`}
               >
                 <Bot size={11} />
                 {t('jarvisTab')}
                 {connection.jarvisStatus?.daemonState === 'running' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-pulse" />
+                  <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.jarvis.dot} animate-pulse`} />
                 )}
               </button>
             </div>
@@ -1125,9 +1163,37 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           </button>
         </div>
 
-        {/* Active sessions strip */}
-        {isConnected && activeSessions.length > 0 && (
+        {/* Active sessions strip + Jarvis tile */}
+        {isConnected && (activeSessions.length > 0 || connection.jarvisStatus?.daemonState === 'running') && (
           <div className="flex items-center gap-2 px-4 py-1.5 border-b border-white/5 bg-surface/30 overflow-x-auto">
+            {/* Jarvis daemon tile */}
+            {connection.jarvisStatus?.daemonState === 'running' && (
+              <button
+                onClick={() => {
+                  setActiveTab('jarvis');
+                  connection.listJarvisTasks().catch(() => {});
+                }}
+                className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] border flex-shrink-0 transition-all ${
+                  activeTab === 'jarvis'
+                    ? 'bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-400'
+                    : 'bg-fuchsia-500/5 border-fuchsia-500/15 text-fuchsia-400/80 hover:bg-fuchsia-500/10'
+                }`}
+              >
+                <Bot size={10} className="text-fuchsia-400" />
+                <span className="font-medium">Jarvis</span>
+                <span className={`text-[9px] px-1 rounded-full ${
+                  connection.jarvisStatus.thinkingPhase === 'deep' ? 'bg-fuchsia-500/20' :
+                  connection.jarvisStatus.thinkingPhase === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                  'bg-cyan-500/20 text-cyan-400'
+                }`}>
+                  {connection.jarvisStatus.thinkingPhase ?? 'idle'}
+                </span>
+                <Activity size={8} className="text-fuchsia-400 animate-pulse" />
+                {connection.jarvisStatus.pendingCount > 0 && (
+                  <span className="text-fuchsia-400/60">{connection.jarvisStatus.pendingCount} tasks</span>
+                )}
+              </button>
+            )}
             {activeSessions.map((session) => (
               <button
                 key={session.id}

@@ -74,41 +74,45 @@ export function ChatInput({
     }
   }, [handleSend]);
 
-  const showQuickActions = hasChat && isConnected && !isAgentRunning;
+  const showQuickActions = hasChat && !isAgentRunning;
 
   return (
     <div className="border-t border-white/5 bg-surface/50 backdrop-blur-sm px-4 py-3">
       <div className="max-w-3xl mx-auto">
-        {/* Quick action buttons — above input, only when in a chat with CLI */}
+        {/* Quick action buttons — above input, always visible but disabled without CLI */}
         {showQuickActions && (
           <div className="flex items-center gap-1.5 mb-2 px-1 overflow-x-auto scrollbar-none">
             <button
               onClick={() => onSend('Run an automatic code review and improvement analysis on the current project. Look for bugs, code smells, and potential improvements.')}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20 transition-all flex-shrink-0"
+              disabled={!isConnected}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-cyan-400/60 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20"
             >
               <Zap size={10} />
-              Auto
+              {t('quickAutoReview')}
             </button>
             <button
               onClick={() => onSend('Perform a comprehensive security audit on the current project. Check for vulnerabilities, exposed secrets, unsafe dependencies, and security best practices.')}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20 transition-all flex-shrink-0"
+              disabled={!isConnected}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-amber-400/60 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20"
             >
               <ShieldAlert size={10} />
-              Security
+              {t('quickSecurityAudit')}
             </button>
             <button
               onClick={() => onSend('Start monitoring the project for file changes and potential issues. Watch for errors, test failures, and code quality problems.')}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20 transition-all flex-shrink-0"
+              disabled={!isConnected}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-purple-400/60 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20"
             >
               <Eye size={10} />
-              Monitor
+              {t('quickMonitor')}
             </button>
             <button
               onClick={() => onSend('Analyze the current project structure, identify all open tasks and issues, and create a prioritized action plan for improvements.')}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20 transition-all flex-shrink-0"
+              disabled={!isConnected}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-fuchsia-400/60 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20"
             >
               <Bot size={10} />
-              Jarvis
+              {t('quickJarvis')}
             </button>
           </div>
         )}
