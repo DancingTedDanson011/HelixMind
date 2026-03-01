@@ -738,7 +738,9 @@
     "jarvisTaskRunning": "Running",
     "jarvisTaskCompleted": "Completed",
     "jarvisTaskFailed": "Failed",
-    "helpCommands": "**Available commands:**\n`/auto [goal]` — Start auto agent\n`/security` — Run security audit\n`/monitor [mode]` — Start security monitor\n`/jarvis` — Switch to Jarvis tab\n`/jarvis task \"...\"` — Add task\n`/connect` — Connect to CLI instance\n`/disconnect` — Disconnect CLI\n`/console` — Switch to console tab\n`/chat` — Switch to chat tab\n`/brain` — Open 3D brain visualization\n`/bugs` — Toggle bug journal\n`/bugfix` — Fix all open bugs\n`/stop [id]` — Stop sessions\n`/help` — Show this help"
+    "helpCommands": "**Available commands:**\n`/auto [goal]` — Start auto agent\n`/security` — Run security audit\n`/monitor [mode]` — Start security monitor\n`/jarvis` — Switch to Jarvis tab\n`/jarvis task \"...\"` — Add task\n`/connect` — Connect to CLI instance\n`/disconnect` — Disconnect CLI\n`/console` — Switch to console tab\n`/chat` — Switch to chat tab\n`/brain` — Open 3D brain visualization\n`/bugs` — Toggle bug journal\n`/bugfix` — Fix all open bugs\n`/stop [id]` — Stop sessions\n`/help` — Show this help",
+    "sessions": "CLI Sessions",
+    "noSessions": "No active CLI sessions"
   },
   "ticket": {
     "createTitle": "Create New Ticket",

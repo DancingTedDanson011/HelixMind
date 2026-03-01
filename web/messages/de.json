@@ -738,7 +738,9 @@
     "jarvisTaskRunning": "Laufend",
     "jarvisTaskCompleted": "Abgeschlossen",
     "jarvisTaskFailed": "Fehlgeschlagen",
-    "helpCommands": "**Verfügbare Befehle:**\n`/auto [ziel]` — Auto-Agent starten\n`/security` — Security-Audit starten\n`/monitor [modus]` — Sicherheitsmonitor starten\n`/jarvis` — Zum Jarvis-Tab wechseln\n`/jarvis task \"...\"` — Task hinzufügen\n`/connect` — Mit CLI verbinden\n`/disconnect` — CLI trennen\n`/console` — Zum Konsolen-Tab wechseln\n`/chat` — Zum Chat-Tab wechseln\n`/brain` — 3D-Brain öffnen\n`/bugs` — Bug-Journal anzeigen\n`/bugfix` — Alle offenen Bugs fixen\n`/stop [id]` — Sessions stoppen\n`/help` — Diese Hilfe anzeigen"
+    "helpCommands": "**Verfügbare Befehle:**\n`/auto [ziel]` — Auto-Agent starten\n`/security` — Security-Audit starten\n`/monitor [modus]` — Sicherheitsmonitor starten\n`/jarvis` — Zum Jarvis-Tab wechseln\n`/jarvis task \"...\"` — Task hinzufügen\n`/connect` — Mit CLI verbinden\n`/disconnect` — CLI trennen\n`/console` — Zum Konsolen-Tab wechseln\n`/chat` — Zum Chat-Tab wechseln\n`/brain` — 3D-Brain öffnen\n`/bugs` — Bug-Journal anzeigen\n`/bugfix` — Alle offenen Bugs fixen\n`/stop [id]` — Sessions stoppen\n`/help` — Diese Hilfe anzeigen",
+    "sessions": "CLI Sessions",
+    "noSessions": "Keine aktiven CLI Sessions"
   },
   "ticket": {
     "createTitle": "Neues Ticket erstellen",
