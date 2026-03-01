@@ -461,8 +461,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 let BRAIN_DATA = ${dataJSON};
 
 // ===== CONSTANTS =====
-const LVL_HEX = { 1: 0x00FFFF, 2: 0x00FF88, 3: 0x7B68EE, 4: 0x00FFFF, 5: 0xFF6B6B, 6: 0xFFD700, 7: 0xFF00FF };
-const LVL_CSS = { 1: '#00FFFF', 2: '#00FF88', 3: '#7B68EE', 4: '#00FFFF', 5: '#FF6B6B', 6: '#FFD700', 7: '#FF00FF' };
+const LVL_HEX = { 1: 0xE040FB, 2: 0x00FF88, 3: 0x7B68EE, 4: 0x00FFFF, 5: 0xFF6B6B, 6: 0xFFD700, 7: 0xFF00FF };
+const LVL_CSS = { 1: '#E040FB', 2: '#00FF88', 3: '#7B68EE', 4: '#00FFFF', 5: '#FF6B6B', 6: '#FFD700', 7: '#FF00FF' };
 const LVL_SIZE = { 1:6, 2:7, 3:12, 4:16, 5:22, 6:10, 7:8 };
 let curSpread=600;
 const BASE_SPREAD=400, REP=28000, ATT=0.002, ILEN=100, DAMP=0.82, GCELL=160, MAX_E=18000;
