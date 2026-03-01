@@ -596,196 +596,17 @@ const EDGE_COLORS = {
   belongs_to: '#ff6600', part_of: '#ff6600', supersedes: '#ff4444',
   default: '#334466',
 };
-// V7: Clustered Galaxy Brain — Force-directed with level clustering
-// Each level forms an organic morphed blob; blobs barely touch each other
-const LEVEL_STYLE = {
-  1: { size: 22, pulse: 2.0, activity: 1.0 },
-  2: { size: 20, pulse: 1.5, activity: 0.85 },
-  3: { size: 17, pulse: 1.0, activity: 0.7 },
-  4: { size: 15, pulse: 0.6, activity: 0.5 },
-  5: { size: 13, pulse: 0.3, activity: 0.3 },
-  6: { size: 18, pulse: 0.8, activity: 0.7 },
+// Organic nebula layout — layers spread wide and overlap slightly
+// Not a strict funnel but an organic cloud where each layer bleeds into neighbors
+const SPATIAL = {
+  5: { iR: 5,   oR: 90,   yBase: 450,  yS: 120, size: 52, pulse: 0.3 },
+  4: { iR: 15,  oR: 180,  yBase: 280,  yS: 130, size: 42, pulse: 0.5 },
+  3: { iR: 30,  oR: 280,  yBase: 100,  yS: 140, size: 36, pulse: 0.8 },
+  2: { iR: 50,  oR: 380,  yBase: -90,  yS: 150, size: 28, pulse: 1.2 },
+  1: { iR: 70,  oR: 480,  yBase: -280, yS: 160, size: 22, pulse: 2.0 },
+  6: { iR: 90,  oR: 580,  yBase: -480, yS: 170, size: 30, pulse: 0.6 },
 };
-const MAX_RENDERED_EDGES = 12000; // more edges visible in galaxy layout
-
-// Clustered force-directed layout: each level forms an organic blob
-// Blobs are pushed apart so they barely touch — morphed spheres
-function computeForceLayout(nodeList, edgeList, nodeIdxMapLocal) {
-  const N = nodeList.length;
-  if (N === 0) return [];
-
-  // Group nodes by level
-  const levelGroups = {};
-  for (let i = 0; i < N; i++) {
-    const lv = nodeList[i].level || 3;
-    if (!levelGroups[lv]) levelGroups[lv] = [];
-    levelGroups[lv].push(i);
-  }
-
-  // Assign each level a seed centroid direction (icosahedron-like placement)
-  const levels = Object.keys(levelGroups).map(Number).sort();
-  const seedCentroids = {};
-  const CLUSTER_SPREAD = 320;
-  // Evenly space level centroids on a sphere
-  for (let li = 0; li < levels.length; li++) {
-    const lv = levels[li];
-    const golden = 2.399963;
-    const theta = golden * li * 2.5; // multiplied for wider spread
-    const phi = Math.acos(1 - 2 * (li + 0.5) / Math.max(levels.length, 2));
-    seedCentroids[lv] = {
-      x: CLUSTER_SPREAD * Math.sin(phi) * Math.cos(theta),
-      y: CLUSTER_SPREAD * Math.cos(phi),
-      z: CLUSTER_SPREAD * Math.sin(phi) * Math.sin(theta)
-    };
-  }
-
-  const pos = new Array(N);
-  // Initialize nodes near their level's seed centroid
-  for (let i = 0; i < N; i++) {
-    const lv = nodeList[i].level || 3;
-    const c = seedCentroids[lv] || { x: 0, y: 0, z: 0 };
-    const INIT_SPREAD = 100;
-    pos[i] = {
-      x: c.x + (srand(i * 7) - 0.5) * INIT_SPREAD,
-      y: c.y + (srand(i * 13) - 0.5) * INIT_SPREAD,
-      z: c.z + (srand(i * 19) - 0.5) * INIT_SPREAD
-    };
-  }
-
-  // Build adjacency
-  const adjList = new Array(N);
-  for (let i = 0; i < N; i++) adjList[i] = [];
-  for (const e of edgeList) {
-    const si = nodeIdxMapLocal[e.source];
-    const ti = nodeIdxMapLocal[e.target];
-    if (si !== undefined && ti !== undefined) {
-      adjList[si].push(ti);
-      adjList[ti].push(si);
-    }
-  }
-
-  const ITERATIONS = 60;
-  const REPULSION = 5000;
-  const ATTRACTION = 0.012;
-  const CLUSTER_PULL = 0.02;    // pull nodes toward their own level centroid
-  const INTER_REPEL = 18000;    // push different-level centroids apart
-  const CENTERING = 0.0005;
-  const DAMPING = 0.82;
-  const K_SAMPLES = Math.min(N, 25);
-
-  const vel = new Array(N);
-  for (let i = 0; i < N; i++) vel[i] = { x: 0, y: 0, z: 0 };
-
-  for (let iter = 0; iter < ITERATIONS; iter++) {
-    const temp = 1.0 - iter / ITERATIONS;
-    const repScale = REPULSION * temp;
-
-    // Compute dynamic level centroids
-    const dynC = {};
-    const dynN = {};
-    for (let i = 0; i < N; i++) {
-      const lv = nodeList[i].level || 3;
-      if (!dynC[lv]) { dynC[lv] = { x: 0, y: 0, z: 0 }; dynN[lv] = 0; }
-      dynC[lv].x += pos[i].x; dynC[lv].y += pos[i].y; dynC[lv].z += pos[i].z;
-      dynN[lv]++;
-    }
-    for (const lv in dynC) {
-      dynC[lv].x /= dynN[lv]; dynC[lv].y /= dynN[lv]; dynC[lv].z /= dynN[lv];
-    }
-
-    for (let i = 0; i < N; i++) {
-      let fx = 0, fy = 0, fz = 0;
-      const myLevel = nodeList[i].level || 3;
-
-      // Node-node repulsion (sampled)
-      for (let k = 0; k < K_SAMPLES; k++) {
-        const j = Math.floor(srand(iter * 10007 + i * 997 + k * 31) * N);
-        if (j === i) continue;
-        const dx = pos[i].x - pos[j].x;
-        const dy = pos[i].y - pos[j].y;
-        const dz = pos[i].z - pos[j].z;
-        const distSq = dx * dx + dy * dy + dz * dz + 1;
-        // Stronger repulsion between different levels
-        const crossMult = (nodeList[j].level || 3) !== myLevel ? 2.5 : 1.0;
-        const f = repScale * crossMult / distSq;
-        const dist = Math.sqrt(distSq);
-        fx += (dx / dist) * f; fy += (dy / dist) * f; fz += (dz / dist) * f;
-      }
-      const repBias = N / K_SAMPLES;
-      fx *= repBias; fy *= repBias; fz *= repBias;
-
-      // Attraction: pull toward connected nodes (stronger for same level)
-      for (const j of adjList[i]) {
-        const dx = pos[j].x - pos[i].x;
-        const dy = pos[j].y - pos[i].y;
-        const dz = pos[j].z - pos[i].z;
-        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz + 1);
-        const sameLvl = (nodeList[j].level || 3) === myLevel ? 2.5 : 0.3;
-        const f = ATTRACTION * dist * sameLvl;
-        fx += (dx / dist) * f; fy += (dy / dist) * f; fz += (dz / dist) * f;
-      }
-
-      // Cluster cohesion: pull toward own level centroid
-      const mc = dynC[myLevel];
-      if (mc) {
-        fx += (mc.x - pos[i].x) * CLUSTER_PULL * temp;
-        fy += (mc.y - pos[i].y) * CLUSTER_PULL * temp;
-        fz += (mc.z - pos[i].z) * CLUSTER_PULL * temp;
-      }
-
-      // Inter-cluster repulsion: push away from OTHER level centroids
-      for (const lv in dynC) {
-        if (parseInt(lv) === myLevel) continue;
-        const oc = dynC[lv];
-        const dx = pos[i].x - oc.x;
-        const dy = pos[i].y - oc.y;
-        const dz = pos[i].z - oc.z;
-        const distSq = dx * dx + dy * dy + dz * dz + 1;
-        const f = INTER_REPEL * temp / distSq;
-        const dist = Math.sqrt(distSq);
-        fx += (dx / dist) * f; fy += (dy / dist) * f; fz += (dz / dist) * f;
-      }
-
-      // Light centering
-      fx -= pos[i].x * CENTERING;
-      fy -= pos[i].y * CENTERING;
-      fz -= pos[i].z * CENTERING;
-
-      vel[i].x = (vel[i].x + fx) * DAMPING;
-      vel[i].y = (vel[i].y + fy) * DAMPING;
-      vel[i].z = (vel[i].z + fz) * DAMPING;
-
-      const maxV = 30 * temp + 2;
-      const vLen = Math.sqrt(vel[i].x * vel[i].x + vel[i].y * vel[i].y + vel[i].z * vel[i].z);
-      if (vLen > maxV) {
-        vel[i].x = vel[i].x / vLen * maxV;
-        vel[i].y = vel[i].y / vLen * maxV;
-        vel[i].z = vel[i].z / vLen * maxV;
-      }
-    }
-
-    for (let i = 0; i < N; i++) {
-      pos[i].x += vel[i].x;
-      pos[i].y += vel[i].y;
-      pos[i].z += vel[i].z;
-    }
-  }
-
-  // Scale to fit (target radius ~650 for spacious clusters)
-  let maxDist = 0;
-  for (let i = 0; i < N; i++) {
-    const d = Math.sqrt(pos[i].x * pos[i].x + pos[i].y * pos[i].y + pos[i].z * pos[i].z);
-    if (d > maxDist) maxDist = d;
-  }
-  const scale = maxDist > 0 ? 650 / maxDist : 1;
-  for (let i = 0; i < N; i++) {
-    pos[i].x *= scale;
-    pos[i].y *= scale;
-    pos[i].z *= scale;
-  }
-
-  return pos;
-}
+const MAX_RENDERED_EDGES = 8000; // cap for performance + clarity
 
 function srand(s) { const x = Math.sin(s * 9301 + 49297) * 49297; return x - Math.floor(x); }
 function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -798,40 +619,35 @@ document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#030308');
-scene.fog = new THREE.FogExp2('#030308', 0.00018);
+scene.fog = new THREE.FogExp2('#030308', 0.00025);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 12000);
-camera.position.set(900, 500, 900);
+camera.position.set(500, 500, 800);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.autoRotate = true;
-controls.autoRotateSpeed = 0.12;
+controls.autoRotateSpeed = 0.08;
 controls.minDistance = 80;
 controls.maxDistance = 4000;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.minPolarAngle = Math.PI * 0.15;
 controls.update();
 
 // =========== BACKGROUND STARS ===========
-const starCount = 1200;
+const starCount = 700;
 const starPos = new Float32Array(starCount * 3);
-const starCol = new Float32Array(starCount * 3);
-const starTc = new THREE.Color();
 for (let i = 0; i < starCount; i++) {
-  starPos[i * 3] = (srand(i * 31) - 0.5) * 6000;
-  starPos[i * 3 + 1] = (srand(i * 37) - 0.5) * 6000;
-  starPos[i * 3 + 2] = (srand(i * 41) - 0.5) * 6000;
-  // Subtle color variation in stars
-  const hue = srand(i * 53) * 0.15 + 0.55; // blue-ish range
-  starTc.setHSL(hue, 0.3 + srand(i * 59) * 0.3, 0.25 + srand(i * 61) * 0.15);
-  starCol[i * 3] = starTc.r; starCol[i * 3 + 1] = starTc.g; starCol[i * 3 + 2] = starTc.b;
+  starPos[i * 3] = (srand(i * 31) - 0.5) * 5000;
+  starPos[i * 3 + 1] = (srand(i * 37) - 0.5) * 5000;
+  starPos[i * 3 + 2] = (srand(i * 41) - 0.5) * 5000;
 }
 const starGeo = new THREE.BufferGeometry();
 starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-starGeo.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
 const starMat = new THREE.PointsMaterial({
-  size: 1.5, vertexColors: true, transparent: true, opacity: 0.6,
+  size: 1.2, color: '#223344', transparent: true, opacity: 0.5,
   blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
 });
 scene.add(new THREE.Points(starGeo, starMat));
@@ -844,19 +660,14 @@ const nodeMat = new THREE.ShaderMaterial({
     attribute vec3 aColor;
     attribute float aHighlight;
     attribute float aPulse;
-    attribute float aActivity;
     varying vec3 vColor;
     varying float vAlpha;
-    varying float vActivity;
     uniform float uTime;
     void main(){
       vColor = aColor;
-      vActivity = aActivity;
-      float breath = 1.0 + sin(uTime * aPulse + position.x * .008 + position.z * .006) * (.06 + aActivity * .10);
+      float breath = 1.0 + sin(uTime * aPulse + position.x * .008 + position.z * .006) * .12;
       vec3 pos = position;
-      pos.y += sin(uTime * (.3 + aActivity * .2) + position.x * .01 + position.z * .015) * (2.0 + aActivity * 3.0);
-      pos.x += sin(uTime * .08 + position.z * .003) * aActivity * 2.0;
-      pos.z += cos(uTime * .06 + position.x * .003) * aActivity * 2.0;
+      pos.y += sin(uTime * .3 + position.x * .01 + position.z * .015) * 3.0;
       vAlpha = aHighlight;
       vec4 mv = modelViewMatrix * vec4(pos, 1.0);
       gl_PointSize = aSize * breath * aHighlight * (500.0 / -mv.z);
@@ -866,18 +677,16 @@ const nodeMat = new THREE.ShaderMaterial({
   fragmentShader: \`
     varying vec3 vColor;
     varying float vAlpha;
-    varying float vActivity;
     void main(){
       vec2 c = gl_PointCoord - vec2(.5);
       float d = length(c);
       if(d > .5) discard;
-      // Sharp saturated core with minimal glow — preserves level color
-      float core = exp(-d*d*180.0) * 0.95;
-      float halo = exp(-d*d*22.0) * 0.25;
-      float outer = exp(-d*d*6.0) * 0.06;
-      float intensity = core + halo + outer;
-      // Keep color saturated — minimal brightness boost on core
-      gl_FragColor = vec4(vColor * (0.85 + core * 0.15), intensity * vAlpha);
+      float core = exp(-d*d*100.0);
+      float g1 = exp(-d*d*18.0) * .45;
+      float g2 = exp(-d*d*4.0) * .15;
+      float g3 = exp(-d*d*1.2) * .06;
+      float i = core + g1 + g2 + g3;
+      gl_FragColor = vec4(vColor * (1.0 + core * .5), i * vAlpha);
     }
   \`,
   transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -931,6 +740,7 @@ let pData = [];
 let nCount = 0;
 let eCount = 0;
 let pCount = 0;
+let orbitRings = [];
 
 const PARTICLES_PER_EDGE = 3;
 const tc = new THREE.Color();
@@ -941,6 +751,8 @@ function rebuildScene() {
   if (nodeGeo) { nodeGeo.dispose(); scene.remove(nodePoints); }
   if (edgeGeo) { edgeGeo.dispose(); scene.remove(edgeLines); }
   if (particleGeo) { particleGeo.dispose(); scene.remove(particlePoints); }
+  orbitRings.forEach(r => { r.geometry.dispose(); r.material.dispose(); scene.remove(r); });
+  orbitRings = [];
 
   nodes = BRAIN_DATA.nodes;
   nCount = nodes.length;
@@ -953,17 +765,30 @@ function rebuildScene() {
     byLevel[lv].push(i);
   });
 
-  // Build nodeIdxMap first (needed for force layout)
+  // Compute radial spiral positions
+  positions = new Array(nCount);
+  for (const [lv, indices] of Object.entries(byLevel)) {
+    const s = SPATIAL[lv] || SPATIAL[3];
+    const c = indices.length;
+    indices.forEach((ni, j) => {
+      const angle = (j / Math.max(c, 1)) * Math.PI * 2 + (srand(ni * 19) - 0.5) * 0.6;
+      const r = s.iR + srand(ni * 7) * (s.oR - s.iR);
+      const spiral = angle + r * 0.003 + srand(ni * 23) * 0.4;
+      const y = (s.yBase || 0) + (srand(ni * 11) - 0.5) * s.yS;
+      // Add organic jitter so it doesn't look like perfect rings
+      const jitterX = (srand(ni * 29) - 0.5) * r * 0.15;
+      const jitterZ = (srand(ni * 37) - 0.5) * r * 0.15;
+      positions[ni] = new THREE.Vector3(
+        Math.cos(spiral) * r + jitterX,
+        y,
+        Math.sin(spiral) * r + jitterZ
+      );
+    });
+  }
+
+  // Build adjacency + nodeIdxMap
   nodeIdxMap = {};
   nodes.forEach((n, i) => { nodeIdxMap[n.id] = i; });
-
-  // Force-directed 3D layout
-  const forcePos = computeForceLayout(nodes, BRAIN_DATA.edges, nodeIdxMap);
-  positions = new Array(nCount);
-  for (let i = 0; i < nCount; i++) {
-    const fp = forcePos[i] || { x: 0, y: 0, z: 0 };
-    positions[i] = new THREE.Vector3(fp.x, fp.y, fp.z);
-  }
   adj = {};
   nodeEdgeMap = {};
   BRAIN_DATA.edges.forEach((e, ei) => {
@@ -979,33 +804,6 @@ function rebuildScene() {
     nodeEdgeMap[ti].push(ei);
   });
 
-  // ---- NODE COLOR: blend level + dominant edge type ----
-  // Pre-compute dominant edge type per node
-  const nodeEdgeTypeCounts = {};
-  for (const e of BRAIN_DATA.edges) {
-    const si = nodeIdxMap[e.source], ti = nodeIdxMap[e.target];
-    if (si === undefined || ti === undefined) continue;
-    const type = e.type || 'related_to';
-    if (!nodeEdgeTypeCounts[si]) nodeEdgeTypeCounts[si] = {};
-    if (!nodeEdgeTypeCounts[ti]) nodeEdgeTypeCounts[ti] = {};
-    nodeEdgeTypeCounts[si][type] = (nodeEdgeTypeCounts[si][type] || 0) + 1;
-    nodeEdgeTypeCounts[ti][type] = (nodeEdgeTypeCounts[ti][type] || 0) + 1;
-  }
-  const nodeDomType = {};
-  for (const idx in nodeEdgeTypeCounts) {
-    let maxT = 'default', maxC = 0;
-    for (const [t, c] of Object.entries(nodeEdgeTypeCounts[idx])) {
-      if (c > maxC) { maxC = c; maxT = t; }
-    }
-    nodeDomType[idx] = maxT;
-  }
-  // Max degree for brightness scaling
-  let maxDegree = 1;
-  for (let i = 0; i < nCount; i++) {
-    const deg = adj[i] ? adj[i].size : 0;
-    if (deg > maxDegree) maxDegree = deg;
-  }
-
   // ---- NODE POINTS ----
   nodeGeo = new THREE.BufferGeometry();
   const nPos = new Float32Array(nCount * 3);
@@ -1013,49 +811,60 @@ function rebuildScene() {
   const nSize = new Float32Array(nCount);
   const nHighlight = new Float32Array(nCount);
   const nPulse = new Float32Array(nCount);
-  const nActivity = new Float32Array(nCount);
-  const ec = new THREE.Color();
 
   for (let i = 0; i < nCount; i++) {
     const p = positions[i];
     const n = nodes[i];
-    const s = LEVEL_STYLE[n.level] || LEVEL_STYLE[3];
+    const s = SPATIAL[n.level] || SPATIAL[3];
     nPos[i * 3] = p.x; nPos[i * 3 + 1] = p.y; nPos[i * 3 + 2] = p.z;
-    // Base level color
     tc.set(LEVEL_COLORS_HEX[n.level] || 0x00FFFF);
-    // Blend with dominant edge type color (35% influence) for color variety
-    const domType = nodeDomType[i] || 'default';
-    ec.set(EDGE_COLORS[domType] || EDGE_COLORS.default);
-    tc.lerp(ec, 0.35);
-    // Brightness by degree: low-degree dimmer, high-degree brighter
-    const deg = adj[i] ? adj[i].size : 0;
-    const bright = 0.6 + (deg / maxDegree) * 0.4;
-    tc.multiplyScalar(bright);
     nCol[i * 3] = tc.r; nCol[i * 3 + 1] = tc.g; nCol[i * 3 + 2] = tc.b;
     nSize[i] = s.size;
     nHighlight[i] = 1.0;
     nPulse[i] = s.pulse;
-    nActivity[i] = s.activity || 0.5;
   }
   nodeGeo.setAttribute('position', new THREE.BufferAttribute(nPos, 3));
   nodeGeo.setAttribute('aColor', new THREE.BufferAttribute(nCol, 3));
   nodeGeo.setAttribute('aSize', new THREE.BufferAttribute(nSize, 1));
   nodeGeo.setAttribute('aHighlight', new THREE.BufferAttribute(nHighlight, 1));
   nodeGeo.setAttribute('aPulse', new THREE.BufferAttribute(nPulse, 1));
-  nodeGeo.setAttribute('aActivity', new THREE.BufferAttribute(nActivity, 1));
   nodePoints = new THREE.Points(nodeGeo, nodeMat);
   scene.add(nodePoints);
 
+  // ---- ORBIT RINGS (one per layer) ----
+  for (let lv = 1; lv <= 6; lv++) {
+    const s = SPATIAL[lv];
+    if (!s || !(byLevel[lv] || []).length) continue;
+    const ringRadius = s.oR * 0.85;
+    const ringGeo = new THREE.RingGeometry(ringRadius - 0.3, ringRadius + 0.3, 96);
+    const ringColor = new THREE.Color(LEVEL_COLORS_HEX[lv] || 0x00FFFF);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: ringColor, transparent: true, opacity: 0.08, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = s.yBase;
+    ring.userData.level = lv;
+    scene.add(ring);
+    orbitRings.push(ring);
+  }
+
   // ---- EDGES (LineSegments) ----
+  // Prioritize cross-level edges (vertical) over intra-level (horizontal)
   const allEdges = [];
   BRAIN_DATA.edges.forEach((e, i) => {
     const si = nodeIdxMap[e.source], ti = nodeIdxMap[e.target];
     if (si !== undefined && ti !== undefined) {
-      allEdges.push({ si, ti, weight: e.weight, type: e.type, idx: i });
+      const crossLevel = nodes[si].level !== nodes[ti].level;
+      allEdges.push({ si, ti, weight: e.weight, type: e.type, idx: i, crossLevel });
     }
   });
-  // Sort by weight (strongest connections first)
-  allEdges.sort((a, b) => b.weight - a.weight);
+  // Sort: cross-level edges first (they create the beautiful vertical connections)
+  allEdges.sort((a, b) => {
+    if (a.crossLevel !== b.crossLevel) return b.crossLevel ? 1 : -1;
+    return b.weight - a.weight; // then by weight
+  });
   validEdges = allEdges.slice(0, MAX_RENDERED_EDGES);
 
   eCount = validEdges.length;
@@ -1068,18 +877,17 @@ function rebuildScene() {
   const alphaScale = Math.min(1.0, 3000 / eCount);
 
   for (let i = 0; i < eCount; i++) {
-    const { si, ti, weight, type } = validEdges[i];
+    const { si, ti, weight, crossLevel } = validEdges[i];
     const s = positions[si], t = positions[ti];
     const o = i * 6;
     ePos[o] = s.x; ePos[o + 1] = s.y; ePos[o + 2] = s.z;
     ePos[o + 3] = t.x; ePos[o + 4] = t.y; ePos[o + 5] = t.z;
-    // Color by edge type for galaxy look
-    const edgeColor = EDGE_COLORS[type] || EDGE_COLORS.default;
-    sc.set(edgeColor); dc.set(edgeColor);
+    sc.set(LEVEL_COLORS_HEX[nodes[si].level] || 0x00FFFF);
+    dc.set(LEVEL_COLORS_HEX[nodes[ti].level] || 0x00FFFF);
     eCol[o] = sc.r; eCol[o + 1] = sc.g; eCol[o + 2] = sc.b;
     eCol[o + 3] = dc.r; eCol[o + 4] = dc.g; eCol[o + 5] = dc.b;
-    // Boosted edge alpha for colorful connections
-    const baseAlpha = 0.12 + weight * 0.28;
+    // Cross-level edges brighter, intra-level edges dimmer
+    const baseAlpha = crossLevel ? (0.08 + weight * 0.12) : (0.03 + weight * 0.04);
     eAlpha[i * 2] = baseAlpha * alphaScale;
     eAlpha[i * 2 + 1] = baseAlpha * alphaScale;
   }
@@ -1091,13 +899,13 @@ function rebuildScene() {
   edgeLines = new THREE.LineSegments(edgeGeo, edgeMat);
   scene.add(edgeLines);
 
-  // ---- FLOWING PARTICLES (on stronger connections) ----
+  // ---- FLOWING PARTICLES (only on cross-level edges for clarity) ----
   pData = [];
   const maxParticleEdges = Math.min(eCount, 2000);
   for (let i = 0; i < maxParticleEdges; i++) {
-    const { si, ti, weight } = validEdges[i];
-    if (weight < 0.4) continue; // only on stronger connections
-    const particleCount = weight > 0.7 ? 2 : 1;
+    const { si, ti, weight, crossLevel } = validEdges[i];
+    if (!crossLevel) continue; // only particles on vertical connections
+    const particleCount = weight > 0.6 ? 2 : 1;
     for (let j = 0; j < particleCount; j++) {
       pData.push({
         edgeIdx: i, progress: srand(i * 100 + j * 31),
@@ -1247,8 +1055,8 @@ function updateHighlights() {
   const activeEdgeTypes = getActiveEdgeTypes();
   const alphaS = Math.min(1.0, 3000 / eCount);
   for (let i = 0; i < eCount; i++) {
-    const { si, ti, weight, type } = validEdges[i];
-    const baseA = 0.06 + weight * 0.14;
+    const { si, ti, weight, type, crossLevel } = validEdges[i];
+    const baseA = crossLevel ? (0.08 + weight * 0.12) : (0.03 + weight * 0.04);
     let a = baseA * alphaS;
 
     // Level toggle: hide edges connected to hidden levels
@@ -1276,6 +1084,11 @@ function updateHighlights() {
   }
   ea.needsUpdate = true;
 
+  // Update orbit ring visibility
+  orbitRings.forEach(ring => {
+    const lv = ring.userData.level;
+    ring.material.opacity = levelToggles[lv] === false ? 0 : 0.08;
+  });
 }
 
 function getActiveEdgeTypes() {
@@ -1338,7 +1151,7 @@ function closeSidebar(evt) {
     controls.autoRotate = true;
     camTween = {
       startPos: camera.position.clone(), startLookAt: controls.target.clone(),
-      targetPos: new THREE.Vector3(600, 350, 600), targetLookAt: new THREE.Vector3(0, 0, 0),
+      targetPos: new THREE.Vector3(500, 350, 700), targetLookAt: new THREE.Vector3(0, 60, 0),
       progress: 0
     };
   }
