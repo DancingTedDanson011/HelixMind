@@ -867,6 +867,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Hook stdout to capture main session output for web streaming
       const _origWrite = process.stdout.write.bind(process.stdout);
       let _mainBuf = '';
+      // Statusbar patterns to filter out (these are redrawn 60x/sec and are noise)
+      const _statusbarRe = /L\d+:\d+\s+L\d+:\d+|safe permissions|shift\+tab to cycle|esc to interrupt|FREE_PLUS|FREE_BASE|\d+\/\d+\.?\d*k tk|\d+ ckpts/;
       process.stdout.write = function(chunk: any, encoding?: any, callback?: any) {
         const text = typeof chunk === 'string' ? chunk : chunk.toString();
         _mainBuf += text;
@@ -874,9 +876,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         while ((ni = _mainBuf.indexOf('\n')) !== -1) {
           const line = _mainBuf.slice(0, ni);
           _mainBuf = _mainBuf.slice(ni + 1);
-          // Capture lines with actual content (skip cursor-movement-only / empty)
-          const stripped = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
-          if (stripped.length > 0) {
+          // Strip all ANSI sequences (colors, cursor movement, etc.)
+          const stripped = line.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').trim();
+          // Skip empty lines, statusbar redraws, and prompt-only lines
+          if (stripped.length > 0 && !_statusbarRe.test(stripped) && stripped !== '›' && stripped !== '>') {
             sessionMgr.main.capture(line);
           }
         }

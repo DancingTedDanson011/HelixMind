@@ -350,7 +350,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   // ── Sessions filtered by tab type ──
   const jName = connection.jarvisStatus?.jarvisName;
   const jRunning = connection.jarvisStatus?.daemonState === 'running';
-  const consoleSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'console');
+  const consoleSessions = connection.sessions.filter(s => s.id === 'main' || getSessionTab(s.name, jName, jRunning) === 'console');
   const monitorSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'monitor');
   const jarvisSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'jarvis');
 
@@ -379,15 +379,18 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     }
   }, [connectedPort]);
 
-  // ── Auto-select first console-type session for console tab ─────
+  // ── Auto-select console session (prefer main when connected) ─────
   useEffect(() => {
     if (activeTab === 'console' && !consoleSessionId) {
-      if (consoleSessions.length > 0) {
+      // Prefer main session when connected
+      if (isConnected) {
+        setConsoleSessionId('main');
+      } else if (consoleSessions.length > 0) {
         const running = consoleSessions.find(s => s.status === 'running');
         setConsoleSessionId(running?.id ?? consoleSessions[0].id);
       }
     }
-  }, [activeTab, consoleSessionId, consoleSessions]);
+  }, [activeTab, consoleSessionId, consoleSessions, isConnected]);
 
   // ── Auto-select first monitor session for monitor tab ─────
   useEffect(() => {
@@ -1289,29 +1292,23 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 <Activity size={8} className="text-emerald-400 animate-pulse ml-auto" />
               </div>
             )}
-            {/* Show live CLI terminal when connected (empty chat or no chat), otherwise ChatView */}
-            {isConnected && (!activeChat || (activeChat.messages.length === 0 && !isAgentRunning)) ? (
-              <div className="flex-1 min-h-0">
-                <TerminalViewer lines={cliOutput.lines} fullHeight />
-              </div>
-            ) : (
-              <div className="flex-1 overflow-hidden">
-                <ChatView
-                  messages={activeChat?.messages || []}
-                  isAgentRunning={isAgentRunning}
-                  streamingContent={streamingContent}
-                  activeTools={cliExecuting ? cliChat.state.activeTools : []}
-                  hasChat={!!activeChat}
-                  agentPrompt={activeChat?.agentPrompt}
-                  chatStatus={activeChat?.status}
-                  onEditPrompt={handleEditPrompt}
-                  onConnectInstance={() => setShowInstancePicker(true)}
-                  onExecutePrompt={handleExecutePrompt}
-                  isConnected={isConnected}
-                  isExecuting={cliExecuting}
-                />
-              </div>
-            )}
+            {/* Always show ChatView — structured messages, not raw terminal */}
+            <div className="flex-1 overflow-hidden">
+              <ChatView
+                messages={activeChat?.messages || []}
+                isAgentRunning={isAgentRunning}
+                streamingContent={streamingContent}
+                activeTools={cliExecuting ? cliChat.state.activeTools : []}
+                hasChat={!!activeChat}
+                agentPrompt={activeChat?.agentPrompt}
+                chatStatus={activeChat?.status}
+                onEditPrompt={handleEditPrompt}
+                onConnectInstance={() => setShowInstancePicker(true)}
+                onExecutePrompt={handleExecutePrompt}
+                isConnected={isConnected}
+                isExecuting={cliExecuting}
+              />
+            </div>
           </div>
         ) : activeTab === 'console' ? (
           <div className="flex-1 overflow-hidden flex flex-col">
