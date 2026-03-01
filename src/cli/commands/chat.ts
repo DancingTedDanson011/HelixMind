@@ -294,6 +294,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     await requireAuth();
     config = store.getAll();
   } else {
+    // Logged-in users are at least FREE_PLUS (server may return FREE on legacy accounts)
+    if (!store.get('relay.plan') || store.get('relay.plan') === 'FREE') {
+      store.set('relay.plan', 'FREE_PLUS');
+    }
     // Background auth check: verify token is still valid when online.
     // If offline or server unreachable, cached auth stays valid silently.
     import('../auth/feature-gate.js').then(({ refreshPlanInfo }) => refreshPlanInfo(store)).catch(() => {});
@@ -3078,6 +3082,16 @@ async function handleSlashCommand(
   // If user picks [1], triggers inline login and returns true on success.
   const gateCheck = async (feature: Feature, label: string): Promise<boolean> => {
     if (isFeatureAvailable(store, feature)) return true;
+
+    // Already logged in but plan too low → show upgrade hint, no prompt
+    if (store.isLoggedIn()) {
+      const plan = (store.get('relay.plan') as string | undefined) ?? 'FREE';
+      process.stdout.write('\n');
+      process.stdout.write(chalk.dim(`  🔒 ${label} requires a higher plan (current: ${plan}).`) + '\n');
+      process.stdout.write(chalk.dim('  Upgrade at your dashboard or visit https://helix-mind.ai/pricing') + '\n\n');
+      return false;
+    }
+
     process.stdout.write('\n');
     process.stdout.write(chalk.dim('  ╭──────────────────────────────────────────────────╮') + '\n');
     process.stdout.write(chalk.dim('  │  ') + theme.primary(`🔒 ${label}`) + chalk.dim(' requires login'.padEnd(48 - label.length - 4)) + chalk.dim('│') + '\n');
@@ -3086,7 +3100,9 @@ async function handleSlashCommand(
     process.stdout.write(chalk.dim('  │  ') + chalk.white('[2]') + ' Continue in Open Source mode' + chalk.dim('             │') + '\n');
     process.stdout.write(chalk.dim('  ╰──────────────────────────────────────────────────╯') + '\n');
 
-    // Capture choice inline — pause main readline so we can prompt
+    // Pause main readline so our prompt captures input exclusively
+    rl.pause();
+    onSubPrompt?.(true);
     const choice = await new Promise<string>((resolve) => {
       const gateRl = readline.createInterface({ input: process.stdin, output: process.stdout });
       gateRl.question(chalk.dim('  ') + chalk.green('→') + ' ' + chalk.white.bold('[1]') + chalk.dim('/2: '), (answer) => {
@@ -3094,22 +3110,27 @@ async function handleSlashCommand(
         resolve(answer.trim());
       });
     });
+    rl.resume();
+    onSubPrompt?.(false);
 
     if (choice === '1') {
       const { loginFlow } = await import('../auth/login.js');
       const loggedIn = await loginFlow(store, {});
       if (loggedIn) {
+        // Logged-in users are at least FREE_PLUS
+        if (!store.get('relay.plan') || store.get('relay.plan') === 'FREE') {
+          store.set('relay.plan', 'FREE_PLUS');
+        }
         try {
           const { refreshPlanInfo } = await import('../auth/feature-gate.js');
           await refreshPlanInfo(store);
-        } catch { /* offline */ }
+        } catch { /* offline — FREE_PLUS is already set above */ }
         // Refresh blocked commands
         const stillBlocked: string[] = [];
         if (!isFeatureAvailable(store, 'jarvis')) stillBlocked.push('/jarvis');
         if (!isFeatureAvailable(store, 'monitor')) stillBlocked.push('/auto', '/security', '/monitor');
         if (!isFeatureAvailable(store, 'validation_basic')) stillBlocked.push('/validation');
         setBlockedCommands(stillBlocked);
-        // Re-check if the specific feature is now available
         return isFeatureAvailable(store, feature);
       }
     }
@@ -3653,11 +3674,15 @@ async function handleSlashCommand(
       const { loginFlow } = await import('../auth/login.js');
       const loggedIn = await loginFlow(store, {});
       if (loggedIn) {
-        // Refresh plan info from server
+        // Logged-in users are at least FREE_PLUS
+        if (!store.get('relay.plan') || store.get('relay.plan') === 'FREE') {
+          store.set('relay.plan', 'FREE_PLUS');
+        }
+        // Refresh plan info from server (may upgrade to PRO/TEAM/etc.)
         try {
           const { refreshPlanInfo } = await import('../auth/feature-gate.js');
           await refreshPlanInfo(store);
-        } catch { /* offline — use cached plan */ }
+        } catch { /* offline — FREE_PLUS is already set above */ }
         // Unblock gated commands now that user is logged in
         const stillBlocked: string[] = [];
         if (!isFeatureAvailable(store, 'jarvis')) stillBlocked.push('/jarvis');

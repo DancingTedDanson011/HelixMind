@@ -80,7 +80,9 @@ async function manualKeyLogin(store: ConfigStore, apiKey: string, webappUrl: str
     store.set('relay.apiKey', apiKey);
     store.set('relay.url', webappUrl);
     if (data.email) store.set('relay.userEmail', data.email);
-    if (data.plan) store.set('relay.plan', data.plan);
+    // Logged-in users are at least FREE_PLUS even if server returns FREE
+    const plan = (data.plan && data.plan !== 'FREE') ? data.plan : 'FREE_PLUS';
+    store.set('relay.plan', plan);
     if (data.userId) store.set('relay.userId', data.userId);
     store.set('relay.loginAt', new Date().toISOString());
     store.set('relay.autoConnect', true);
@@ -134,7 +136,8 @@ async function browserLogin(store: ConfigStore, webappUrl: string): Promise<bool
     store.set('relay.apiKey', result.apiKey);
     store.set('relay.url', webappUrl);
     if (result.email) store.set('relay.userEmail', result.email);
-    if (result.plan) store.set('relay.plan', result.plan);
+    const browserPlan = (result.plan && result.plan !== 'FREE') ? result.plan : 'FREE_PLUS';
+    store.set('relay.plan', browserPlan);
     if (result.userId) store.set('relay.userId', result.userId);
     store.set('relay.loginAt', new Date().toISOString());
     store.set('relay.autoConnect', true);
@@ -205,7 +208,10 @@ export async function checkAuthStatus(store: ConfigStore): Promise<AuthStatus> {
 
     // Update cached values
     if (data.email) store.set('relay.userEmail', data.email);
-    if (data.plan) store.set('relay.plan', data.plan);
+    if (data.plan) {
+      const verifiedPlan = data.plan === 'FREE' ? 'FREE_PLUS' : data.plan;
+      store.set('relay.plan', verifiedPlan);
+    }
 
     return {
       loggedIn: true,

@@ -229,7 +229,9 @@ export async function refreshPlanInfo(store: ConfigStore): Promise<string | null
     };
 
     if (data.plan) {
-      store.set('relay.plan', data.plan);
+      // Logged-in users are at least FREE_PLUS even if server returns FREE
+      const plan = data.plan === 'FREE' ? 'FREE_PLUS' : data.plan;
+      store.set('relay.plan', plan);
     }
     if (data.email) {
       store.set('relay.userEmail', data.email);
