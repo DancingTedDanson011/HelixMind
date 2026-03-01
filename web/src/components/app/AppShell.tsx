@@ -202,12 +202,10 @@ export function AppShell() {
     connection.abortSession(sessionId).catch(() => {});
   }, [connection]);
 
-  // ── Brain: open in new tab ────────────────────
+  // ── Brain: open in popup window ───────────────
   const handleBrainClick = useCallback(() => {
-    if (connectedPort) {
-      window.open(`http://127.0.0.1:${connectedPort}`, '_blank');
-    }
-  }, [connectedPort]);
+    window.open('/brain', 'helix-brain', 'width=1200,height=800,menubar=no,toolbar=no');
+  }, []);
 
   // ── Auto-select first session for console ─────
   useEffect(() => {
@@ -974,9 +972,8 @@ export function AppShell() {
           {/* Brain button — opens in new browser tab */}
           <button
             onClick={handleBrainClick}
-            disabled={!connectedPort}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title={connectedPort ? `${t('brain')} (127.0.0.1:${connectedPort})` : t('brain')}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors"
+            title={t('brain')}
           >
             <Brain size={18} />
           </button>

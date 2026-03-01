@@ -2,22 +2,9 @@
 
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/Button';
 import { Terminal, Copy, Check, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
-
-const BrainCanvas = dynamic(
-  () => import('@/components/brain/BrainCanvas').then((m) => m.BrainCanvas),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="absolute inset-0 bg-background">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,212,255,0.05)_0%,transparent_70%)]" />
-      </div>
-    ),
-  },
-);
 
 // Orchestrated stagger animation
 const stagger = {
@@ -47,8 +34,11 @@ export function Hero() {
 
   return (
     <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
-      {/* 3D Brain Background */}
-      <BrainCanvas />
+      {/* Gradient background (no 3D — brain opens in popup) */}
+      <div className="absolute inset-0 z-[0] pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,212,255,0.06)_0%,transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_80%_-30%,rgba(138,43,226,0.04),transparent)]" />
+      </div>
 
       {/* Multi-layer gradient overlay */}
       <div className="absolute inset-0 z-[1] pointer-events-none">
