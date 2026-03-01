@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle, Wifi } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
 import { InlineBugPanel } from './InlineBugPanel';
@@ -96,13 +96,40 @@ export function ChatView({
   // Empty chat — no messages yet
   if (messages.length === 0 && !isAgentRunning) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center space-y-4 max-w-md px-6">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-white/5 flex items-center justify-center">
-            <Bot size={28} className="text-cyan-500/50" />
+      <div className="flex flex-col h-full">
+        {/* Bug panel in empty state */}
+        {showBugPanel && bugs.length > 0 && (
+          <div className="px-4 pt-4">
+            <InlineBugPanel
+              bugs={bugs}
+              isConnected={isConnected}
+              onFixBug={onFixBug ?? (() => {})}
+              onFixAll={onFixAll ?? (() => {})}
+              onClose={onCloseBugPanel ?? (() => {})}
+            />
           </div>
-          <h3 className="text-lg font-medium text-gray-300">{t('noMessages')}</h3>
-          <p className="text-sm text-gray-600">{t('noMessagesHint')}</p>
+        )}
+
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4 max-w-md px-6">
+            {isConnected ? (
+              <>
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/10 flex items-center justify-center">
+                  <Wifi size={28} className="text-emerald-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-300">{t('cliConnected')}</h3>
+                <p className="text-sm text-gray-600">{t('chatTabHint')}</p>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-white/5 flex items-center justify-center">
+                  <Bot size={28} className="text-cyan-500/50" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-300">{t('noMessages')}</h3>
+                <p className="text-sm text-gray-600">{t('noMessagesHint')}</p>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
