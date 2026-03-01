@@ -12,7 +12,7 @@ export function generateBrainHTML(data: BrainExport): string {
 <title>\u{1F300} HelixMind Brain \u2014 ${data.meta.projectName}</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #030308; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; overflow: hidden; }
+body { background: #050510; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; overflow: hidden; }
 canvas { display: block; }
 
 #ui-overlay {
@@ -99,7 +99,6 @@ canvas { display: block; }
 #sidebar .close-btn:hover { color: #fff; background: rgba(255,60,60,0.2); }
 #sidebar .meta-row { font-size: 11px; color: #556; margin: 4px 0; }
 
-/* === Findings Panel (left sidebar) === */
 #findings-panel {
   position: fixed; left: -320px; top: 0; bottom: 0; width: 320px; z-index: 25;
   background: rgba(5,5,16,0.97); border-right: 1px solid rgba(0,212,255,0.1);
@@ -136,7 +135,6 @@ canvas { display: block; }
 #findings-toggle:hover { border-color: rgba(0,212,255,0.4); color: #00d4ff; }
 #findings-toggle .badge { background: #ff4444; color: white; font-size: 9px; padding: 1px 5px; border-radius: 8px; margin-left: 4px; }
 
-/* === Model Management Panel === */
 #models-toggle {
   position: fixed; left: 120px; bottom: 16px; z-index: 26;
   background: rgba(5,5,16,0.9); border: 1px solid rgba(0,212,255,0.15);
@@ -162,9 +160,7 @@ canvas { display: block; }
 #models-panel .mp-section { margin-bottom: 16px; }
 #models-panel .mp-section-title { font-size: 10px; color: #556; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(0,212,255,0.06); }
 
-#gpu-filter {
-  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;
-}
+#gpu-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 #gpu-filter .gpu-btn {
   padding: 4px 10px; border-radius: 6px; font-size: 10px; cursor: pointer;
   background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.12);
@@ -198,16 +194,10 @@ canvas { display: block; }
 .model-card .mc-btn.danger { border-color: rgba(255,60,60,0.2); background: rgba(255,60,60,0.08); color: #ff4444; }
 .model-card .mc-btn.danger:hover { background: rgba(255,60,60,0.2); }
 .model-card .mc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
 .model-card .mc-progress { margin-top: 6px; display: none; }
 .model-card .mc-progress.active { display: block; }
-.model-card .mc-progress-bar {
-  height: 3px; background: rgba(0,212,255,0.15); border-radius: 2px; overflow: hidden;
-}
-.model-card .mc-progress-fill {
-  height: 100%; background: linear-gradient(90deg, #00d4ff, #00ff88);
-  border-radius: 2px; width: 0%; transition: width 0.3s;
-}
+.model-card .mc-progress-bar { height: 3px; background: rgba(0,212,255,0.15); border-radius: 2px; overflow: hidden; }
+.model-card .mc-progress-fill { height: 100%; background: linear-gradient(90deg, #00d4ff, #00ff88); border-radius: 2px; width: 0%; transition: width 0.3s; }
 .model-card .mc-progress-text { font-size: 9px; color: #556; margin-top: 2px; }
 
 #help-btn {
@@ -266,7 +256,6 @@ canvas { display: block; }
   font-size: 10px; color: #556;
 }
 
-/* === Voice Input Panel === */
 #voice-panel {
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 35;
   background: rgba(5,5,16,0.95); border: 1px solid rgba(0,212,255,0.15);
@@ -276,7 +265,6 @@ canvas { display: block; }
   transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
 }
 #voice-panel.recording { border-color: rgba(255,60,60,0.5); box-shadow: 0 0 30px rgba(255,60,60,0.15), 0 8px 40px rgba(0,0,0,0.5); }
-
 #voice-btn {
   width: 42px; height: 42px; border-radius: 50%; border: 2px solid rgba(0,212,255,0.3);
   background: rgba(0,212,255,0.08); cursor: pointer; display: flex;
@@ -284,136 +272,45 @@ canvas { display: block; }
   color: #556; font-size: 18px; flex-shrink: 0;
 }
 #voice-btn:hover { border-color: rgba(0,212,255,0.6); background: rgba(0,212,255,0.15); color: #00d4ff; }
-#voice-btn.recording {
-  border-color: #ff3c3c; background: rgba(255,60,60,0.15); color: #ff3c3c;
-  animation: voicePulse 1.2s ease infinite;
-}
-@keyframes voicePulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(255,60,60,0.4); }
-  50% { box-shadow: 0 0 0 10px rgba(255,60,60,0); }
-}
-
-#voice-transcript {
-  flex: 1; min-width: 200px; max-width: 500px;
-  font-size: 13px; color: #e0e0e0; min-height: 20px;
-  max-height: 60px; overflow-y: auto; word-break: break-word;
-}
+#voice-btn.recording { border-color: #ff3c3c; background: rgba(255,60,60,0.15); color: #ff3c3c; animation: voicePulse 1.2s ease infinite; }
+@keyframes voicePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,60,60,0.4); } 50% { box-shadow: 0 0 0 10px rgba(255,60,60,0); } }
+#voice-transcript { flex: 1; min-width: 200px; max-width: 500px; font-size: 13px; color: #e0e0e0; min-height: 20px; max-height: 60px; overflow-y: auto; word-break: break-word; }
 #voice-transcript.placeholder { color: #445; font-style: italic; }
-
-#voice-send {
-  padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(0,212,255,0.3);
-  background: rgba(0,212,255,0.1); color: #00d4ff; cursor: pointer;
-  font-size: 12px; font-weight: 600; transition: all 0.2s; flex-shrink: 0;
-  display: none;
-}
+#voice-send { padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(0,212,255,0.3); background: rgba(0,212,255,0.1); color: #00d4ff; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; flex-shrink: 0; display: none; }
 #voice-send:hover { background: rgba(0,212,255,0.25); border-color: rgba(0,212,255,0.5); }
 #voice-send.visible { display: block; }
-
-#voice-waveform {
-  display: none; align-items: center; gap: 2px; height: 24px; flex-shrink: 0;
-}
+#voice-waveform { display: none; align-items: center; gap: 2px; height: 24px; flex-shrink: 0; }
 #voice-panel.recording #voice-waveform { display: flex; }
-.waveform-bar {
-  width: 3px; background: #ff3c3c; border-radius: 2px;
-  animation: waveformPulse 0.6s ease-in-out infinite alternate;
-}
-@keyframes waveformPulse {
-  from { height: 4px; opacity: 0.4; }
-  to { height: 20px; opacity: 1; }
-}
-
-#voice-lang {
-  background: transparent; border: 1px solid rgba(0,212,255,0.15);
-  border-radius: 4px; color: #556; font-size: 9px; padding: 2px 4px;
-  cursor: pointer; flex-shrink: 0;
-}
+.waveform-bar { width: 3px; background: #ff3c3c; border-radius: 2px; animation: waveformPulse 0.6s ease-in-out infinite alternate; }
+@keyframes waveformPulse { from { height: 4px; opacity: 0.4; } to { height: 20px; opacity: 1; } }
+#voice-lang { background: transparent; border: 1px solid rgba(0,212,255,0.15); border-radius: 4px; color: #556; font-size: 9px; padding: 2px 4px; cursor: pointer; flex-shrink: 0; }
 #voice-lang:focus { outline: none; border-color: rgba(0,212,255,0.4); }
+#voice-status { font-size: 9px; color: #445; flex-shrink: 0; min-width: 40px; text-align: center; }
 
-#voice-status {
-  font-size: 9px; color: #445; flex-shrink: 0; min-width: 40px; text-align: center;
-}
-
-/* === Web Knowledge Pop-up Notifications === */
 #web-knowledge-container {
   position: fixed; top: 80px; right: 16px; z-index: 40;
   display: flex; flex-direction: column; gap: 8px;
   pointer-events: none; max-width: 340px;
 }
-
 .web-knowledge-popup {
-  background: rgba(5,5,16,0.95);
-  border: 1px solid rgba(0,255,136,0.3);
-  border-radius: 12px; padding: 14px 18px;
-  backdrop-filter: blur(24px);
+  background: rgba(5,5,16,0.95); border: 1px solid rgba(0,255,136,0.3);
+  border-radius: 12px; padding: 14px 18px; backdrop-filter: blur(24px);
   box-shadow: 0 4px 24px rgba(0,255,136,0.15), 0 0 60px rgba(0,255,136,0.05);
-  animation: webKnowledgeSlideIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
-  opacity: 0; transform: translateX(60px);
-  pointer-events: auto;
+  animation: wkSlideIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
+  opacity: 0; transform: translateX(60px); pointer-events: auto;
   transition: opacity 0.4s ease, transform 0.4s ease;
 }
-
-.web-knowledge-popup.removing {
-  opacity: 0 !important; transform: translateX(60px) !important;
-}
-
-.web-knowledge-popup .wk-header {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
-}
-.web-knowledge-popup .wk-icon {
-  font-size: 16px; animation: wkIconPulse 1.5s ease infinite;
-}
-.web-knowledge-popup .wk-title {
-  font-size: 11px; color: #00ff88; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 1px;
-}
-.web-knowledge-popup .wk-topic {
-  font-size: 13px; color: #e0e0e0; font-weight: 500; margin-bottom: 4px;
-}
-.web-knowledge-popup .wk-summary {
-  font-size: 11px; color: #8899aa; line-height: 1.4;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.web-knowledge-popup .wk-source {
-  font-size: 9px; color: #445566; margin-top: 6px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.web-knowledge-popup .wk-progress {
-  height: 2px; background: rgba(0,255,136,0.1); border-radius: 1px;
-  margin-top: 8px; overflow: hidden;
-}
-.web-knowledge-popup .wk-progress-bar {
-  height: 100%; background: linear-gradient(90deg, #00ff88, #00d4ff);
-  border-radius: 1px; width: 100%;
-  animation: wkProgressShrink 6s linear forwards;
-}
-
-@keyframes webKnowledgeSlideIn {
-  from { opacity: 0; transform: translateX(60px) scale(0.95); }
-  to { opacity: 1; transform: translateX(0) scale(1); }
-}
-@keyframes wkIconPulse {
-  0%,100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(0,255,136,0.6)); }
-  50% { transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(0,255,136,0.9)); }
-}
-@keyframes wkProgressShrink {
-  from { width: 100%; }
-  to { width: 0%; }
-}
-
-/* Particle burst effect */
-.wk-particle-burst {
-  position: fixed; pointer-events: none; z-index: 50;
-}
-.wk-particle {
-  position: absolute; width: 4px; height: 4px;
-  border-radius: 50%; background: #00ff88;
-  box-shadow: 0 0 6px #00ff88;
-  animation: wkParticleFly 1s ease-out forwards;
-}
-@keyframes wkParticleFly {
-  from { opacity: 1; transform: translate(0, 0) scale(1); }
-  to { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0); }
-}
+.web-knowledge-popup.removing { opacity: 0 !important; transform: translateX(60px) !important; }
+.web-knowledge-popup .wk-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.web-knowledge-popup .wk-icon { font-size: 16px; }
+.web-knowledge-popup .wk-title { font-size: 11px; color: #00ff88; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+.web-knowledge-popup .wk-topic { font-size: 13px; color: #e0e0e0; font-weight: 500; margin-bottom: 4px; }
+.web-knowledge-popup .wk-summary { font-size: 11px; color: #8899aa; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.web-knowledge-popup .wk-source { font-size: 9px; color: #445566; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.web-knowledge-popup .wk-progress { height: 2px; background: rgba(0,255,136,0.1); border-radius: 1px; margin-top: 8px; overflow: hidden; }
+.web-knowledge-popup .wk-progress-bar { height: 100%; background: linear-gradient(90deg, #00ff88, #00d4ff); border-radius: 1px; width: 100%; animation: wkShrink 6s linear forwards; }
+@keyframes wkSlideIn { from { opacity: 0; transform: translateX(60px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes wkShrink { from { width: 100%; } to { width: 0%; } }
 </style>
 </head>
 <body>
@@ -427,9 +324,7 @@ canvas { display: block; }
   </div>
 </div>
 
-<div id="search-box">
-  <input id="search-input" type="text" placeholder="Search nodes..." aria-label="Search nodes" />
-</div>
+<div id="search-box"><input id="search-input" type="text" placeholder="Search nodes..." aria-label="Search nodes" /></div>
 
 <div id="controls">
   <div class="control-group">
@@ -456,16 +351,8 @@ canvas { display: block; }
   </div>
 </div>
 
-<div id="sidebar">
-  <span class="close-btn" id="sidebar-close">\u2715</span>
-  <div id="sidebar-content"></div>
-</div>
-
-<div id="tooltip">
-  <div class="tt-name"></div>
-  <div class="tt-type"></div>
-  <div class="tt-meta"></div>
-</div>
+<div id="sidebar"><span class="close-btn" id="sidebar-close">\u2715</span><div id="sidebar-content"></div></div>
+<div id="tooltip"><div class="tt-name"></div><div class="tt-type"></div><div class="tt-meta"></div></div>
 
 <div id="legend">
   <div class="item"><span class="dot" style="color:#00FFFF"></span> L1 Focus</div>
@@ -476,10 +363,7 @@ canvas { display: block; }
   <div class="item"><span class="dot" style="color:#FFAA00"></span> L6 Web Knowledge</div>
 </div>
 
-<div id="status">
-  <span id="node-count">0</span> nodes \u00B7 <span id="fps-counter">60</span> fps \u00B7 <span id="web-count" style="color:#FFAA00"></span>
-</div>
-
+<div id="status"><span id="node-count">0</span> nodes \u00B7 <span id="fps-counter">60</span> fps \u00B7 <span id="web-count" style="color:#FFAA00"></span></div>
 <div id="web-knowledge-container"></div>
 
 <div id="findings-panel">
@@ -494,66 +378,33 @@ canvas { display: block; }
   <span class="mp-close" id="models-close">\u2715</span>
   <h2>\u{1F9E0} LLM Models</h2>
   <div class="mp-subtitle" id="ollama-status">Checking Ollama...</div>
-
-  <div class="mp-section" id="cloud-section">
-    <div class="mp-section-title">\u{2601} Cloud Models</div>
-    <div id="cloud-models"><div style="color:#445;font-size:11px">Loading cloud models...</div></div>
-  </div>
-
-  <div class="mp-section">
-    <div class="mp-section-title">GPU / VRAM Filter</div>
+  <div class="mp-section" id="cloud-section"><div class="mp-section-title">\u{2601} Cloud Models</div><div id="cloud-models"><div style="color:#445;font-size:11px">Loading cloud models...</div></div></div>
+  <div class="mp-section"><div class="mp-section-title">GPU / VRAM Filter</div>
     <div id="gpu-filter">
-      <span class="gpu-btn" data-vram="8">8 GB</span>
-      <span class="gpu-btn" data-vram="12">12 GB</span>
-      <span class="gpu-btn" data-vram="16">16 GB</span>
-      <span class="gpu-btn" data-vram="24">24 GB</span>
-      <span class="gpu-btn active" data-vram="32">32 GB (RTX 5090)</span>
-      <span class="gpu-btn" data-vram="48">48 GB</span>
+      <span class="gpu-btn" data-vram="8">8 GB</span><span class="gpu-btn" data-vram="12">12 GB</span>
+      <span class="gpu-btn" data-vram="16">16 GB</span><span class="gpu-btn" data-vram="24">24 GB</span>
+      <span class="gpu-btn active" data-vram="32">32 GB (RTX 5090)</span><span class="gpu-btn" data-vram="48">48 GB</span>
     </div>
   </div>
-
-  <div class="mp-section" id="running-section" style="display:none">
-    <div class="mp-section-title">\u{25B6} Running Models</div>
-    <div id="running-models"></div>
-  </div>
-
-  <div class="mp-section" id="installed-section">
-    <div class="mp-section-title">\u{2705} Installed Models</div>
-    <div id="installed-models"><div style="color:#445;font-size:11px">Loading...</div></div>
-  </div>
-
-  <div class="mp-section">
-    <div class="mp-section-title">\u{2B50} Recommended for Coding</div>
-    <div id="recommended-models"></div>
-  </div>
+  <div class="mp-section" id="running-section" style="display:none"><div class="mp-section-title">\u{25B6} Running Models</div><div id="running-models"></div></div>
+  <div class="mp-section" id="installed-section"><div class="mp-section-title">\u{2705} Installed Models</div><div id="installed-models"><div style="color:#445;font-size:11px">Loading...</div></div></div>
+  <div class="mp-section"><div class="mp-section-title">\u{2B50} Recommended for Coding</div><div id="recommended-models"></div></div>
 </div>
 
 <button id="help-btn" title="Keyboard shortcuts & controls">?</button>
-
 <div id="help-overlay">
   <div id="help-box">
     <h3>\u{1F300} HelixMind Brain \u2014 Controls</h3>
-    <div class="help-section">
-      <h4>Navigation</h4>
+    <div class="help-section"><h4>Navigation</h4>
       <div class="help-row"><span class="help-key">Left Drag</span> <span class="help-desc">Rotate view</span></div>
       <div class="help-row"><span class="help-key">Right Drag</span> <span class="help-desc">Pan view</span></div>
       <div class="help-row"><span class="help-key">Scroll</span> <span class="help-desc">Zoom in / out</span></div>
     </div>
-    <div class="help-section">
-      <h4>Nodes</h4>
+    <div class="help-section"><h4>Nodes</h4>
       <div class="help-row"><span class="help-key">Click</span> <span class="help-desc">Select node \u2192 zoom in + details</span></div>
-      <div class="help-row"><span class="help-key">\u2715 Close</span> <span class="help-desc">Deselect \u2192 zoom out to overview</span></div>
-      <div class="help-row"><span class="help-key">Shift + \u2715</span> <span class="help-desc">Close details but stay zoomed in</span></div>
       <div class="help-row"><span class="help-key">Hover</span> <span class="help-desc">Preview node info</span></div>
     </div>
-    <div class="help-section">
-      <h4>Tools</h4>
-      <div class="help-row"><span class="help-key">Search</span> <span class="help-desc">Filter nodes by name/content</span></div>
-      <div class="help-row"><span class="help-key">L1\u2013L6</span> <span class="help-desc">Toggle spiral levels</span></div>
-      <div class="help-row"><span class="help-key">\u{1F3A4} Mic</span> <span class="help-desc">Voice input \u2192 send to CLI</span></div>
-    </div>
-    <div class="help-section">
-      <h4>Keyboard</h4>
+    <div class="help-section"><h4>Keyboard</h4>
       <div class="help-row"><span class="help-key">?</span> <span class="help-desc">Toggle this help</span></div>
       <div class="help-row"><span class="help-key">Esc</span> <span class="help-desc">Close sidebar / help</span></div>
     </div>
@@ -562,13 +413,10 @@ canvas { display: block; }
 </div>
 
 <div id="voice-panel">
-  <button id="voice-btn" title="Voice Input (click to record)">\u{1F3A4}</button>
+  <button id="voice-btn" title="Voice Input">\u{1F3A4}</button>
   <div id="voice-waveform"></div>
   <div id="voice-transcript" class="placeholder">Click mic to speak...</div>
-  <select id="voice-lang" title="Language" aria-label="Voice language">
-    <option value="de-DE">DE</option>
-    <option value="en-US">EN</option>
-  </select>
+  <select id="voice-lang" title="Language" aria-label="Voice language"><option value="de-DE">DE</option><option value="en-US">EN</option></select>
   <span id="voice-status"></span>
   <button id="voice-send">\u{2191} Send</button>
 </div>
@@ -584,1460 +432,615 @@ canvas { display: block; }
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// =========== DATA ===========
+// ===== DATA =====
 let BRAIN_DATA = ${dataJSON};
 
-// =========== CONSTANTS ===========
-const LEVEL_COLORS_HEX = { 1: 0x00FFFF, 2: 0x00FF88, 3: 0x4169E1, 4: 0x8A2BE2, 5: 0x6C757D, 6: 0xFFAA00 };
-const LEVEL_COLORS_CSS = { 1: '#00FFFF', 2: '#00FF88', 3: '#4169E1', 4: '#8A2BE2', 5: '#6C757D', 6: '#FFAA00' };
-const EDGE_COLORS = {
-  imports: '#00ff88', calls: '#ffdd00', depends_on: '#ffdd00',
-  related_to: '#4488ff', similar_to: '#4488ff',
-  belongs_to: '#ff6600', part_of: '#ff6600', supersedes: '#ff4444',
-  default: '#334466',
+// ===== CONSTANTS =====
+const LVL_HEX = { 1: 0x00FFFF, 2: 0x00FF88, 3: 0x4169E1, 4: 0x8A2BE2, 5: 0x6C757D, 6: 0xFFAA00 };
+const LVL_CSS = { 1: '#00FFFF', 2: '#00FF88', 3: '#4169E1', 4: '#8A2BE2', 5: '#6C757D', 6: '#FFAA00' };
+const EDGE_COL = {
+  evolved_from:'#ff4444', supersedes:'#ff4444',
+  imports:'#00ff88', extends:'#00ff88', implements:'#00ff88',
+  references:'#4488ff', related_to:'#4488ff', similar_to:'#4488ff', supports:'#4488ff',
+  calls:'#ffdd00', depends_on:'#ffdd00', uses:'#ffdd00',
+  belongs_to:'#ff6600', part_of:'#ff6600',
+  default:'#334466'
 };
-// Organic nebula layout — layers spread wide and overlap slightly
-// Not a strict funnel but an organic cloud where each layer bleeds into neighbors
-const SPATIAL = {
-  5: { iR: 5,   oR: 90,   yBase: 450,  yS: 120, size: 52, pulse: 0.3 },
-  4: { iR: 15,  oR: 180,  yBase: 280,  yS: 130, size: 42, pulse: 0.5 },
-  3: { iR: 30,  oR: 280,  yBase: 100,  yS: 140, size: 36, pulse: 0.8 },
-  2: { iR: 50,  oR: 380,  yBase: -90,  yS: 150, size: 28, pulse: 1.2 },
-  1: { iR: 70,  oR: 480,  yBase: -280, yS: 160, size: 22, pulse: 2.0 },
-  6: { iR: 90,  oR: 580,  yBase: -480, yS: 170, size: 30, pulse: 0.6 },
-};
-const MAX_RENDERED_EDGES = 8000; // cap for performance + clarity
+const LVL_SIZE = { 1:22, 2:28, 3:36, 4:42, 5:52, 6:30 };
+const SPREAD=600, REP=18000, ATT=0.003, ILEN=80, DAMP=0.82, STEPS=800, GCELL=120, MAX_E=8000;
 
-function srand(s) { const x = Math.sin(s * 9301 + 49297) * 49297; return x - Math.floor(x); }
-function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function srand(s) { const x=Math.sin(s*9301+49297)*49297; return x-Math.floor(x); }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// =========== THREE.JS SETUP ===========
-const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(1);
-document.body.prepend(renderer.domElement);
+// ===== RENDERER (max perf: no AA, pixelRatio 1) =====
+const R = new THREE.WebGLRenderer({ antialias:false, alpha:true, powerPreference:'high-performance' });
+R.setSize(innerWidth, innerHeight);
+R.setPixelRatio(1);
+document.body.prepend(R.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#030308');
-scene.fog = new THREE.FogExp2('#030308', 0.00025);
+scene.background = new THREE.Color('#050510');
+scene.fog = new THREE.FogExp2('#050510', 0.00005);
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 12000);
-camera.position.set(500, 500, 800);
+const cam = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 1, 12000);
+cam.position.set(0, 200, 1200);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 0, 0);
-controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.autoRotate = true;
-controls.autoRotateSpeed = 0.08;
-controls.minDistance = 80;
-controls.maxDistance = 4000;
-controls.maxPolarAngle = Math.PI * 0.85;
-controls.minPolarAngle = Math.PI * 0.15;
-controls.update();
+const ctrl = new OrbitControls(cam, R.domElement);
+ctrl.target.set(0,0,0);
+ctrl.enableDamping = true;
+ctrl.dampingFactor = 0.06;
+ctrl.autoRotate = true;
+ctrl.autoRotateSpeed = 0.08;
+ctrl.minDistance = 80;
+ctrl.maxDistance = 4000;
+ctrl.maxPolarAngle = Math.PI * 0.85;
+ctrl.minPolarAngle = Math.PI * 0.15;
+ctrl.update();
 
-// =========== BACKGROUND STARS ===========
-const starCount = 700;
-const starPos = new Float32Array(starCount * 3);
-for (let i = 0; i < starCount; i++) {
-  starPos[i * 3] = (srand(i * 31) - 0.5) * 5000;
-  starPos[i * 3 + 1] = (srand(i * 37) - 0.5) * 5000;
-  starPos[i * 3 + 2] = (srand(i * 41) - 0.5) * 5000;
-}
-const starGeo = new THREE.BufferGeometry();
-starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-const starMat = new THREE.PointsMaterial({
-  size: 1.2, color: '#223344', transparent: true, opacity: 0.5,
-  blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
-});
-scene.add(new THREE.Points(starGeo, starMat));
+// ===== STARS (static) =====
+const stP = new Float32Array(700*3);
+for(let i=0;i<700;i++){ stP[i*3]=(srand(i*31)-.5)*5000; stP[i*3+1]=(srand(i*37)-.5)*5000; stP[i*3+2]=(srand(i*41)-.5)*5000; }
+const stG = new THREE.BufferGeometry();
+stG.setAttribute('position', new THREE.BufferAttribute(stP,3));
+scene.add(new THREE.Points(stG, new THREE.PointsMaterial({ size:1.2, color:'#223344', transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true })));
 
-// =========== NODE + EDGE SHADER MATERIALS ===========
-const nodeMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: { value: 0 } },
+// ===== STATIC SHADERS (zero per-frame cost) =====
+const nMat = new THREE.ShaderMaterial({
   vertexShader: \`
     attribute float aSize;
     attribute vec3 aColor;
-    attribute float aHighlight;
-    attribute float aPulse;
-    varying vec3 vColor;
-    varying float vAlpha;
-    uniform float uTime;
+    attribute float aHL;
+    varying vec3 vC;
+    varying float vA;
     void main(){
-      vColor = aColor;
-      float breath = 1.0 + sin(uTime * aPulse + position.x * .008 + position.z * .006) * .12;
-      vec3 pos = position;
-      pos.y += sin(uTime * .3 + position.x * .01 + position.z * .015) * 3.0;
-      vAlpha = aHighlight;
-      vec4 mv = modelViewMatrix * vec4(pos, 1.0);
-      gl_PointSize = aSize * breath * aHighlight * (500.0 / -mv.z);
-      gl_Position = projectionMatrix * mv;
-    }
-  \`,
+      vC=aColor; vA=aHL;
+      vec4 mv=modelViewMatrix*vec4(position,1.0);
+      gl_PointSize=aSize*aHL*(500.0/-mv.z);
+      gl_Position=projectionMatrix*mv;
+    }\`,
   fragmentShader: \`
-    varying vec3 vColor;
-    varying float vAlpha;
+    varying vec3 vC;
+    varying float vA;
     void main(){
-      vec2 c = gl_PointCoord - vec2(.5);
-      float d = length(c);
-      if(d > .5) discard;
-      float core = exp(-d*d*100.0);
-      float g1 = exp(-d*d*18.0) * .45;
-      float g2 = exp(-d*d*4.0) * .15;
-      float g3 = exp(-d*d*1.2) * .06;
-      float i = core + g1 + g2 + g3;
-      gl_FragColor = vec4(vColor * (1.0 + core * .5), i * vAlpha);
-    }
-  \`,
-  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vec2 c=gl_PointCoord-vec2(.5);
+      float d=length(c);
+      if(d>.5)discard;
+      float i=exp(-d*d*60.0)+exp(-d*d*10.0)*.6+exp(-d*d*3.0)*.3+exp(-d*d*0.8)*.15;
+      float core=exp(-d*d*60.0);
+      gl_FragColor=vec4(vC*(1.0+core*1.2),i*vA);
+    }\`,
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
 });
 
-const edgeMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: { value: 0 } },
+const eMat = new THREE.ShaderMaterial({
   vertexShader: \`
     attribute vec3 color;
-    attribute float aAlpha;
-    varying vec3 vColor;
-    varying float vAlpha;
-    uniform float uTime;
-    void main(){
-      vColor = color;
-      float pulse = .5 + .5 * sin(uTime * 1.2 + length(position) * .008);
-      vAlpha = aAlpha * (0.6 + pulse * 0.4);
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  \`,
+    attribute float aA;
+    varying vec3 vC;
+    varying float vA;
+    void main(){ vC=color; vA=aA; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }\`,
   fragmentShader: \`
-    varying vec3 vColor;
-    varying float vAlpha;
-    void main(){ gl_FragColor = vec4(vColor, vAlpha); }
-  \`,
-  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    varying vec3 vC;
+    varying float vA;
+    void main(){ gl_FragColor=vec4(vC,vA); }\`,
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
 });
 
-const particleMat = new THREE.PointsMaterial({
-  size: 3, vertexColors: true, transparent: true, opacity: 0.7,
-  blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
-});
+// ===== SCENE STATE =====
+let nPts=null, nGeo=null, eLines=null, eGeo=null;
+let nodes=[], pos=[], byLvl={}, adj={}, nMap={}, nEdgeMap={}, vEdges=[], nC=0, eC=0;
+const tc=new THREE.Color();
 
-// =========== SCENE OBJECTS (rebuilt by rebuildScene) ===========
-let nodePoints = null;
-let nodeGeo = null;
-let edgeLines = null;
-let edgeGeo = null;
-let particlePoints = null;
-let particleGeo = null;
+// ===== FORCE-DIRECTED LAYOUT + BUILD =====
+function buildScene() {
+  if(nGeo){ nGeo.dispose(); scene.remove(nPts); }
+  if(eGeo){ eGeo.dispose(); scene.remove(eLines); }
 
-// Data arrays rebuilt per scene
-let nodes = [];
-let positions = [];
-let byLevel = {};
-let adj = {};
-let nodeIdxMap = {};
-let nodeEdgeMap = {};
-let validEdges = [];
-let pData = [];
-let nCount = 0;
-let eCount = 0;
-let pCount = 0;
-let orbitRings = [];
+  nodes=BRAIN_DATA.nodes; nC=nodes.length;
+  byLvl={};
+  nodes.forEach((n,i)=>{ const lv=n.level||3; if(!byLvl[lv])byLvl[lv]=[]; byLvl[lv].push(i); });
 
-const PARTICLES_PER_EDGE = 3;
-const tc = new THREE.Color();
+  // Spherical random init
+  const P=new Float64Array(nC*3), V=new Float64Array(nC*3);
+  for(let i=0;i<nC;i++){
+    const phi=Math.acos(2*srand(i*13)-1), th=srand(i*17)*Math.PI*2, r=SPREAD*Math.cbrt(srand(i*23));
+    P[i*3]=r*Math.sin(phi)*Math.cos(th); P[i*3+1]=r*Math.sin(phi)*Math.sin(th); P[i*3+2]=r*Math.cos(phi);
+  }
 
-// =========== REBUILD SCENE ===========
-function rebuildScene() {
-  // Dispose old geometries
-  if (nodeGeo) { nodeGeo.dispose(); scene.remove(nodePoints); }
-  if (edgeGeo) { edgeGeo.dispose(); scene.remove(edgeLines); }
-  if (particleGeo) { particleGeo.dispose(); scene.remove(particlePoints); }
-  orbitRings.forEach(r => { r.geometry.dispose(); r.material.dispose(); scene.remove(r); });
-  orbitRings = [];
-
-  nodes = BRAIN_DATA.nodes;
-  nCount = nodes.length;
-
-  // Group by level
-  byLevel = {};
-  nodes.forEach((n, i) => {
-    const lv = n.level || 3;
-    if (!byLevel[lv]) byLevel[lv] = [];
-    byLevel[lv].push(i);
+  // Adjacency
+  nMap={}; nodes.forEach((n,i)=>{ nMap[n.id]=i; });
+  adj={}; nEdgeMap={};
+  const ePairs=[];
+  BRAIN_DATA.edges.forEach((e,ei)=>{
+    const si=nMap[e.source], ti=nMap[e.target];
+    if(si===undefined||ti===undefined) return;
+    if(!adj[si])adj[si]=new Set(); if(!adj[ti])adj[ti]=new Set();
+    adj[si].add(ti); adj[ti].add(si);
+    if(!nEdgeMap[si])nEdgeMap[si]=[]; if(!nEdgeMap[ti])nEdgeMap[ti]=[];
+    nEdgeMap[si].push(ei); nEdgeMap[ti].push(ei);
+    ePairs.push([si,ti]);
   });
 
-  // Compute radial spiral positions
-  positions = new Array(nCount);
-  for (const [lv, indices] of Object.entries(byLevel)) {
-    const s = SPATIAL[lv] || SPATIAL[3];
-    const c = indices.length;
-    indices.forEach((ni, j) => {
-      const angle = (j / Math.max(c, 1)) * Math.PI * 2 + (srand(ni * 19) - 0.5) * 0.6;
-      const r = s.iR + srand(ni * 7) * (s.oR - s.iR);
-      const spiral = angle + r * 0.003 + srand(ni * 23) * 0.4;
-      const y = (s.yBase || 0) + (srand(ni * 11) - 0.5) * s.yS;
-      // Add organic jitter so it doesn't look like perfect rings
-      const jitterX = (srand(ni * 29) - 0.5) * r * 0.15;
-      const jitterZ = (srand(ni * 37) - 0.5) * r * 0.15;
-      positions[ni] = new THREE.Vector3(
-        Math.cos(spiral) * r + jitterX,
-        y,
-        Math.sin(spiral) * r + jitterZ
-      );
-    });
-  }
-
-  // Build adjacency + nodeIdxMap
-  nodeIdxMap = {};
-  nodes.forEach((n, i) => { nodeIdxMap[n.id] = i; });
-  adj = {};
-  nodeEdgeMap = {};
-  BRAIN_DATA.edges.forEach((e, ei) => {
-    const si = nodeIdxMap[e.source], ti = nodeIdxMap[e.target];
-    if (si === undefined || ti === undefined) return;
-    if (!adj[si]) adj[si] = new Set();
-    if (!adj[ti]) adj[ti] = new Set();
-    adj[si].add(ti);
-    adj[ti].add(si);
-    if (!nodeEdgeMap[si]) nodeEdgeMap[si] = [];
-    if (!nodeEdgeMap[ti]) nodeEdgeMap[ti] = [];
-    nodeEdgeMap[si].push(ei);
-    nodeEdgeMap[ti].push(ei);
-  });
-
-  // ---- NODE POINTS ----
-  nodeGeo = new THREE.BufferGeometry();
-  const nPos = new Float32Array(nCount * 3);
-  const nCol = new Float32Array(nCount * 3);
-  const nSize = new Float32Array(nCount);
-  const nHighlight = new Float32Array(nCount);
-  const nPulse = new Float32Array(nCount);
-
-  for (let i = 0; i < nCount; i++) {
-    const p = positions[i];
-    const n = nodes[i];
-    const s = SPATIAL[n.level] || SPATIAL[3];
-    nPos[i * 3] = p.x; nPos[i * 3 + 1] = p.y; nPos[i * 3 + 2] = p.z;
-    tc.set(LEVEL_COLORS_HEX[n.level] || 0x00FFFF);
-    nCol[i * 3] = tc.r; nCol[i * 3 + 1] = tc.g; nCol[i * 3 + 2] = tc.b;
-    nSize[i] = s.size;
-    nHighlight[i] = 1.0;
-    nPulse[i] = s.pulse;
-  }
-  nodeGeo.setAttribute('position', new THREE.BufferAttribute(nPos, 3));
-  nodeGeo.setAttribute('aColor', new THREE.BufferAttribute(nCol, 3));
-  nodeGeo.setAttribute('aSize', new THREE.BufferAttribute(nSize, 1));
-  nodeGeo.setAttribute('aHighlight', new THREE.BufferAttribute(nHighlight, 1));
-  nodeGeo.setAttribute('aPulse', new THREE.BufferAttribute(nPulse, 1));
-  nodePoints = new THREE.Points(nodeGeo, nodeMat);
-  scene.add(nodePoints);
-
-  // ---- ORBIT RINGS (one per layer) ----
-  for (let lv = 1; lv <= 6; lv++) {
-    const s = SPATIAL[lv];
-    if (!s || !(byLevel[lv] || []).length) continue;
-    const ringRadius = s.oR * 0.85;
-    const ringGeo = new THREE.RingGeometry(ringRadius - 0.3, ringRadius + 0.3, 96);
-    const ringColor = new THREE.Color(LEVEL_COLORS_HEX[lv] || 0x00FFFF);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: ringColor, transparent: true, opacity: 0.08, side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = s.yBase;
-    ring.userData.level = lv;
-    scene.add(ring);
-    orbitRings.push(ring);
-  }
-
-  // ---- EDGES (LineSegments) ----
-  // Prioritize cross-level edges (vertical) over intra-level (horizontal)
-  const allEdges = [];
-  BRAIN_DATA.edges.forEach((e, i) => {
-    const si = nodeIdxMap[e.source], ti = nodeIdxMap[e.target];
-    if (si !== undefined && ti !== undefined) {
-      const crossLevel = nodes[si].level !== nodes[ti].level;
-      allEdges.push({ si, ti, weight: e.weight, type: e.type, idx: i, crossLevel });
+  // Force simulation (one-time, blocking)
+  for(let step=0;step<STEPS;step++){
+    const grid={};
+    for(let i=0;i<nC;i++){
+      const k=Math.floor(P[i*3]/GCELL)+','+Math.floor(P[i*3+1]/GCELL)+','+Math.floor(P[i*3+2]/GCELL);
+      if(!grid[k])grid[k]=[]; grid[k].push(i);
     }
-  });
-  // Sort: cross-level edges first (they create the beautiful vertical connections)
-  allEdges.sort((a, b) => {
-    if (a.crossLevel !== b.crossLevel) return b.crossLevel ? 1 : -1;
-    return b.weight - a.weight; // then by weight
-  });
-  validEdges = allEdges.slice(0, MAX_RENDERED_EDGES);
-
-  eCount = validEdges.length;
-  const ePos = new Float32Array(eCount * 6);
-  const eCol = new Float32Array(eCount * 6);
-  const eAlpha = new Float32Array(eCount * 2);
-  const sc = new THREE.Color(), dc = new THREE.Color();
-
-  // Scale alpha down when there are many edges
-  const alphaScale = Math.min(1.0, 3000 / eCount);
-
-  for (let i = 0; i < eCount; i++) {
-    const { si, ti, weight, crossLevel } = validEdges[i];
-    const s = positions[si], t = positions[ti];
-    const o = i * 6;
-    ePos[o] = s.x; ePos[o + 1] = s.y; ePos[o + 2] = s.z;
-    ePos[o + 3] = t.x; ePos[o + 4] = t.y; ePos[o + 5] = t.z;
-    sc.set(LEVEL_COLORS_HEX[nodes[si].level] || 0x00FFFF);
-    dc.set(LEVEL_COLORS_HEX[nodes[ti].level] || 0x00FFFF);
-    eCol[o] = sc.r; eCol[o + 1] = sc.g; eCol[o + 2] = sc.b;
-    eCol[o + 3] = dc.r; eCol[o + 4] = dc.g; eCol[o + 5] = dc.b;
-    // Cross-level edges brighter, intra-level edges dimmer
-    const baseAlpha = crossLevel ? (0.08 + weight * 0.12) : (0.03 + weight * 0.04);
-    eAlpha[i * 2] = baseAlpha * alphaScale;
-    eAlpha[i * 2 + 1] = baseAlpha * alphaScale;
-  }
-
-  edgeGeo = new THREE.BufferGeometry();
-  edgeGeo.setAttribute('position', new THREE.BufferAttribute(ePos, 3));
-  edgeGeo.setAttribute('color', new THREE.BufferAttribute(eCol, 3));
-  edgeGeo.setAttribute('aAlpha', new THREE.BufferAttribute(eAlpha, 1));
-  edgeLines = new THREE.LineSegments(edgeGeo, edgeMat);
-  scene.add(edgeLines);
-
-  // ---- FLOWING PARTICLES (only on cross-level edges for clarity) ----
-  pData = [];
-  const maxParticleEdges = Math.min(eCount, 2000);
-  for (let i = 0; i < maxParticleEdges; i++) {
-    const { si, ti, weight, crossLevel } = validEdges[i];
-    if (!crossLevel) continue; // only particles on vertical connections
-    const particleCount = weight > 0.6 ? 2 : 1;
-    for (let j = 0; j < particleCount; j++) {
-      pData.push({
-        edgeIdx: i, progress: srand(i * 100 + j * 31),
-        speed: 0.15 + weight * 0.4 + srand(i * 70 + j * 17) * 0.1,
-        srcIdx: si, tgtIdx: ti
-      });
-    }
-  }
-  pCount = pData.length;
-  const pPos = new Float32Array(pCount * 3);
-  const pCol = new Float32Array(pCount * 3);
-
-  particleGeo = new THREE.BufferGeometry();
-  particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-  particleGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
-  particlePoints = new THREE.Points(particleGeo, particleMat);
-  scene.add(particlePoints);
-
-  // ---- UPDATE HUD COUNTERS ----
-  document.getElementById('node-count').textContent = nCount;
-  const webCount = BRAIN_DATA.meta.webKnowledgeCount || nodes.filter(n => n.level === 6).length;
-  document.getElementById('stats-text').textContent =
-    nCount + ' nodes \\u00B7 ' + BRAIN_DATA.edges.length + ' connections' +
-    (webCount > 0 ? ' \\u00B7 ' + webCount + ' web' : '') +
-    ' \\u00B7 ' + BRAIN_DATA.meta.projectName;
-  document.getElementById('web-count').textContent = webCount > 0 ? '\\u{1F310} ' + webCount + ' web' : '';
-
-  // Update level counts in buttons
-  for (let lv = 1; lv <= 6; lv++) {
-    const el = document.getElementById('lc' + lv);
-    if (el) el.textContent = (byLevel[lv] || []).length;
-  }
-
-  // Reset level toggles to all active
-  levelToggles = {};
-  document.querySelectorAll('[data-level]').forEach(btn => {
-    levelToggles[parseInt(btn.dataset.level)] = btn.classList.contains('active');
-    updateLevelBtnStyle(btn);
-  });
-
-  // Reset interaction state
-  hoveredIdx = -1;
-  selectedIdx = -1;
-}
-
-// =========== INTERACTION STATE ===========
-const raycaster = new THREE.Raycaster();
-raycaster.params.Points = { threshold: 12 };
-const mouse = new THREE.Vector2();
-let hoveredIdx = -1;
-let selectedIdx = -1;
-let camTween = null;
-let levelToggles = {};
-
-const tooltipEl = document.getElementById('tooltip');
-const ttNameEl = tooltipEl.querySelector('.tt-name');
-const ttTypeEl = tooltipEl.querySelector('.tt-type');
-const ttMetaEl = tooltipEl.querySelector('.tt-meta');
-
-// =========== MOUSEMOVE (hover) ===========
-renderer.domElement.addEventListener('mousemove', (e) => {
-  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-  if (!nodePoints) return;
-  raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObject(nodePoints);
-  const prevHovered = hoveredIdx;
-
-  if (hits.length > 0) {
-    hoveredIdx = hits[0].index;
-    renderer.domElement.style.cursor = 'pointer';
-
-    const n = nodes[hoveredIdx];
-    ttNameEl.textContent = n.label;
-    const levelLabel = n.level === 6 ? '\\u{1F310} Web Knowledge' : n.type + ' \\u00B7 Level ' + n.level;
-    ttTypeEl.textContent = levelLabel;
-    const metaExtra = n.webTopic ? ' \\u00B7 ' + n.webTopic : '';
-    ttMetaEl.textContent =
-      'Relevance: ' + n.relevanceScore.toFixed(2) + ' \\u00B7 ' + n.createdAt.slice(0, 10) + metaExtra;
-    tooltipEl.style.display = 'block';
-    tooltipEl.style.left = (e.clientX + 14) + 'px';
-    tooltipEl.style.top = (e.clientY - 10) + 'px';
-  } else {
-    hoveredIdx = -1;
-    renderer.domElement.style.cursor = 'default';
-    tooltipEl.style.display = 'none';
-  }
-
-  if (prevHovered !== hoveredIdx) updateHighlights();
-});
-
-// =========== CLICK (select) ===========
-renderer.domElement.addEventListener('click', () => {
-  if (hoveredIdx >= 0) {
-    selectedIdx = hoveredIdx;
-    showSidebar(nodes[selectedIdx]);
-    controls.autoRotate = false;
-
-    // Fly to node
-    const np = positions[selectedIdx];
-    const dir = camera.position.clone().sub(np).normalize();
-    camTween = {
-      startPos: camera.position.clone(), startLookAt: controls.target.clone(),
-      targetPos: np.clone().add(dir.multiplyScalar(70)), targetLookAt: np.clone(),
-      progress: 0
-    };
-    updateHighlights();
-  }
-});
-
-// =========== HIGHLIGHTS ===========
-function updateHighlights() {
-  if (!nodeGeo || !edgeGeo) return;
-  const ha = nodeGeo.attributes.aHighlight;
-  const ea = edgeGeo.attributes.aAlpha;
-  const searchQuery = document.getElementById('search-input').value.toLowerCase();
-  const hasSearch = searchQuery.length > 0;
-  const hasFocus = selectedIdx >= 0;
-  const connectedToHover = hoveredIdx >= 0 && adj[hoveredIdx] ? adj[hoveredIdx] : new Set();
-  const connectedToSelected = selectedIdx >= 0 && adj[selectedIdx] ? adj[selectedIdx] : new Set();
-
-  for (let i = 0; i < nCount; i++) {
-    let h = 1.0;
-
-    // Level toggle filter
-    const lv = nodes[i].level;
-    if (levelToggles[lv] === false) { h = 0.05; ha.array[i] = h; continue; }
-
-    if (hasSearch) {
-      const n = nodes[i];
-      const match = n.label.toLowerCase().includes(searchQuery) || n.content.toLowerCase().includes(searchQuery);
-      h = match ? 1.0 : 0.12;
-    }
-    if (hasFocus) {
-      h = connectedToSelected.has(i) || i === selectedIdx ? 1.0 : 0.1;
-    }
-    if (hoveredIdx >= 0) {
-      if (i === hoveredIdx) h = Math.max(h, 1.5);
-      else if (connectedToHover.has(i)) h = Math.max(h, 1.2);
-    }
-    ha.array[i] = h;
-  }
-  ha.needsUpdate = true;
-
-  // Edge highlights
-  const activeEdgeTypes = getActiveEdgeTypes();
-  const alphaS = Math.min(1.0, 3000 / eCount);
-  for (let i = 0; i < eCount; i++) {
-    const { si, ti, weight, type, crossLevel } = validEdges[i];
-    const baseA = crossLevel ? (0.08 + weight * 0.12) : (0.03 + weight * 0.04);
-    let a = baseA * alphaS;
-
-    // Level toggle: hide edges connected to hidden levels
-    const sLv = nodes[si].level, tLv = nodes[ti].level;
-    if (levelToggles[sLv] === false || levelToggles[tLv] === false) { a = 0; ea.array[i * 2] = 0; ea.array[i * 2 + 1] = 0; continue; }
-
-    // Edge type filter
-    if (activeEdgeTypes !== null && !activeEdgeTypes.has(type)) { a = 0; }
-
-    if (hasFocus) {
-      const connected = (si === selectedIdx || ti === selectedIdx);
-      a = connected ? 0.4 + weight * 0.3 : 0.01;
-    }
-    if (hoveredIdx >= 0) {
-      const connected = (si === hoveredIdx || ti === hoveredIdx);
-      if (connected) a = Math.max(a, 0.35 + weight * 0.3);
-    }
-    if (hasSearch) {
-      const sm = nodes[si].label.toLowerCase().includes(searchQuery);
-      const tm = nodes[ti].label.toLowerCase().includes(searchQuery);
-      if (!sm && !tm) a = 0.01;
-    }
-    ea.array[i * 2] = a;
-    ea.array[i * 2 + 1] = a;
-  }
-  ea.needsUpdate = true;
-
-  // Update orbit ring visibility
-  orbitRings.forEach(ring => {
-    const lv = ring.userData.level;
-    ring.material.opacity = levelToggles[lv] === false ? 0 : 0.08;
-  });
-}
-
-function getActiveEdgeTypes() {
-  const allBtn = document.querySelector('[data-edge="all"]');
-  if (allBtn && allBtn.classList.contains('active')) return null; // show all
-  const active = new Set();
-  document.querySelectorAll('[data-edge].active').forEach(b => {
-    if (b.dataset.edge !== 'all') active.add(b.dataset.edge);
-  });
-  return active.size > 0 ? active : null;
-}
-
-// =========== SIDEBAR ===========
-function showSidebar(node) {
-  const sidebar = document.getElementById('sidebar');
-  const content = document.getElementById('sidebar-content');
-
-  const typeColors = { code: '#00FFFF', module: '#00CED1', architecture: '#8A2BE2', pattern: '#00ff88', error: '#ff4444', decision: '#ffdd00', summary: '#888', web_knowledge: '#FFAA00' };
-  const color = typeColors[node.type] || '#888';
-
-  const connEdges = BRAIN_DATA.edges.filter(e => e.source === node.id || e.target === node.id);
-  const relHtml = connEdges.map(e => {
-    const otherId = e.source === node.id ? e.target : e.source;
-    const otherIdx = nodeIdxMap[otherId];
-    const otherLabel = otherIdx !== undefined ? nodes[otherIdx].label : otherId.slice(0, 8);
-    const edgeColor = EDGE_COLORS[e.type] || EDGE_COLORS.default;
-    return '<li><span style="color:' + edgeColor + '">' + e.type + '</span> \\u2192 ' + escapeHtml(otherLabel) + '</li>';
-  }).join('');
-
-  const levelName = node.level === 6 ? 'Web Knowledge' : 'L' + node.level;
-  const isWeb = node.level === 6;
-
-  let webInfoHtml = '';
-  if (isWeb) {
-    if (node.webTopic) webInfoHtml += '<div class="meta-row" style="color:#FFAA00">\\u{1F310} Topic: ' + escapeHtml(node.webTopic) + '</div>';
-    if (node.webSource) webInfoHtml += '<div class="meta-row"><a href="' + escapeHtml(node.webSource) + '" target="_blank" style="color:#668;text-decoration:underline">\\u{1F517} ' + escapeHtml(node.webSource) + '</a></div>';
-  }
-
-  content.innerHTML =
-    '<h2>' + escapeHtml(node.label) + '</h2>' +
-    '<span class="node-type" style="background:' + color + '15;color:' + color + ';border:1px solid ' + color + '33">' + (isWeb ? '\\u{1F310} Web' : node.type) + ' \\u00B7 ' + levelName + '</span>' +
-    webInfoHtml +
-    '<div class="content-preview">' + escapeHtml(node.content) + '</div>' +
-    '<div class="meta-row">Relevance: ' + node.relevanceScore.toFixed(3) + '</div>' +
-    '<div class="meta-row">Created: ' + node.createdAt.slice(0, 10) + '</div>' +
-    '<div class="meta-row">Accessed: ' + node.lastAccessed.slice(0, 10) + '</div>' +
-    (connEdges.length > 0 ? '<h3 style="margin-top:16px;font-size:11px;color:#556;text-transform:uppercase;letter-spacing:1px">Relations (' + connEdges.length + ')</h3><ul class="relations">' + relHtml + '</ul>' : '');
-
-  sidebar.classList.add('open');
-}
-
-function closeSidebar(evt) {
-  document.getElementById('sidebar').classList.remove('open');
-  selectedIdx = -1;
-  updateHighlights();
-
-  // Shift+click = stay zoomed in, otherwise zoom back to overview
-  const holdPosition = evt && evt.shiftKey;
-  if (!holdPosition) {
-    controls.autoRotate = true;
-    camTween = {
-      startPos: camera.position.clone(), startLookAt: controls.target.clone(),
-      targetPos: new THREE.Vector3(500, 350, 700), targetLookAt: new THREE.Vector3(0, 60, 0),
-      progress: 0
-    };
-  }
-}
-
-document.getElementById('sidebar-close').addEventListener('click', (e) => closeSidebar(e));
-
-// =========== HELP OVERLAY ===========
-const helpOverlay = document.getElementById('help-overlay');
-document.getElementById('help-btn').addEventListener('click', () => {
-  helpOverlay.classList.toggle('open');
-});
-helpOverlay.addEventListener('click', (e) => {
-  if (e.target === helpOverlay) helpOverlay.classList.remove('open');
-});
-
-// =========== GLOBAL KEYBOARD ===========
-document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-
-  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
-    e.preventDefault();
-    helpOverlay.classList.toggle('open');
-  }
-  if (e.key === 'Escape') {
-    if (helpOverlay.classList.contains('open')) {
-      helpOverlay.classList.remove('open');
-    } else if (document.getElementById('sidebar').classList.contains('open')) {
-      closeSidebar(e);
-    }
-  }
-});
-
-// =========== SEARCH ===========
-document.getElementById('search-input').addEventListener('input', () => {
-  updateHighlights();
-});
-
-// =========== LEVEL TOGGLES ===========
-function updateLevelBtnStyle(btn) {
-  const active = btn.classList.contains('active');
-  const col = btn.dataset.color || '#00d4ff';
-  if (active) {
-    btn.style.borderColor = col + '80';
-    btn.style.color = col;
-    btn.style.background = col + '18';
-    btn.style.textShadow = '0 0 8px ' + col + '60';
-  } else {
-    btn.style.borderColor = 'rgba(255,255,255,0.06)';
-    btn.style.color = '#334';
-    btn.style.background = 'rgba(255,255,255,0.02)';
-    btn.style.textShadow = 'none';
-  }
-}
-document.querySelectorAll('[data-level]').forEach(btn => {
-  updateLevelBtnStyle(btn); // initial style
-  btn.addEventListener('click', () => {
-    btn.classList.toggle('active');
-    const level = parseInt(btn.dataset.level);
-    levelToggles[level] = btn.classList.contains('active');
-    updateLevelBtnStyle(btn);
-    updateHighlights();
-  });
-});
-
-// =========== EDGE TOGGLES ===========
-document.querySelectorAll('[data-edge]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (btn.dataset.edge === 'all') {
-      document.querySelectorAll('[data-edge]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    } else {
-      document.querySelector('[data-edge="all"]').classList.remove('active');
-      btn.classList.toggle('active');
-      const activeTypes = new Set();
-      document.querySelectorAll('[data-edge].active').forEach(b => {
-        if (b.dataset.edge !== 'all') activeTypes.add(b.dataset.edge);
-      });
-      if (activeTypes.size === 0) {
-        document.querySelector('[data-edge="all"]').classList.add('active');
+    for(let i=0;i<nC;i++){
+      const gx=Math.floor(P[i*3]/GCELL), gy=Math.floor(P[i*3+1]/GCELL), gz=Math.floor(P[i*3+2]/GCELL);
+      for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++) for(let dz=-1;dz<=1;dz++){
+        const c=grid[(gx+dx)+','+(gy+dy)+','+(gz+dz)];
+        if(!c) continue;
+        for(const j of c){
+          if(j<=i) continue;
+          const ddx=P[i*3]-P[j*3], ddy=P[i*3+1]-P[j*3+1], ddz=P[i*3+2]-P[j*3+2];
+          const dSq=ddx*ddx+ddy*ddy+ddz*ddz+1, d=Math.sqrt(dSq), f=REP/dSq;
+          const fx=ddx*f/d, fy=ddy*f/d, fz=ddz*f/d;
+          V[i*3]+=fx; V[i*3+1]+=fy; V[i*3+2]+=fz;
+          V[j*3]-=fx; V[j*3+1]-=fy; V[j*3+2]-=fz;
+        }
       }
     }
-    updateHighlights();
+    for(const[si,ti]of ePairs){
+      const ddx=P[ti*3]-P[si*3], ddy=P[ti*3+1]-P[si*3+1], ddz=P[ti*3+2]-P[si*3+2];
+      const d=Math.sqrt(ddx*ddx+ddy*ddy+ddz*ddz)+0.1, f=(d-ILEN)*ATT;
+      const fx=ddx/d*f, fy=ddy/d*f, fz=ddz/d*f;
+      V[si*3]+=fx; V[si*3+1]+=fy; V[si*3+2]+=fz;
+      V[ti*3]-=fx; V[ti*3+1]-=fy; V[ti*3+2]-=fz;
+    }
+    for(let i=0;i<nC*3;i++){ P[i]+=V[i]; V[i]*=DAMP; }
+  }
+
+  pos=new Array(nC);
+  for(let i=0;i<nC;i++) pos[i]=new THREE.Vector3(P[i*3],P[i*3+1],P[i*3+2]);
+
+  // --- NODES (fully static geometry) ---
+  nGeo=new THREE.BufferGeometry();
+  const nP=new Float32Array(nC*3), nCol=new Float32Array(nC*3), nSz=new Float32Array(nC), nHL=new Float32Array(nC);
+  for(let i=0;i<nC;i++){
+    const p=pos[i], n=nodes[i];
+    nP[i*3]=p.x; nP[i*3+1]=p.y; nP[i*3+2]=p.z;
+    tc.set(LVL_HEX[n.level]||0x00FFFF);
+    nCol[i*3]=tc.r; nCol[i*3+1]=tc.g; nCol[i*3+2]=tc.b;
+    nSz[i]=LVL_SIZE[n.level]||36;
+    nHL[i]=1.0;
+  }
+  nGeo.setAttribute('position',new THREE.BufferAttribute(nP,3));
+  nGeo.setAttribute('aColor',new THREE.BufferAttribute(nCol,3));
+  nGeo.setAttribute('aSize',new THREE.BufferAttribute(nSz,1));
+  nGeo.setAttribute('aHL',new THREE.BufferAttribute(nHL,1));
+  nPts=new THREE.Points(nGeo,nMat);
+  scene.add(nPts);
+
+  // --- EDGES (fully static geometry, typed colors) ---
+  const allE=[];
+  BRAIN_DATA.edges.forEach((e,i)=>{
+    const si=nMap[e.source], ti=nMap[e.target];
+    if(si!==undefined&&ti!==undefined) allE.push({si,ti,w:e.weight,t:e.type,i});
+  });
+  allE.sort((a,b)=>b.w-a.w);
+  vEdges=allE.slice(0,MAX_E);
+  eC=vEdges.length;
+
+  const eP=new Float32Array(eC*6), eCol=new Float32Array(eC*6), eA=new Float32Array(eC*2);
+  const ec=new THREE.Color(), aS=Math.min(1.0,3000/eC);
+  for(let i=0;i<eC;i++){
+    const{si,ti,w,t}=vEdges[i];
+    const s=pos[si], d=pos[ti], o=i*6;
+    eP[o]=s.x; eP[o+1]=s.y; eP[o+2]=s.z;
+    eP[o+3]=d.x; eP[o+4]=d.y; eP[o+5]=d.z;
+    ec.set(EDGE_COL[t]||EDGE_COL.default);
+    eCol[o]=ec.r; eCol[o+1]=ec.g; eCol[o+2]=ec.b;
+    eCol[o+3]=ec.r; eCol[o+4]=ec.g; eCol[o+5]=ec.b;
+    const ba=0.06+w*0.14;
+    eA[i*2]=ba*aS; eA[i*2+1]=ba*aS;
+  }
+  eGeo=new THREE.BufferGeometry();
+  eGeo.setAttribute('position',new THREE.BufferAttribute(eP,3));
+  eGeo.setAttribute('color',new THREE.BufferAttribute(eCol,3));
+  eGeo.setAttribute('aA',new THREE.BufferAttribute(eA,1));
+  eLines=new THREE.LineSegments(eGeo,eMat);
+  scene.add(eLines);
+
+  // HUD
+  document.getElementById('node-count').textContent=nC;
+  const wC=BRAIN_DATA.meta.webKnowledgeCount||nodes.filter(n=>n.level===6).length;
+  document.getElementById('stats-text').textContent=nC+' nodes \\u00B7 '+BRAIN_DATA.edges.length+' connections'+(wC>0?' \\u00B7 '+wC+' web':'')+' \\u00B7 '+BRAIN_DATA.meta.projectName;
+  document.getElementById('web-count').textContent=wC>0?'\\u{1F310} '+wC+' web':'';
+  for(let lv=1;lv<=6;lv++){ const el=document.getElementById('lc'+lv); if(el)el.textContent=(byLvl[lv]||[]).length; }
+
+  lvlToggles={};
+  document.querySelectorAll('[data-level]').forEach(b=>{ lvlToggles[parseInt(b.dataset.level)]=b.classList.contains('active'); updateBtnStyle(b); });
+  hovIdx=-1; selIdx=-1;
+}
+
+// ===== INTERACTION =====
+const ray=new THREE.Raycaster();
+ray.params.Points={threshold:12};
+const mouse=new THREE.Vector2();
+let hovIdx=-1, selIdx=-1, camTw=null, lvlToggles={};
+
+const ttEl=document.getElementById('tooltip');
+const ttN=ttEl.querySelector('.tt-name'), ttT=ttEl.querySelector('.tt-type'), ttM=ttEl.querySelector('.tt-meta');
+
+R.domElement.addEventListener('mousemove',(e)=>{
+  mouse.x=(e.clientX/innerWidth)*2-1;
+  mouse.y=-(e.clientY/innerHeight)*2+1;
+  if(!nPts)return;
+  ray.setFromCamera(mouse,cam);
+  const hits=ray.intersectObject(nPts);
+  const prev=hovIdx;
+  if(hits.length>0){
+    hovIdx=hits[0].index;
+    R.domElement.style.cursor='pointer';
+    const n=nodes[hovIdx];
+    ttN.textContent=n.label;
+    ttT.textContent=(n.level===6?'\\u{1F310} Web Knowledge':n.type+' \\u00B7 Level '+n.level);
+    ttM.textContent='Relevance: '+n.relevanceScore.toFixed(2)+' \\u00B7 '+n.createdAt.slice(0,10)+(n.webTopic?' \\u00B7 '+n.webTopic:'');
+    ttEl.style.display='block';
+    ttEl.style.left=(e.clientX+14)+'px';
+    ttEl.style.top=(e.clientY-10)+'px';
+  } else {
+    hovIdx=-1; R.domElement.style.cursor='default'; ttEl.style.display='none';
+  }
+  if(prev!==hovIdx) updateHL();
+});
+
+R.domElement.addEventListener('click',()=>{
+  if(hovIdx>=0){
+    selIdx=hovIdx;
+    showSidebar(nodes[selIdx]);
+    ctrl.autoRotate=false;
+    const np=pos[selIdx], dir=cam.position.clone().sub(np).normalize();
+    camTw={ sP:cam.position.clone(), sL:ctrl.target.clone(), tP:np.clone().add(dir.multiplyScalar(70)), tL:np.clone(), p:0 };
+    updateHL();
+  }
+});
+
+// ===== HIGHLIGHTS (only on interaction, zero per-frame cost) =====
+function updateHL(){
+  if(!nGeo||!eGeo)return;
+  const ha=nGeo.attributes.aHL;
+  const ea=eGeo.attributes.aA;
+  const sq=document.getElementById('search-input').value.toLowerCase();
+  const hasS=sq.length>0, hasF=selIdx>=0;
+  const cHov=hovIdx>=0&&adj[hovIdx]?adj[hovIdx]:new Set();
+  const cSel=selIdx>=0&&adj[selIdx]?adj[selIdx]:new Set();
+
+  for(let i=0;i<nC;i++){
+    let h=1.0;
+    const lv=nodes[i].level;
+    if(lvlToggles[lv]===false){ ha.array[i]=0.05; continue; }
+    if(hasS){ h=nodes[i].label.toLowerCase().includes(sq)||nodes[i].content.toLowerCase().includes(sq)?1.0:0.12; }
+    if(hasF){ h=cSel.has(i)||i===selIdx?1.0:0.1; }
+    if(hovIdx>=0){ if(i===hovIdx)h=Math.max(h,1.5); else if(cHov.has(i))h=Math.max(h,1.2); }
+    ha.array[i]=h;
+  }
+  ha.needsUpdate=true;
+
+  const aET=getActiveET();
+  const aS=Math.min(1.0,3000/eC);
+  for(let i=0;i<eC;i++){
+    const{si,ti,w,t}=vEdges[i];
+    const sLv=nodes[si].level, tLv=nodes[ti].level;
+    if(lvlToggles[sLv]===false||lvlToggles[tLv]===false){ ea.array[i*2]=0; ea.array[i*2+1]=0; continue; }
+    let a=(0.06+w*0.14)*aS;
+    if(aET!==null&&!aET.has(t)) a=0;
+    if(hasF){ a=(si===selIdx||ti===selIdx)?0.4+w*0.3:0.01; }
+    if(hovIdx>=0){ if(si===hovIdx||ti===hovIdx) a=Math.max(a,0.35+w*0.3); }
+    if(hasS){ if(!nodes[si].label.toLowerCase().includes(sq)&&!nodes[ti].label.toLowerCase().includes(sq)) a=0.01; }
+    ea.array[i*2]=a; ea.array[i*2+1]=a;
+  }
+  ea.needsUpdate=true;
+}
+
+function getActiveET(){
+  const all=document.querySelector('[data-edge="all"]');
+  if(all&&all.classList.contains('active'))return null;
+  const s=new Set();
+  document.querySelectorAll('[data-edge].active').forEach(b=>{ if(b.dataset.edge!=='all')s.add(b.dataset.edge); });
+  return s.size>0?s:null;
+}
+
+// ===== SIDEBAR =====
+function showSidebar(node){
+  const sb=document.getElementById('sidebar'), ct=document.getElementById('sidebar-content');
+  const tCol={code:'#00FFFF',module:'#00CED1',architecture:'#8A2BE2',pattern:'#00ff88',error:'#ff4444',decision:'#ffdd00',summary:'#888',web_knowledge:'#FFAA00'};
+  const col=tCol[node.type]||'#888';
+  const cE=BRAIN_DATA.edges.filter(e=>e.source===node.id||e.target===node.id);
+  const rH=cE.map(e=>{
+    const oId=e.source===node.id?e.target:e.source;
+    const oI=nMap[oId]; const oL=oI!==undefined?nodes[oI].label:oId.slice(0,8);
+    const eC2=EDGE_COL[e.type]||EDGE_COL.default;
+    return '<li><span style="color:'+eC2+'">'+e.type+'</span> \\u2192 '+esc(oL)+'</li>';
+  }).join('');
+  const lvN=node.level===6?'Web Knowledge':'L'+node.level;
+  const isW=node.level===6;
+  let wH='';
+  if(isW){
+    if(node.webTopic) wH+='<div class="meta-row" style="color:#FFAA00">\\u{1F310} Topic: '+esc(node.webTopic)+'</div>';
+    if(node.webSource) wH+='<div class="meta-row"><a href="'+esc(node.webSource)+'" target="_blank" style="color:#668;text-decoration:underline">\\u{1F517} '+esc(node.webSource)+'</a></div>';
+  }
+  ct.innerHTML='<h2>'+esc(node.label)+'</h2>'+'<span class="node-type" style="background:'+col+'15;color:'+col+';border:1px solid '+col+'33">'+(isW?'\\u{1F310} Web':node.type)+' \\u00B7 '+lvN+'</span>'+wH+'<div class="content-preview">'+esc(node.content)+'</div>'+'<div class="meta-row">Relevance: '+node.relevanceScore.toFixed(3)+'</div>'+'<div class="meta-row">Created: '+node.createdAt.slice(0,10)+'</div>'+'<div class="meta-row">Accessed: '+node.lastAccessed.slice(0,10)+'</div>'+(cE.length>0?'<h3 style="margin-top:16px;font-size:11px;color:#556;text-transform:uppercase;letter-spacing:1px">Relations ('+cE.length+')</h3><ul class="relations">'+rH+'</ul>':'');
+  sb.classList.add('open');
+}
+
+function closeSB(evt){
+  document.getElementById('sidebar').classList.remove('open');
+  selIdx=-1; updateHL();
+  if(!(evt&&evt.shiftKey)){
+    ctrl.autoRotate=true;
+    camTw={ sP:cam.position.clone(), sL:ctrl.target.clone(), tP:new THREE.Vector3(0,200,1200), tL:new THREE.Vector3(0,0,0), p:0 };
+  }
+}
+document.getElementById('sidebar-close').addEventListener('click',(e)=>closeSB(e));
+
+// ===== HELP =====
+const helpO=document.getElementById('help-overlay');
+document.getElementById('help-btn').addEventListener('click',()=>helpO.classList.toggle('open'));
+helpO.addEventListener('click',(e)=>{ if(e.target===helpO)helpO.classList.remove('open'); });
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown',(e)=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;
+  if(e.key==='?'||(e.key==='/'&&e.shiftKey)){ e.preventDefault(); helpO.classList.toggle('open'); }
+  if(e.key==='Escape'){
+    if(helpO.classList.contains('open')) helpO.classList.remove('open');
+    else if(document.getElementById('sidebar').classList.contains('open')) closeSB(e);
+  }
+});
+
+// ===== SEARCH =====
+document.getElementById('search-input').addEventListener('input',()=>updateHL());
+
+// ===== LEVEL TOGGLES =====
+function updateBtnStyle(b){
+  const a=b.classList.contains('active'), c=b.dataset.color||'#00d4ff';
+  if(a){ b.style.borderColor=c+'80'; b.style.color=c; b.style.background=c+'18'; b.style.textShadow='0 0 8px '+c+'60'; }
+  else{ b.style.borderColor='rgba(255,255,255,0.06)'; b.style.color='#334'; b.style.background='rgba(255,255,255,0.02)'; b.style.textShadow='none'; }
+}
+document.querySelectorAll('[data-level]').forEach(b=>{
+  updateBtnStyle(b);
+  b.addEventListener('click',()=>{ b.classList.toggle('active'); lvlToggles[parseInt(b.dataset.level)]=b.classList.contains('active'); updateBtnStyle(b); updateHL(); });
+});
+
+// ===== EDGE TOGGLES =====
+document.querySelectorAll('[data-edge]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(b.dataset.edge==='all'){
+      document.querySelectorAll('[data-edge]').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+    } else {
+      document.querySelector('[data-edge="all"]').classList.remove('active');
+      b.classList.toggle('active');
+      if(!document.querySelectorAll('[data-edge].active').length) document.querySelector('[data-edge="all"]').classList.add('active');
+    }
+    updateHL();
   });
 });
 
-// =========== ANIMATION LOOP ===========
-const clock = new THREE.Clock();
-let fpsFrames = 0;
-let lastFpsTime = performance.now();
+// ===== ANIMATE (ultra-minimal: only controls + render + tween) =====
+let fpsF=0, lastFT=performance.now();
+const clock=new THREE.Clock();
 
-function animate() {
+function animate(){
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  const t = clock.getElapsedTime();
+  const dt=clock.getDelta();
 
-  // Update shader uniforms
-  nodeMat.uniforms.uTime.value = t;
-  edgeMat.uniforms.uTime.value = t;
-
-  // Camera tween
-  if (camTween) {
-    camTween.progress = Math.min(camTween.progress + dt * 1.8, 1);
-    const ease = 1 - Math.pow(1 - camTween.progress, 3);
-    camera.position.lerpVectors(camTween.startPos, camTween.targetPos, ease);
-    controls.target.lerpVectors(camTween.startLookAt, camTween.targetLookAt, ease);
-    if (camTween.progress >= 1) camTween = null;
+  if(camTw){
+    camTw.p=Math.min(camTw.p+dt*1.8,1);
+    const e=1-Math.pow(1-camTw.p,3);
+    cam.position.lerpVectors(camTw.sP,camTw.tP,e);
+    ctrl.target.lerpVectors(camTw.sL,camTw.tL,e);
+    if(camTw.p>=1)camTw=null;
   }
 
-  controls.update();
+  ctrl.update();
+  R.render(scene,cam);
 
-  // Update flowing particles
-  if (particleGeo && pCount > 0) {
-    const pPosArr = particleGeo.attributes.position.array;
-    const pColArr = particleGeo.attributes.color.array;
-    const sc2 = new THREE.Color(), dc2 = new THREE.Color();
-    for (let i = 0; i < pCount; i++) {
-      const pd = pData[i];
-      pd.progress += pd.speed * dt;
-      if (pd.progress > 1) pd.progress -= 1;
-      const p = pd.progress;
-      const sp = positions[pd.srcIdx], tp = positions[pd.tgtIdx];
-      pPosArr[i * 3] = sp.x + (tp.x - sp.x) * p;
-      pPosArr[i * 3 + 1] = sp.y + (tp.y - sp.y) * p;
-      pPosArr[i * 3 + 2] = sp.z + (tp.z - sp.z) * p;
-      sc2.set(LEVEL_COLORS_HEX[nodes[pd.srcIdx].level] || 0x00FFFF);
-      dc2.set(LEVEL_COLORS_HEX[nodes[pd.tgtIdx].level] || 0x00FFFF);
-      pColArr[i * 3] = sc2.r + (dc2.r - sc2.r) * p;
-      pColArr[i * 3 + 1] = sc2.g + (dc2.g - sc2.g) * p;
-      pColArr[i * 3 + 2] = sc2.b + (dc2.b - sc2.b) * p;
-    }
-    particleGeo.attributes.position.needsUpdate = true;
-    particleGeo.attributes.color.needsUpdate = true;
-  }
-
-  // Render (no bloom/composer, direct render)
-  renderer.render(scene, camera);
-
-  // FPS counter
-  fpsFrames++;
-  const now = performance.now();
-  if (now - lastFpsTime > 1000) {
-    document.getElementById('fps-counter').textContent = fpsFrames;
-    fpsFrames = 0;
-    lastFpsTime = now;
-  }
+  fpsF++;
+  const now=performance.now();
+  if(now-lastFT>1000){ document.getElementById('fps-counter').textContent=fpsF; fpsF=0; lastFT=now; }
 }
 
-// =========== RESIZE ===========
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+// ===== RESIZE =====
+addEventListener('resize',()=>{ cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix(); R.setSize(innerWidth,innerHeight); });
 
-// =========== WEBSOCKET LIVE UPDATES ===========
-let ws = null;
-
-(function connectWebSocket() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = proto + '//' + location.host;
-
-  function connect() {
-    try { ws = new WebSocket(wsUrl); } catch { return; }
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'full_sync' && msg.data) {
-          if (msg.data.nodes.length !== BRAIN_DATA.nodes.length ||
-              msg.data.edges.length !== BRAIN_DATA.edges.length) {
-            BRAIN_DATA = msg.data;
-            rebuildScene();
-          }
+// ===== WEBSOCKET =====
+let ws=null;
+(function connectWS(){
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  function connect(){
+    try{ws=new WebSocket(proto+'//'+location.host)}catch{return}
+    ws.onmessage=(ev)=>{
+      try{
+        const m=JSON.parse(ev.data);
+        if(m.type==='full_sync'&&m.data){ if(m.data.nodes.length!==BRAIN_DATA.nodes.length||m.data.edges.length!==BRAIN_DATA.edges.length){ BRAIN_DATA=m.data; buildScene(); } }
+        if(m.type==='web_knowledge') showWKPopup(m.topic,m.summary,m.source);
+        if(m.type==='agent_finding') addFinding(m.sessionName,m.finding,m.severity,m.file);
+        if(m.type==='scope_changed') updateScopeUI(m.scope);
+        if(m.type==='model_activated'){
+          document.querySelectorAll('[data-activate]').forEach(b=>{b.disabled=false;b.textContent='\\u26A1 Activate';});
+          const n=document.createElement('div');
+          n.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(0,255,100,0.15);border:1px solid rgba(0,255,100,0.3);color:#00ff66;padding:8px 20px;border-radius:8px;font-size:12px;z-index:999;backdrop-filter:blur(10px);';
+          n.textContent='\\u26A1 Model activated: '+m.model;
+          document.body.appendChild(n); setTimeout(()=>n.remove(),3000); refreshModels();
         }
-        if (msg.type === 'web_knowledge') {
-          showWebKnowledgePopup(msg.topic, msg.summary, msg.source);
-        }
-        if (msg.type === 'agent_finding') {
-          addAgentFinding(msg.sessionName, msg.finding, msg.severity, msg.file);
-        }
-        if (msg.type === 'scope_changed') {
-          updateScopeUI(msg.scope);
-        }
-        if (msg.type === 'model_activated') {
-          document.querySelectorAll('[data-activate]').forEach(btn => {
-            btn.disabled = false;
-            btn.textContent = '\\u26A1 Activate';
-          });
-          const note = document.createElement('div');
-          note.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);' +
-            'background:rgba(0,255,100,0.15);border:1px solid rgba(0,255,100,0.3);' +
-            'color:#00ff66;padding:8px 20px;border-radius:8px;font-size:12px;z-index:999;' +
-            'backdrop-filter:blur(10px);';
-          note.textContent = '\\u26A1 Model activated: ' + msg.model;
-          document.body.appendChild(note);
-          setTimeout(() => note.remove(), 3000);
-          refreshModels();
-        }
-      } catch {}
+      }catch{}
     };
-
-    ws.onclose = () => {
-      setTimeout(connect, 3000);
-    };
-
-    ws.onerror = () => { ws.close(); };
+    ws.onclose=()=>setTimeout(connect,3000);
+    ws.onerror=()=>ws.close();
   }
-
   connect();
 })();
 
-// =========== WEB KNOWLEDGE POP-UP SYSTEM ===========
-function showWebKnowledgePopup(topic, summary, source) {
-  const container = document.getElementById('web-knowledge-container');
-
-  const popup = document.createElement('div');
-  popup.className = 'web-knowledge-popup';
-
-  let displayUrl = source;
-  try {
-    const u = new URL(source);
-    displayUrl = u.hostname + u.pathname.slice(0, 30);
-  } catch {}
-
-  popup.innerHTML =
-    '<div class="wk-header">' +
-      '<span class="wk-icon">\\u{1F310}</span>' +
-      '<span class="wk-title">Web Knowledge</span>' +
-    '</div>' +
-    '<div class="wk-topic">' + escapeHtml(topic) + '</div>' +
-    '<div class="wk-summary">' + escapeHtml(summary) + '</div>' +
-    '<div class="wk-source">' + escapeHtml(displayUrl) + '</div>' +
-    '<div class="wk-progress"><div class="wk-progress-bar"></div></div>';
-
-  container.appendChild(popup);
-
-  setTimeout(() => {
-    const rect = popup.getBoundingClientRect();
-    spawnParticleBurst(rect.left + rect.width / 2, rect.top + 20);
-  }, 400);
-
-  flashRandomNode();
-
-  setTimeout(() => {
-    popup.classList.add('removing');
-    setTimeout(() => popup.remove(), 500);
-  }, 6000);
-
-  while (container.children.length > 3) {
-    container.firstChild.remove();
-  }
+// ===== WEB KNOWLEDGE POPUPS =====
+function showWKPopup(topic,summary,source){
+  const ct=document.getElementById('web-knowledge-container');
+  const p=document.createElement('div'); p.className='web-knowledge-popup';
+  let dU=source; try{const u=new URL(source);dU=u.hostname+u.pathname.slice(0,30);}catch{}
+  p.innerHTML='<div class="wk-header"><span class="wk-icon">\\u{1F310}</span><span class="wk-title">Web Knowledge</span></div><div class="wk-topic">'+esc(topic)+'</div><div class="wk-summary">'+esc(summary)+'</div><div class="wk-source">'+esc(dU)+'</div><div class="wk-progress"><div class="wk-progress-bar"></div></div>';
+  ct.appendChild(p);
+  setTimeout(()=>{p.classList.add('removing');setTimeout(()=>p.remove(),500);},6000);
+  while(ct.children.length>3) ct.firstChild.remove();
 }
 
-function spawnParticleBurst(x, y) {
-  const burst = document.createElement('div');
-  burst.className = 'wk-particle-burst';
-  burst.style.left = x + 'px';
-  burst.style.top = y + 'px';
-  document.body.appendChild(burst);
-
-  for (let i = 0; i < 8; i++) {
-    const particle = document.createElement('div');
-    particle.className = 'wk-particle';
-    const angle = (i / 8) * Math.PI * 2;
-    const dist = 30 + Math.random() * 40;
-    particle.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
-    particle.style.setProperty('--ty', Math.sin(angle) * dist + 'px');
-    burst.appendChild(particle);
-  }
-
-  setTimeout(() => burst.remove(), 1200);
-}
-
-function flashRandomNode() {
-  if (!nodeGeo || nCount === 0) return;
-
-  // Pick a random L2 node (or any if no L2)
-  const l2Indices = (byLevel[2] || []);
-  const targets = l2Indices.length > 0 ? l2Indices : Object.values(byLevel).flat();
-  const idx = targets[Math.floor(Math.random() * targets.length)];
-
-  const ha = nodeGeo.attributes.aHighlight;
-  const origVal = ha.array[idx];
-
-  // Flash to 2.0
-  ha.array[idx] = 2.0;
-  ha.needsUpdate = true;
-
-  // Animate back to 1.0
-  let progress = 0;
-  const restore = () => {
-    progress += 0.02;
-    if (progress >= 1) {
-      ha.array[idx] = origVal;
-      ha.needsUpdate = true;
-      return;
-    }
-    ha.array[idx] = 2.0 - progress * (2.0 - origVal);
-    ha.needsUpdate = true;
-    requestAnimationFrame(restore);
-  };
-  setTimeout(restore, 800);
-}
-
-// =========== SCOPE SWITCHER ===========
-let currentScope = '${data.meta.brainScope === 'project' ? 'project' : 'global'}';
-
-document.querySelectorAll('#scope-switcher .scope-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const newScope = btn.dataset.scope;
-    if (newScope === currentScope) return;
-
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = proto + '//' + location.host;
-    const scopeWs = new WebSocket(wsUrl);
-    scopeWs.onopen = () => {
-      scopeWs.send(JSON.stringify({ type: 'scope_switch', scope: newScope }));
-      scopeWs.close();
-    };
-
-    updateScopeUI(newScope);
+// ===== SCOPE SWITCHER =====
+let curScope='${data.meta.brainScope === 'project' ? 'project' : 'global'}';
+document.querySelectorAll('#scope-switcher .scope-btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const ns=b.dataset.scope; if(ns===curScope)return;
+    const proto=location.protocol==='https:'?'wss:':'ws:';
+    const sw=new WebSocket(proto+'//'+location.host);
+    sw.onopen=()=>{sw.send(JSON.stringify({type:'scope_switch',scope:ns}));sw.close();};
+    updateScopeUI(ns);
   });
 });
+function updateScopeUI(s){ curScope=s; document.querySelectorAll('#scope-switcher .scope-btn').forEach(b=>b.classList.toggle('active',b.dataset.scope===s)); }
 
-function updateScopeUI(scope) {
-  currentScope = scope;
-  document.querySelectorAll('#scope-switcher .scope-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.scope === scope);
-  });
+// ===== FINDINGS =====
+let fData=[];
+const fPanel=document.getElementById('findings-panel'), fList=document.getElementById('findings-list');
+const fCount=document.getElementById('findings-count'), fToggle=document.getElementById('findings-toggle'), fBadge=document.getElementById('findings-badge');
+fToggle.addEventListener('click',()=>fPanel.classList.toggle('open'));
+function addFinding(sn,f,sev,file){
+  fData.push({sn,f,sev,file,t:Date.now()});
+  fBadge.style.display='inline'; fBadge.textContent=fData.length;
+  fCount.textContent=fData.length+' finding(s)';
+  fList.innerHTML='';
+  for(const d of[...fData].reverse()){
+    const it=document.createElement('div'); it.className='finding-item';
+    it.innerHTML='<span class="f-severity '+d.sev+'">'+d.sev+'</span> <div class="f-text">'+esc(d.f)+'</div>'+(d.file?'<div class="f-file">'+esc(d.file)+'</div>':'')+'<div class="f-file">'+esc(d.sn)+'</div>';
+    fList.appendChild(it);
+  }
+  if(fData.length===1) fPanel.classList.add('open');
 }
 
-// =========== MODEL MANAGEMENT PANEL ===========
-const RECOMMENDED_MODELS = [
-  { name: 'qwen3-coder:30b', size: '~18 GB', desc: 'Best coding model for 32GB VRAM (MoE, 30B/3B active)', vram: 18 },
-  { name: 'qwen2.5-coder:32b', size: '~22 GB', desc: 'Battle-tested coding champion, excellent tool use', vram: 22 },
-  { name: 'qwen2.5-coder:14b', size: '~10 GB', desc: 'Great coding, lower VRAM \\u2014 fast on any GPU', vram: 10 },
-  { name: 'deepseek-r1:32b', size: '~22 GB', desc: 'Strong reasoning + coding (chain-of-thought)', vram: 22 },
-  { name: 'qwen2.5-coder:7b', size: '~5 GB', desc: 'Lightweight coder, runs on almost anything', vram: 5 },
-  { name: 'deepseek-coder-v2:16b', size: '~11 GB', desc: 'Good all-round coder, MoE architecture', vram: 11 },
-  { name: 'codellama:34b', size: '~20 GB', desc: 'Meta code model, good for infill + completion', vram: 20 },
-  { name: 'llama3.3:70b-instruct-q4_K_M', size: '~42 GB', desc: 'Full Llama 3.3 70B \\u2014 needs 48GB+ VRAM', vram: 42 },
+// ===== MODEL MANAGEMENT =====
+const RECO=[
+  {name:'qwen3-coder:30b',size:'~18 GB',desc:'Best coding model for 32GB VRAM',vram:18},
+  {name:'qwen2.5-coder:32b',size:'~22 GB',desc:'Battle-tested coding champion',vram:22},
+  {name:'qwen2.5-coder:14b',size:'~10 GB',desc:'Great coding, lower VRAM',vram:10},
+  {name:'deepseek-r1:32b',size:'~22 GB',desc:'Strong reasoning + coding',vram:22},
+  {name:'qwen2.5-coder:7b',size:'~5 GB',desc:'Lightweight coder',vram:5},
 ];
+const mPanel=document.getElementById('models-panel'), mToggle=document.getElementById('models-toggle'), mClose=document.getElementById('models-close');
+const oStatus=document.getElementById('ollama-status'), oDot=document.getElementById('ollama-dot');
+let curVram=32, instNames=new Set(), runNames=new Set(), oOnline=false;
 
-const modelsPanel = document.getElementById('models-panel');
-const modelsToggle = document.getElementById('models-toggle');
-const modelsClose = document.getElementById('models-close');
-const ollamaStatus = document.getElementById('ollama-status');
-const ollamaDot = document.getElementById('ollama-dot');
-const runningSection = document.getElementById('running-section');
-const runningModels = document.getElementById('running-models');
-const installedModels = document.getElementById('installed-models');
-const recommendedModels = document.getElementById('recommended-models');
-
-let currentVramFilter = 32;
-let installedModelNames = new Set();
-let runningModelNames = new Set();
-let ollamaOnline = false;
-
-modelsToggle.addEventListener('click', () => {
-  modelsPanel.classList.toggle('open');
-  if (modelsPanel.classList.contains('open')) refreshModels();
-});
-modelsClose.addEventListener('click', () => modelsPanel.classList.remove('open'));
-
-// GPU filter buttons
-document.querySelectorAll('#gpu-filter .gpu-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#gpu-filter .gpu-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentVramFilter = parseInt(btn.dataset.vram);
-    renderRecommended();
-  });
+mToggle.addEventListener('click',()=>{mPanel.classList.toggle('open');if(mPanel.classList.contains('open'))refreshModels();});
+mClose.addEventListener('click',()=>mPanel.classList.remove('open'));
+document.querySelectorAll('#gpu-filter .gpu-btn').forEach(b=>{
+  b.addEventListener('click',()=>{document.querySelectorAll('#gpu-filter .gpu-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');curVram=parseInt(b.dataset.vram);renderReco();});
 });
 
-async function checkOllamaStatus() {
-  try {
-    const res = await fetch('/api/ollama/status');
-    const data = await res.json();
-    if (data.version) {
-      ollamaOnline = true;
-      ollamaStatus.textContent = 'Ollama v' + data.version + ' \\u2014 running';
-      ollamaStatus.style.color = '#00ff88';
-      ollamaDot.className = 'status-dot online';
-      return true;
-    }
-  } catch {}
-  ollamaOnline = false;
-  ollamaStatus.textContent = 'Ollama not running \\u2014 start with: ollama serve';
-  ollamaStatus.style.color = '#ff4444';
-  ollamaDot.className = 'status-dot offline';
-  return false;
+async function checkOllama(){
+  try{const r=await fetch('/api/ollama/status');const d=await r.json();if(d.version){oOnline=true;oStatus.textContent='Ollama v'+d.version+' \\u2014 running';oStatus.style.color='#00ff88';oDot.className='status-dot online';return true;}}catch{}
+  oOnline=false;oStatus.textContent='Ollama not running';oStatus.style.color='#ff4444';oDot.className='status-dot offline';return false;
+}
+async function fetchInst(){try{const r=await fetch('/api/ollama/models');const d=await r.json();return d.models||[];}catch{return[];}}
+async function fetchRun(){try{const r=await fetch('/api/ollama/running');const d=await r.json();return d.models||[];}catch{return[];}}
+function fmtB(b){const g=b/(1024*1024*1024);return g>=1?g.toFixed(1)+' GB':(b/(1024*1024)).toFixed(0)+' MB';}
+
+async function refreshModels(){
+  const on=await checkOllama();
+  if(!on){document.getElementById('installed-models').innerHTML='<div style="color:#556;font-size:11px">Start Ollama to see models</div>';document.getElementById('running-section').style.display='none';renderReco();return;}
+  const[inst,run]=await Promise.all([fetchInst(),fetchRun()]);
+  instNames=new Set(inst.map(m=>m.name)); runNames=new Set(run.map(m=>m.name));
+  const rSec=document.getElementById('running-section'), rM=document.getElementById('running-models');
+  if(run.length>0){rSec.style.display='block';rM.innerHTML='';for(const m of run){const c=document.createElement('div');c.className='model-card';c.innerHTML='<div class="mc-name">'+esc(m.name)+'</div><div class="mc-meta">'+(m.size?fmtB(m.size):'')+'</div><span class="mc-status running">\\u25B6 running</span>';rM.appendChild(c);}}else{rSec.style.display='none';}
+  const iM=document.getElementById('installed-models');
+  if(inst.length>0){iM.innerHTML='';for(const m of inst){const c=document.createElement('div');c.className='model-card';const isR=runNames.has(m.name);c.innerHTML='<div class="mc-name">'+esc(m.name)+'</div><div class="mc-meta">'+(m.size?fmtB(m.size):'')+'</div>'+(isR?'<span class="mc-status running">\\u25B6 running</span>':'<span class="mc-status installed">\\u2705 installed</span>')+'<div class="mc-actions"><button class="mc-btn primary" data-activate="'+esc(m.name)+'">\\u26A1 Activate</button><button class="mc-btn danger" data-delete="'+esc(m.name)+'">\\u{1F5D1} Delete</button></div>';iM.appendChild(c);}
+  iM.querySelectorAll('[data-activate]').forEach(b=>{b.addEventListener('click',()=>{if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type:'activate_model',model:b.dataset.activate}));b.textContent='\\u23F3...';b.disabled=true;}});});
+  iM.querySelectorAll('[data-delete]').forEach(b=>{b.addEventListener('click',async()=>{if(!confirm('Delete '+b.dataset.delete+'?'))return;b.disabled=true;try{await fetch('/api/ollama/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:b.dataset.delete})});}catch{}refreshModels();});});
+  }else{iM.innerHTML='<div style="color:#556;font-size:11px">No models installed</div>';}
+  renderReco();
 }
 
-async function fetchInstalledModels() {
-  try {
-    const res = await fetch('/api/ollama/models');
-    const data = await res.json();
-    return data.models || [];
-  } catch { return []; }
-}
-
-async function fetchRunningModels() {
-  try {
-    const res = await fetch('/api/ollama/running');
-    const data = await res.json();
-    return data.models || [];
-  } catch { return []; }
-}
-
-async function fetchCloudModels() {
-  try {
-    const res = await fetch('/api/cloud/models');
-    const data = await res.json();
-    return data.models || [];
-  } catch { return []; }
-}
-
-function formatBytes(bytes) {
-  const gb = bytes / (1024 * 1024 * 1024);
-  if (gb >= 1) return gb.toFixed(1) + ' GB';
-  return (bytes / (1024 * 1024)).toFixed(0) + ' MB';
-}
-
-async function refreshModels() {
-  const online = await checkOllamaStatus();
-  if (!online) {
-    installedModels.innerHTML = '<div style="color:#556;font-size:11px">Start Ollama to see models</div>';
-    runningSection.style.display = 'none';
-    renderRecommended();
-    return;
+function renderReco(){
+  const rM=document.getElementById('recommended-models'); rM.innerHTML='';
+  const filt=RECO.filter(m=>m.vram<=curVram);
+  if(!filt.length){rM.innerHTML='<div style="color:#556;font-size:11px">No models fit this VRAM</div>';return;}
+  for(const m of filt){
+    const inst=instNames.has(m.name), run=runNames.has(m.name);
+    const c=document.createElement('div'); c.className='model-card';
+    c.innerHTML='<div class="mc-name">'+esc(m.name)+'</div><div class="mc-meta">'+m.size+' VRAM</div><div class="mc-desc">'+esc(m.desc)+'</div>'+(run?'<span class="mc-status running">\\u25B6 running</span>':inst?'<span class="mc-status installed">\\u2705 installed</span>':'<span class="mc-status available">\\u2B07 available</span>')+(inst?'<div class="mc-actions"><button class="mc-btn primary" data-activate="'+esc(m.name)+'">\\u26A1 Activate</button></div>':'<div class="mc-actions"><button class="mc-btn" data-pull="'+esc(m.name)+'">\\u2B07 Download</button></div>');
+    rM.appendChild(c);
   }
-
-  const [installed, running] = await Promise.all([fetchInstalledModels(), fetchRunningModels()]);
-  installedModelNames = new Set(installed.map(m => m.name));
-  runningModelNames = new Set(running.map(m => m.name));
-
-  // Running models
-  if (running.length > 0) {
-    runningSection.style.display = 'block';
-    runningModels.innerHTML = '';
-    for (const m of running) {
-      const card = document.createElement('div');
-      card.className = 'model-card';
-      const sizeStr = m.size ? formatBytes(m.size) : '';
-      const vramStr = m.size_vram ? formatBytes(m.size_vram) : '';
-      card.innerHTML =
-        '<div class="mc-name">' + escapeHtml(m.name) + '</div>' +
-        '<div class="mc-meta">' + sizeStr + (vramStr ? ' \\u00B7 VRAM: ' + vramStr : '') + '</div>' +
-        '<span class="mc-status running">\\u25B6 running</span>';
-      runningModels.appendChild(card);
-    }
-  } else {
-    runningSection.style.display = 'none';
-  }
-
-  // Installed models
-  if (installed.length > 0) {
-    installedModels.innerHTML = '';
-    for (const m of installed) {
-      const card = document.createElement('div');
-      card.className = 'model-card';
-      const sizeStr = m.size ? formatBytes(m.size) : '';
-      const paramSize = m.details?.parameter_size || '';
-      const quant = m.details?.quantization_level || '';
-      const isRunning = runningModelNames.has(m.name);
-      card.innerHTML =
-        '<div class="mc-name">' + escapeHtml(m.name) + '</div>' +
-        '<div class="mc-meta">' + sizeStr + (paramSize ? ' \\u00B7 ' + paramSize : '') + (quant ? ' \\u00B7 ' + quant : '') + '</div>' +
-        (isRunning ? '<span class="mc-status running">\\u25B6 running</span>' : '<span class="mc-status installed">\\u2705 installed</span>') +
-        '<div class="mc-actions">' +
-          '<button class="mc-btn primary" data-activate="' + escapeHtml(m.name) + '">\\u26A1 Activate</button>' +
-          '<button class="mc-btn danger" data-delete="' + escapeHtml(m.name) + '">\\u{1F5D1} Delete</button>' +
-        '</div>';
-      installedModels.appendChild(card);
-    }
-    // Attach activate handlers
-    installedModels.querySelectorAll('[data-activate]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const name = btn.dataset.activate;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'activate_model', model: name }));
-          btn.textContent = '\\u23F3 Activating...';
-          btn.disabled = true;
-        }
-      });
-    });
-    // Attach delete handlers
-    installedModels.querySelectorAll('[data-delete]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const name = btn.dataset.delete;
-        if (!confirm('Delete model ' + name + '?')) return;
-        btn.disabled = true;
-        btn.textContent = 'Deleting...';
-        try {
-          await fetch('/api/ollama/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name }),
-          });
-        } catch {}
-        refreshModels();
-      });
-    });
-  } else {
-    installedModels.innerHTML = '<div style="color:#556;font-size:11px">No models installed yet</div>';
-  }
-
-  renderRecommended();
+  rM.querySelectorAll('[data-pull]').forEach(b=>{b.addEventListener('click',()=>pullModel(b.dataset.pull,b));});
+  rM.querySelectorAll('[data-activate]').forEach(b=>{b.addEventListener('click',()=>{if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type:'activate_model',model:b.dataset.activate}));b.textContent='\\u23F3...';b.disabled=true;}});});
 }
 
-function renderRecommended() {
-  recommendedModels.innerHTML = '';
-  const filtered = RECOMMENDED_MODELS.filter(m => m.vram <= currentVramFilter);
-
-  if (filtered.length === 0) {
-    recommendedModels.innerHTML = '<div style="color:#556;font-size:11px">No models fit this VRAM budget</div>';
-    return;
-  }
-
-  for (const m of filtered) {
-    const installed = installedModelNames.has(m.name);
-    const running = runningModelNames.has(m.name);
-    const card = document.createElement('div');
-    card.className = 'model-card';
-    card.innerHTML =
-      '<div class="mc-name">' + escapeHtml(m.name) + '</div>' +
-      '<div class="mc-meta">' + m.size + ' VRAM</div>' +
-      '<div class="mc-desc">' + escapeHtml(m.desc) + '</div>' +
-      (running ? '<span class="mc-status running">\\u25B6 running</span>' :
-       installed ? '<span class="mc-status installed">\\u2705 installed</span>' :
-       '<span class="mc-status available">\\u2B07 available</span>') +
-      (installed ? '<div class="mc-actions"><button class="mc-btn primary" data-activate="' + escapeHtml(m.name) + '">\\u26A1 Activate</button></div>' :
-       '<div class="mc-actions"><button class="mc-btn" data-pull="' + escapeHtml(m.name) + '">\\u2B07 Download</button></div>') +
-      '<div class="mc-progress" id="progress-' + m.name.replace(/[^a-z0-9]/gi, '-') + '">' +
-        '<div class="mc-progress-bar"><div class="mc-progress-fill"></div></div>' +
-        '<div class="mc-progress-text"></div>' +
-      '</div>';
-    recommendedModels.appendChild(card);
-  }
-
-  // Attach pull handlers
-  recommendedModels.querySelectorAll('[data-pull]').forEach(btn => {
-    btn.addEventListener('click', () => pullModel(btn.dataset.pull, btn));
-  });
-  // Attach activate handlers for installed recommended models
-  recommendedModels.querySelectorAll('[data-activate]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const name = btn.dataset.activate;
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'activate_model', model: name }));
-        btn.textContent = '\\u23F3 Activating...';
-        btn.disabled = true;
-      }
-    });
-  });
-}
-
-async function pullModel(name, btn) {
-  if (!ollamaOnline) { checkOllamaStatus(); return; }
-  btn.disabled = true;
-  btn.textContent = 'Downloading...';
-
-  const progressId = 'progress-' + name.replace(/[^a-z0-9]/gi, '-');
-  const progressEl = document.getElementById(progressId);
-  if (progressEl) progressEl.classList.add('active');
-  const progressFill = progressEl?.querySelector('.mc-progress-fill');
-  const progressText = progressEl?.querySelector('.mc-progress-text');
-  if (progressText) progressText.textContent = 'Connecting to Ollama...';
-
-  try {
-    const res = await fetch('/api/ollama/pull', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-
-    if (!res.ok || !res.body) {
-      btn.textContent = '\\u274C Failed';
-      btn.disabled = false;
-      if (progressText) progressText.textContent = 'Server error: HTTP ' + res.status;
-      return;
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let gotData = false;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        try {
-          const data = JSON.parse(line.slice(6));
-          gotData = true;
-          if (data.error) {
-            if (progressText) progressText.textContent = data.error;
-            btn.textContent = '\\u274C Failed';
-            btn.disabled = false;
-            console.error('Ollama pull error:', data.error);
-            return;
-          }
-          if (data.completed && data.total) {
-            const pct = Math.round((data.completed / data.total) * 100);
-            if (progressFill) progressFill.style.width = pct + '%';
-            if (progressText) progressText.textContent = (data.status || 'downloading') + ' ' + pct + '%';
-          } else if (data.status) {
-            if (progressText) progressText.textContent = data.status;
-          }
-          if (data.status === 'success') {
-            btn.textContent = '\\u2705 Installed';
-            btn.classList.add('installed');
-            if (progressText) progressText.textContent = 'Complete!';
-            setTimeout(() => refreshModels(), 1000);
-            return;
-          }
-        } catch (parseErr) {
-          console.warn('SSE parse error:', line, parseErr);
-        }
+async function pullModel(name,btn){
+  if(!oOnline)return;
+  btn.disabled=true; btn.textContent='Downloading...';
+  try{
+    const res=await fetch('/api/ollama/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+    if(!res.ok||!res.body){btn.textContent='\\u274C Failed';btn.disabled=false;return;}
+    const reader=res.body.getReader(), dec=new TextDecoder();
+    let buf='';
+    while(true){
+      const{done,value}=await reader.read(); if(done)break;
+      buf+=dec.decode(value,{stream:true}); const lines=buf.split('\\n'); buf=lines.pop()||'';
+      for(const ln of lines){
+        if(!ln.startsWith('data: '))continue;
+        try{const d=JSON.parse(ln.slice(6));if(d.status==='success'){btn.textContent='\\u2705 Installed';setTimeout(()=>refreshModels(),1000);return;}}catch{}
       }
     }
-
-    if (gotData) {
-      btn.textContent = '\\u2705 Installed';
-      if (progressText) progressText.textContent = 'Complete!';
-      setTimeout(() => refreshModels(), 1000);
-    } else {
-      btn.textContent = '\\u274C Failed';
-      btn.disabled = false;
-      if (progressText) progressText.textContent = 'No response from Ollama';
-    }
-  } catch (err) {
-    console.error('Pull fetch error:', err);
-    btn.textContent = '\\u274C Retry';
-    btn.disabled = false;
-    if (progressText) progressText.textContent = 'Connection failed: ' + (err.message || err);
-  }
+    btn.textContent='\\u2705 Done'; setTimeout(()=>refreshModels(),1000);
+  }catch{btn.textContent='\\u274C Retry';btn.disabled=false;}
 }
+setInterval(()=>{if(mPanel.classList.contains('open'))refreshModels();},15000);
+checkOllama();
 
-// Auto-refresh models every 15 seconds while panel is open
-setInterval(() => {
-  if (modelsPanel.classList.contains('open')) refreshModels();
-}, 15000);
-
-// Initial status check
-checkOllamaStatus();
-
-// =========== AGENT FINDINGS PANEL ===========
-let findingsData = [];
-const findingsPanel = document.getElementById('findings-panel');
-const findingsList = document.getElementById('findings-list');
-const findingsCount = document.getElementById('findings-count');
-const findingsToggle = document.getElementById('findings-toggle');
-const findingsBadge = document.getElementById('findings-badge');
-
-findingsToggle.addEventListener('click', () => {
-  findingsPanel.classList.toggle('open');
-});
-
-function addAgentFinding(sessionName, finding, severity, file) {
-  findingsData.push({ sessionName, finding, severity, file, time: Date.now() });
-
-  findingsBadge.style.display = 'inline';
-  findingsBadge.textContent = findingsData.length;
-  findingsCount.textContent = findingsData.length + ' finding(s)';
-
-  findingsList.innerHTML = '';
-  const sorted = [...findingsData].reverse();
-  for (const f of sorted) {
-    const item = document.createElement('div');
-    item.className = 'finding-item';
-    item.innerHTML =
-      '<span class="f-severity ' + f.severity + '">' + f.severity + '</span> ' +
-      '<div class="f-text">' + escapeHtml(f.finding) + '</div>' +
-      (f.file ? '<div class="f-file">' + escapeHtml(f.file) + '</div>' : '') +
-      '<div class="f-file">' + escapeHtml(f.sessionName) + '</div>';
-    findingsList.appendChild(item);
+// ===== VOICE =====
+(function(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const vP=document.getElementById('voice-panel'), vB=document.getElementById('voice-btn');
+  const tr=document.getElementById('voice-transcript'), sB=document.getElementById('voice-send');
+  const lS=document.getElementById('voice-lang'), stE=document.getElementById('voice-status');
+  const wf=document.getElementById('voice-waveform');
+  if(!SR){tr.textContent='Voice not supported';vB.style.opacity='0.3';vB.style.cursor='not-allowed';return;}
+  for(let i=0;i<5;i++){const b=document.createElement('div');b.className='waveform-bar';b.style.animationDelay=(i*0.12)+'s';wf.appendChild(b);}
+  let rec=null,isR=false,fT='',iT='';
+  function mkRec(){
+    const r=new SR();r.continuous=true;r.interimResults=true;r.lang=lS.value;r.maxAlternatives=1;
+    r.onresult=(ev)=>{iT='';fT='';for(let i=0;i<ev.results.length;i++){if(ev.results[i].isFinal)fT+=ev.results[i][0].transcript;else iT+=ev.results[i][0].transcript;}tr.innerHTML=fT+(iT?'<span style="color:#556">'+esc(iT)+'</span>':'');tr.classList.remove('placeholder');if(fT.trim())sB.classList.add('visible');};
+    r.onerror=(ev)=>{if(ev.error==='not-allowed'){stE.textContent='denied';tr.textContent='Microphone denied';tr.classList.add('placeholder');}stopR();};
+    r.onend=()=>{if(isR)try{r.start();}catch{stopR();}};
+    return r;
   }
-
-  flashRandomNode();
-
-  if (findingsData.length === 1) {
-    findingsPanel.classList.add('open');
+  async function startR(){
+    try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop());}catch{stE.textContent='denied';return;}
+    rec=mkRec();fT='';iT='';isR=true;
+    vB.classList.add('recording');vP.classList.add('recording');vB.textContent='\\u23F9';
+    tr.innerHTML='<span style="color:#445;font-style:italic">Listening...</span>';tr.classList.remove('placeholder');sB.classList.remove('visible');
+    stE.textContent='\\u25CF rec';stE.style.color='#ff3c3c';
+    try{rec.start();}catch{stopR();}
   }
-}
-
-// =========== VOICE INPUT SYSTEM ===========
-(function initVoice() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const voicePanel = document.getElementById('voice-panel');
-  const voiceBtn = document.getElementById('voice-btn');
-  const transcript = document.getElementById('voice-transcript');
-  const sendBtn = document.getElementById('voice-send');
-  const langSelect = document.getElementById('voice-lang');
-  const statusEl = document.getElementById('voice-status');
-  const waveform = document.getElementById('voice-waveform');
-
-  if (!SpeechRecognition) {
-    transcript.textContent = 'Voice not supported in this browser';
-    voiceBtn.style.opacity = '0.3';
-    voiceBtn.style.cursor = 'not-allowed';
-    return;
+  function stopR(){
+    isR=false;vB.classList.remove('recording');vP.classList.remove('recording');vB.textContent='\\u{1F3A4}';stE.textContent='';stE.style.color='';
+    if(rec)try{rec.stop();}catch{} rec=null;
+    if(fT.trim()){sB.classList.add('visible');tr.textContent=fT;}
+    else if(!tr.textContent||tr.textContent==='Listening...'){tr.textContent='Click mic to speak...';tr.classList.add('placeholder');}
   }
-
-  // Build waveform bars with staggered delays
-  for (let i = 0; i < 5; i++) {
-    const bar = document.createElement('div');
-    bar.className = 'waveform-bar';
-    bar.style.animationDelay = (i * 0.12) + 's';
-    waveform.appendChild(bar);
-  }
-
-  let recognition = null;
-  let isRecording = false;
-  let finalText = '';
-  let interimText = '';
-
-  function createRecognition() {
-    const rec = new SpeechRecognition();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = langSelect.value;
-    rec.maxAlternatives = 1;
-
-    rec.onresult = (event) => {
-      interimText = '';
-      finalText = '';
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalText += result[0].transcript;
-        } else {
-          interimText += result[0].transcript;
-        }
-      }
-
-      const display = finalText + (interimText ? '<span style="color:#556">' + escapeHtml(interimText) + '</span>' : '');
-      transcript.innerHTML = display || '<span style="color:#445;font-style:italic">Listening...</span>';
-      transcript.classList.remove('placeholder');
-
-      if (finalText.trim()) {
-        sendBtn.classList.add('visible');
-      }
-    };
-
-    rec.onerror = (event) => {
-      if (event.error === 'not-allowed') {
-        statusEl.textContent = 'denied';
-        transcript.textContent = 'Microphone access denied';
-        transcript.classList.add('placeholder');
-      } else if (event.error !== 'aborted') {
-        statusEl.textContent = event.error;
-      }
-      stopRecording();
-    };
-
-    rec.onend = () => {
-      if (isRecording) {
-        try { rec.start(); } catch { stopRecording(); }
-      }
-    };
-
-    return rec;
-  }
-
-  async function startRecording() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop());
-    } catch (permErr) {
-      statusEl.textContent = 'denied';
-      transcript.textContent = 'Microphone permission denied. Allow mic access in your browser.';
-      transcript.classList.add('placeholder');
-      return;
-    }
-
-    recognition = createRecognition();
-    finalText = '';
-    interimText = '';
-    isRecording = true;
-
-    voiceBtn.classList.add('recording');
-    voicePanel.classList.add('recording');
-    voiceBtn.textContent = '\\u23F9';
-    transcript.innerHTML = '<span style="color:#445;font-style:italic">Listening...</span>';
-    transcript.classList.remove('placeholder');
-    sendBtn.classList.remove('visible');
-    statusEl.textContent = '\\u25CF rec';
-    statusEl.style.color = '#ff3c3c';
-
-    try {
-      recognition.start();
-    } catch (e) {
-      statusEl.textContent = 'error';
-      stopRecording();
-    }
-  }
-
-  function stopRecording() {
-    isRecording = false;
-    voiceBtn.classList.remove('recording');
-    voicePanel.classList.remove('recording');
-    voiceBtn.textContent = '\\u{1F3A4}';
-    statusEl.textContent = '';
-    statusEl.style.color = '';
-
-    if (recognition) {
-      try { recognition.stop(); } catch {}
-      recognition = null;
-    }
-
-    if (finalText.trim()) {
-      sendBtn.classList.add('visible');
-      transcript.textContent = finalText;
-    } else if (!transcript.textContent || transcript.textContent === 'Listening...') {
-      transcript.textContent = 'Click mic to speak...';
-      transcript.classList.add('placeholder');
-    }
-  }
-
-  voiceBtn.addEventListener('click', () => {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
+  vB.addEventListener('click',()=>{isR?stopR():startR();});
+  sB.addEventListener('click',()=>{
+    const t=fT.trim();if(!t)return;
+    const proto=location.protocol==='https:'?'wss:':'ws:';
+    const sw=new WebSocket(proto+'//'+location.host);
+    sw.onopen=()=>{sw.send(JSON.stringify({type:'voice_input',text:t}));stE.textContent='\\u2713 sent';stE.style.color='#00ff88';setTimeout(()=>{stE.textContent='';stE.style.color='';},2000);sw.close();};
+    sw.onerror=()=>{stE.textContent='send failed';stE.style.color='#ff4444';};
+    fT='';iT='';tr.textContent='Click mic to speak...';tr.classList.add('placeholder');sB.classList.remove('visible');
   });
-
-  // Send voice text to CLI via WebSocket
-  sendBtn.addEventListener('click', () => {
-    const text = finalText.trim();
-    if (!text) return;
-
-    sendVoiceToCLI(text);
-
-    finalText = '';
-    interimText = '';
-    transcript.textContent = 'Click mic to speak...';
-    transcript.classList.add('placeholder');
-    sendBtn.classList.remove('visible');
-  });
-
-  // Enter key sends
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && finalText.trim() && sendBtn.classList.contains('visible')) {
-      e.preventDefault();
-      sendBtn.click();
-    }
-  });
-
-  langSelect.addEventListener('change', () => {
-    if (isRecording) {
-      stopRecording();
-      startRecording();
-    }
-  });
-
-  function sendVoiceToCLI(text) {
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = proto + '//' + location.host;
-    const sendWs = new WebSocket(wsUrl);
-
-    sendWs.onopen = () => {
-      sendWs.send(JSON.stringify({ type: 'voice_input', text: text }));
-      statusEl.textContent = '\\u2713 sent';
-      statusEl.style.color = '#00ff88';
-      setTimeout(() => { statusEl.textContent = ''; statusEl.style.color = ''; }, 2000);
-      sendWs.close();
-    };
-
-    sendWs.onerror = () => {
-      statusEl.textContent = 'send failed';
-      statusEl.style.color = '#ff4444';
-      setTimeout(() => { statusEl.textContent = ''; statusEl.style.color = ''; }, 2000);
-    };
-  }
+  document.addEventListener('keydown',(e)=>{if(e.key==='Enter'&&!e.shiftKey&&fT.trim()&&sB.classList.contains('visible')){e.preventDefault();sB.click();}});
+  lS.addEventListener('change',()=>{if(isR){stopR();startR();}});
 })();
 
-// =========== INITIAL LOAD ===========
-rebuildScene();
+// ===== START =====
+buildScene();
 animate();
 </script>
 </body>
