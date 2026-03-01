@@ -264,6 +264,12 @@ body {
 .animate-blink { animation: blink 1s step-end infinite; }
 .animate-terminal-glow { animation: terminal-glow 4s ease-in-out infinite; }
 
+@keyframes brain-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 12px rgba(0, 255, 255, 0.3); }
+  50% { opacity: 0.8; box-shadow: 0 0 20px rgba(0, 255, 255, 0.15); }
+}
+.animate-brain-glow { animation: brain-glow 3s ease-in-out infinite; }
+
 .animate-reveal-up {
   animation: reveal-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

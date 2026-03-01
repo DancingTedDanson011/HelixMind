@@ -81,31 +81,31 @@ export function ChatInput({
       <div className="max-w-3xl mx-auto">
         {/* Quick action buttons — above input, only when in a chat with CLI */}
         {showQuickActions && (
-          <div className="flex items-center gap-1.5 mb-2 px-1">
+          <div className="flex items-center gap-1.5 mb-2 px-1 overflow-x-auto scrollbar-none">
             <button
               onClick={() => onSend('Run an automatic code review and improvement analysis on the current project. Look for bugs, code smells, and potential improvements.')}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20 transition-all"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20 transition-all flex-shrink-0"
             >
               <Zap size={10} />
               Auto
             </button>
             <button
               onClick={() => onSend('Perform a comprehensive security audit on the current project. Check for vulnerabilities, exposed secrets, unsafe dependencies, and security best practices.')}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20 transition-all"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20 transition-all flex-shrink-0"
             >
               <ShieldAlert size={10} />
               Security
             </button>
             <button
               onClick={() => onSend('Start monitoring the project for file changes and potential issues. Watch for errors, test failures, and code quality problems.')}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20 transition-all"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20 transition-all flex-shrink-0"
             >
               <Eye size={10} />
               Monitor
             </button>
             <button
               onClick={() => onSend('Analyze the current project structure, identify all open tasks and issues, and create a prioritized action plan for improvements.')}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20 transition-all"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-gray-500 bg-white/[0.03] border border-white/5 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20 transition-all flex-shrink-0"
             >
               <Bot size={10} />
               Jarvis
@@ -113,22 +113,21 @@ export function ChatInput({
           </div>
         )}
 
-        <div className="relative flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] focus-within:border-cyan-500/25 focus-within:bg-white/[0.05] transition-all">
-          {/* Mode selector — inside the input box */}
-          <div className="relative flex-shrink-0 self-end" ref={modeRef}>
+        <div className="relative flex items-end rounded-2xl border border-white/10 bg-white/[0.03] focus-within:border-cyan-500/25 focus-within:bg-white/[0.05] transition-all">
+          {/* Mode selector — left side with border separator */}
+          <div className="relative flex-shrink-0 self-stretch" ref={modeRef}>
             <button
               onClick={() => setModeMenuOpen(!modeMenuOpen)}
               className={`
-                flex items-center gap-1 px-2.5 py-2.5 rounded-bl-2xl text-xs font-medium transition-all
+                flex items-center gap-1 px-3 h-full border-r border-white/10 rounded-l-2xl text-xs font-medium transition-all
                 ${mode === 'skip-permissions'
-                  ? 'text-amber-400 hover:text-amber-300'
-                  : 'text-gray-500 hover:text-gray-300'
+                  ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/5'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
                 }
               `}
               title={mode === 'normal' ? t('modeNormal') : t('modeSkipPermissions')}
             >
               {mode === 'skip-permissions' ? <ShieldOff size={14} /> : <Shield size={14} />}
-              <ChevronDown size={9} className="opacity-50" />
             </button>
 
             {modeMenuOpen && (
@@ -164,11 +163,11 @@ export function ChatInput({
             placeholder={t('sendMessage')}
             disabled={disabled}
             rows={1}
-            className="flex-1 resize-none bg-transparent py-2.5 text-sm text-gray-200 placeholder-gray-600 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 resize-none bg-transparent py-3 px-3 text-sm text-gray-200 placeholder-gray-600 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
           />
 
-          {/* Send / Stop button — inside the input box */}
-          <div className="flex-shrink-0 self-end p-1.5">
+          {/* Send / Stop button — round */}
+          <div className="flex-shrink-0 self-end p-2">
             {isAgentRunning ? (
               <button
                 onClick={onStop}
@@ -181,9 +180,9 @@ export function ChatInput({
               <button
                 onClick={handleSend}
                 disabled={!value.trim() || disabled}
-                className="p-2 rounded-xl bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+                className="w-9 h-9 rounded-full bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center"
               >
-                <Send size={15} />
+                <Send size={16} />
               </button>
             )}
           </div>

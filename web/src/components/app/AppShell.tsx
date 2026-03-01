@@ -15,14 +15,15 @@ import { SessionSidebar } from './SessionSidebar';
 // BugJournal tab removed — bugs now shown inline in ChatView
 import type { DiscoveredInstance } from '@/lib/cli-types';
 import {
-  Brain, PanelLeftClose, PanelLeft, Menu,
+  Brain, PanelLeftClose, PanelLeft, Menu, ChevronDown,
   Wifi, WifiOff, RefreshCw, Terminal, Plus,
   Cpu, Clock, Plug, Shield, Zap,
   AlertTriangle, Activity, X, MessageSquare,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
-  Bug, Bot,
+  Bug, Bot, Search, ListChecks, ShieldCheck,
 } from 'lucide-react';
 import { JarvisPanel } from '@/components/jarvis/JarvisPanel';
+import { TabInfoPage } from './TabInfoPage';
 
 /* ─── Types ───────────────────────────────────── */
 
@@ -108,6 +109,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const [showInstancePicker, setShowInstancePicker] = useState(false);
   const [showSpawnDialog, setShowSpawnDialog] = useState(false);
   const [showBugPanel, setShowBugPanel] = useState(false);
+  const [showConnectPopover, setShowConnectPopover] = useState(false);
+  const connectPopoverRef = useRef<HTMLDivElement>(null);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
   const [hasLLMKey, setHasLLMKey] = useState(false);
   const [pendingExecPrompt, setPendingExecPrompt] = useState<{ prompt: string; chatId: string; mode: 'normal' | 'skip-permissions' } | null>(null);
@@ -155,6 +158,25 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       } catch { /* silent */ }
     })();
   }, []);
+
+  // ── Close connect popover on outside click ──
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (connectPopoverRef.current && !connectPopoverRef.current.contains(e.target as Node)) {
+        setShowConnectPopover(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // ── Auto-create chat on CLI connect ─────────
+  useEffect(() => {
+    if (isConnected && chats.length === 0 && !activeChatId) {
+      createChat();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
 
   // ── Load chat messages ──────────────────────
   const loadChat = useCallback(async (chatId: string) => {
@@ -918,7 +940,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
 
           {/* Tab switcher */}
           {isConnected && (
-            <div className="flex gap-0.5 bg-white/5 rounded-lg p-0.5">
+            <div className="flex gap-0.5 bg-white/5 rounded-lg p-0.5 overflow-x-auto scrollbar-none flex-nowrap">
               <button
                 onClick={() => setActiveTab('chat')}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
@@ -1030,13 +1052,51 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               {t('connecting')}
             </div>
           ) : (
-            <button
-              onClick={rescan}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] text-gray-500 bg-white/5 border border-white/5 hover:text-gray-300 hover:border-white/10 transition-colors"
-            >
-              <WifiOff size={11} />
-              {t('cliDisconnected')}
-            </button>
+            <div className="relative" ref={connectPopoverRef}>
+              <button
+                onClick={() => { rescan(); setShowConnectPopover(p => !p); }}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] text-gray-500 bg-white/5 border border-white/5 hover:text-gray-300 hover:border-white/10 transition-colors"
+              >
+                <WifiOff size={11} />
+                {t('cliDisconnected')}
+                <ChevronDown size={9} className="opacity-50" />
+              </button>
+              {showConnectPopover && (
+                <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl p-3 z-50">
+                  {instances.length > 0 ? (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] text-gray-500 mb-2">{t('connectCli')}</p>
+                      {instances.map(inst => (
+                        <button
+                          key={inst.port}
+                          onClick={() => { connectTo(inst); setShowConnectPopover(false); }}
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/20 text-left transition-all"
+                        >
+                          <Terminal size={12} className="text-gray-500" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-gray-300 truncate">{inst.meta.projectName}</div>
+                            <div className="text-[10px] text-gray-600">{inst.meta.model} · :{inst.port}</div>
+                          </div>
+                          <Plug size={10} className="text-gray-600" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-3">
+                      <p className="text-[10px] text-gray-500">{t('noInstances')}</p>
+                      <button
+                        onClick={rescan}
+                        disabled={scanning}
+                        className="mt-2 flex items-center gap-1 mx-auto px-2.5 py-1 rounded-md text-[10px] text-gray-400 bg-white/5 hover:bg-white/10 border border-white/5 transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw size={10} className={scanning ? 'animate-spin' : ''} />
+                        Scan
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Spawn agent button */}
@@ -1048,65 +1108,22 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             <Plus size={18} />
           </button>
 
-          {/* Brain button — only visible when CLI connected */}
-          {isConnected && (
-            <button
-              onClick={handleBrainClick}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors"
-              title={t('brain')}
-            >
-              <Brain size={18} />
-            </button>
-          )}
+          {/* Brain button — glow when chat active + CLI, grayed when not connected */}
+          <button
+            onClick={handleBrainClick}
+            disabled={!isConnected}
+            className={`p-1.5 rounded-lg transition-all ${
+              isConnected && activeTab === 'chat' && activeChat
+                ? 'text-cyan-400 bg-cyan-400/10 animate-brain-glow'
+                : isConnected
+                  ? 'text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-400/5'
+                  : 'text-gray-700 cursor-not-allowed'
+            }`}
+            title={t('brain')}
+          >
+            <Brain size={18} />
+          </button>
         </div>
-
-        {/* Connection panel when disconnected */}
-        {!isConnected && !isConnecting && (
-          <div className="border-b border-white/5 bg-surface/30 px-4 py-3">
-            <div className="max-w-3xl mx-auto">
-              {instances.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-gray-500">{t('connectCli')}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {instances.map((inst) => (
-                      <button
-                        key={inst.port}
-                        onClick={() => connectTo(inst)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/20 text-left transition-all group"
-                      >
-                        <Terminal size={14} className="text-gray-500 group-hover:text-cyan-400 transition-colors" />
-                        <div>
-                          <div className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors">
-                            {inst.meta.projectName}
-                          </div>
-                          <div className="text-[10px] text-gray-600">
-                            {inst.meta.model} · Port {inst.port}
-                          </div>
-                        </div>
-                        <Plug size={12} className="text-gray-600 group-hover:text-cyan-400 ml-2 transition-colors" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <WifiOff size={12} />
-                    {t('notConnected')}
-                  </div>
-                  <button
-                    onClick={rescan}
-                    disabled={scanning}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] text-gray-400 bg-white/5 hover:bg-white/10 border border-white/5 transition-colors disabled:opacity-50"
-                  >
-                    <RefreshCw size={10} className={scanning ? 'animate-spin' : ''} />
-                    {scanning ? t('connecting') : 'Scan'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Active sessions strip */}
         {isConnected && activeSessions.length > 0 && (
@@ -1174,13 +1191,29 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             {consoleSessionId ? (
               <TerminalViewer lines={cliOutput.lines} fullHeight />
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center space-y-3 px-6">
-                  <Terminal size={32} className="mx-auto text-gray-700" />
-                  <p className="text-sm text-gray-500">{t('consoleSelectSession')}</p>
-                  <p className="text-xs text-gray-600 mt-1">{t('consoleHint')}</p>
-                </div>
-              </div>
+              <TabInfoPage
+                icon={<Terminal size={28} />}
+                title={t('consoleInfoTitle')}
+                description={t('consoleInfoDesc')}
+                accentColor="cyan"
+                features={[
+                  { icon: <Zap size={16} />, title: t('consoleInfoFeature1Title'), description: t('consoleInfoFeature1Desc') },
+                  { icon: <ShieldCheck size={16} />, title: t('consoleInfoFeature2Title'), description: t('consoleInfoFeature2Desc') },
+                  { icon: <ListChecks size={16} />, title: t('consoleInfoFeature3Title'), description: t('consoleInfoFeature3Desc') },
+                ]}
+                actions={
+                  isConnected ? (
+                    <>
+                      <button onClick={() => handleStartAuto()} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-cyan-500/10 hover:border-cyan-500/20 hover:text-cyan-400 transition-all">
+                        <Zap size={12} className="inline mr-1.5" />Auto
+                      </button>
+                      <button onClick={handleStartSecurity} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all">
+                        <Shield size={12} className="inline mr-1.5" />Security
+                      </button>
+                    </>
+                  ) : undefined
+                }
+              />
             )}
           </div>
         ) : activeTab === 'monitor' ? (
@@ -1213,38 +1246,30 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   </button>
                 </div>
               ) : (
-                <div className="text-center py-8 space-y-4">
-                  <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-red-500/10 border border-white/5 flex items-center justify-center">
-                    <Eye size={28} className="text-purple-500/50" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">{t('monitorIdle')}</p>
-                    <p className="text-xs text-gray-600 mt-1">{t('monitorTabHint')}</p>
-                  </div>
-                  <div className="flex gap-2 justify-center">
-                    <button
-                      onClick={() => handleStartMonitor('passive')}
-                      className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-400 transition-all"
-                    >
-                      <Eye size={12} className="inline mr-1.5" />
-                      {t('monitorStartPassive')}
-                    </button>
-                    <button
-                      onClick={() => handleStartMonitor('defensive')}
-                      className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all"
-                    >
-                      <Shield size={12} className="inline mr-1.5" />
-                      {t('monitorStartDefensive')}
-                    </button>
-                    <button
-                      onClick={() => handleStartMonitor('active')}
-                      className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all"
-                    >
-                      <ShieldAlert size={12} className="inline mr-1.5" />
-                      {t('monitorStartActive')}
-                    </button>
-                  </div>
-                </div>
+                <TabInfoPage
+                  icon={<Eye size={28} />}
+                  title={t('monitorInfoTitle')}
+                  description={t('monitorInfoDesc')}
+                  accentColor="purple"
+                  features={[
+                    { icon: <Eye size={16} />, title: t('monitorInfoFeature1Title'), description: t('monitorInfoFeature1Desc') },
+                    { icon: <Shield size={16} />, title: t('monitorInfoFeature2Title'), description: t('monitorInfoFeature2Desc') },
+                    { icon: <ShieldAlert size={16} />, title: t('monitorInfoFeature3Title'), description: t('monitorInfoFeature3Desc') },
+                  ]}
+                  actions={isConnected ? (
+                    <>
+                      <button onClick={() => handleStartMonitor('passive')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-400 transition-all">
+                        <Eye size={12} className="inline mr-1.5" />{t('monitorStartPassive')}
+                      </button>
+                      <button onClick={() => handleStartMonitor('defensive')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all">
+                        <Shield size={12} className="inline mr-1.5" />{t('monitorStartDefensive')}
+                      </button>
+                      <button onClick={() => handleStartMonitor('active')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all">
+                        <ShieldAlert size={12} className="inline mr-1.5" />{t('monitorStartActive')}
+                      </button>
+                    </>
+                  ) : undefined}
+                />
               )}
 
               {/* Pending approvals */}
@@ -1394,6 +1419,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           // Trigger rescan so discovery finds the new instance
           rescan();
         }}
+        instances={instances}
+        onConnect={(inst) => { connectTo(inst); setShowSpawnDialog(false); }}
       />
     </div>
   );
