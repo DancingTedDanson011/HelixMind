@@ -28,6 +28,7 @@ export interface StatusBarData {
   autonomous?: boolean;
   paused?: boolean;
   plan?: string;
+  jarvisName?: string;
 }
 
 /**
@@ -57,6 +58,11 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
 
   // [Essential] Token bar — shorter on narrow terminals
   essentialParts.push(renderTokenBar(data.sessionTokens, termWidth < 80));
+
+  // [Essential] Jarvis daemon indicator
+  if (data.jarvisName) {
+    essentialParts.push(chalk.hex('#ff00ff')(`\u{1F916} ${data.jarvisName}`));
+  }
 
   // [Essential] Autonomous / Paused indicator
   if (data.autonomous) {

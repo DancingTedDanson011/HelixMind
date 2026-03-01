@@ -269,7 +269,7 @@ export async function runJarvisDaemon(
 
   if (callbacks.isAborted()) {
     process.stdout.write('\n');
-    renderInfo(chalk.yellow(`  \u23F9 Jarvis stopped after ${completedCount} tasks.`));
+    renderInfo(chalk.yellow(`  \u23F9 ${identityName} stopped after ${completedCount} tasks.`));
     process.stdout.write('\n');
   }
 

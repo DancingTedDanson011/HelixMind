@@ -1,5 +1,5 @@
 /**
- * Jarvis Onboarding — First-run greeting, name customization, goal setting.
+ * Jarvis Onboarding — First-run greeting, name customization, goal setting, scope selection.
  * Subsequent starts show a short returning greeting.
  */
 import chalk from 'chalk';
@@ -11,6 +11,11 @@ const d = chalk.dim;
 const j = chalk.hex('#ff00ff');
 const g = chalk.hex('#FFB800');
 
+export interface OnboardingResult {
+  scope?: 'project' | 'global';
+  goalText?: string;
+}
+
 function askQuestion(rl: ReadlineInterface, question: string): Promise<string> {
   return new Promise(resolve => {
     rl.question(question, (answer) => {
@@ -21,14 +26,17 @@ function askQuestion(rl: ReadlineInterface, question: string): Promise<string> {
 
 /**
  * Run the first-time onboarding flow.
- * Introduces Jarvis, asks for a custom name and project goals.
+ * Introduces Jarvis, asks for a custom name, project goals, and scope.
+ * Returns scope selection + goal so the caller can switch and auto-create a task.
  */
 export async function runOnboarding(
   identityManager: JarvisIdentityManager,
   rl: ReadlineInterface,
+  currentScope: 'project' | 'global',
   projectName?: string,
-): Promise<void> {
+): Promise<OnboardingResult> {
   const identity = identityManager.getIdentity();
+  const result: OnboardingResult = {};
 
   process.stdout.write('\n');
   process.stdout.write(d('\u256D\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E') + '\n');
@@ -68,7 +76,28 @@ export async function runOnboarding(
 
   if (goalInput) {
     identityManager.setUserGoals([goalInput]);
+    result.goalText = goalInput;
     process.stdout.write(d('  Ziel gespeichert \u2014 ich werde es im Hinterkopf behalten.') + '\n');
+  }
+
+  // Ask for scope
+  process.stdout.write('\n');
+  const scopeLabel = currentScope === 'project'
+    ? chalk.green('lokal') + d(' (.helixmind/)')
+    : chalk.blue('global') + d(' (~/.spiral-context/)');
+  process.stdout.write(d(`  Aktuell: `) + scopeLabel + '\n');
+  process.stdout.write('\n');
+  const scopeInput = await askQuestion(
+    rl,
+    j('  Wo soll ich arbeiten? [1] Lokal (nur dieses Projekt) [2] Global (alle Projekte): '),
+  );
+
+  if (scopeInput === '2' || scopeInput.toLowerCase().startsWith('g')) {
+    result.scope = 'global';
+    process.stdout.write(d('  Scope: ') + chalk.blue('Global') + d(' \u2014 alle Projekte') + '\n');
+  } else {
+    result.scope = 'project';
+    process.stdout.write(d('  Scope: ') + chalk.green('Lokal') + d(' \u2014 nur dieses Projekt') + '\n');
   }
 
   // Mark onboarding as completed
@@ -76,8 +105,10 @@ export async function runOnboarding(
 
   const finalName = identityManager.getIdentity().name;
   process.stdout.write('\n');
-  process.stdout.write(g(`  ${finalName} ist bereit.`) + ' ' + d('/jarvis task "..." um mir Aufgaben zu geben.') + '\n');
+  process.stdout.write(g(`  ${finalName} ist bereit.`) + '\n');
   process.stdout.write('\n');
+
+  return result;
 }
 
 /**

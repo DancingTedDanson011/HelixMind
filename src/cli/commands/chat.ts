@@ -47,7 +47,7 @@ import { detectBugReport } from '../bugs/detector.js';
 import { JarvisQueue } from '../jarvis/queue.js';
 import { runJarvisDaemon } from '../jarvis/daemon.js';
 import { JarvisIdentityManager } from '../jarvis/identity.js';
-import { runOnboarding, showReturningGreeting } from '../jarvis/onboarding.js';
+import { runOnboarding, showReturningGreeting, type OnboardingResult } from '../jarvis/onboarding.js';
 import { BrowserController } from '../browser/controller.js';
 import { VisionProcessor } from '../browser/vision.js';
 import { classifyTask } from '../validation/classifier.js';
@@ -1265,6 +1265,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       autonomous: autonomousMode,
       paused: agentController.isPaused,
       plan: (store.get('relay.plan') as string | undefined) ?? undefined,
+      jarvisName: jarvisDaemonSession && jarvisDaemonSession.status === 'running'
+        ? jarvisIdentity.getIdentity().name
+        : undefined,
     };
   }
 
@@ -3516,11 +3519,30 @@ async function handleSlashCommand(
         // Onboarding: first run → interactive setup; returning → short greeting
         const identity = jarvisCtx.identity.getIdentity();
         if (!identity.customized) {
-          await runOnboarding(jarvisCtx.identity, rl);
+          const onboardResult = await runOnboarding(
+            jarvisCtx.identity, rl,
+            jarvisCtx.getScope(),
+          );
+          // Apply scope selection from onboarding
+          if (onboardResult.scope && onboardResult.scope !== jarvisCtx.getScope()) {
+            jarvisCtx.setScope(onboardResult.scope);
+          }
+          jarvisCtx.startDaemon();
+          // Auto-create first task from user goal so Jarvis starts working immediately
+          if (onboardResult.goalText) {
+            const finalName = jarvisCtx.identity.getIdentity().name;
+            const autoTask = jq.addTask(
+              `Projekt analysieren und verstehen`,
+              `Analysiere das aktuelle Projekt gruendlich. Das Ziel des Users ist: "${onboardResult.goalText}". ` +
+              `Verschaffe dir einen Ueberblick ueber die Codebase, Architektur, Dependencies und wichtige Dateien. ` +
+              `Stelle dich dem User kurz als ${finalName} vor und berichte was du gefunden hast.`,
+            );
+            renderInfo(chalk.hex('#ff00ff')(`  \u2714 Auto-Task #${autoTask.id}: ${autoTask.title}`));
+          }
         } else {
           showReturningGreeting(identity);
+          jarvisCtx.startDaemon();
         }
-        jarvisCtx.startDaemon();
 
       } else if (sub === 'task') {
         const taskText = input.replace(/^\/jarvis\s+task\s*/i, '').trim();
