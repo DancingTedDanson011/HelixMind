@@ -48,6 +48,13 @@ import { JarvisQueue } from '../jarvis/queue.js';
 import { runJarvisDaemon } from '../jarvis/daemon.js';
 import { JarvisIdentityManager } from '../jarvis/identity.js';
 import { runOnboarding, showReturningGreeting, type OnboardingResult } from '../jarvis/onboarding.js';
+import { ProposalJournal } from '../jarvis/proposals.js';
+import { JarvisScheduler } from '../jarvis/scheduler.js';
+import { TriggerManager } from '../jarvis/triggers.js';
+import { WorldModelManager } from '../jarvis/world-model.js';
+import { AutonomyManager } from '../jarvis/autonomy.js';
+import { NotificationManager } from '../jarvis/notifications.js';
+import type { ThinkingCallbacks } from '../jarvis/types.js';
 import { BrowserController } from '../browser/controller.js';
 import { VisionProcessor } from '../browser/vision.js';
 import { classifyTask } from '../validation/classifier.js';
@@ -335,9 +342,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Bug journal (persistent bug tracking)
   const bugJournal = new BugJournal(process.cwd());
 
-  // Jarvis task queue — scope-aware init happens below after brainScope detection
+  // Jarvis AGI modules — scope-aware init happens below after brainScope detection
   let jarvisQueue: JarvisQueue;
   let jarvisIdentity: JarvisIdentityManager;
+  let jarvisProposals: ProposalJournal;
+  let jarvisScheduler: JarvisScheduler;
+  let jarvisTriggers: TriggerManager;
+  let jarvisWorldModel: WorldModelManager;
+  let jarvisAutonomy: AutonomyManager;
+  let jarvisNotifications: NotificationManager;
   let jarvisScope: BrainScope;
   let jarvisDaemonSession: import('../sessions/session.js').Session | null = null;
   let jarvisPaused = false;
@@ -460,6 +473,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   jarvisScope = brainScope;
   jarvisQueue = new JarvisQueue(resolveJarvisRoot(jarvisScope));
   jarvisIdentity = new JarvisIdentityManager(resolveJarvisRoot(jarvisScope));
+  jarvisProposals = new ProposalJournal(resolveJarvisRoot(jarvisScope));
+  jarvisScheduler = new JarvisScheduler(resolveJarvisRoot(jarvisScope));
+  jarvisTriggers = new TriggerManager(resolveJarvisRoot(jarvisScope));
+  jarvisWorldModel = new WorldModelManager(resolveJarvisRoot(jarvisScope));
+  jarvisAutonomy = new AutonomyManager(jarvisIdentity.getIdentity().autonomyLevel);
+  jarvisNotifications = new NotificationManager(resolveJarvisRoot(jarvisScope));
 
   let spiralEngine: any = null;
 
@@ -479,6 +498,69 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   if (config.spiral.enabled) {
     spiralEngine = await initSpiralEngine(brainScope);
+  }
+
+  // Build ThinkingCallbacks for Jarvis AGI thinking loop
+  function buildThinkingCallbacks(
+    bgSession: import('../sessions/session.js').Session,
+  ): ThinkingCallbacks {
+    return {
+      sendMessage: async (prompt) => {
+        bgSession.controller.reset();
+        const rth = { text: '' };
+        const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
+        bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+        await sendAgentMessage(
+          prompt, bgSession.history, provider, project, spiralEngine, config,
+          permissions, bgSession.undoStack, checkpointStore,
+          bgSession.controller, new ActivityIndicator(), bgSession.buffer,
+          (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+          () => { sessionToolCalls++; },
+          undefined, { enabled: false, verbose: false, strict: false },
+        );
+        bgSession.buffer.addAssistantSummary = orig;
+        return rth.text;
+      },
+      isAborted: () => bgSession.controller.isAborted,
+      isPaused: () => jarvisPaused,
+      querySpiral: async (query, maxTokens) => {
+        if (!spiralEngine) return '';
+        try {
+          const results = await spiralEngine.query(query, { maxResults: maxTokens ?? 50 });
+          return results.level_1.concat(results.level_2, results.level_3)
+            .map((n: any) => `[${n.type}] ${n.content}`)
+            .join('\n')
+            .slice(0, 4000);
+        } catch { return ''; }
+      },
+      storeInSpiral: async (content, type, tags) => {
+        if (!spiralEngine) return;
+        try { await spiralEngine!.add(content, { type: type as any, tags }); } catch {}
+      },
+      createProposal: (title, desc, rationale, opts) => {
+        return jarvisProposals.create(title, desc, rationale, opts);
+      },
+      wouldLikelyBeDenied: (cat, files) => {
+        return jarvisProposals.wouldLikelyBeDenied(cat, files);
+      },
+      getIdentity: () => jarvisIdentity.getIdentity(),
+      updateIdentity: (event) => jarvisIdentity.recordEvent(event),
+      pushEvent: (type, payload) => {
+        import('../brain/generator.js').then(mod => {
+          if (mod.isBrainServerRunning?.()) {
+            mod.pushNeuronFired?.(
+              payload.fromOrbit as string || 'green',
+              payload.color as string || '#00ff88',
+              payload.trigger as string || type,
+            );
+          }
+        }).catch(() => {});
+      },
+      captureProjectState: () => jarvisWorldModel.captureProjectState(),
+      getScheduledTasks: () => jarvisScheduler.listSchedules().filter(s => s.enabled),
+      checkTriggers: (delta) => jarvisTriggers.checkTriggers(delta),
+      updateStatus: () => updateStatusBar(),
+    };
   }
 
   // Create session start checkpoint
@@ -899,8 +981,31 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 isAborted: () => bgSession.controller.isAborted,
                 isPaused: () => jarvisPaused,
                 onTaskStart: (task) => { bgSession.capture(`\u25B6 Task #${task.id}: ${task.title}`); pushSessionUpdate(serializeSession(bgSession)); },
-                onTaskComplete: (task, result) => { bgSession.capture(`\u2713 Task #${task.id} done: ${result.slice(0, 100)}`); pushSessionUpdate(serializeSession(bgSession)); },
-                onTaskFailed: (task, error) => { bgSession.capture(`\u2717 Task #${task.id} failed: ${error.slice(0, 100)}`); pushSessionUpdate(serializeSession(bgSession)); },
+                onTaskComplete: (task, result) => {
+                  bgSession.capture(`\u2713 Task #${task.id} done: ${result.slice(0, 100)}`);
+                  jarvisIdentity.recordEvent({ type: 'task_completed', taskId: task.id, summary: result });
+                  const evalResult = jarvisAutonomy.evaluate(jarvisIdentity.getIdentity());
+                  if (evalResult.changed) {
+                    jarvisIdentity.recordEvent({
+                      type: 'autonomy_changed',
+                      oldLevel: (evalResult.newLevel === jarvisIdentity.getIdentity().autonomyLevel
+                        ? evalResult.newLevel : jarvisIdentity.getIdentity().autonomyLevel) as any,
+                      newLevel: evalResult.newLevel,
+                      reason: evalResult.reason,
+                    });
+                    jarvisIdentity.setAutonomyLevel(evalResult.newLevel);
+                    renderInfo(chalk.hex('#ff00ff')(`\u2B06 ${jName} Autonomy: L${evalResult.newLevel} \u2014 ${evalResult.reason}`));
+                  }
+                  pushSessionUpdate(serializeSession(bgSession));
+                },
+                onTaskFailed: (task, error) => {
+                  bgSession.capture(`\u2717 Task #${task.id} failed: ${error.slice(0, 100)}`);
+                  jarvisIdentity.recordEvent({ type: 'task_failed', taskId: task.id, error });
+                  if (task.priority === 'high') {
+                    jarvisNotifications.notify(`${jName}: Task #${task.id} failed`, error.slice(0, 200), 'important').catch(() => {});
+                  }
+                  pushSessionUpdate(serializeSession(bgSession));
+                },
                 updateStatus: () => updateStatusBar(),
                 storeInSpiral: spiralEngine ? async (content, type, tags) => {
                   try { await spiralEngine!.add(content, { type: type as any, tags }); } catch {}
@@ -908,6 +1013,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 getIdentityName: () => jarvisIdentity.getIdentity().name,
                 getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
                 getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(),
+                thinkingCallbacks: buildThinkingCallbacks(bgSession),
               });
             } catch (err) {
               if (!(err instanceof AgentAbortError)) bgSession.capture(`${jName} error: ${err}`);
@@ -2107,8 +2213,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           getScope: () => jarvisScope,
           setScope: (scope: 'project' | 'global') => {
             jarvisScope = scope;
-            jarvisQueue = new JarvisQueue(resolveJarvisRoot(scope));
-            jarvisIdentity = new JarvisIdentityManager(resolveJarvisRoot(scope));
+            const newRoot = resolveJarvisRoot(scope);
+            jarvisQueue = new JarvisQueue(newRoot);
+            jarvisIdentity = new JarvisIdentityManager(newRoot);
+            jarvisProposals = new ProposalJournal(newRoot);
+            jarvisScheduler = new JarvisScheduler(newRoot);
+            jarvisTriggers = new TriggerManager(newRoot);
+            jarvisWorldModel = new WorldModelManager(newRoot);
+            jarvisNotifications = new NotificationManager(newRoot);
+            jarvisAutonomy = new AutonomyManager(jarvisIdentity.getIdentity().autonomyLevel);
           },
           getSession: () => jarvisDaemonSession,
           setSession: (s) => { jarvisDaemonSession = s; },
@@ -2151,10 +2264,26 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   onTaskComplete: (task, result) => {
                     bgSession.capture(`\u2713 Task #${task.id} done: ${result.slice(0, 100)}`);
                     renderInfo(chalk.hex('#ff00ff')(`\u2713 ${jName}: Task #${task.id} completed`));
+                    jarvisIdentity.recordEvent({ type: 'task_completed', taskId: task.id, summary: result });
+                    const evalResult = jarvisAutonomy.evaluate(jarvisIdentity.getIdentity());
+                    if (evalResult.changed) {
+                      jarvisIdentity.recordEvent({
+                        type: 'autonomy_changed',
+                        oldLevel: jarvisIdentity.getIdentity().autonomyLevel,
+                        newLevel: evalResult.newLevel,
+                        reason: evalResult.reason,
+                      });
+                      jarvisIdentity.setAutonomyLevel(evalResult.newLevel);
+                      renderInfo(chalk.hex('#ff00ff')(`\u2B06 ${jName} Autonomy: L${evalResult.newLevel} \u2014 ${evalResult.reason}`));
+                    }
                   },
                   onTaskFailed: (task, error) => {
                     bgSession.capture(`\u2717 Task #${task.id} failed: ${error.slice(0, 100)}`);
                     renderInfo(chalk.hex('#ff00ff')(`\u2717 ${jName}: Task #${task.id} failed \u2014 ${error.slice(0, 60)}`));
+                    jarvisIdentity.recordEvent({ type: 'task_failed', taskId: task.id, error });
+                    if (task.priority === 'high') {
+                      jarvisNotifications.notify(`${jName}: Task #${task.id} failed`, error.slice(0, 200), 'important').catch(() => {});
+                    }
                   },
                   updateStatus: () => updateStatusBar(),
                   storeInSpiral: spiralEngine ? async (content, type, tags) => {
@@ -2163,6 +2292,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   getIdentityName: () => jarvisIdentity.getIdentity().name,
                   getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
                   getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(),
+                  thinkingCallbacks: buildThinkingCallbacks(bgSession),
                 });
               } catch (err) {
                 if (!(err instanceof AgentAbortError)) bgSession.capture(`${jName} error: ${err}`);

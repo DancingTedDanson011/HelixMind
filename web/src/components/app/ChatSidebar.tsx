@@ -25,23 +25,30 @@ type SidebarItem =
 
 /* ─── Session helpers ────────────────────────── */
 
-function sessionModeColor(name: string): { bg: string; text: string; border: string } {
+function isJarvisSession(name: string, jarvisName?: string): boolean {
+  const lower = name.toLowerCase();
+  if (lower.includes('jarvis')) return true;
+  if (jarvisName && lower === jarvisName.toLowerCase()) return true;
+  return false;
+}
+
+function sessionModeColor(name: string, jarvisName?: string): { bg: string; text: string; border: string } {
   const lower = name.toLowerCase();
   if (lower.includes('security') || lower.includes('audit') || lower.includes('auto'))
     return { bg: 'bg-cyan-500/5', text: 'text-cyan-400', border: 'border-cyan-500/10' };
   if (lower.includes('monitor'))
     return { bg: 'bg-purple-500/5', text: 'text-purple-400', border: 'border-purple-500/10' };
-  if (lower.includes('jarvis'))
+  if (isJarvisSession(name, jarvisName))
     return { bg: 'bg-fuchsia-500/5', text: 'text-fuchsia-400', border: 'border-fuchsia-500/10' };
   return { bg: 'bg-white/[0.03]', text: 'text-gray-300', border: 'border-white/5' };
 }
 
-function SessionIcon({ name, size = 12, className = '' }: { name: string; size?: number; className?: string }) {
+function SessionIcon({ name, jarvisName, size = 12, className = '' }: { name: string; jarvisName?: string; size?: number; className?: string }) {
   const lower = name.toLowerCase();
   if (lower.includes('security') || lower.includes('audit')) return <Shield size={size} className={className} />;
   if (lower.includes('auto')) return <Zap size={size} className={className} />;
   if (lower.includes('monitor')) return <Activity size={size} className={className} />;
-  if (lower.includes('jarvis')) return <Bot size={size} className={className} />;
+  if (isJarvisSession(name, jarvisName)) return <Bot size={size} className={className} />;
   return <MessageSquare size={size} className={className} />;
 }
 
@@ -59,6 +66,7 @@ function formatElapsed(ms: number): string {
 interface ChatSidebarProps {
   chats: ChatSummary[];
   sessions?: SessionEntry[];
+  jarvisName?: string;
   activeChatId: string | null;
   onSelect: (id: string) => void;
   onSessionClick?: (sessionId: string) => void;
@@ -71,6 +79,7 @@ interface ChatSidebarProps {
 export function ChatSidebar({
   chats,
   sessions,
+  jarvisName,
   activeChatId,
   onSelect,
   onSessionClick,
@@ -131,6 +140,7 @@ export function ChatSidebar({
                   <SessionItem
                     key={`session-${item.session.id}`}
                     session={item.session}
+                    jarvisName={jarvisName}
                     onClick={() => onSessionClick?.(item.session.id)}
                     onDismiss={onSessionDismiss ? () => onSessionDismiss(item.session.id) : undefined}
                   />
@@ -170,8 +180,8 @@ export function ChatSidebar({
 
 /* ─── Session item ───────────────────────────── */
 
-function SessionItem({ session, onClick, onDismiss }: { session: SessionEntry; onClick: () => void; onDismiss?: () => void }) {
-  const colors = sessionModeColor(session.name);
+function SessionItem({ session, jarvisName, onClick, onDismiss }: { session: SessionEntry; jarvisName?: string; onClick: () => void; onDismiss?: () => void }) {
+  const colors = sessionModeColor(session.name, jarvisName);
   return (
     <div className="group relative">
       <button
@@ -182,7 +192,7 @@ function SessionItem({ session, onClick, onDismiss }: { session: SessionEntry; o
         `}
       >
         <div className="flex items-center gap-2">
-          <SessionIcon name={session.name} size={14} className={`flex-shrink-0 ${colors.text}`} />
+          <SessionIcon name={session.name} jarvisName={jarvisName} size={14} className={`flex-shrink-0 ${colors.text}`} />
           <div className="flex-1 min-w-0">
             <div className={`truncate text-xs font-medium ${colors.text}`}>
               {session.name}
