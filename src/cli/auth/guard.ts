@@ -16,6 +16,12 @@ import { join } from 'node:path';
 import { ConfigStore } from '../config/store.js';
 import { theme } from '../ui/theme.js';
 
+const w = (s: string) => process.stdout.write(s);
+const d = chalk.dim;
+const g = chalk.green;
+const p = theme.primary;
+const dim = chalk.gray;
+
 /**
  * Auth gate that presents two choices:
  *  [1] Login (free account → Jarvis + Brain Management + more)
@@ -23,35 +29,54 @@ import { theme } from '../ui/theme.js';
  *
  * Returns the ConfigStore. If user picks Open Source, store stays at FREE plan.
  * Never exits the process — always lets the user continue.
- *
- * Commands that are exempt from auth: login, logout, whoami, --help, --version
  */
 export async function requireAuth(): Promise<ConfigStore> {
   const configDir = join(homedir(), '.helixmind');
   const store = new ConfigStore(configDir);
 
   if (store.isLoggedIn()) {
-    // Already authenticated (cached locally). Verify in background when online.
     import('../auth/feature-gate.js')
       .then(({ refreshPlanInfo }) => refreshPlanInfo(store))
       .catch(() => {});
     return store;
   }
 
-  // Not logged in — show choice
-  process.stdout.write('\n');
-  process.stdout.write(chalk.dim('  ╭──────────────────────────────────────────────────╮') + '\n');
-  process.stdout.write(chalk.dim('  │  ') + theme.primary('🌀 Welcome to HelixMind') + chalk.dim('                         │') + '\n');
-  process.stdout.write(chalk.dim('  │                                                  │') + '\n');
-  process.stdout.write(chalk.dim('  │  ') + chalk.white.bold('[1] Login') + chalk.dim(' (free)') + chalk.dim('                                │') + '\n');
-  process.stdout.write(chalk.dim('  │      ') + chalk.gray('Jarvis AGI · Brain Management · Cloud') + chalk.dim('     │') + '\n');
-  process.stdout.write(chalk.dim('  │      ') + chalk.gray('One-time setup — works offline after') + chalk.dim('     │') + '\n');
-  process.stdout.write(chalk.dim('  │                                                  │') + '\n');
-  process.stdout.write(chalk.dim('  │  ') + chalk.white.bold('[2] Open Source') + chalk.dim('                                   │') + '\n');
-  process.stdout.write(chalk.dim('  │      ') + chalk.gray('Full AI agent · 22 Tools · Spiral Memory') + chalk.dim(' │') + '\n');
-  process.stdout.write(chalk.dim('  │      ') + chalk.gray('All providers · No account needed') + chalk.dim('        │') + '\n');
-  process.stdout.write(chalk.dim('  │                                                  │') + '\n');
-  process.stdout.write(chalk.dim('  ╰──────────────────────────────────────────────────╯') + '\n\n');
+  // ─── Choice Screen ─────────────────────────────────────────
+  w('\n');
+  w(d('  ╭────────────────────────────────────────────────────────────╮') + '\n');
+  w(d('  │  ') + p('🌀 Welcome to HelixMind') + d('                                   │') + '\n');
+  w(d('  │                                                            │') + '\n');
+
+  // Option 1: Login (FREE+) — the recommended choice
+  w(d('  │  ') + g('★') + chalk.white.bold(' [1] Login') + d(' — free, unlock everything') + d('                   │') + '\n');
+  w(d('  │                                                            │') + '\n');
+  w(d('  │      ') + g('✓') + ' Jarvis AGI' + d(' — autonomous coding agent              │') + '\n');
+  w(d('  │      ') + g('✓') + ' Validation Matrix' + d(' — auto-checks your code          │') + '\n');
+  w(d('  │      ') + g('✓') + ' Security Monitor' + d(' — continuous vulnerability scan   │') + '\n');
+  w(d('  │      ') + g('✓') + ' Autonomous Mode' + d(' — finds & fixes issues on its own  │') + '\n');
+  w(d('  │      ') + g('✓') + ' 3D Brain Management' + d(' — visualize your knowledge      │') + '\n');
+  w(d('  │      ') + g('✓') + ' 3 Brains' + d(' (1 global + 2 local)                      │') + '\n');
+  w(d('  │      ') + g('✓') + ' Live Brain WebSocket' + d(' — real-time visualization      │') + '\n');
+  w(d('  │                                                            │') + '\n');
+  w(d('  │      ') + dim('One-time setup — works offline afterwards.') + d('        │') + '\n');
+  w(d('  │      ') + dim('No credit card. No trial. Free forever.') + d('           │') + '\n');
+  w(d('  │                                                            │') + '\n');
+
+  // Divider
+  w(d('  │  ') + d('──────────────────────────────────────────────────────') + d('  │') + '\n');
+  w(d('  │                                                            │') + '\n');
+
+  // Option 2: Open Source — limited but functional
+  w(d('  │  ') + chalk.white.bold('  [2] Open Source') + d(' — no account needed') + d('                    │') + '\n');
+  w(d('  │                                                            │') + '\n');
+  w(d('  │      ') + dim('✓ AI Agent + 22 Tools') + d('                                │') + '\n');
+  w(d('  │      ') + dim('✓ Spiral Memory (1 local brain)') + d('                      │') + '\n');
+  w(d('  │      ') + dim('✓ All providers (Anthropic/OpenAI/Ollama)') + d('             │') + '\n');
+  w(d('  │                                                            │') + '\n');
+  w(d('  │      ') + chalk.red('✗') + dim(' No Jarvis · No Validation · No Monitor') + d('          │') + '\n');
+  w(d('  │      ') + chalk.red('✗') + dim(' No Brain Management · No Security Audit') + d('         │') + '\n');
+  w(d('  │                                                            │') + '\n');
+  w(d('  ╰────────────────────────────────────────────────────────────╯') + '\n\n');
 
   const choice = await promptChoice();
 
@@ -60,19 +85,18 @@ export async function requireAuth(): Promise<ConfigStore> {
     const loggedIn = await loginFlow(store, {});
 
     if (!loggedIn) {
-      // Login failed/cancelled — still let them use open source
-      process.stdout.write('\n');
-      process.stdout.write(chalk.dim('  Login cancelled — continuing in ') + theme.primary('Open Source') + chalk.dim(' mode.\n'));
-      process.stdout.write(chalk.dim('  Run ') + chalk.white('helixmind login') + chalk.dim(' anytime to unlock Jarvis + more.\n\n'));
+      w('\n');
+      w(d('  Login cancelled — continuing in ') + p('Open Source') + d(' mode.\n'));
+      w(d('  Run ') + chalk.white('helixmind login') + d(' anytime to unlock Jarvis + more.\n\n'));
     }
 
     return store;
   }
 
-  // Choice 2: Open Source — just continue without login
-  process.stdout.write('\n');
-  process.stdout.write(chalk.dim('  ') + theme.primary('▸') + chalk.dim(' Open Source mode — full agent, no limits.\n'));
-  process.stdout.write(chalk.dim('  Run ') + chalk.white('helixmind login') + chalk.dim(' anytime to unlock Jarvis AGI.\n\n'));
+  // Choice 2: Open Source
+  w('\n');
+  w(d('  ') + p('▸') + d(' Open Source mode — full agent, no limits.\n'));
+  w(d('  Run ') + chalk.white('helixmind login') + d(' anytime to unlock Jarvis AGI + more.\n\n'));
 
   return store;
 }
@@ -87,13 +111,13 @@ function promptChoice(): Promise<string> {
       output: process.stdout,
     });
 
-    rl.question(chalk.dim('  Choose ') + chalk.white('[1/2]') + chalk.dim(': '), (answer) => {
+    rl.question(d('  ') + g('→') + ' Choose ' + chalk.white.bold('[1]') + d('/2') + d(': '), (answer) => {
       rl.close();
       const trimmed = answer.trim();
       if (trimmed === '2') {
         resolve('2');
       } else {
-        resolve('1'); // Default: login
+        resolve('1');
       }
     });
   });

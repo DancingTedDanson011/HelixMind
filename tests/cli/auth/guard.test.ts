@@ -1,7 +1,5 @@
 /**
  * Tests for auth guard — the login-or-open-source choice flow.
- * Note: Interactive readline tests cannot be unit-tested easily.
- * These tests verify the structural correctness of the guard module.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -25,24 +23,43 @@ describe('guard — choice UI structure', () => {
     expect(guardSource).toContain('[2] Open Source');
   });
 
-  it('describes Login option with Jarvis and Brain Management', () => {
-    expect(guardSource).toContain('Jarvis AGI');
-    expect(guardSource).toContain('Brain Management');
+  it('shows Login as the recommended option with star marker', () => {
+    expect(guardSource).toContain('★');
+    expect(guardSource).toContain('unlock everything');
   });
 
-  it('describes Open Source option with full agent features', () => {
-    expect(guardSource).toContain('Full AI agent');
+  it('lists all gated features for Login option', () => {
+    expect(guardSource).toContain('Jarvis AGI');
+    expect(guardSource).toContain('Validation Matrix');
+    expect(guardSource).toContain('Security Monitor');
+    expect(guardSource).toContain('Autonomous Mode');
+    expect(guardSource).toContain('3D Brain Management');
+    expect(guardSource).toContain('3 Brains');
+    expect(guardSource).toContain('Live Brain WebSocket');
+  });
+
+  it('emphasizes free and no credit card', () => {
+    expect(guardSource).toContain('No credit card');
+    expect(guardSource).toContain('Free forever');
+    expect(guardSource).toContain('works offline');
+  });
+
+  it('shows Open Source limitations with red X markers', () => {
+    expect(guardSource).toContain('No Jarvis');
+    expect(guardSource).toContain('No Validation');
+    expect(guardSource).toContain('No Monitor');
+    expect(guardSource).toContain('No Brain Management');
+    expect(guardSource).toContain('No Security Audit');
+  });
+
+  it('shows Open Source included features', () => {
     expect(guardSource).toContain('22 Tools');
     expect(guardSource).toContain('Spiral Memory');
-    expect(guardSource).toContain('No account needed');
+    expect(guardSource).toContain('Anthropic/OpenAI/Ollama');
   });
 
-  it('shows a [1/2] choice prompt', () => {
-    expect(guardSource).toContain('[1/2]');
-  });
-
-  it('defaults to login (option 1) on empty input', () => {
-    // promptChoice resolves '1' unless input is explicitly '2'
+  it('shows choice prompt defaulting to option 1', () => {
+    expect(guardSource).toContain('[1]');
     expect(guardSource).toContain("resolve('1')");
   });
 });
