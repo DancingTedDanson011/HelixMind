@@ -24,17 +24,29 @@ export interface JarvisDaemonCallbacks {
   getIdentityPrompt?: () => string;
   getEthicsPrompt?: () => string;
   getProposalsSummary?: () => string;
+  getIdentityName?: () => string;
+  getUserGoals?: () => string[];
   /** Thinking loop callbacks — when provided, enables AGI thinking between tasks */
   thinkingCallbacks?: Partial<ThinkingCallbacks>;
 }
 
-function buildTaskPrompt(task: JarvisTask, identityPrompt?: string, ethicsPrompt?: string): string {
+function buildTaskPrompt(
+  task: JarvisTask,
+  identityPrompt?: string,
+  ethicsPrompt?: string,
+  identityName?: string,
+  userGoals?: string[],
+): string {
+  const name = identityName || 'JARVIS';
   const sections = [
-    `You are JARVIS — HelixMind's autonomous AGI task executor.`,
+    `You are ${name} — HelixMind's autonomous AGI task executor.`,
   ];
 
   if (identityPrompt) sections.push(identityPrompt);
   if (ethicsPrompt) sections.push(ethicsPrompt);
+  if (userGoals && userGoals.length > 0) {
+    sections.push(`User Goals:\n${userGoals.map(g => `- ${g}`).join('\n')}`);
+  }
 
   sections.push(`TASK #${task.id}: ${task.title}
 ${task.description}
@@ -49,8 +61,9 @@ RULES:
   return sections.join('\n\n');
 }
 
-function buildRetryPrompt(task: JarvisTask): string {
-  return `You are JARVIS. Retrying TASK #${task.id}: ${task.title}
+function buildRetryPrompt(task: JarvisTask, identityName?: string): string {
+  const name = identityName || 'JARVIS';
+  return `You are ${name}. Retrying TASK #${task.id}: ${task.title}
 
 Previous attempt failed with: ${task.error || 'unknown error'}
 
@@ -93,9 +106,13 @@ export async function runJarvisDaemon(
   const j = chalk.hex('#ff00ff');
   const g = chalk.hex('#FFB800');
 
+  const identityName = callbacks.getIdentityName?.() || 'JARVIS';
+  const displayName = identityName.toUpperCase() + ' AGI';
+  const namePad = Math.max(0, 34 - displayName.length);
+
   process.stdout.write('\n');
   process.stdout.write(d('\u256D\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E') + '\n');
-  process.stdout.write(d('\u2502  ') + g('\u{1F31F}') + ' ' + j('JARVIS AGI') + d('                            \u2502') + '\n');
+  process.stdout.write(d('\u2502  ') + g('\u{1F31F}') + ' ' + j(displayName) + d(' '.repeat(namePad) + '\u2502') + '\n');
   process.stdout.write(d('\u2502') + d('                                             \u2502') + '\n');
   process.stdout.write(d('\u2502  ') + 'Autonomous agent — thinking, learning,' + d('     \u2502') + '\n');
   process.stdout.write(d('\u2502  ') + 'proposing, executing tasks' + d('                 \u2502') + '\n');
@@ -166,9 +183,11 @@ export async function runJarvisDaemon(
 
       const identityPrompt = callbacks.getIdentityPrompt?.();
       const ethicsPrompt = callbacks.getEthicsPrompt?.();
+      const iName = callbacks.getIdentityName?.();
+      const uGoals = callbacks.getUserGoals?.();
       const prompt = task.retries > 0
-        ? buildRetryPrompt(task)
-        : buildTaskPrompt(task, identityPrompt, ethicsPrompt);
+        ? buildRetryPrompt(task, iName)
+        : buildTaskPrompt(task, identityPrompt, ethicsPrompt, iName, uGoals);
 
       const resultText = await callbacks.sendMessage(prompt);
 

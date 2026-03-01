@@ -42,6 +42,8 @@ export interface JarvisStatusInfo {
   autonomyLevel?: AutonomyLevel;
   thinkingPhase?: ThinkingPhase;
   activeWorkers?: number;
+  scope?: 'local' | 'global';
+  jarvisName?: string;
 }
 
 // ─── Autonomy ─────────────────────────────────────────────────────────
@@ -197,6 +199,8 @@ export interface JarvisIdentity {
   recentLearnings: { content: string; timestamp: number; source: string }[];
   strengths: string[];
   weaknesses: string[];
+  userGoals: string[];
+  customized: boolean;
   createdAt: number;
   lastEvolvedAt: number;
 }

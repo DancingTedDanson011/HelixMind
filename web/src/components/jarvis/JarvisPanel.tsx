@@ -97,6 +97,8 @@ export function JarvisPanel({
   const isPaused = status?.daemonState === 'paused';
   const thinkingPhase = status?.thinkingPhase ?? 'idle';
   const phaseBadge = PHASE_BADGE[thinkingPhase] ?? PHASE_BADGE.idle;
+  const jarvisName = status?.jarvisName || 'Jarvis';
+  const jarvisScope = status?.scope;
 
   const pendingProposals = proposals.filter(p => p.status === 'pending');
   const runningTasks = tasks.filter(t => t.status === 'running');
@@ -133,10 +135,20 @@ export function JarvisPanel({
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-gray-200">
-                      Jarvis: <span className={isRunning ? 'text-fuchsia-400' : 'text-gray-400'}>
+                      {jarvisName}: <span className={isRunning ? 'text-fuchsia-400' : 'text-gray-400'}>
                         {isRunning ? t('jarvisRunning') : t('jarvisPaused')}
                       </span>
                     </p>
+                    {/* Scope badge */}
+                    {jarvisScope && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                        jarvisScope === 'local'
+                          ? 'text-emerald-400 bg-emerald-500/10'
+                          : 'text-blue-400 bg-blue-500/10'
+                      }`}>
+                        {jarvisScope === 'local' ? t('jarvisLocal') : t('jarvisGlobal')}
+                      </span>
+                    )}
                     {/* Thinking phase badge */}
                     {isRunning && (
                       <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${phaseBadge.color}`}>

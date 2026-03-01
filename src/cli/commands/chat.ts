@@ -46,6 +46,8 @@ import { BugJournal } from '../bugs/journal.js';
 import { detectBugReport } from '../bugs/detector.js';
 import { JarvisQueue } from '../jarvis/queue.js';
 import { runJarvisDaemon } from '../jarvis/daemon.js';
+import { JarvisIdentityManager } from '../jarvis/identity.js';
+import { runOnboarding, showReturningGreeting } from '../jarvis/onboarding.js';
 import { BrowserController } from '../browser/controller.js';
 import { VisionProcessor } from '../browser/vision.js';
 import { classifyTask } from '../validation/classifier.js';
@@ -124,6 +126,9 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/jarvis pause', label: '/jarvis pause', description: 'Pause daemon' },
       { cmd: '/jarvis resume', label: '/jarvis resume', description: 'Resume daemon' },
       { cmd: '/jarvis clear', label: '/jarvis clear', description: 'Clear completed tasks' },
+      { cmd: '/jarvis local', label: '/jarvis local', description: 'Switch to project-local Jarvis' },
+      { cmd: '/jarvis global', label: '/jarvis global', description: 'Switch to global Jarvis' },
+      { cmd: '/jarvis name', label: '/jarvis name "..."', description: 'Set Jarvis name' },
     ],
   },
   {
@@ -330,10 +335,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Bug journal (persistent bug tracking)
   const bugJournal = new BugJournal(process.cwd());
 
-  // Jarvis task queue (persistent task orchestration)
-  const jarvisQueue = new JarvisQueue(process.cwd());
+  // Jarvis task queue — scope-aware init happens below after brainScope detection
+  let jarvisQueue: JarvisQueue;
+  let jarvisIdentity: JarvisIdentityManager;
+  let jarvisScope: BrainScope;
   let jarvisDaemonSession: import('../sessions/session.js').Session | null = null;
   let jarvisPaused = false;
+  const resolveJarvisRoot = (scope: BrainScope) =>
+    scope === 'project' ? process.cwd() : join(homedir(), '.spiral-context');
 
   // Browser controller (lazy — instantiated on /browser or agent tool use)
   let browserController: BrowserController | undefined;
@@ -447,6 +456,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       }
     }
   }
+  // Jarvis scope follows brain scope — init after brainScope detection
+  jarvisScope = brainScope;
+  jarvisQueue = new JarvisQueue(resolveJarvisRoot(jarvisScope));
+  jarvisIdentity = new JarvisIdentityManager(resolveJarvisRoot(jarvisScope));
+
   let spiralEngine: any = null;
 
   async function initSpiralEngine(scope: BrainScope): Promise<any> {
@@ -855,7 +869,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
         startJarvis: () => {
           if (jarvisDaemonSession && jarvisDaemonSession.status === 'running') return jarvisDaemonSession.id;
-          const bgSession = sessionMgr.create('\u{1F916} Jarvis', '\u{1F916}', agentHistory);
+          const jName = jarvisIdentity.getIdentity().name;
+          const bgSession = sessionMgr.create(`\u{1F916} ${jName}`, '\u{1F916}', agentHistory);
           bgSession.start();
           wireSessionOutput(bgSession);
           pushSessionCreated(serializeSession(bgSession));
@@ -890,11 +905,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 storeInSpiral: spiralEngine ? async (content, type, tags) => {
                   try { await spiralEngine!.add(content, { type: type as any, tags }); } catch {}
                 } : undefined,
+                getIdentityName: () => jarvisIdentity.getIdentity().name,
+                getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
+                getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(),
               });
             } catch (err) {
-              if (!(err instanceof AgentAbortError)) bgSession.capture(`Jarvis error: ${err}`);
+              if (!(err instanceof AgentAbortError)) bgSession.capture(`${jName} error: ${err}`);
             }
-            sessionMgr.complete(bgSession.id, { text: 'Jarvis stopped', steps: [], errors: bgSession.controller.isAborted ? ['Stopped'] : [], durationMs: bgSession.elapsed });
+            sessionMgr.complete(bgSession.id, { text: `${jName} stopped`, steps: [], errors: bgSession.controller.isAborted ? ['Stopped'] : [], durationMs: bgSession.elapsed });
             pushSessionUpdate(serializeSession(bgSession));
             jarvisDaemonSession = null;
           })();
@@ -931,7 +949,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
         listJarvisTasks: () => jarvisQueue.getAllTasks().map(serializeJarvisTask),
 
-        getJarvisStatus: () => jarvisQueue.getStatus(),
+        getJarvisStatus: () => ({
+          ...jarvisQueue.getStatus(),
+          scope: jarvisScope === 'project' ? 'local' : 'global',
+          jarvisName: jarvisIdentity.getIdentity().name,
+        }),
 
         clearJarvisCompleted: () => jarvisQueue.clearCompleted(),
 
@@ -2072,16 +2094,24 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         bugJournal,
         {
           queue: jarvisQueue,
+          identity: jarvisIdentity,
+          getScope: () => jarvisScope,
+          setScope: (scope: 'project' | 'global') => {
+            jarvisScope = scope;
+            jarvisQueue = new JarvisQueue(resolveJarvisRoot(scope));
+            jarvisIdentity = new JarvisIdentityManager(resolveJarvisRoot(scope));
+          },
           getSession: () => jarvisDaemonSession,
           setSession: (s) => { jarvisDaemonSession = s; },
           isPaused: () => jarvisPaused,
           setPaused: (v) => { jarvisPaused = v; },
           startDaemon: () => {
-            const bgSession = sessionMgr.create('\u{1F916} Jarvis', '\u{1F916}', agentHistory);
+            const jName = jarvisIdentity.getIdentity().name;
+            const bgSession = sessionMgr.create(`\u{1F916} ${jName}`, '\u{1F916}', agentHistory);
             bgSession.start();
             jarvisDaemonSession = bgSession;
             jarvisPaused = false;
-            renderInfo(chalk.hex('#ff00ff').bold('\u{1F916} Jarvis daemon started'));
+            renderInfo(chalk.hex('#ff00ff').bold(`\u{1F916} ${jName} daemon started`));
             renderInfo(chalk.dim('Add tasks with /jarvis task "description"'));
 
             (async () => {
@@ -2107,27 +2137,30 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   isPaused: () => jarvisPaused,
                   onTaskStart: (task) => {
                     bgSession.capture(`\u25B6 Task #${task.id}: ${task.title}`);
-                    renderInfo(chalk.hex('#ff00ff')(`\u25B6 Jarvis: Starting task #${task.id} \u2014 ${task.title}`));
+                    renderInfo(chalk.hex('#ff00ff')(`\u25B6 ${jName}: Starting task #${task.id} \u2014 ${task.title}`));
                   },
                   onTaskComplete: (task, result) => {
                     bgSession.capture(`\u2713 Task #${task.id} done: ${result.slice(0, 100)}`);
-                    renderInfo(chalk.hex('#ff00ff')(`\u2713 Jarvis: Task #${task.id} completed`));
+                    renderInfo(chalk.hex('#ff00ff')(`\u2713 ${jName}: Task #${task.id} completed`));
                   },
                   onTaskFailed: (task, error) => {
                     bgSession.capture(`\u2717 Task #${task.id} failed: ${error.slice(0, 100)}`);
-                    renderInfo(chalk.hex('#ff00ff')(`\u2717 Jarvis: Task #${task.id} failed \u2014 ${error.slice(0, 60)}`));
+                    renderInfo(chalk.hex('#ff00ff')(`\u2717 ${jName}: Task #${task.id} failed \u2014 ${error.slice(0, 60)}`));
                   },
                   updateStatus: () => updateStatusBar(),
                   storeInSpiral: spiralEngine ? async (content, type, tags) => {
                     try { await spiralEngine!.add(content, { type: type as any, tags }); } catch {}
                   } : undefined,
+                  getIdentityName: () => jarvisIdentity.getIdentity().name,
+                  getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
+                  getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(),
                 });
               } catch (err) {
-                if (!(err instanceof AgentAbortError)) bgSession.capture(`Jarvis error: ${err}`);
+                if (!(err instanceof AgentAbortError)) bgSession.capture(`${jName} error: ${err}`);
               }
-              sessionMgr.complete(bgSession.id, { text: 'Jarvis stopped', steps: [], errors: bgSession.controller.isAborted ? ['Stopped'] : [], durationMs: bgSession.elapsed });
+              sessionMgr.complete(bgSession.id, { text: `${jName} stopped`, steps: [], errors: bgSession.controller.isAborted ? ['Stopped'] : [], durationMs: bgSession.elapsed });
               jarvisDaemonSession = null;
-              renderInfo(chalk.hex('#ff00ff')('\u{1F916} Jarvis daemon stopped'));
+              renderInfo(chalk.hex('#ff00ff')(`\u{1F916} ${jName} daemon stopped`));
             })();
           },
         },
@@ -2848,10 +2881,22 @@ async function handleSlashCommand(
     isPaused: () => boolean;
     setPaused: (v: boolean) => void;
     startDaemon: () => void;
+    identity: JarvisIdentityManager;
+    getScope: () => 'project' | 'global';
+    setScope: (scope: 'project' | 'global') => void;
   },
 ): Promise<string | void> {
   const parts = input.split(/\s+/);
-  const cmd = parts[0].toLowerCase();
+  let cmd = parts[0].toLowerCase();
+
+  // Allow custom Jarvis name as alias for /jarvis (e.g. /atlas → /jarvis)
+  if (jarvisCtx && cmd.startsWith('/') && cmd !== '/jarvis') {
+    const customName = jarvisCtx.identity.getIdentity().name.toLowerCase();
+    if (cmd === `/${customName}`) {
+      cmd = '/jarvis';
+      parts[0] = '/jarvis';
+    }
+  }
 
   switch (cmd) {
     case '/help': {
@@ -3458,20 +3503,28 @@ async function handleSlashCommand(
       if (!jarvisCtx) { renderInfo('Jarvis not available.'); break; }
       const sub = parts[1]?.toLowerCase();
       const jq = jarvisCtx.queue;
+      const jn = jarvisCtx.identity.getIdentity().name; // dynamic name
 
       if (!sub || sub === 'start') {
         const existing = jarvisCtx.getSession();
         if (existing && existing.status === 'running') {
-          renderInfo(chalk.hex('#ff00ff')('Jarvis is already running.'));
+          renderInfo(chalk.hex('#ff00ff')(`${jn} is already running.`));
           const sl = jq.getStatusLine();
           if (sl) renderInfo(sl);
           break;
+        }
+        // Onboarding: first run → interactive setup; returning → short greeting
+        const identity = jarvisCtx.identity.getIdentity();
+        if (!identity.customized) {
+          await runOnboarding(jarvisCtx.identity, rl);
+        } else {
+          showReturningGreeting(identity);
         }
         jarvisCtx.startDaemon();
 
       } else if (sub === 'task') {
         const taskText = input.replace(/^\/jarvis\s+task\s*/i, '').trim();
-        if (!taskText) { renderInfo('Usage: /jarvis task "Do something"'); break; }
+        if (!taskText) { renderInfo(`Usage: /jarvis task "Do something"`); break; }
         let title = taskText;
         let description = '';
         const quoteMatch = taskText.match(/^["'](.+?)["']\s*(.*)/s);
@@ -3491,7 +3544,7 @@ async function handleSlashCommand(
 
       } else if (sub === 'tasks') {
         const tasks = jq.getAllTasks();
-        if (tasks.length === 0) { renderInfo('No tasks in queue. Add with /jarvis task "..."'); break; }
+        if (tasks.length === 0) { renderInfo(`No tasks in queue. Add with /jarvis task "..."`); break; }
         const statusIcons: Record<string, string> = {
           pending: chalk.yellow('\u25CB'), running: chalk.hex('#ff00ff')('\u25CF'),
           completed: chalk.green('\u2713'), failed: chalk.red('\u2717'), paused: chalk.dim('\u25CB'),
@@ -3528,7 +3581,7 @@ async function handleSlashCommand(
         } else {
           const status = jq.getStatus();
           process.stdout.write('\n');
-          process.stdout.write(chalk.hex('#ff00ff').bold('  \u{1F916} Jarvis Status\n'));
+          process.stdout.write(chalk.hex('#ff00ff').bold(`  \u{1F916} ${jn} Status\n`));
           process.stdout.write(`  Daemon: ${status.daemonState}`);
           if (status.currentTaskId) process.stdout.write(` (task #${status.currentTaskId})`);
           process.stdout.write('\n');
@@ -3539,35 +3592,62 @@ async function handleSlashCommand(
 
       } else if (sub === 'stop') {
         const s = jarvisCtx.getSession();
-        if (!s) { renderInfo('Jarvis is not running.'); break; }
+        if (!s) { renderInfo(`${jn} is not running.`); break; }
         s.abort();
         jarvisCtx.setSession(null);
-        renderInfo(chalk.hex('#ff00ff')('\u{1F916} Jarvis daemon stopped'));
+        renderInfo(chalk.hex('#ff00ff')(`\u{1F916} ${jn} daemon stopped`));
 
       } else if (sub === 'pause') {
         if (!jarvisCtx.getSession() || jarvisCtx.isPaused()) {
-          renderInfo(jarvisCtx.isPaused() ? 'Jarvis is already paused.' : 'Jarvis is not running.');
+          renderInfo(jarvisCtx.isPaused() ? `${jn} is already paused.` : `${jn} is not running.`);
           break;
         }
         jarvisCtx.setPaused(true);
         jq.setDaemonState('paused');
-        renderInfo(chalk.hex('#ff00ff')('\u23F8 Jarvis paused'));
+        renderInfo(chalk.hex('#ff00ff')(`\u23F8 ${jn} paused`));
 
       } else if (sub === 'resume') {
         if (!jarvisCtx.getSession() || !jarvisCtx.isPaused()) {
-          renderInfo(!jarvisCtx.isPaused() ? 'Jarvis is not paused.' : 'Jarvis is not running.');
+          renderInfo(!jarvisCtx.isPaused() ? `${jn} is not paused.` : `${jn} is not running.`);
           break;
         }
         jarvisCtx.setPaused(false);
         jq.setDaemonState('running');
-        renderInfo(chalk.hex('#ff00ff')('\u25B6 Jarvis resumed'));
+        renderInfo(chalk.hex('#ff00ff')(`\u25B6 ${jn} resumed`));
 
       } else if (sub === 'clear') {
         const removed = jq.clearCompleted();
         renderInfo(`Cleared ${removed} completed task(s).`);
 
+      } else if (sub === 'local') {
+        if (jarvisCtx.getSession()?.status === 'running') {
+          renderInfo(chalk.yellow(`Stop ${jn} first (/jarvis stop) before switching scope.`));
+          break;
+        }
+        jarvisCtx.setScope('project');
+        renderInfo(chalk.hex('#ff00ff')(`${jn} scope: local (.helixmind/jarvis/)`));
+
+      } else if (sub === 'global') {
+        if (jarvisCtx.getSession()?.status === 'running') {
+          renderInfo(chalk.yellow(`Stop ${jn} first (/jarvis stop) before switching scope.`));
+          break;
+        }
+        jarvisCtx.setScope('global');
+        renderInfo(chalk.hex('#ff00ff')(`${jn} scope: global (~/.spiral-context/jarvis/)`));
+
+      } else if (sub === 'name') {
+        const newName = input.replace(/^\/jarvis\s+name\s*/i, '').trim();
+        if (!newName) {
+          renderInfo(`Current name: ${jn}`);
+          renderInfo(chalk.dim('Usage: /jarvis name "NewName"'));
+          break;
+        }
+        const cleaned = newName.replace(/^["']|["']$/g, '');
+        jarvisCtx.identity.setName(cleaned);
+        renderInfo(chalk.hex('#ff00ff')(`Name set: ${chalk.bold(cleaned)}`));
+
       } else {
-        renderInfo('Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear]');
+        renderInfo(`Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear|local|global|name]`);
       }
       break;
     }

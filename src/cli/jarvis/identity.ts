@@ -37,6 +37,8 @@ const DEFAULT_IDENTITY: JarvisIdentity = {
   recentLearnings: [],
   strengths: [],
   weaknesses: [],
+  userGoals: [],
+  customized: false,
   createdAt: Date.now(),
   lastEvolvedAt: Date.now(),
 };
@@ -85,10 +87,44 @@ export class JarvisIdentityManager {
   }
 
   /**
+   * Check if this is the first run (no identity file exists yet).
+   */
+  isFirstRun(): boolean {
+    return !existsSync(this.filePath);
+  }
+
+  /**
    * Get the current identity (readonly copy).
    */
   getIdentity(): JarvisIdentity {
     return { ...this.identity };
+  }
+
+  /**
+   * Set a custom name for the AGI.
+   */
+  setName(name: string): void {
+    this.identity.name = name;
+    this.save();
+    this.onChange?.(this.identity);
+  }
+
+  /**
+   * Set user goals for this project.
+   */
+  setUserGoals(goals: string[]): void {
+    this.identity.userGoals = goals;
+    this.save();
+    this.onChange?.(this.identity);
+  }
+
+  /**
+   * Mark identity as customized (onboarding completed).
+   */
+  setCustomized(): void {
+    this.identity.customized = true;
+    this.save();
+    this.onChange?.(this.identity);
   }
 
   /**
@@ -189,7 +225,12 @@ export class JarvisIdentityManager {
       .map(l => `  - [${l.source}] ${l.content}`)
       .join('\n');
 
-    return `## Jarvis Identity
+    const name = this.identity.name;
+    const goalsSection = this.identity.userGoals.length > 0
+      ? `\nUser Goals:\n${this.identity.userGoals.map(g => `  - ${g}`).join('\n')}\n`
+      : '';
+
+    return `## ${name} Identity
 
 Autonomy Level: L${autonomyLevel} (${trust.approvalRate > 0 ? (trust.approvalRate * 100).toFixed(0) + '% approval' : 'new'})
 Proposals: ${trust.totalProposals} total (${trust.totalApproved} approved, ${trust.totalDenied} denied)
@@ -200,11 +241,11 @@ ${traitLines}
 
 ${strengths.length > 0 ? 'Strengths: ' + strengths.join(', ') : ''}
 ${weaknesses.length > 0 ? 'Areas to improve: ' + weaknesses.join(', ') : ''}
-
+${goalsSection}
 Recent Learnings:
 ${learningLines || '  (none yet)'}
 
-Remember: You are Jarvis. Be helpful, proactive within your autonomy level, and transparent.
+Remember: You are ${name}. Be helpful, proactive within your autonomy level, and transparent.
 Denial is feedback — use it to make better proposals.`;
   }
 

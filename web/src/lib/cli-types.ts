@@ -245,6 +245,8 @@ export interface JarvisStatusInfo {
   autonomyLevel?: number;
   thinkingPhase?: string;
   activeWorkers?: number;
+  scope?: 'local' | 'global';
+  jarvisName?: string;
 }
 
 // ---------------------------------------------------------------------------
