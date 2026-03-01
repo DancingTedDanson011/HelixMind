@@ -99,21 +99,21 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // ═══════════════════════════════════════════════════════════════
 
 const COLORS = {
-  1: '#00ffff', 2: '#00ff88', 3: '#ffaa33',
-  4: '#2255dd', 5: '#9b59b6', 6: '#f1c40f',
+  1: '#00ffff', 2: '#00ff88', 3: '#4169e1',
+  4: '#8a2be2', 5: '#6c757d', 6: '#ffaa00',
 };
 const LEVEL_NAMES = {
-  1: 'Instant', 2: 'Focus', 3: 'Context',
-  4: 'Knowledge', 5: 'Wisdom', 6: 'Web',
+  1: 'Focus', 2: 'Active', 3: 'Reference',
+  4: 'Archive', 5: 'Deep Archive', 6: 'Web Knowledge',
 };
-// 6 clearly separated horizontal layers — like floors of a building
+// Inverted funnel: L5 (wisdom) small at TOP, L6 (web) large at BOTTOM
 const SPATIAL = {
-  5: { iR: 40,  oR: 160, yBase: 500,  yS: 30,  size: 48, pulse: 0.3 },
-  4: { iR: 60,  oR: 220, yBase: 300,  yS: 35,  size: 40, pulse: 0.5 },
-  3: { iR: 80,  oR: 280, yBase: 100,  yS: 40,  size: 34, pulse: 0.8 },
-  2: { iR: 100, oR: 340, yBase: -100, yS: 40,  size: 28, pulse: 1.2 },
-  1: { iR: 120, oR: 400, yBase: -300, yS: 45,  size: 22, pulse: 2.0 },
-  6: { iR: 140, oR: 460, yBase: -500, yS: 45,  size: 30, pulse: 0.6 },
+  5: { iR: 10,  oR: 60,   yBase: 550,  yS: 35,  size: 52, pulse: 0.3 },
+  4: { iR: 20,  oR: 120,  yBase: 380,  yS: 40,  size: 42, pulse: 0.5 },
+  3: { iR: 40,  oR: 200,  yBase: 210,  yS: 50,  size: 36, pulse: 0.8 },
+  2: { iR: 60,  oR: 300,  yBase: 30,   yS: 55,  size: 28, pulse: 1.2 },
+  1: { iR: 80,  oR: 420,  yBase: -170, yS: 65,  size: 22, pulse: 2.0 },
+  6: { iR: 100, oR: 550,  yBase: -400, yS: 75,  size: 30, pulse: 0.6 },
 };
 
 function srand(s){const x=Math.sin(s*9301+49297)*49297;return x-Math.floor(x)}
@@ -257,7 +257,7 @@ scene.background = new THREE.Color('#030308');
 scene.fog = new THREE.FogExp2('#030308',0.00025);
 
 const camera = new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,1,12000);
-camera.position.set(600,400,900);
+camera.position.set(500,500,800);
 
 const controls = new OrbitControls(camera,renderer.domElement);
 controls.target.set(0,0,0);
@@ -519,7 +519,7 @@ renderer.domElement.addEventListener('click',()=>{
       detail.classList.remove('visible');
       camTween={
         startPos:camera.position.clone(),startLookAt:controls.target.clone(),
-        targetPos:new THREE.Vector3(600,400,900),targetLookAt:new THREE.Vector3(0,0,0),
+        targetPos:new THREE.Vector3(500,500,800),targetLookAt:new THREE.Vector3(0,0,0),
         progress:0
       };
       controls.autoRotate=true;
@@ -542,7 +542,7 @@ renderer.domElement.addEventListener('click',()=>{
     detail.classList.remove('visible');
     camTween={
       startPos:camera.position.clone(),startLookAt:controls.target.clone(),
-      targetPos:new THREE.Vector3(600,400,900),targetLookAt:new THREE.Vector3(0,0,0),
+      targetPos:new THREE.Vector3(500,500,800),targetLookAt:new THREE.Vector3(0,0,0),
       progress:0
     };
     controls.autoRotate=true;
@@ -692,7 +692,7 @@ document.addEventListener('keydown',(e)=>{
     controls.autoRotate=true;updateHighlights();
     camTween={
       startPos:camera.position.clone(),startLookAt:controls.target.clone(),
-      targetPos:new THREE.Vector3(600,400,900),targetLookAt:new THREE.Vector3(0,0,0),
+      targetPos:new THREE.Vector3(500,500,800),targetLookAt:new THREE.Vector3(0,0,0),
       progress:0
     };
   }

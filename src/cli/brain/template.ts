@@ -429,12 +429,12 @@ canvas { display: block; }
 <div id="controls">
   <div class="control-group">
     <label>Levels</label>
-    <span class="toggle-btn active" data-level="1">L1 Focus</span>
-    <span class="toggle-btn active" data-level="2">L2 Active</span>
-    <span class="toggle-btn active" data-level="3">L3 Ref</span>
-    <span class="toggle-btn active" data-level="4">L4 Arch</span>
-    <span class="toggle-btn active" data-level="5">L5 Deep</span>
-    <span class="toggle-btn active" data-level="6" style="border-color:rgba(255,170,0,0.4);color:#ffaa00">L6 Web</span>
+    <span class="toggle-btn active" data-level="5" style="border-color:rgba(108,117,125,0.5);color:#6c757d"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#6c757d;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #6c757d"></span>L5 Deep</span>
+    <span class="toggle-btn active" data-level="4" style="border-color:rgba(138,43,226,0.5);color:#8a2be2"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#8a2be2;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #8a2be2"></span>L4 Archive</span>
+    <span class="toggle-btn active" data-level="3" style="border-color:rgba(65,105,225,0.5);color:#4169e1"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#4169e1;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #4169e1"></span>L3 Ref</span>
+    <span class="toggle-btn active" data-level="2" style="border-color:rgba(0,255,136,0.5);color:#00ff88"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00ff88;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #00ff88"></span>L2 Active</span>
+    <span class="toggle-btn active" data-level="1" style="border-color:rgba(0,255,255,0.5);color:#00ffff"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00ffff;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #00ffff"></span>L1 Focus</span>
+    <span class="toggle-btn active" data-level="6" style="border-color:rgba(255,170,0,0.5);color:#ffaa00"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ffaa00;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px #ffaa00"></span>L6 Web</span>
   </div>
   <div class="control-group">
     <label>Relations</label>
@@ -591,15 +591,15 @@ const EDGE_COLORS = {
   belongs_to: '#ff6600', part_of: '#ff6600', supersedes: '#ff4444',
   default: '#334466',
 };
-// 6 clearly separated horizontal layers — like floors of a building
-// yBase has LARGE gaps (200 units), yS is SMALL (tight layer thickness)
+// Inverted funnel: L5 (wisdom) small at TOP, L6 (web) large at BOTTOM
+// Each layer gets progressively wider as we go down — like the OG brain
 const SPATIAL = {
-  5: { iR: 40,  oR: 160, yBase: 500,  yS: 30,  size: 48, pulse: 0.3 },
-  4: { iR: 60,  oR: 220, yBase: 300,  yS: 35,  size: 40, pulse: 0.5 },
-  3: { iR: 80,  oR: 280, yBase: 100,  yS: 40,  size: 34, pulse: 0.8 },
-  2: { iR: 100, oR: 340, yBase: -100, yS: 40,  size: 28, pulse: 1.2 },
-  1: { iR: 120, oR: 400, yBase: -300, yS: 45,  size: 22, pulse: 2.0 },
-  6: { iR: 140, oR: 460, yBase: -500, yS: 45,  size: 30, pulse: 0.6 },
+  5: { iR: 10,  oR: 60,   yBase: 550,  yS: 35,  size: 52, pulse: 0.3 },
+  4: { iR: 20,  oR: 120,  yBase: 380,  yS: 40,  size: 42, pulse: 0.5 },
+  3: { iR: 40,  oR: 200,  yBase: 210,  yS: 50,  size: 36, pulse: 0.8 },
+  2: { iR: 60,  oR: 300,  yBase: 30,   yS: 55,  size: 28, pulse: 1.2 },
+  1: { iR: 80,  oR: 420,  yBase: -170, yS: 65,  size: 22, pulse: 2.0 },
+  6: { iR: 100, oR: 550,  yBase: -400, yS: 75,  size: 30, pulse: 0.6 },
 };
 const MAX_RENDERED_EDGES = 8000; // cap for performance + clarity
 
@@ -617,7 +617,7 @@ scene.background = new THREE.Color('#030308');
 scene.fog = new THREE.FogExp2('#030308', 0.00025);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 12000);
-camera.position.set(600, 400, 900);
+camera.position.set(500, 500, 800);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0, 0);
