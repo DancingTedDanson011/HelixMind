@@ -142,10 +142,16 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const isAgentRunning = brainstormChat.state.isProcessing || cliExecuting;
   const streamingContent = brainstormChat.state.streamingText || (cliExecuting ? cliChat.state.streamingText : '');
 
-  // Console output — always call hook (React rules), subscribe only on console tab
+  // CLI output — subscribe to console OR jarvis session depending on active tab
+  const jNameEarly = connection.jarvisStatus?.jarvisName;
+  const jRunEarly = connection.jarvisStatus?.daemonState === 'running';
+  const jarvisSessionIdForOutput = activeTab === 'jarvis'
+    ? (connection.sessions.find(s => s.id !== 'main' && getSessionTab(s.name, jNameEarly, jRunEarly) === 'jarvis')?.id ?? null)
+    : null;
   const cliOutput = useCliOutput({
     connection,
-    sessionId: activeTab === 'console' ? consoleSessionId : null,
+    sessionId: activeTab === 'console' ? consoleSessionId
+      : jarvisSessionIdForOutput,
   });
 
   // ── Fetch chats ─────────────────────────────
@@ -1419,31 +1425,38 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           </div>
         ) : activeTab === 'jarvis' ? (
           /* ─── Jarvis Tab ─── */
-          <div className="flex-1 overflow-hidden">
-            <JarvisPanel
-              tasks={connection.jarvisTasks}
-              status={connection.jarvisStatus}
-              onStartJarvis={() => connection.startJarvis().catch(() => {})}
-              onStopJarvis={() => connection.stopJarvis().catch(() => {})}
-              onPauseJarvis={() => connection.pauseJarvis().catch(() => {})}
-              onResumeJarvis={() => connection.resumeJarvis().catch(() => {})}
-              onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
-              onClearCompleted={() => {
-                connection.sendRequest('clear_jarvis_completed').catch(() => {});
-                connection.listJarvisTasks().catch(() => {});
-              }}
-              isConnected={isConnected}
-              proposals={connection.proposals}
-              identity={connection.identity}
-              autonomyLevel={connection.autonomyLevel}
-              workers={connection.workers}
-              thinkingUpdates={connection.thinkingUpdates}
-              consciousnessEvents={connection.consciousnessEvents}
-              onApproveProposal={(id) => connection.approveProposal(id).catch(() => {})}
-              onDenyProposal={(id, reason) => connection.denyProposal(id, reason).catch(() => {})}
-              onSetAutonomy={(level) => connection.setAutonomyLevel(level).catch(() => {})}
-              onTriggerDeepThink={() => connection.triggerDeepThink().catch(() => {})}
-            />
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className={jarvisSessionIdForOutput ? 'flex-shrink-0 max-h-[55%] overflow-y-auto' : 'flex-1 overflow-hidden'}>
+              <JarvisPanel
+                tasks={connection.jarvisTasks}
+                status={connection.jarvisStatus}
+                onStartJarvis={() => connection.startJarvis().catch(() => {})}
+                onStopJarvis={() => connection.stopJarvis().catch(() => {})}
+                onPauseJarvis={() => connection.pauseJarvis().catch(() => {})}
+                onResumeJarvis={() => connection.resumeJarvis().catch(() => {})}
+                onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
+                onClearCompleted={() => {
+                  connection.sendRequest('clear_jarvis_completed').catch(() => {});
+                  connection.listJarvisTasks().catch(() => {});
+                }}
+                isConnected={isConnected}
+                proposals={connection.proposals}
+                identity={connection.identity}
+                autonomyLevel={connection.autonomyLevel}
+                workers={connection.workers}
+                thinkingUpdates={connection.thinkingUpdates}
+                consciousnessEvents={connection.consciousnessEvents}
+                onApproveProposal={(id) => connection.approveProposal(id).catch(() => {})}
+                onDenyProposal={(id, reason) => connection.denyProposal(id, reason).catch(() => {})}
+                onSetAutonomy={(level) => connection.setAutonomyLevel(level).catch(() => {})}
+                onTriggerDeepThink={() => connection.triggerDeepThink().catch(() => {})}
+              />
+            </div>
+            {jarvisSessionIdForOutput && (
+              <div className="flex-1 min-h-0 border-t border-white/5">
+                <TerminalViewer lines={cliOutput.lines} fullHeight />
+              </div>
+            )}
           </div>
         ) : null}
 

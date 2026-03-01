@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Menu,
   X,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +79,15 @@ export const DOCS_NAVIGATION: DocCategory[] = [
       { slug: 'providers', title: 'Providers' },
       { slug: 'ollama-offline', title: 'Ollama & Offline Mode' },
       { slug: 'mcp-integration', title: 'MCP Integration' },
+    ],
+  },
+  {
+    label: 'Web App',
+    icon: <Globe size={16} />,
+    docs: [
+      { slug: 'console', title: 'Console' },
+      { slug: 'monitor', title: 'Monitor' },
+      { slug: 'jarvis', title: 'Jarvis' },
     ],
   },
   {

@@ -1,0 +1,78 @@
+---
+title: Monitor
+description: Echtzeit-Sicherheitsüberwachung mit passivem, defensivem und aktivem Schutzmodus.
+order: 51
+category: Web App
+---
+
+# Monitor
+
+Der **Monitor**-Tab bietet kontinuierliche Sicherheitsüberwachung für dein Projekt. Er beobachtet Bedrohungen, verdächtige Änderungen und potenzielle Schwachstellen in Echtzeit.
+
+## Drei Überwachungsmodi
+
+### Passiver Modus
+
+Beobachtet Dateiänderungen und Git-Aktivität ohne Maßnahmen zu ergreifen:
+
+- Überwacht verdächtige Dateiänderungen
+- Trackt Dependency-Änderungen
+- Protokolliert potenzielle Sicherheitsereignisse
+- Keine automatischen Reaktionen
+
+### Defensiver Modus
+
+Erkennt und meldet Bedrohungen aktiv mit vorgeschlagenen Reaktionen:
+
+- Scannt neue/geänderte Dateien auf Schwachstellen
+- Warnt bei Dependency-Änderungen mit bekannten CVEs
+- Schlägt Fixes für erkannte Probleme vor
+- Meldet Findings an die Brain-Visualisierung
+
+### Aktiver Modus
+
+Voller autonomer Schutz — erkennt und reagiert automatisch auf Bedrohungen:
+
+- Macht verdächtige Änderungen automatisch rückgängig
+- Blockiert gefährliche Befehle
+- Wendet Sicherheits-Patches an
+- Erstellt detaillierte Incident-Reports
+
+## Bedrohungserkennung
+
+Der Monitor identifiziert häufige Sicherheitsprobleme:
+
+- **Secrets-Exposure** — API-Keys, Tokens, Passwörter im Code
+- **Dependency-Risiken** — Bekannte Schwachstellen in Paketen
+- **Code-Injection** — SQL-Injection, XSS, Command-Injection-Muster
+- **Permission-Eskalation** — Unerlaubte Zugriffsmuster-Änderungen
+- **Supply-Chain** — Verdächtige Dependency-Ergänzungen
+
+## Bedrohungen anzeigen
+
+Aktive Bedrohungen erscheinen mit Schweregrad-Indikatoren:
+
+- **Kritisch** — Sofortige Aktion erforderlich
+- **Hoch** — Sollte zeitnah adressiert werden
+- **Mittel** — Bei Gelegenheit prüfen
+- **Niedrig** — Informativ
+
+## Schutzmaßnahmen
+
+Wenn der Monitor defensive Maßnahmen ergreift, zeigt jeder Eintrag:
+
+- Welche Aktion durchgeführt wurde
+- Die Zieldatei oder Ressource
+- Den Grund für die Aktion
+- Ob sie automatisch genehmigt wurde
+- Ob die Aktion umkehrbar ist
+
+## Monitor starten
+
+Nutze die Monitor-Tab-Steuerung oder die CLI:
+
+```bash
+/security monitor passive
+/security monitor defensive
+/security monitor active
+```

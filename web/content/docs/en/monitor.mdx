@@ -1,0 +1,78 @@
+---
+title: Monitor
+description: Real-time security monitoring with passive, defensive, and active protection modes.
+order: 51
+category: Web App
+---
+
+# Monitor
+
+The **Monitor** tab provides continuous security surveillance for your project. It watches for threats, suspicious changes, and potential vulnerabilities in real-time.
+
+## Three monitoring modes
+
+### Passive Mode
+
+Observes file changes and git activity without taking action. Ideal for awareness:
+
+- Watches for suspicious file modifications
+- Tracks dependency changes
+- Logs potential security events
+- No automatic responses
+
+### Defensive Mode
+
+Actively detects and reports threats with suggested responses:
+
+- Scans new/modified files for vulnerabilities
+- Alerts on dependency changes with known CVEs
+- Suggests fixes for detected issues
+- Reports findings to the Brain visualization
+
+### Active Mode
+
+Full autonomous protection — detects and auto-responds to threats:
+
+- Automatically reverts suspicious changes
+- Blocks dangerous commands
+- Applies security patches
+- Creates detailed incident reports
+
+## Threat detection
+
+The monitor identifies common security issues:
+
+- **Secrets exposure** — API keys, tokens, passwords in code
+- **Dependency risks** — Known vulnerabilities in packages
+- **Code injection** — SQL injection, XSS, command injection patterns
+- **Permission escalation** — Unauthorized access pattern changes
+- **Supply chain** — Suspicious dependency additions
+
+## Viewing threats
+
+Active threats appear with severity indicators:
+
+- **Critical** — Immediate action required
+- **High** — Should be addressed soon
+- **Medium** — Review when convenient
+- **Low** — Informational
+
+## Defense actions
+
+When the monitor takes defensive action, each entry shows:
+
+- What action was taken
+- The target file or resource
+- The reason for the action
+- Whether it was auto-approved
+- Whether the action is reversible
+
+## Starting the monitor
+
+Use the Monitor tab controls or the CLI:
+
+```bash
+/security monitor passive
+/security monitor defensive
+/security monitor active
+```

@@ -1,0 +1,80 @@
+---
+title: Jarvis
+description: AGI-artiger autonomer Assistent mit Task-Management, Proposals und Worker-Orchestrierung.
+order: 52
+category: Web App
+---
+
+# Jarvis
+
+Der **Jarvis**-Tab ist die Kommandozentrale für HelixMinds autonomen AGI-artigen Assistenten. Jarvis kann komplexe mehrstufige Aufgaben planen, ausführen und verwalten mit einer Worker-basierten Architektur.
+
+## Kernkonzepte
+
+### Tasks
+
+Jarvis arbeitet von einer Task-Queue. Füge Tasks mit Titel, Beschreibung und Priorität hinzu:
+
+- **Kritisch** — Wird sofort ausgeführt
+- **Hoch** — Nächster in der Queue
+- **Normal** — Standard-Priorität
+- **Niedrig** — Hintergrund-Arbeit
+
+### Proposals
+
+Bevor Jarvis signifikante Aktionen durchführt, erstellt er **Proposals** zur Überprüfung:
+
+- Was er tun möchte
+- Warum er diesen Ansatz für richtig hält
+- Erwartete Auswirkungen und Risikostufe
+
+Du kannst jedes Proposal **genehmigen** oder **ablehnen**. Abgelehnte Proposals enthalten dein Feedback damit Jarvis sich anpassen kann.
+
+### Workers
+
+Jarvis startet Hintergrund-**Worker** um Tasks parallel zu bearbeiten. Jeder Worker:
+
+- Hat seine eigene Session und Output-Stream
+- Berichtet Fortschritt an Jarvis zurück
+- Kann in Echtzeit überwacht werden
+
+## Autonomie-Level
+
+Steuere wie selbstständig Jarvis arbeitet:
+
+| Level | Verhalten |
+|-------|-----------|
+| **Überwacht** | Alle Aktionen erfordern Genehmigung |
+| **Semi-autonom** | Risikoarme Aktionen automatisch genehmigt |
+| **Autonom** | Die meisten Aktionen automatisch genehmigt |
+| **Volle Autonomie** | Alle Aktionen automatisch genehmigt |
+
+## Deep Think
+
+Löse eine **Deep Think**-Session aus damit Jarvis ein komplexes Problem gründlich analysiert bevor er handelt. Dies nutzt erweiterte Reasoning mit Chain-of-Thought-Analyse.
+
+## Bewusstseinsereignisse
+
+Das Jarvis-Panel zeigt Echtzeit-Bewusstseinsereignisse:
+
+- Denkphasen (schnell, mittel, tief)
+- Entscheidungspunkte und Reasoning
+- Task-Zustandsübergänge
+- Worker-Lebenszyklus-Events
+
+Diese Ereignisse erscheinen auch als animierte Neuronen in der Brain-Visualisierung.
+
+## Jarvis starten
+
+Nutze die Jarvis-Tab-Steuerung oder die CLI:
+
+```bash
+/jarvis start
+/jarvis add "Auth-Modul refactorn" --priority high
+/jarvis pause
+/jarvis resume
+```
+
+## Session-Output
+
+Wenn Jarvis läuft, erscheint der Terminal-Output-Stream unter dem Task-Panel und zeigt Echtzeit-Agent-Aktivität und Tool-Aufrufe.

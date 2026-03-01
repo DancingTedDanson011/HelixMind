@@ -1,0 +1,55 @@
+---
+title: Console
+description: Run autonomous tasks, security audits, and background sessions from the Console tab.
+order: 50
+category: Web App
+---
+
+# Console
+
+The **Console** tab in the HelixMind web app gives you direct control over autonomous CLI sessions. It streams real-time output from background tasks running on your connected CLI instance.
+
+## What runs in Console?
+
+Console displays output from sessions started via `/auto` and `/security`:
+
+- **Auto Mode** — Give the agent a goal and let it work autonomously. It reads, writes, and tests code without waiting for your input.
+- **Security Audit** — Scans your project for vulnerabilities, insecure patterns, and OWASP issues. Findings appear in the Brain visualization.
+- **Custom Sessions** — Any background session spawned from the CLI appears here.
+
+## Starting a session
+
+Click the **Start** buttons in the Console tab, or use the CLI directly:
+
+```bash
+/auto fix all TypeScript errors
+/security
+```
+
+The web app auto-connects to running sessions and streams their output in real-time.
+
+## Session output
+
+The terminal viewer shows a live feed of the agent's actions:
+
+- Tool calls (file reads, writes, commands)
+- Agent reasoning and decisions
+- Errors and warnings
+- Progress indicators
+
+## Multiple sessions
+
+You can run multiple background sessions simultaneously. Use the session sidebar to switch between them. Each session has its own output buffer and undo stack.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `ESC ESC` | Emergency stop — aborts all sessions |
+| `Ctrl+PageUp/Down` | Switch session tabs (CLI) |
+
+## Tips
+
+- Start a security audit before pushing code — findings are saved to the Brain
+- Auto mode respects the permission system — use `--yolo` in CLI for fully autonomous work
+- Session output is buffered — you can switch tabs and come back without losing output

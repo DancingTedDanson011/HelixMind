@@ -1,0 +1,55 @@
+---
+title: Console
+description: Autonome Aufgaben, Sicherheits-Audits und Hintergrund-Sessions aus dem Console-Tab starten.
+order: 50
+category: Web App
+---
+
+# Console
+
+Der **Console**-Tab in der HelixMind Web-App gibt dir direkte Kontrolle über autonome CLI-Sessions. Er streamt Echtzeit-Output von Hintergrund-Aufgaben deiner verbundenen CLI-Instanz.
+
+## Was läuft in der Console?
+
+Die Console zeigt Output von Sessions die via `/auto` und `/security` gestartet wurden:
+
+- **Auto-Modus** — Gib dem Agent ein Ziel und lass ihn autonom arbeiten. Er liest, schreibt und testet Code ohne auf deine Eingabe zu warten.
+- **Security-Audit** — Scannt dein Projekt auf Schwachstellen, unsichere Muster und OWASP-Probleme. Findings erscheinen in der Brain-Visualisierung.
+- **Custom Sessions** — Jede Hintergrund-Session die von der CLI gestartet wird erscheint hier.
+
+## Session starten
+
+Klicke auf die **Start**-Buttons im Console-Tab, oder nutze die CLI direkt:
+
+```bash
+/auto fix all TypeScript errors
+/security
+```
+
+Die Web-App verbindet sich automatisch mit laufenden Sessions und streamt deren Output in Echtzeit.
+
+## Session-Output
+
+Der Terminal-Viewer zeigt einen Live-Feed der Agent-Aktionen:
+
+- Tool-Aufrufe (Datei lesen, schreiben, Befehle)
+- Agent-Reasoning und Entscheidungen
+- Fehler und Warnungen
+- Fortschrittsanzeigen
+
+## Mehrere Sessions
+
+Du kannst mehrere Hintergrund-Sessions gleichzeitig ausführen. Nutze die Session-Sidebar um zwischen ihnen zu wechseln. Jede Session hat ihren eigenen Output-Buffer und Undo-Stack.
+
+## Tastenkürzel
+
+| Kürzel | Aktion |
+|--------|--------|
+| `ESC ESC` | Notfall-Stopp — bricht alle Sessions ab |
+| `Strg+BildAuf/Ab` | Session-Tabs wechseln (CLI) |
+
+## Tipps
+
+- Starte ein Security-Audit bevor du pushst — Findings werden im Brain gespeichert
+- Auto-Modus respektiert das Permission-System — nutze `--yolo` in der CLI für voll autonomes Arbeiten
+- Session-Output ist gepuffert — du kannst Tabs wechseln und zurückkommen ohne Output zu verlieren

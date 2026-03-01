@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle,
-  Wifi, Terminal, Download, Plug, ExternalLink, FolderOpen, Key, BookOpen,
+  Wifi, Terminal, Download, Plug, ExternalLink, Key, BookOpen,
 } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
@@ -97,114 +97,65 @@ export function ChatView({
   // Empty state — no chat selected or empty chat without connection
   if (!hasChat || (messages.length === 0 && !isAgentRunning && !isConnected)) {
     return (
-      <div className="flex items-center justify-center h-full overflow-y-auto py-8">
-        <div className="space-y-6 max-w-md px-6">
+      <div className="flex items-center justify-center h-full overflow-y-auto py-6">
+        <div className="space-y-4 max-w-lg px-6">
           {/* Header */}
-          <div className="text-center space-y-2">
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-white/5 flex items-center justify-center">
-              <Plug size={24} className="text-cyan-500/40" />
+          <div className="text-center space-y-1">
+            <div className="mx-auto w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-white/5 flex items-center justify-center">
+              <Plug size={18} className="text-cyan-500/40" />
             </div>
-            <h3 className="text-base font-medium text-gray-300">{t('setupTitle')}</h3>
-            <p className="text-xs text-gray-600 max-w-xs mx-auto">{t('setupDesc')}</p>
+            <h3 className="text-sm font-medium text-gray-300">{t('setupTitle')}</h3>
+            <p className="text-[11px] text-gray-600">{t('setupDesc')}</p>
           </div>
 
-          {/* Steps */}
-          <div className="space-y-3 text-left">
+          {/* Steps — 2-column grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
             {/* Step 1 — Install */}
-            <div className="px-3.5 py-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                  <Download size={12} className="text-cyan-400" />
-                </div>
-                <p className="text-xs font-medium text-gray-300">{t('setupStep1Title')}</p>
+            <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Download size={12} className="text-cyan-400 flex-shrink-0" />
+                <p className="text-[11px] font-medium text-gray-300">{t('setupStep1Title')}</p>
               </div>
-              <p className="text-[11px] text-gray-600 pl-[34px]">{t('setupStep1Desc')}</p>
-              <div className="pl-[34px]">
-                <code className="inline-block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[11px] font-mono">npm install -g helixmind</code>
-              </div>
-              <p className="text-[10px] text-gray-700 pl-[34px]">{t('setupStep1Requires')}</p>
-              <a href="/docs/getting-started" className="flex items-center gap-1 text-[10px] text-cyan-500/60 hover:text-cyan-400 transition-colors pl-[34px]">
-                <BookOpen size={10} />{t('setupDocsInstall')}
-                <ExternalLink size={8} />
-              </a>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[10px] font-mono">npm i -g helixmind</code>
+              <p className="text-[9px] text-gray-700">{t('setupStep1Requires')}</p>
             </div>
 
             {/* Step 2 — Configure provider */}
-            <div className="px-3.5 py-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                  <Key size={12} className="text-amber-400" />
-                </div>
-                <p className="text-xs font-medium text-gray-300">{t('setupStep2Title')}</p>
+            <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Key size={12} className="text-amber-400 flex-shrink-0" />
+                <p className="text-[11px] font-medium text-gray-300">{t('setupStep2Title')}</p>
               </div>
-              <p className="text-[11px] text-gray-600 pl-[34px]">{t('setupStep2Desc')}</p>
-              <div className="pl-[34px] space-y-1">
-                <code className="inline-block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[11px] font-mono">helixmind config set provider anthropic</code>
-                <br />
-                <code className="inline-block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[11px] font-mono">helixmind config set apiKey sk-ant-...</code>
-              </div>
-              <a href="/docs/providers" className="flex items-center gap-1 text-[10px] text-cyan-500/60 hover:text-cyan-400 transition-colors pl-[34px]">
-                <BookOpen size={10} />{t('setupDocsProviders')}
-                <ExternalLink size={8} />
-              </a>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[10px] font-mono">hx config set provider anthropic</code>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[10px] font-mono mt-1">hx config set apiKey sk-ant-...</code>
             </div>
 
             {/* Step 3 — Start agent */}
-            <div className="px-3.5 py-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                  <Terminal size={12} className="text-cyan-400" />
-                </div>
-                <p className="text-xs font-medium text-gray-300">{t('setupStep3Title')}</p>
+            <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Terminal size={12} className="text-cyan-400 flex-shrink-0" />
+                <p className="text-[11px] font-medium text-gray-300">{t('setupStep3Title')}</p>
               </div>
-              <p className="text-[11px] text-gray-600 pl-[34px]">{t('setupStep3Desc')}</p>
-              <div className="pl-[34px] space-y-1">
-                <code className="inline-block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[11px] font-mono">cd your-project</code>
-                <br />
-                <code className="inline-block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[11px] font-mono">helixmind</code>
-                <span className="text-[10px] text-gray-700 ml-1.5">{t('setupStep3Alias')}</span>
-              </div>
-              <a href="/docs/cli-reference" className="flex items-center gap-1 text-[10px] text-cyan-500/60 hover:text-cyan-400 transition-colors pl-[34px]">
-                <BookOpen size={10} />{t('setupDocsCli')}
-                <ExternalLink size={8} />
-              </a>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[10px] font-mono">cd your-project && helixmind</code>
+              <p className="text-[9px] text-gray-700">{t('setupStep3Alias')}</p>
             </div>
 
-            {/* Step 4 — Init project */}
-            <div className="px-3.5 py-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                  <FolderOpen size={12} className="text-purple-400" />
-                </div>
-                <p className="text-xs font-medium text-gray-300">{t('setupStep4Title')}</p>
+            {/* Step 4 — Init + Auto-connect */}
+            <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Wifi size={12} className="text-emerald-400 flex-shrink-0" />
+                <p className="text-[11px] font-medium text-gray-300">{t('setupStep4Title')}</p>
               </div>
-              <p className="text-[11px] text-gray-600 pl-[34px]">{t('setupStep4Desc')}</p>
-              <div className="pl-[34px]">
-                <code className="inline-block px-2 py-1 rounded-md bg-white/5 text-purple-400/80 text-[11px] font-mono">helixmind init</code>
-              </div>
-              <a href="/docs/project-setup" className="flex items-center gap-1 text-[10px] text-cyan-500/60 hover:text-cyan-400 transition-colors pl-[34px]">
-                <BookOpen size={10} />{t('setupDocsProject')}
-                <ExternalLink size={8} />
-              </a>
-            </div>
-
-            {/* Step 5 — Auto-connect */}
-            <div className="px-3.5 py-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                  <Wifi size={12} className="text-emerald-400" />
-                </div>
-                <p className="text-xs font-medium text-gray-300">{t('setupStep5Title')}</p>
-              </div>
-              <p className="text-[11px] text-gray-600 pl-[34px]">{t('setupStep5Desc')}</p>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-purple-400/80 text-[10px] font-mono">helixmind init</code>
+              <p className="text-[9px] text-gray-700">{t('setupStep5Desc')}</p>
             </div>
           </div>
 
           {/* Full docs link */}
-          <div className="text-center pt-1">
-            <a href="/docs/getting-started" className="inline-flex items-center gap-1.5 text-[11px] text-cyan-500/60 hover:text-cyan-400 transition-colors">
-              <BookOpen size={12} />{t('setupDocsFullGuide')}
-              <ExternalLink size={9} />
+          <div className="text-center">
+            <a href="/docs/getting-started" className="inline-flex items-center gap-1.5 text-[10px] text-cyan-500/60 hover:text-cyan-400 transition-colors">
+              <BookOpen size={11} />{t('setupDocsFullGuide')}
+              <ExternalLink size={8} />
             </a>
           </div>
         </div>

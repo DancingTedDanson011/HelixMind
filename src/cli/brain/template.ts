@@ -31,7 +31,8 @@ canvas { display: block; }
 #header .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #0f0; margin-right: 6px; animation: livePulse 2s ease infinite; }
 @keyframes livePulse { 0%,100% { opacity: 1; box-shadow: 0 0 4px #0f0; } 50% { opacity: 0.4; box-shadow: none; } }
 
-#scope-switcher { display: flex; gap: 4px; margin-top: 6px; }
+#header .header-controls { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+#scope-switcher { display: flex; gap: 4px; }
 #scope-switcher .scope-btn {
   padding: 3px 10px; border-radius: 6px; font-size: 10px; cursor: pointer;
   border: 1px solid rgba(0,212,255,0.12); background: rgba(0,212,255,0.03);
@@ -50,7 +51,7 @@ canvas { display: block; }
 
 /* Brain Manager Panel */
 #brain-manager {
-  position: fixed; top: 110px; left: 16px; z-index: 20;
+  position: fixed; top: 100px; left: 16px; z-index: 20;
   width: 280px; max-height: calc(100vh - 140px); overflow-y: auto;
   background: rgba(5,5,16,0.92); border: 1px solid rgba(0,212,255,0.12);
   border-radius: 12px; padding: 12px; backdrop-filter: blur(16px);
@@ -100,12 +101,11 @@ canvas { display: block; }
 .plan-item.failed .pi-icon { color: #ff4444; }
 .plan-item .pi-text { flex: 1; }
 
-/* Brain Manager Toggle */
+/* Brain Manager Toggle (inline in header) */
 #brain-toggle {
-  position: fixed; top: 80px; left: 16px; z-index: 21;
-  padding: 4px 10px; border-radius: 6px; font-size: 10px; cursor: pointer;
-  border: 1px solid rgba(0,212,255,0.12); background: rgba(5,5,16,0.9);
-  color: #556; transition: all 0.25s; backdrop-filter: blur(16px);
+  padding: 3px 10px; border-radius: 6px; font-size: 10px; cursor: pointer;
+  border: 1px solid rgba(0,212,255,0.12); background: rgba(0,212,255,0.03);
+  color: #556; transition: all 0.25s; user-select: none; white-space: nowrap;
 }
 #brain-toggle:hover { background: rgba(0,212,255,0.08); color: #889; }
 #brain-toggle.active { background: rgba(0,212,255,0.15); color: #00d4ff; border-color: rgba(0,212,255,0.4); }
@@ -401,13 +401,14 @@ canvas { display: block; }
 <div id="header">
   <h1><span class="live-dot"></span>\u{1F300} HelixMind Brain</h1>
   <div class="stats" id="stats-text">${data.meta.totalNodes} nodes \u00B7 ${data.meta.totalEdges} connections${data.meta.webKnowledgeCount > 0 ? ` \\u00B7 ${data.meta.webKnowledgeCount} web` : ''} \u00B7 ${data.meta.projectName}</div>
-  <div id="scope-switcher">
-    <span class="scope-btn project-btn${data.meta.brainScope === 'project' ? ' active' : ''}" data-scope="project">\u{1F4C1} Local</span>
-    <span class="scope-btn global-btn${data.meta.brainScope !== 'project' ? ' active' : ''}" data-scope="global">\u{1F310} Global</span>
+  <div class="header-controls">
+    <div id="scope-switcher">
+      <span class="scope-btn project-btn${data.meta.brainScope === 'project' ? ' active' : ''}" data-scope="project">\u{1F4C1} Local</span>
+      <span class="scope-btn global-btn${data.meta.brainScope !== 'project' ? ' active' : ''}" data-scope="global">\u{1F310} Global</span>
+    </div>
+    <div id="brain-toggle">\u{1F9E0} Brains</div>
   </div>
 </div>
-
-<div id="brain-toggle">\u{1F9E0} Brains</div>
 
 <div id="brain-manager">
   <h3>\u{1F310} Global</h3>
@@ -838,7 +839,14 @@ function buildGeometry(P){
   for(let i=0;i<nC;i++){
     const p=pos[i], n=nodes[i];
     nP[i*3]=p.x; nP[i*3+1]=p.y; nP[i*3+2]=p.z;
-    tc.set(LVL_HEX[n.level]||0x00FFFF);
+    if(n.level===1){
+      const h=(289+( srand(i*137)-0.5)*60)/360;
+      const s=0.75+srand(i*173)*0.25;
+      const l=0.5+srand(i*211)*0.2;
+      tc.setHSL(h,s,l);
+    } else {
+      tc.set(LVL_HEX[n.level]||0x00FFFF);
+    }
     nCol[i*3]=tc.r; nCol[i*3+1]=tc.g; nCol[i*3+2]=tc.b;
     nSz[i]=LVL_SIZE[n.level]||36;
     nHL[i]=1.0;
@@ -1245,6 +1253,48 @@ scene.add(orb2Pts);
 // Orbit center offset (updated by buildGeometry)
 let orbCx=0,orbCy=0,orbCz=0;
 
+// ===== ORBIT TRAILS (fading particle tails behind orbit particles) =====
+const TRAIL_LEN=6;
+const trail1Pos=new Float32Array(ORB_COUNT*TRAIL_LEN*3);
+const trail1Sz=new Float32Array(ORB_COUNT*TRAIL_LEN);
+const trail1Col=new Float32Array(ORB_COUNT*TRAIL_LEN*3);
+for(let i=0;i<ORB_COUNT;i++){
+  const gc=new THREE.Color(0x00FF66);
+  for(let j=0;j<TRAIL_LEN;j++){
+    const idx=i*TRAIL_LEN+j;
+    trail1Sz[idx]=Math.max(1,(3+srand(i*67)*4)*(1-j/TRAIL_LEN)*0.7);
+    trail1Col[idx*3]=gc.r;trail1Col[idx*3+1]=gc.g;trail1Col[idx*3+2]=gc.b;
+  }
+}
+const trail1Geo=new THREE.BufferGeometry();
+trail1Geo.setAttribute('position',new THREE.BufferAttribute(trail1Pos,3));
+trail1Geo.setAttribute('aColor',new THREE.BufferAttribute(trail1Col,3));
+trail1Geo.setAttribute('aSize',new THREE.BufferAttribute(trail1Sz,1));
+const trail1Pts=new THREE.Points(trail1Geo,new THREE.ShaderMaterial({
+  vertexShader:\`attribute float aSize;attribute vec3 aColor;varying vec3 vC;void main(){vC=aColor;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=aSize*(800.0/-mv.z);gl_Position=projectionMatrix*mv;}\`,
+  fragmentShader:\`varying vec3 vC;void main(){float d=length(gl_PointCoord-vec2(.5));if(d>.5)discard;float g=exp(-d*d*12.0);gl_FragColor=vec4(vC*1.2,g*0.35);}\`,
+  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
+}));
+scene.add(trail1Pts);
+
+const trail2Pos=new Float32Array(ORB_COUNT*TRAIL_LEN*3);
+const trail2Sz=new Float32Array(ORB_COUNT*TRAIL_LEN);
+const trail2Col=new Float32Array(ORB_COUNT*TRAIL_LEN*3);
+for(let i=0;i<ORB_COUNT;i++){
+  const cc=new THREE.Color(0xFFDD00);
+  for(let j=0;j<TRAIL_LEN;j++){
+    const idx=i*TRAIL_LEN+j;
+    trail2Sz[idx]=Math.max(1,(2.5+srand(i*71)*3.5)*(1-j/TRAIL_LEN)*0.7);
+    trail2Col[idx*3]=cc.r;trail2Col[idx*3+1]=cc.g;trail2Col[idx*3+2]=cc.b;
+  }
+}
+const trail2Geo=new THREE.BufferGeometry();
+trail2Geo.setAttribute('position',new THREE.BufferAttribute(trail2Pos,3));
+trail2Geo.setAttribute('aColor',new THREE.BufferAttribute(trail2Col,3));
+trail2Geo.setAttribute('aSize',new THREE.BufferAttribute(trail2Sz,1));
+const trail2Pts=new THREE.Points(trail2Geo,trail1Pts.material);
+scene.add(trail2Pts);
+
 // ===== JARVIS NEURONS (shoot from orbits to core) =====
 const JARVIS_NEURON_COUNT=30;
 const jNeurons=[];
@@ -1363,6 +1413,33 @@ function animate(){
     o2.array[i*3+2]=orbCz+rz;
   }
   o2.needsUpdate=true;
+
+  // Update orbit trails — shift positions backward, insert current at front
+  const t1p=trail1Geo.attributes.position;
+  for(let i=0;i<ORB_COUNT;i++){
+    const base=i*TRAIL_LEN;
+    // Shift older positions back
+    for(let j=TRAIL_LEN-1;j>0;j--){
+      const dst=(base+j)*3, src=(base+j-1)*3;
+      t1p.array[dst]=t1p.array[src]; t1p.array[dst+1]=t1p.array[src+1]; t1p.array[dst+2]=t1p.array[src+2];
+    }
+    // Insert current position
+    const f=base*3;
+    t1p.array[f]=o1.array[i*3]; t1p.array[f+1]=o1.array[i*3+1]; t1p.array[f+2]=o1.array[i*3+2];
+  }
+  t1p.needsUpdate=true;
+
+  const t2p=trail2Geo.attributes.position;
+  for(let i=0;i<ORB_COUNT;i++){
+    const base=i*TRAIL_LEN;
+    for(let j=TRAIL_LEN-1;j>0;j--){
+      const dst=(base+j)*3, src=(base+j-1)*3;
+      t2p.array[dst]=t2p.array[src]; t2p.array[dst+1]=t2p.array[src+1]; t2p.array[dst+2]=t2p.array[src+2];
+    }
+    const f=base*3;
+    t2p.array[f]=o2.array[i*3]; t2p.array[f+1]=o2.array[i*3+1]; t2p.array[f+2]=o2.array[i*3+2];
+  }
+  t2p.needsUpdate=true;
 
   updateSignals(dt);
   ctrl.update();

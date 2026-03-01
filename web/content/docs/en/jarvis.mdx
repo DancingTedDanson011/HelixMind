@@ -1,0 +1,80 @@
+---
+title: Jarvis
+description: AGI-style autonomous assistant with task management, proposals, and worker orchestration.
+order: 52
+category: Web App
+---
+
+# Jarvis
+
+The **Jarvis** tab is the command center for HelixMind's autonomous AGI-style assistant. Jarvis can plan, execute, and manage complex multi-step tasks using a worker-based architecture.
+
+## Core concepts
+
+### Tasks
+
+Jarvis works from a task queue. Add tasks with a title, description, and priority:
+
+- **Critical** — Executed immediately
+- **High** — Next in queue
+- **Normal** — Standard priority
+- **Low** — Background work
+
+### Proposals
+
+Before taking significant actions, Jarvis creates **proposals** for your review:
+
+- What it wants to do
+- Why it thinks this is the right approach
+- Expected impact and risk level
+
+You can **approve** or **deny** each proposal. Denied proposals include your feedback so Jarvis can adjust.
+
+### Workers
+
+Jarvis spawns background **workers** to handle tasks in parallel. Each worker:
+
+- Has its own session and output stream
+- Reports progress back to Jarvis
+- Can be monitored in real-time
+
+## Autonomy levels
+
+Control how independently Jarvis operates:
+
+| Level | Behavior |
+|-------|----------|
+| **Supervised** | All actions require approval |
+| **Semi-autonomous** | Low-risk actions auto-approved |
+| **Autonomous** | Most actions auto-approved |
+| **Full autonomy** | All actions auto-approved |
+
+## Deep Think
+
+Trigger a **Deep Think** session to have Jarvis analyze a complex problem thoroughly before acting. This uses extended reasoning with chain-of-thought analysis.
+
+## Consciousness events
+
+The Jarvis panel shows real-time consciousness events:
+
+- Thinking phases (quick, medium, deep)
+- Decision points and reasoning
+- Task state transitions
+- Worker lifecycle events
+
+These events also appear as animated neurons in the Brain visualization.
+
+## Starting Jarvis
+
+Use the Jarvis tab controls or the CLI:
+
+```bash
+/jarvis start
+/jarvis add "Refactor the auth module" --priority high
+/jarvis pause
+/jarvis resume
+```
+
+## Session output
+
+When Jarvis is running, the terminal output stream appears below the task panel, showing real-time agent activity and tool calls.
