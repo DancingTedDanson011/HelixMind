@@ -66,28 +66,28 @@ export function ChatInput({
   }, [handleSend]);
 
   return (
-    <div className="border-t border-white/5 bg-surface/50 backdrop-blur-sm p-3">
+    <div className="border-t border-white/5 bg-surface/50 backdrop-blur-sm px-4 py-3">
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-end gap-2">
-          {/* Mode selector */}
-          <div className="relative" ref={modeRef}>
+        <div className="relative flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] focus-within:border-cyan-500/25 focus-within:bg-white/[0.05] transition-all">
+          {/* Mode selector — inside the input box */}
+          <div className="relative flex-shrink-0 self-end" ref={modeRef}>
             <button
               onClick={() => setModeMenuOpen(!modeMenuOpen)}
               className={`
-                flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all border
+                flex items-center gap-1 px-2.5 py-2.5 rounded-bl-2xl text-xs font-medium transition-all
                 ${mode === 'skip-permissions'
-                  ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/15'
-                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                  ? 'text-amber-400 hover:text-amber-300'
+                  : 'text-gray-500 hover:text-gray-300'
                 }
               `}
               title={mode === 'normal' ? t('modeNormal') : t('modeSkipPermissions')}
             >
-              {mode === 'skip-permissions' ? <ShieldOff size={13} /> : <Shield size={13} />}
-              <ChevronDown size={10} />
+              {mode === 'skip-permissions' ? <ShieldOff size={14} /> : <Shield size={14} />}
+              <ChevronDown size={9} className="opacity-50" />
             </button>
 
             {modeMenuOpen && (
-              <div className="absolute bottom-full left-0 mb-1 w-48 rounded-lg border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl py-1 z-50">
+              <div className="absolute bottom-full left-0 mb-1 w-48 rounded-xl border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl py-1 z-50">
                 <button
                   onClick={() => { onModeChange('normal'); setModeMenuOpen(false); }}
                   className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-colors ${
@@ -111,50 +111,49 @@ export function ChatInput({
           </div>
 
           {/* Textarea */}
-          <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t('sendMessage')}
-              disabled={disabled}
-              rows={1}
-              className="w-full resize-none bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 outline-none focus:border-cyan-500/30 focus:bg-white/[0.07] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            />
-          </div>
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t('sendMessage')}
+            disabled={disabled}
+            rows={1}
+            className="flex-1 resize-none bg-transparent py-2.5 text-sm text-gray-200 placeholder-gray-600 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+          />
 
-          {/* Send / Stop button */}
-          {isAgentRunning ? (
-            <button
-              onClick={onStop}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-xs font-medium transition-all"
-            >
-              <Square size={12} />
-              {t('stopAgent')}
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!value.trim() || disabled}
-              className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            >
-              <Send size={16} />
-            </button>
-          )}
+          {/* Send / Stop button — inside the input box */}
+          <div className="flex-shrink-0 self-end p-1.5">
+            {isAgentRunning ? (
+              <button
+                onClick={onStop}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 text-red-400 hover:bg-red-500/25 text-xs font-medium transition-all"
+              >
+                <Square size={12} />
+                {t('stopAgent')}
+              </button>
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={!value.trim() || disabled}
+                className="p-2 rounded-xl bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+              >
+                <Send size={15} />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Mode hint */}
+        {/* Hints below input */}
         {mode === 'skip-permissions' && (
-          <div className="mt-1.5 text-[10px] text-amber-500/60 flex items-center gap-1">
+          <div className="mt-1.5 text-[10px] text-amber-500/60 flex items-center gap-1 px-3">
             <ShieldOff size={10} />
-            Skip Permissions mode — tools execute without confirmation
+            {t('skipPermissionsWarning')}
           </div>
         )}
 
-        {/* No API key hint */}
         {!hasLLMKey && (
-          <div className="mt-1.5 text-[10px] text-gray-600 flex items-center gap-1">
+          <div className="mt-1.5 text-[10px] text-gray-600 flex items-center gap-1 px-3">
             {t('noApiKey')}
           </div>
         )}

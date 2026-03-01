@@ -190,8 +190,8 @@ export function AppShell() {
     } catch { /* silent */ }
   }, [fetchChats, activeChat?.id]);
 
-  // ── Active sessions (auto, security, monitor) ──
-  const activeSessions = connection.sessions.filter(s => s.status === 'running');
+  // ── Active sessions (auto, security, monitor) — exclude main "Chat" session ──
+  const activeSessions = connection.sessions.filter(s => s.status === 'running' && s.id !== 'main');
   const recentFindings = connection.findings.slice(-5);
   const threatCount = connection.threats.length;
 
@@ -217,12 +217,14 @@ export function AppShell() {
     window.open('/brain.html', 'helix-brain', 'width=1200,height=800,menubar=no,toolbar=no');
   }, []);
 
-  // ── Auto-select first session for console ─────
+  // ── Auto-select first non-main session for console ─────
   useEffect(() => {
-    if (activeTab === 'console' && !consoleSessionId && connection.sessions.length > 0) {
-      // Prefer a running session
-      const running = connection.sessions.find(s => s.status === 'running');
-      setConsoleSessionId(running?.id ?? connection.sessions[0].id);
+    if (activeTab === 'console' && !consoleSessionId) {
+      const nonMain = connection.sessions.filter(s => s.id !== 'main');
+      if (nonMain.length > 0) {
+        const running = nonMain.find(s => s.status === 'running');
+        setConsoleSessionId(running?.id ?? nonMain[0].id);
+      }
     }
   }, [activeTab, consoleSessionId, connection.sessions]);
 
@@ -740,10 +742,10 @@ export function AppShell() {
                 </div>
               )}
 
-              {/* All sessions (completed too) */}
-              {connection.sessions.filter(s => s.status !== 'running').length > 0 && (
+              {/* All sessions (completed too) — exclude main */}
+              {connection.sessions.filter(s => s.status !== 'running' && s.id !== 'main').length > 0 && (
                 <div className="space-y-1">
-                  {connection.sessions.filter(s => s.status !== 'running').map((session) => (
+                  {connection.sessions.filter(s => s.status !== 'running' && s.id !== 'main').map((session) => (
                     <button
                       key={session.id}
                       onClick={() => openSessionConsole(session.id)}
@@ -1100,10 +1102,10 @@ export function AppShell() {
           </div>
         ) : activeTab === 'console' ? (
           <>
-            {/* Console session selector */}
-            {connection.sessions.length > 0 && (
+            {/* Console session selector — exclude main Chat session */}
+            {connection.sessions.filter(s => s.id !== 'main').length > 0 && (
               <div className="flex gap-1.5 px-4 py-2 border-b border-white/5 overflow-x-auto bg-[#0a0a1a]/50">
-                {connection.sessions.map(session => (
+                {connection.sessions.filter(s => s.id !== 'main').map(session => (
                   <button
                     key={session.id}
                     onClick={() => setConsoleSessionId(session.id)}
@@ -1113,7 +1115,7 @@ export function AppShell() {
                         : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-300'
                     }`}
                   >
-                    <span>{session.icon}</span>
+                    <SessionIcon name={session.name} size={11} className="text-gray-400" />
                     <span>{session.name}</span>
                     {session.status === 'running' && (
                       <Activity size={8} className="text-emerald-400 animate-pulse" />

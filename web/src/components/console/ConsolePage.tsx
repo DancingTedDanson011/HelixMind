@@ -23,7 +23,9 @@ import {
   MessageSquare,
   Clock,
   Activity,
+  ExternalLink,
 } from 'lucide-react';
+import Link from 'next/link';
 import type { DiscoveredInstance, SessionInfo, SessionStatus } from '@/lib/cli-types';
 
 /* ─── Animation ──────────────────────────────── */
@@ -303,16 +305,25 @@ export function ConsolePage() {
                         )}
                       </div>
                     </div>
-                    {session.status === 'running' && (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleAbortSession(session.id)}
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href="/app"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all"
                       >
-                        <StopCircle size={12} />
-                        {tCli('abort')}
-                      </Button>
-                    )}
+                        <MessageSquare size={12} />
+                        Chat
+                      </Link>
+                      {session.status === 'running' && (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleAbortSession(session.id)}
+                        >
+                          <StopCircle size={12} />
+                          {tCli('abort')}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
