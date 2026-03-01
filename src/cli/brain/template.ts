@@ -586,12 +586,12 @@ const EDGE_COLORS = {
   default: '#334466',
 };
 const SPATIAL = {
-  5: { iR: 10,  oR: 55,  yS: 18,  size: 48, pulse: 0.3 },
-  4: { iR: 75,  oR: 150, yS: 40,  size: 40, pulse: 0.5 },
-  3: { iR: 180, oR: 300, yS: 60,  size: 34, pulse: 0.8 },
-  2: { iR: 330, oR: 440, yS: 80,  size: 26, pulse: 1.2 },
-  1: { iR: 470, oR: 580, yS: 100, size: 20, pulse: 2.0 },
-  6: { iR: 600, oR: 720, yS: 110, size: 32, pulse: 0.6 },
+  5: { iR: 10,  oR: 70,  yBase: 0,    yS: 60,  size: 52, pulse: 0.3 },
+  4: { iR: 80,  oR: 180, yBase: 120,  yS: 80,  size: 42, pulse: 0.5 },
+  3: { iR: 160, oR: 320, yBase: -80,  yS: 100, size: 36, pulse: 0.8 },
+  2: { iR: 280, oR: 440, yBase: 200,  yS: 120, size: 28, pulse: 1.2 },
+  1: { iR: 400, oR: 560, yBase: -180, yS: 140, size: 22, pulse: 2.0 },
+  6: { iR: 500, oR: 680, yBase: 300,  yS: 160, size: 34, pulse: 0.6 },
 };
 
 function srand(s) { const x = Math.sin(s * 9301 + 49297) * 49297; return x - Math.floor(x); }
@@ -605,30 +605,30 @@ document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#030308');
-scene.fog = new THREE.FogExp2('#030308', 0.0008);
+scene.fog = new THREE.FogExp2('#030308', 0.0004);
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 5000);
-camera.position.set(400, 200, 500);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 8000);
+camera.position.set(500, 350, 700);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 0, 0);
+controls.target.set(0, 60, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.08;
 controls.minDistance = 80;
-controls.maxDistance = 1200;
+controls.maxDistance = 2500;
 controls.maxPolarAngle = Math.PI * 0.85;
 controls.minPolarAngle = Math.PI * 0.15;
 controls.update();
 
 // =========== BACKGROUND STARS ===========
-const starCount = 500;
+const starCount = 700;
 const starPos = new Float32Array(starCount * 3);
 for (let i = 0; i < starCount; i++) {
-  starPos[i * 3] = (srand(i * 31) - 0.5) * 3000;
-  starPos[i * 3 + 1] = (srand(i * 37) - 0.5) * 3000;
-  starPos[i * 3 + 2] = (srand(i * 41) - 0.5) * 3000;
+  starPos[i * 3] = (srand(i * 31) - 0.5) * 5000;
+  starPos[i * 3 + 1] = (srand(i * 37) - 0.5) * 5000;
+  starPos[i * 3 + 2] = (srand(i * 41) - 0.5) * 5000;
 }
 const starGeo = new THREE.BufferGeometry();
 starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
@@ -757,7 +757,7 @@ function rebuildScene() {
       const angle = (j / Math.max(c, 1)) * Math.PI * 2;
       const r = s.iR + srand(ni * 7) * (s.oR - s.iR);
       const spiral = angle + r * 0.004;
-      const y = (srand(ni * 11) - 0.5) * s.yS;
+      const y = (s.yBase || 0) + (srand(ni * 11) - 0.5) * s.yS;
       positions[ni] = new THREE.Vector3(Math.cos(spiral) * r, y, Math.sin(spiral) * r);
     });
   }
@@ -1071,7 +1071,7 @@ function closeSidebar(evt) {
     controls.autoRotate = true;
     camTween = {
       startPos: camera.position.clone(), startLookAt: controls.target.clone(),
-      targetPos: new THREE.Vector3(400, 200, 500), targetLookAt: new THREE.Vector3(0, 0, 0),
+      targetPos: new THREE.Vector3(500, 350, 700), targetLookAt: new THREE.Vector3(0, 60, 0),
       progress: 0
     };
   }
