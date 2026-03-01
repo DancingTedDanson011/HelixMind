@@ -63,6 +63,7 @@ export function assembleSystemPrompt(
   sessionContext?: string,
   identity?: ModelIdentity,
   bugSummary?: string | null,
+  jarvisIdentity?: string | null,
 ): string {
   const sections: string[] = [BASE_INSTRUCTIONS];
 
@@ -93,6 +94,11 @@ export function assembleSystemPrompt(
   // Bug journal context
   if (bugSummary) {
     sections.push(bugSummary);
+  }
+
+  // Jarvis identity + ethics context (injected when Jarvis daemon is active)
+  if (jarvisIdentity) {
+    sections.push(jarvisIdentity);
   }
 
   return sections.join('\n\n---\n\n');

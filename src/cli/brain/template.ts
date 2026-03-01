@@ -461,9 +461,9 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 let BRAIN_DATA = ${dataJSON};
 
 // ===== CONSTANTS =====
-const LVL_HEX = { 1: 0xE040FB, 2: 0x00FF88, 3: 0x7B68EE, 4: 0x00FFFF, 5: 0xFF6B6B, 6: 0xFFD700 };
-const LVL_CSS = { 1: '#E040FB', 2: '#00FF88', 3: '#7B68EE', 4: '#00FFFF', 5: '#FF6B6B', 6: '#FFD700' };
-const LVL_SIZE = { 1:6, 2:7, 3:12, 4:16, 5:22, 6:10 };
+const LVL_HEX = { 1: 0xFFFFFF, 2: 0x00FF88, 3: 0x7B68EE, 4: 0x00FFFF, 5: 0xFF6B6B, 6: 0xFFD700, 7: 0xFF00FF };
+const LVL_CSS = { 1: '#FFFFFF', 2: '#00FF88', 3: '#7B68EE', 4: '#00FFFF', 5: '#FF6B6B', 6: '#FFD700', 7: '#FF00FF' };
+const LVL_SIZE = { 1:10, 2:7, 3:12, 4:16, 5:22, 6:10, 7:8 };
 let curSpread=600;
 const BASE_SPREAD=400, REP=28000, ATT=0.002, ILEN=100, DAMP=0.82, GCELL=160, MAX_E=18000;
 const EDGE_COL={references:'#7B68EE',depends_on:'#E040FB',related_to:'#556',evolved_from:'#00FFFF',supports:'#00FF88',extends:'#FFD700',implements:'#FF6B6B',uses:'#00d4ff',imports:'#00ff88',default:'#445'};
@@ -1109,32 +1109,35 @@ document.querySelectorAll('[data-edge]').forEach(b=>{
   });
 });
 
-// ===== ENERGY CORE (pulsing center) =====
-const coreGeo = new THREE.IcosahedronGeometry(curSpread * 0.08, 3);
+// ===== GOLDEN ENERGY CORE (Jarvis consciousness center) =====
+const coreGeo = new THREE.IcosahedronGeometry(curSpread * 0.10, 3);
 const coreMat = new THREE.MeshBasicMaterial({
-  color: 0xE040FB, transparent: true, opacity: 0.12,
+  color: 0xFFB800, transparent: true, opacity: 0.22,
   blending: THREE.AdditiveBlending, wireframe: true
 });
 const core = new THREE.Mesh(coreGeo, coreMat);
 scene.add(core);
 const core2Geo = new THREE.IcosahedronGeometry(curSpread * 0.04, 2);
 const core2Mat = new THREE.MeshBasicMaterial({
-  color: 0xffffff, transparent: true, opacity: 0.08,
+  color: 0xffffff, transparent: true, opacity: 0.15,
   blending: THREE.AdditiveBlending
 });
 const core2 = new THREE.Mesh(core2Geo, core2Mat);
 scene.add(core2);
+// Warm golden point light at core center
+const coreLight = new THREE.PointLight(0xFFD080, 0.4, curSpread*0.5);
+scene.add(coreLight);
 
 // ===== ORBIT PARTICLE STREAMS (animated orbital rings) =====
 const ORB_COUNT=120;
 const orbR=curSpread*1.6;
-// Orbit 1: gold, horizontal
+// Orbit 1: green (Jarvis thoughts), horizontal
 const orb1Pos=new Float32Array(ORB_COUNT*3), orb1Col=new Float32Array(ORB_COUNT*3), orb1Sz=new Float32Array(ORB_COUNT);
 const orb1Phase=new Float32Array(ORB_COUNT);
 for(let i=0;i<ORB_COUNT;i++){
   orb1Phase[i]=(i/ORB_COUNT)*Math.PI*2+srand(i*53)*0.3;
   orb1Sz[i]=3+srand(i*67)*4;
-  const gc=new THREE.Color(0xFFD700);
+  const gc=new THREE.Color(0x00FF66);
   orb1Col[i*3]=gc.r;orb1Col[i*3+1]=gc.g;orb1Col[i*3+2]=gc.b;
 }
 const orb1Geo=new THREE.BufferGeometry();
@@ -1147,7 +1150,7 @@ const orb1Pts=new THREE.Points(orb1Geo,new THREE.ShaderMaterial({
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
 }));
 scene.add(orb1Pts);
-// Orbit 2: cyan, tilted
+// Orbit 2: yellow (Jarvis proposals), tilted
 const orb2Pos=new Float32Array(ORB_COUNT*3), orb2Col=new Float32Array(ORB_COUNT*3), orb2Sz=new Float32Array(ORB_COUNT);
 const orb2Phase=new Float32Array(ORB_COUNT);
 const tiltX=Math.PI/2.5, tiltZ=Math.PI/6;
@@ -1155,7 +1158,7 @@ const cosX=Math.cos(tiltX),sinX=Math.sin(tiltX),cosZ=Math.cos(tiltZ),sinZ=Math.s
 for(let i=0;i<ORB_COUNT;i++){
   orb2Phase[i]=(i/ORB_COUNT)*Math.PI*2+srand(i*59)*0.3;
   orb2Sz[i]=2.5+srand(i*71)*3.5;
-  const cc=new THREE.Color(0x00FFFF);
+  const cc=new THREE.Color(0xFFDD00);
   orb2Col[i*3]=cc.r;orb2Col[i*3+1]=cc.g;orb2Col[i*3+2]=cc.b;
 }
 const orb2Geo=new THREE.BufferGeometry();
@@ -1166,6 +1169,69 @@ const orb2Pts=new THREE.Points(orb2Geo,orb1Pts.material);
 scene.add(orb2Pts);
 // Orbit center offset (updated by buildGeometry)
 let orbCx=0,orbCy=0,orbCz=0;
+
+// ===== JARVIS NEURONS (shoot from orbits to core) =====
+const JARVIS_NEURON_COUNT=30;
+const jNeurons=[];
+let jOrbitSpeed=1.0; // Dynamic: faster when thinking
+function fireNeuron(color,trigger){
+  if(jNeurons.length>=JARVIS_NEURON_COUNT) return;
+  const orbitAngle=Math.random()*Math.PI*2;
+  const useOrbit1=Math.random()>0.5;
+  let sx,sy,sz;
+  if(useOrbit1){
+    sx=orbCx+Math.cos(orbitAngle)*orbR;sy=orbCy;sz=orbCz+Math.sin(orbitAngle)*orbR;
+  } else {
+    const lx=Math.cos(orbitAngle)*orbR,ly=0,lz=Math.sin(orbitAngle)*orbR;
+    const ry=ly*cosX-lz*sinX,rz=ly*sinX+lz*cosX;
+    const fx=lx*cosZ-ry*sinZ,fy=lx*sinZ+ry*cosZ;
+    sx=orbCx+fx;sy=orbCy+fy;sz=orbCz+rz;
+  }
+  const c=new THREE.Color(color||0x00FF66);
+  const speed=0.5+Math.random()*1.0;
+  const geo=new THREE.BufferGeometry();
+  const trailLen=8;
+  const positions=new Float32Array(trailLen*3);
+  for(let j=0;j<trailLen;j++){positions[j*3]=sx;positions[j*3+1]=sy;positions[j*3+2]=sz;}
+  geo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+  const mat=new THREE.LineBasicMaterial({color:c,transparent:true,opacity:0.4,blending:THREE.AdditiveBlending});
+  const line=new THREE.Line(geo,mat);
+  scene.add(line);
+  jNeurons.push({x:sx,y:sy,z:sz,speed,color:c,line,geo,life:0,maxLife:3.0,trail:Array.from({length:trailLen},()=>({x:sx,y:sy,z:sz}))});
+}
+function updateNeurons(dt){
+  for(let i=jNeurons.length-1;i>=0;i--){
+    const n=jNeurons[i];
+    n.life+=dt;
+    const dx=orbCx-n.x,dy=orbCy-n.y,dz=orbCz-n.z;
+    const dist=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    if(dist<5||n.life>n.maxLife){
+      scene.remove(n.line);n.geo.dispose();n.line.material.dispose();
+      jNeurons.splice(i,1);continue;
+    }
+    const s=n.speed*dt*60;
+    n.x+=dx/dist*s;n.y+=dy/dist*s;n.z+=dz/dist*s;
+    n.trail.pop();n.trail.unshift({x:n.x,y:n.y,z:n.z});
+    const pos=n.geo.attributes.position;
+    for(let j=0;j<n.trail.length;j++){
+      pos.array[j*3]=n.trail[j].x;pos.array[j*3+1]=n.trail[j].y;pos.array[j*3+2]=n.trail[j].z;
+    }
+    pos.needsUpdate=true;
+    n.line.material.opacity=0.4*(1-n.life/n.maxLife);
+  }
+}
+
+// ===== JARVIS CONSCIOUSNESS STATE =====
+let jarvisThinkingPhase='idle';
+let jarvisThinkingLabel=null;
+function updateJarvisThinking(phase){
+  jarvisThinkingPhase=phase;
+  jOrbitSpeed=phase==='quick'?1.5:phase==='medium'?2.5:phase==='deep'?4.0:1.0;
+  if(phase!=='idle'){
+    fireNeuron(phase==='deep'?0xFF00FF:0x00FF66,phase);
+    fireNeuron(phase==='deep'?0xFFDD00:0x00FF66,phase);
+  }
+}
 
 // ===== ANIMATE (cinematic: bloom + core pulse + edge breathing) =====
 let fpsF=0, lastFT=performance.now();
@@ -1193,8 +1259,14 @@ function animate(){
   // Edge breathing
   eMat.uniforms.uBreath.value = 1.0 + Math.sin(t * 0.0008) * 0.15;
 
-  // Orbit particle streams
-  const oSp=t*0.0003;
+  // Core light position
+  coreLight.position.set(orbCx,orbCy,orbCz);
+
+  // Update Jarvis neurons
+  updateNeurons(dt);
+
+  // Orbit particle streams (speed affected by thinking phase)
+  const oSp=t*0.0003*jOrbitSpeed;
   const o1=orb1Geo.attributes.position;
   for(let i=0;i<ORB_COUNT;i++){
     const a=orb1Phase[i]+oSp;
@@ -1250,6 +1322,18 @@ let ws=null;
           setTimeout(()=>refreshModels(),2000);
           setTimeout(()=>refreshModels(),5000);
         }
+        // Jarvis AGI events
+        if(m.type==='thinking_update') updateJarvisThinking(m.phase);
+        if(m.type==='consciousness_event'){ fireNeuron(0xFF00FF,'consciousness'); addFinding('Jarvis',m.content,'info',''); }
+        if(m.type==='jarvis_learning'){ fireNeuron(0xFFB800,'learning'); }
+        if(m.type==='neuron_fired') fireNeuron(parseInt(m.color)||0x00FF66,m.trigger);
+        if(m.type==='proposal_created'){ fireNeuron(0xFFDD00,'proposal'); addFinding('Jarvis','Proposal: '+(m.proposal?.title||''),'info',''); }
+        if(m.type==='identity_changed') fireNeuron(m.newValue>m.oldValue?0x00FF66:0xFF8800,'identity');
+        if(m.type==='autonomy_changed') addFinding('Jarvis','Autonomy: L'+m.oldLevel+' \\u2192 L'+m.newLevel+' ('+m.reason+')','info','');
+        if(m.type==='trigger_fired'){ fireNeuron(0x00FF66,'trigger'); addFinding('Jarvis','Trigger: '+m.details,'info',''); }
+        if(m.type==='worker_started') addFinding('Jarvis','Worker started: '+(m.worker?.taskTitle||''),'info','');
+        if(m.type==='worker_completed') addFinding('Jarvis','Worker done: '+(m.worker?.taskTitle||''),'info','');
+        if(m.type==='tts_audio'&&m.audioBase64){ try{const a=new Audio('data:audio/mpeg;base64,'+m.audioBase64);a.play();}catch{} }
         if(m.type==='model_activated'){
           document.querySelectorAll('[data-activate]').forEach(b=>{b.disabled=false;b.textContent='\\u26A1 Activate';});
           const n=document.createElement('div');

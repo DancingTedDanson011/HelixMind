@@ -393,6 +393,97 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             sendTo(ws, { type: 'jarvis_cleared', requestId, timestamp: Date.now() });
             break;
           }
+
+          // --- Jarvis AGI ---
+          case 'list_proposals': {
+            const proposals = controlHandlers.listProposals();
+            sendTo(ws, { type: 'proposals_list', proposals, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'approve_proposal': {
+            const success = controlHandlers.approveProposal((msg as any).proposalId);
+            sendTo(ws, { type: 'proposal_approved', proposalId: (msg as any).proposalId, success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'deny_proposal': {
+            const success = controlHandlers.denyProposal((msg as any).proposalId, (msg as any).reason);
+            sendTo(ws, { type: 'proposal_denied', proposalId: (msg as any).proposalId, success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'set_autonomy_level': {
+            const success = controlHandlers.setAutonomyLevel((msg as any).level);
+            sendTo(ws, { type: 'autonomy_level_set', level: (msg as any).level, success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'get_identity': {
+            const identity = controlHandlers.getIdentity();
+            sendTo(ws, { type: 'identity_info', identity, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'trigger_deep_think': {
+            controlHandlers.triggerDeepThink();
+            sendTo(ws, { type: 'deep_think_triggered', requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'add_schedule': {
+            const schedule = controlHandlers.addSchedule((msg as any).expression, (msg as any).taskTitle, (msg as any).scheduleType);
+            sendTo(ws, { type: 'schedule_added', schedule, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'remove_schedule': {
+            const success = controlHandlers.removeSchedule((msg as any).scheduleId);
+            sendTo(ws, { type: 'schedule_removed', success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'list_schedules': {
+            const schedules = controlHandlers.listSchedules();
+            sendTo(ws, { type: 'schedules_list', schedules, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'add_trigger': {
+            const trigger = controlHandlers.addTrigger((msg as any).source, (msg as any).pattern, (msg as any).action);
+            sendTo(ws, { type: 'trigger_added', trigger, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'remove_trigger': {
+            const success = controlHandlers.removeTrigger((msg as any).triggerId);
+            sendTo(ws, { type: 'trigger_removed', success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'list_triggers': {
+            const triggers = controlHandlers.listTriggers();
+            sendTo(ws, { type: 'triggers_list', triggers, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'list_projects': {
+            const projects = controlHandlers.listProjects();
+            sendTo(ws, { type: 'projects_list', projects, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'register_project': {
+            const project = controlHandlers.registerProject((msg as any).path, (msg as any).name);
+            sendTo(ws, { type: 'project_registered', project, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'get_workers': {
+            const workers = controlHandlers.getWorkers();
+            sendTo(ws, { type: 'workers_list', workers, requestId, timestamp: Date.now() });
+            break;
+          }
         }
       }
 
@@ -564,5 +655,11 @@ function isControlRequest(type: string): boolean {
     'start_jarvis', 'stop_jarvis', 'pause_jarvis', 'resume_jarvis',
     'add_jarvis_task', 'list_jarvis_tasks', 'get_jarvis_status',
     'clear_jarvis_completed',
+    // Jarvis AGI
+    'list_proposals', 'approve_proposal', 'deny_proposal',
+    'set_autonomy_level', 'get_identity', 'trigger_deep_think',
+    'add_schedule', 'remove_schedule', 'list_schedules',
+    'add_trigger', 'remove_trigger', 'list_triggers',
+    'list_projects', 'register_project', 'get_workers',
   ].includes(type);
 }

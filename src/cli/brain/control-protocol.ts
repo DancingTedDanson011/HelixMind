@@ -94,6 +94,60 @@ export interface JarvisStatusInfo {
   failedCount: number;
   totalCount: number;
   uptimeMs: number;
+  autonomyLevel?: number;
+  thinkingPhase?: string;
+  activeWorkers?: number;
+}
+
+// --- Jarvis AGI data types ---
+
+export interface ProposalInfo {
+  id: number;
+  title: string;
+  description: string;
+  rationale: string;
+  status: 'pending' | 'approved' | 'denied' | 'expired';
+  category: string;
+  affectedFiles: string[];
+  createdAt: number;
+  decidedAt?: number;
+  denialReason?: string;
+}
+
+export interface IdentityInfo {
+  traits: Record<string, number>;
+  trust: { approvalRate: number; successRate: number; totalProposals: number };
+  autonomyLevel: number;
+  uptime: number;
+  recentLearnings: string[];
+}
+
+export interface ScheduleInfo {
+  id: number;
+  type: string;
+  expression: string;
+  taskTitle: string;
+  enabled: boolean;
+  nextRunAt?: number;
+  lastRunAt?: number;
+}
+
+export interface TriggerInfo {
+  id: number;
+  source: string;
+  pattern: string;
+  action: string;
+  enabled: boolean;
+  lastFiredAt?: number;
+}
+
+export interface WorkerInfo {
+  workerId: number;
+  taskId: number;
+  taskTitle: string;
+  status: 'running' | 'completed' | 'failed';
+  startedAt: number;
+  completedAt?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +195,23 @@ export interface ListJarvisTasksRequest extends WSMessage { type: 'list_jarvis_t
 export interface GetJarvisStatusRequest extends WSMessage { type: 'get_jarvis_status' }
 export interface ClearJarvisCompletedRequest extends WSMessage { type: 'clear_jarvis_completed' }
 
+// --- Jarvis AGI Requests (Browser → CLI) ---
+export interface ListProposalsRequest extends WSMessage { type: 'list_proposals' }
+export interface ApproveProposalRequest extends WSMessage { type: 'approve_proposal'; proposalId: number }
+export interface DenyProposalRequest extends WSMessage { type: 'deny_proposal'; proposalId: number; reason: string }
+export interface SetAutonomyLevelRequest extends WSMessage { type: 'set_autonomy_level'; level: number }
+export interface GetIdentityRequest extends WSMessage { type: 'get_identity' }
+export interface TriggerDeepThinkRequest extends WSMessage { type: 'trigger_deep_think' }
+export interface AddScheduleRequest extends WSMessage { type: 'add_schedule'; expression: string; taskTitle: string; scheduleType?: string }
+export interface RemoveScheduleRequest extends WSMessage { type: 'remove_schedule'; scheduleId: number }
+export interface ListSchedulesRequest extends WSMessage { type: 'list_schedules' }
+export interface AddTriggerRequest extends WSMessage { type: 'add_trigger'; source: string; pattern: string; action: string }
+export interface RemoveTriggerRequest extends WSMessage { type: 'remove_trigger'; triggerId: number }
+export interface ListTriggersRequest extends WSMessage { type: 'list_triggers' }
+export interface ListProjectsRequest extends WSMessage { type: 'list_projects' }
+export interface RegisterProjectRequest extends WSMessage { type: 'register_project'; path: string; name?: string }
+export interface GetWorkersRequest extends WSMessage { type: 'get_workers' }
+
 // --- Responses (CLI → Browser) ---
 export interface SessionsListResponse extends WSMessage { type: 'sessions_list'; sessions: SessionInfo[] }
 export interface AutoStartedResponse extends WSMessage { type: 'auto_started'; sessionId: string }
@@ -159,6 +230,17 @@ export interface JarvisStoppedResponse extends WSMessage { type: 'jarvis_stopped
 export interface JarvisTaskAddedResponse extends WSMessage { type: 'jarvis_task_added'; task: JarvisTaskInfo }
 export interface JarvisTasksListResponse extends WSMessage { type: 'jarvis_tasks_list'; tasks: JarvisTaskInfo[] }
 export interface JarvisStatusResponse extends WSMessage { type: 'jarvis_status'; status: JarvisStatusInfo }
+
+// --- Jarvis AGI Responses (CLI → Browser) ---
+export interface ProposalsListResponse extends WSMessage { type: 'proposals_list'; proposals: ProposalInfo[] }
+export interface ProposalApprovedResponse extends WSMessage { type: 'proposal_approved'; proposalId: number }
+export interface ProposalDeniedResponse extends WSMessage { type: 'proposal_denied'; proposalId: number }
+export interface AutonomyLevelSetResponse extends WSMessage { type: 'autonomy_level_set'; level: number }
+export interface IdentityResponse extends WSMessage { type: 'identity_info'; identity: IdentityInfo }
+export interface SchedulesListResponse extends WSMessage { type: 'schedules_list'; schedules: ScheduleInfo[] }
+export interface TriggersListResponse extends WSMessage { type: 'triggers_list'; triggers: TriggerInfo[] }
+export interface ProjectsListResponse extends WSMessage { type: 'projects_list'; projects: Array<{ name: string; path: string; health: number }> }
+export interface WorkersListResponse extends WSMessage { type: 'workers_list'; workers: WorkerInfo[] }
 
 // --- Server-Push Events (CLI → Browser, async) ---
 export interface SessionUpdatedEvent extends WSMessage { type: 'session_updated'; session: SessionInfo }
@@ -180,6 +262,22 @@ export interface MonitorStatusEvent extends WSMessage { type: 'monitor_status'; 
 export interface JarvisTaskCreatedEvent extends WSMessage { type: 'jarvis_task_created'; task: JarvisTaskInfo }
 export interface JarvisTaskUpdatedEvent extends WSMessage { type: 'jarvis_task_updated'; task: JarvisTaskInfo }
 export interface JarvisStatusChangedEvent extends WSMessage { type: 'jarvis_status_changed'; status: JarvisStatusInfo }
+
+// --- Jarvis AGI Events (CLI → Browser, async) ---
+export interface ThinkingUpdateEvent extends WSMessage { type: 'thinking_update'; phase: string; observation?: string }
+export interface ConsciousnessEventMsg extends WSMessage { type: 'consciousness_event'; eventType: string; content: string; depth: string }
+export interface JarvisLearningEvent extends WSMessage { type: 'jarvis_learning'; topic: string; content: string; spiralLevel: number; tags: string[]; sourcePhase: string }
+export interface IdentityChangedEvent extends WSMessage { type: 'identity_changed'; trait: string; oldValue: number; newValue: number; reason: string }
+export interface AutonomyChangedEvent extends WSMessage { type: 'autonomy_changed'; oldLevel: number; newLevel: number; reason: string }
+export interface NeuronFiredEvent extends WSMessage { type: 'neuron_fired'; fromOrbit: string; color: string; trigger: string }
+export interface ProposalCreatedEvent extends WSMessage { type: 'proposal_created'; proposal: ProposalInfo }
+export interface ProposalUpdatedEvent extends WSMessage { type: 'proposal_updated'; proposal: ProposalInfo }
+export interface ScheduleFiredEvent extends WSMessage { type: 'schedule_fired'; scheduleId: number; taskTitle: string }
+export interface TriggerFiredEvent extends WSMessage { type: 'trigger_fired'; triggerId: number; source: string; details: string }
+export interface WorkerStartedEvent extends WSMessage { type: 'worker_started'; worker: WorkerInfo }
+export interface WorkerCompletedEvent extends WSMessage { type: 'worker_completed'; worker: WorkerInfo }
+export interface TTSAudioEvent extends WSMessage { type: 'tts_audio'; audioBase64: string; text: string; duration: number }
+export interface NotificationSentEvent extends WSMessage { type: 'notification_sent'; channel: string; title: string }
 
 // --- Web Chat Events (CLI → Browser, streamed) ---
 export interface ChatStartedEvent extends WSMessage { type: 'chat_started'; chatId: string }
@@ -212,7 +310,22 @@ export type ControlRequest =
   | AddJarvisTaskRequest
   | ListJarvisTasksRequest
   | GetJarvisStatusRequest
-  | ClearJarvisCompletedRequest;
+  | ClearJarvisCompletedRequest
+  | ListProposalsRequest
+  | ApproveProposalRequest
+  | DenyProposalRequest
+  | SetAutonomyLevelRequest
+  | GetIdentityRequest
+  | TriggerDeepThinkRequest
+  | AddScheduleRequest
+  | RemoveScheduleRequest
+  | ListSchedulesRequest
+  | AddTriggerRequest
+  | RemoveTriggerRequest
+  | ListTriggersRequest
+  | ListProjectsRequest
+  | RegisterProjectRequest
+  | GetWorkersRequest;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts
@@ -239,6 +352,22 @@ export interface ControlHandlers {
   listJarvisTasks(): JarvisTaskInfo[];
   getJarvisStatus(): JarvisStatusInfo;
   clearJarvisCompleted(): void;
+  // Jarvis AGI
+  listProposals(): ProposalInfo[];
+  approveProposal(id: number): boolean;
+  denyProposal(id: number, reason: string): boolean;
+  setAutonomyLevel(level: number): boolean;
+  getIdentity(): IdentityInfo | null;
+  triggerDeepThink(): void;
+  addSchedule(expression: string, taskTitle: string, scheduleType?: string): ScheduleInfo | null;
+  removeSchedule(id: number): boolean;
+  listSchedules(): ScheduleInfo[];
+  addTrigger(source: string, pattern: string, action: string): TriggerInfo | null;
+  removeTrigger(id: number): boolean;
+  listTriggers(): TriggerInfo[];
+  listProjects(): Array<{ name: string; path: string; health: number }>;
+  registerProject(path: string, name?: string): { name: string; path: string; health: number } | null;
+  getWorkers(): WorkerInfo[];
 }
 
 // ---------------------------------------------------------------------------

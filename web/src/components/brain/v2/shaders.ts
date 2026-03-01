@@ -141,3 +141,128 @@ export const dustFragmentShader = `
     gl_FragColor = vec4(vColor, alpha);
   }
 `;
+
+// ─── Jarvis Neuron Shaders ──────────────────────────────────
+// Particles that shoot from orbit positions to core center with trail fade
+
+export const neuronVertexShader = `
+  attribute float aSize;
+  attribute float aAlpha;
+  attribute vec3 aColor;
+
+  varying vec3 vColor;
+  varying float vAlpha;
+
+  void main() {
+    vColor = aColor;
+    vAlpha = aAlpha;
+
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = aSize * (400.0 / -mvPosition.z);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+export const neuronFragmentShader = `
+  varying vec3 vColor;
+  varying float vAlpha;
+
+  void main() {
+    float d = length(gl_PointCoord - vec2(0.5));
+    if (d > 0.5) discard;
+
+    float core = exp(-d * d * 120.0) * 1.0;
+    float halo = exp(-d * d * 15.0) * 0.35;
+
+    float intensity = core + halo;
+    gl_FragColor = vec4(vColor * (0.8 + core * 0.4), intensity * vAlpha);
+  }
+`;
+
+// ─── Jarvis Core Shaders ────────────────────────────────────
+// Golden pulsing core with warm glow
+
+export const coreVertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+
+  uniform float uTime;
+  uniform float uPulse;
+
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vPosition = position;
+
+    // Breathing pulse
+    float breath = 1.0 + sin(uTime * 0.8) * 0.03 * uPulse;
+    vec3 pos = position * breath;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+  }
+`;
+
+export const coreFragmentShader = `
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+
+  uniform float uTime;
+  uniform vec3 uColor;
+  uniform float uOpacity;
+
+  void main() {
+    // Fresnel edge glow
+    vec3 viewDir = normalize(cameraPosition - vPosition);
+    float fresnel = 1.0 - abs(dot(viewDir, vNormal));
+    fresnel = pow(fresnel, 2.0);
+
+    // Inner warmth
+    float inner = 0.3 + fresnel * 0.7;
+    float pulse = 0.95 + sin(uTime * 1.2) * 0.05;
+
+    vec3 color = uColor * inner * pulse;
+    float alpha = uOpacity * (0.6 + fresnel * 0.4);
+
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
+// ─── Jarvis Orbit Shaders ───────────────────────────────────
+// Ring particles with soft glow
+
+export const orbitVertexShader = `
+  attribute float aSize;
+  attribute vec3 aColor;
+  attribute float aPulse;
+
+  varying vec3 vColor;
+  varying float vPulse;
+
+  uniform float uTime;
+
+  void main() {
+    vColor = aColor;
+    vPulse = aPulse;
+
+    float breath = 1.0 + sin(uTime * 2.0 + aPulse * 6.28) * 0.15;
+
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = aSize * breath * (350.0 / -mvPosition.z);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+export const orbitFragmentShader = `
+  varying vec3 vColor;
+  varying float vPulse;
+
+  void main() {
+    float d = length(gl_PointCoord - vec2(0.5));
+    if (d > 0.5) discard;
+
+    float core = exp(-d * d * 80.0) * 0.9;
+    float halo = exp(-d * d * 12.0) * 0.3;
+
+    float intensity = core + halo;
+    gl_FragColor = vec4(vColor, intensity);
+  }
+`;

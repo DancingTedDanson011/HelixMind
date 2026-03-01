@@ -934,6 +934,23 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         getJarvisStatus: () => jarvisQueue.getStatus(),
 
         clearJarvisCompleted: () => jarvisQueue.clearCompleted(),
+
+        // Jarvis AGI handlers (stubs — wired when AGI modules are initialized)
+        listProposals: () => [],
+        approveProposal: () => false,
+        denyProposal: () => false,
+        setAutonomyLevel: () => false,
+        getIdentity: () => null,
+        triggerDeepThink: () => {},
+        addSchedule: () => null,
+        removeSchedule: () => false,
+        listSchedules: () => [],
+        addTrigger: () => null,
+        removeTrigger: () => false,
+        listTriggers: () => [],
+        listProjects: () => [],
+        registerProject: () => null,
+        getWorkers: () => [],
       });
 
       // Wire bug journal change events to brain server
@@ -1057,6 +1074,22 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           listJarvisTasks: () => [],
           getJarvisStatus: () => ({ daemonState: 'stopped' as const, currentTaskId: null, pendingCount: 0, completedCount: 0, failedCount: 0, totalCount: 0, uptimeMs: 0 }),
           clearJarvisCompleted: () => {},
+          // Jarvis AGI stubs (relay fallback)
+          listProposals: () => [],
+          approveProposal: () => false,
+          denyProposal: () => false,
+          setAutonomyLevel: () => false,
+          getIdentity: () => null,
+          triggerDeepThink: () => {},
+          addSchedule: () => null,
+          removeSchedule: () => false,
+          listSchedules: () => [],
+          addTrigger: () => null,
+          removeTrigger: () => false,
+          listTriggers: () => [],
+          listProjects: () => [],
+          registerProject: () => null,
+          getWorkers: () => [],
         }, updateMeta).catch(() => {});
       }
     } catch { /* control protocol optional */ }

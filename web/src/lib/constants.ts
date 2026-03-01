@@ -55,7 +55,7 @@ export const TYPE_SECTORS: Record<string, { xOff: number; yOff: number; zOff: nu
 } as const;
 
 export const LEVEL_COLORS = {
-  1: 0x00ffff,
+  1: 0xffffff,   // Focus — White (bright, less dense)
   2: 0x00ff88,
   3: 0x4169e1,
   4: 0x8a2be2,
@@ -65,16 +65,20 @@ export const LEVEL_COLORS = {
   7: 0xff4444,   // Security Threat — Red
   8: 0x4488ff,   // Defense Action — Blue
   9: 0x00ff88,   // Monitor Baseline — Green
+  // Jarvis AGI
+  10: 0xff00ff,  // Jarvis Consciousness — Magenta
 } as const;
 
 export const LEVEL_SIZES = {
-  1: 8, 2: 7, 3: 5.5, 4: 4.5, 5: 3.5, 6: 9,
+  1: 10, 2: 7, 3: 5.5, 4: 4.5, 5: 3.5, 6: 9,
   7: 10, 8: 7, 9: 6,  // Monitor nodes
+  10: 8,               // Jarvis consciousness
 } as const;
 
 export const LEVEL_GLOW = {
   1: 1.2, 2: 0.9, 3: 0.6, 4: 0.4, 5: 0.2, 6: 1.5,
   7: 2.0, 8: 1.0, 9: 0.8,  // Monitor nodes
+  10: 2.5,                   // Jarvis consciousness — strong glow
 } as const;
 
 export const LEVEL_NAMES = {
@@ -87,7 +91,15 @@ export const LEVEL_NAMES = {
   7: 'Security Threat',
   8: 'Defense Action',
   9: 'Monitor Baseline',
+  10: 'Jarvis Consciousness',
 } as const;
+
+// ─── Jarvis AGI Brain Colors ───────────────────────────────
+export const JARVIS_CORE_COLOR = 0xffb800;        // Golden core
+export const JARVIS_CORE_LIGHT = 0xffd080;        // Warm point light
+export const JARVIS_ORBIT_GREEN = 0x00ff66;        // Thoughts orbit
+export const JARVIS_ORBIT_YELLOW = 0xffdd00;       // Proposals orbit
+export const JARVIS_CONSCIOUSNESS = 0xff00ff;      // Consciousness nodes
 
 // ─── Plans ───────────────────────────────────
 

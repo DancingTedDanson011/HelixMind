@@ -5,7 +5,7 @@ import type { BrainExport } from './exporter.js';
 import type { BrainScope } from '../../utils/config.js';
 import { generateBrainHTML } from './template.js';
 import { startBrainServer, type BrainServer } from './server.js';
-import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo } from './control-protocol.js';
+import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo, TriggerInfo, WorkerInfo } from './control-protocol.js';
 
 /** Generate a static HTML file (fallback / export) */
 export function generateBrainFile(data: BrainExport): string {
@@ -366,6 +366,114 @@ export function pushMonitorStatus(status: { mode: string; uptime: number; threat
     ...status,
     timestamp: Date.now(),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Jarvis AGI Events — Push Functions
+// ---------------------------------------------------------------------------
+
+/** Push a thinking update to all clients (brain + control) */
+export function pushThinkingUpdate(phase: string, observation?: string): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'thinking_update', phase, observation, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a consciousness event to all clients */
+export function pushConsciousnessEvent(eventType: string, content: string, depth: string): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'consciousness_event', eventType, content, depth, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a learning event to all clients */
+export function pushJarvisLearning(topic: string, content: string, spiralLevel: number, tags: string[], sourcePhase: string): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'jarvis_learning', topic, content, spiralLevel, tags, sourcePhase, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push an identity change event to all clients */
+export function pushIdentityChanged(trait: string, oldValue: number, newValue: number, reason: string): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'identity_changed', trait, oldValue, newValue, reason, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push an autonomy level change event to all clients */
+export function pushAutonomyChanged(oldLevel: number, newLevel: number, reason: string): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'autonomy_changed', oldLevel, newLevel, reason, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a neuron fired event to brain clients (visualization) */
+export function pushNeuronFired(fromOrbit: string, color: string, trigger: string): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushEvent({ type: 'neuron_fired', fromOrbit, color, trigger, timestamp: Date.now() });
+}
+
+/** Push a proposal created event to all clients */
+export function pushProposalCreated(proposal: ProposalInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'proposal_created', proposal, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a proposal updated event to all clients */
+export function pushProposalUpdated(proposal: ProposalInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'proposal_updated', proposal, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a schedule fired event to control clients */
+export function pushScheduleFired(scheduleId: number, taskTitle: string): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({ type: 'schedule_fired', scheduleId, taskTitle, timestamp: Date.now() });
+}
+
+/** Push a trigger fired event to all clients */
+export function pushTriggerFired(triggerId: number, source: string, details: string): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'trigger_fired', triggerId, source, details, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a worker started event to all clients */
+export function pushWorkerStarted(worker: WorkerInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'worker_started', worker, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a worker completed event to all clients */
+export function pushWorkerCompleted(worker: WorkerInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'worker_completed', worker, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push TTS audio to browser clients */
+export function pushTTSAudio(audioBase64: string, text: string, duration: number): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushEvent({ type: 'tts_audio', audioBase64, text, duration, timestamp: Date.now() });
+}
+
+/** Push a notification sent event to control clients */
+export function pushNotificationSent(channel: string, title: string): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({ type: 'notification_sent', channel, title, timestamp: Date.now() });
 }
 
 /**

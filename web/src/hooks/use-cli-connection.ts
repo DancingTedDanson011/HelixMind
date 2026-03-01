@@ -15,6 +15,13 @@ import type {
   MonitorStatus,
   JarvisTaskInfo,
   JarvisStatusInfo,
+  ProposalInfo,
+  IdentityInfo,
+  ScheduleInfo,
+  TriggerInfo,
+  WorkerInfo,
+  ThinkingUpdate,
+  ConsciousnessEvent,
 } from '@/lib/cli-types';
 import { registerConnectionWs, unregisterConnectionWs } from '@/lib/cli-ws-registry';
 
@@ -70,6 +77,16 @@ export interface UseCliConnectionReturn {
   jarvisTasks: JarvisTaskInfo[];
   jarvisStatus: JarvisStatusInfo | null;
 
+  // Jarvis AGI state
+  proposals: ProposalInfo[];
+  identity: IdentityInfo | null;
+  schedules: ScheduleInfo[];
+  triggers: TriggerInfo[];
+  workers: WorkerInfo[];
+  thinkingUpdates: ThinkingUpdate[];
+  consciousnessEvents: ConsciousnessEvent[];
+  autonomyLevel: number;
+
   connect: () => void;
   disconnect: () => void;
   sendRequest: (type: string, payload?: Record<string, unknown>) => Promise<unknown>;
@@ -92,6 +109,20 @@ export interface UseCliConnectionReturn {
   addJarvisTask: (title: string, description: string, priority?: string) => Promise<JarvisTaskInfo>;
   listJarvisTasks: () => Promise<JarvisTaskInfo[]>;
   getJarvisStatus: () => Promise<JarvisStatusInfo>;
+  // Jarvis AGI methods
+  listProposals: () => Promise<ProposalInfo[]>;
+  approveProposal: (id: number) => Promise<boolean>;
+  denyProposal: (id: number, reason: string) => Promise<boolean>;
+  setAutonomyLevel: (level: number) => Promise<void>;
+  getIdentity: () => Promise<IdentityInfo>;
+  triggerDeepThink: () => Promise<void>;
+  addSchedule: (entry: { type: string; expression: string; taskTitle: string }) => Promise<ScheduleInfo>;
+  removeSchedule: (id: number) => Promise<void>;
+  listSchedules: () => Promise<ScheduleInfo[]>;
+  addTrigger: (config: { source: string; pattern: string; action: string }) => Promise<TriggerInfo>;
+  removeTrigger: (id: number) => Promise<void>;
+  listTriggers: () => Promise<TriggerInfo[]>;
+  getWorkers: () => Promise<WorkerInfo[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +152,16 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [jarvisTasks, setJarvisTasks] = useState<JarvisTaskInfo[]>([]);
   const [jarvisStatus, setJarvisStatus] = useState<JarvisStatusInfo | null>(null);
   const [wsVersion, setWsVersion] = useState(0);
+
+  // Jarvis AGI state
+  const [proposals, setProposals] = useState<ProposalInfo[]>([]);
+  const [identity, setIdentity] = useState<IdentityInfo | null>(null);
+  const [schedules, setSchedules] = useState<ScheduleInfo[]>([]);
+  const [triggers, setTriggers] = useState<TriggerInfo[]>([]);
+  const [workers, setWorkers] = useState<WorkerInfo[]>([]);
+  const [thinkingUpdates, setThinkingUpdates] = useState<ThinkingUpdate[]>([]);
+  const [consciousnessEvents, setConsciousnessEvents] = useState<ConsciousnessEvent[]>([]);
+  const [autonomyLevel, setAutonomyLevelState] = useState(2);
 
   const wsRef = useRef<WebSocket | null>(null);
   const connectionStateRef = useRef<ConnectionState>('disconnected');
@@ -357,7 +398,78 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
       const status = msg.status as JarvisStatusInfo;
       if (mountedRef.current) {
         setJarvisStatus(status);
+        if (status.autonomyLevel !== undefined) {
+          setAutonomyLevelState(status.autonomyLevel);
+        }
       }
+      return;
+    }
+
+    // Jarvis AGI events
+    if (msg.type === 'proposal_created') {
+      const proposal = msg.proposal as ProposalInfo;
+      if (mountedRef.current) {
+        setProposals((prev) => [...prev, proposal]);
+      }
+      return;
+    }
+
+    if (msg.type === 'proposal_updated') {
+      const proposal = msg.proposal as ProposalInfo;
+      if (mountedRef.current) {
+        setProposals((prev) => prev.map((p) => (p.id === proposal.id ? proposal : p)));
+      }
+      return;
+    }
+
+    if (msg.type === 'thinking_update') {
+      const update = msg as unknown as ThinkingUpdate;
+      if (mountedRef.current) {
+        setThinkingUpdates((prev) => [...prev.slice(-99), update]);
+      }
+      return;
+    }
+
+    if (msg.type === 'consciousness_event') {
+      const event = msg as unknown as ConsciousnessEvent;
+      if (mountedRef.current) {
+        setConsciousnessEvents((prev) => [...prev.slice(-99), event]);
+      }
+      return;
+    }
+
+    if (msg.type === 'identity_changed') {
+      if (mountedRef.current && msg.identity) {
+        setIdentity(msg.identity as IdentityInfo);
+      }
+      return;
+    }
+
+    if (msg.type === 'autonomy_changed') {
+      if (mountedRef.current && typeof msg.newLevel === 'number') {
+        setAutonomyLevelState(msg.newLevel as number);
+      }
+      return;
+    }
+
+    if (msg.type === 'worker_started') {
+      const worker = msg.worker as WorkerInfo;
+      if (mountedRef.current) {
+        setWorkers((prev) => [...prev, worker]);
+      }
+      return;
+    }
+
+    if (msg.type === 'worker_completed') {
+      const worker = msg.worker as WorkerInfo;
+      if (mountedRef.current) {
+        setWorkers((prev) => prev.map((w) => (w.workerId === worker.workerId ? worker : w)));
+      }
+      return;
+    }
+
+    if (msg.type === 'schedule_fired' || msg.type === 'trigger_fired') {
+      // Just log — the proposal_created event will handle the UI update
       return;
     }
   }, []);
@@ -614,6 +726,84 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   }, [sendRequest]);
 
   // ---------------------------------------------------------------------------
+  // Jarvis AGI convenience methods
+  // ---------------------------------------------------------------------------
+  const listProposals = useCallback(async (): Promise<ProposalInfo[]> => {
+    const res = (await sendRequest('list_proposals')) as { proposals: ProposalInfo[] };
+    const list = res.proposals ?? [];
+    setProposals(list);
+    return list;
+  }, [sendRequest]);
+
+  const approveProposal = useCallback(async (id: number): Promise<boolean> => {
+    const res = (await sendRequest('approve_proposal', { id })) as { success: boolean };
+    return res.success ?? false;
+  }, [sendRequest]);
+
+  const denyProposal = useCallback(async (id: number, reason: string): Promise<boolean> => {
+    const res = (await sendRequest('deny_proposal', { id, reason })) as { success: boolean };
+    return res.success ?? false;
+  }, [sendRequest]);
+
+  const setAutonomyLevel = useCallback(async (level: number): Promise<void> => {
+    await sendRequest('set_autonomy_level', { level });
+    setAutonomyLevelState(level);
+  }, [sendRequest]);
+
+  const getIdentity = useCallback(async (): Promise<IdentityInfo> => {
+    const res = (await sendRequest('get_identity')) as { identity: IdentityInfo };
+    setIdentity(res.identity);
+    return res.identity;
+  }, [sendRequest]);
+
+  const triggerDeepThink = useCallback(async (): Promise<void> => {
+    await sendRequest('trigger_deep_think');
+  }, [sendRequest]);
+
+  const addSchedule = useCallback(async (entry: { type: string; expression: string; taskTitle: string }): Promise<ScheduleInfo> => {
+    const res = (await sendRequest('add_schedule', entry)) as { schedule: ScheduleInfo };
+    setSchedules((prev) => [...prev, res.schedule]);
+    return res.schedule;
+  }, [sendRequest]);
+
+  const removeSchedule = useCallback(async (id: number): Promise<void> => {
+    await sendRequest('remove_schedule', { id });
+    setSchedules((prev) => prev.filter((s) => s.id !== id));
+  }, [sendRequest]);
+
+  const listSchedules = useCallback(async (): Promise<ScheduleInfo[]> => {
+    const res = (await sendRequest('list_schedules')) as { schedules: ScheduleInfo[] };
+    const list = res.schedules ?? [];
+    setSchedules(list);
+    return list;
+  }, [sendRequest]);
+
+  const addTrigger = useCallback(async (config: { source: string; pattern: string; action: string }): Promise<TriggerInfo> => {
+    const res = (await sendRequest('add_trigger', config)) as { trigger: TriggerInfo };
+    setTriggers((prev) => [...prev, res.trigger]);
+    return res.trigger;
+  }, [sendRequest]);
+
+  const removeTrigger = useCallback(async (id: number): Promise<void> => {
+    await sendRequest('remove_trigger', { id });
+    setTriggers((prev) => prev.filter((t) => t.id !== id));
+  }, [sendRequest]);
+
+  const listTriggers = useCallback(async (): Promise<TriggerInfo[]> => {
+    const res = (await sendRequest('list_triggers')) as { triggers: TriggerInfo[] };
+    const list = res.triggers ?? [];
+    setTriggers(list);
+    return list;
+  }, [sendRequest]);
+
+  const getWorkers = useCallback(async (): Promise<WorkerInfo[]> => {
+    const res = (await sendRequest('get_workers')) as { workers: WorkerInfo[] };
+    const list = res.workers ?? [];
+    setWorkers(list);
+    return list;
+  }, [sendRequest]);
+
+  // ---------------------------------------------------------------------------
   // Cleanup on unmount
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -668,5 +858,30 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     addJarvisTask,
     listJarvisTasks,
     getJarvisStatus,
+
+    // Jarvis AGI state
+    proposals,
+    identity,
+    schedules,
+    triggers,
+    workers,
+    thinkingUpdates,
+    consciousnessEvents,
+    autonomyLevel,
+
+    // Jarvis AGI methods
+    listProposals,
+    approveProposal,
+    denyProposal,
+    setAutonomyLevel,
+    getIdentity,
+    triggerDeepThink,
+    addSchedule,
+    removeSchedule,
+    listSchedules,
+    addTrigger,
+    removeTrigger,
+    listTriggers,
+    getWorkers,
   };
 }

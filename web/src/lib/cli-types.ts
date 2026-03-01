@@ -242,6 +242,75 @@ export interface JarvisStatusInfo {
   failedCount: number;
   totalCount: number;
   uptimeMs: number;
+  autonomyLevel?: number;
+  thinkingPhase?: string;
+  activeWorkers?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Jarvis AGI
+// ---------------------------------------------------------------------------
+
+export interface ProposalInfo {
+  id: number;
+  title: string;
+  description: string;
+  rationale: string;
+  status: 'pending' | 'approved' | 'denied' | 'expired';
+  category: string;
+  affectedFiles: string[];
+  createdAt: number;
+  decidedAt?: number;
+  denialReason?: string;
+}
+
+export interface IdentityInfo {
+  traits: Record<string, number>;
+  trust: { approvalRate: number; successRate: number; totalProposals: number };
+  autonomyLevel: number;
+  uptime: number;
+  recentLearnings: string[];
+}
+
+export interface ScheduleInfo {
+  id: number;
+  type: string;
+  expression: string;
+  taskTitle: string;
+  enabled: boolean;
+  nextRunAt?: number;
+  lastRunAt?: number;
+}
+
+export interface TriggerInfo {
+  id: number;
+  source: string;
+  pattern: string;
+  action: string;
+  enabled: boolean;
+  lastFiredAt?: number;
+}
+
+export interface WorkerInfo {
+  workerId: number;
+  taskId: number;
+  taskTitle: string;
+  status: 'running' | 'completed' | 'failed';
+  startedAt: number;
+  completedAt?: number;
+}
+
+export interface ThinkingUpdate {
+  phase: string;
+  observation?: string;
+  timestamp: number;
+}
+
+export interface ConsciousnessEvent {
+  eventType: string;
+  content: string;
+  depth: string;
+  timestamp: number;
 }
 
 // ---------------------------------------------------------------------------

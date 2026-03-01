@@ -1,11 +1,15 @@
 /**
- * Jarvis Daemon — persistent autonomous task executor.
- * Picks tasks from the queue and executes them one by one using the agent loop.
+ * Jarvis Daemon — persistent autonomous AGI task executor.
+ * Picks tasks from the queue and executes them using the agent loop.
+ * When idle, runs the Thinking Loop (Quick/Medium/Deep).
+ * Integrates Ethics, Identity, Proposals, Autonomy, and Parallel Execution.
  */
 import chalk from 'chalk';
 import { renderInfo } from '../ui/chat-view.js';
 import type { JarvisQueue } from './queue.js';
-import type { JarvisTask } from './types.js';
+import type { JarvisTask, ThinkingCallbacks } from './types.js';
+import { assertCanExecute } from './core-ethics.js';
+import { runThinkingLoop } from './thinking-loop.js';
 
 export interface JarvisDaemonCallbacks {
   sendMessage: (prompt: string) => Promise<string>;
@@ -16,12 +20,23 @@ export interface JarvisDaemonCallbacks {
   onTaskFailed: (task: JarvisTask, error: string) => void;
   updateStatus: () => void;
   storeInSpiral?: (content: string, type: string, tags: string[]) => Promise<void>;
+  querySpiral?: (query: string, limit?: number) => Promise<string[]>;
+  getIdentityPrompt?: () => string;
+  getEthicsPrompt?: () => string;
+  getProposalsSummary?: () => string;
+  /** Thinking loop callbacks — when provided, enables AGI thinking between tasks */
+  thinkingCallbacks?: Partial<ThinkingCallbacks>;
 }
 
-function buildTaskPrompt(task: JarvisTask): string {
-  return `You are JARVIS — HelixMind's autonomous task executor.
+function buildTaskPrompt(task: JarvisTask, identityPrompt?: string, ethicsPrompt?: string): string {
+  const sections = [
+    `You are JARVIS — HelixMind's autonomous AGI task executor.`,
+  ];
 
-TASK #${task.id}: ${task.title}
+  if (identityPrompt) sections.push(identityPrompt);
+  if (ethicsPrompt) sections.push(ethicsPrompt);
+
+  sections.push(`TASK #${task.id}: ${task.title}
 ${task.description}
 
 RULES:
@@ -29,7 +44,9 @@ RULES:
 - Work methodically — break into subtasks if needed
 - Use all available tools (read_file, write_file, edit_file, run_command, git_status, etc.)
 - End with a single-line summary starting with "DONE:" describing what you accomplished
-- If you cannot complete the task, explain why and respond with: TASK_FAILED: <reason>`;
+- If you cannot complete the task, explain why and respond with: TASK_FAILED: <reason>`);
+
+  return sections.join('\n\n');
 }
 
 function buildRetryPrompt(task: JarvisTask): string {
@@ -71,23 +88,26 @@ export async function runJarvisDaemon(
   callbacks: JarvisDaemonCallbacks,
 ): Promise<number> {
   let completedCount = 0;
-  let emptyChecks = 0;
 
   const d = chalk.dim;
   const j = chalk.hex('#ff00ff');
+  const g = chalk.hex('#FFB800');
 
   process.stdout.write('\n');
   process.stdout.write(d('\u256D\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E') + '\n');
-  process.stdout.write(d('\u2502  ') + j('\u{1F916} JARVIS MODE') + d('                            \u2502') + '\n');
+  process.stdout.write(d('\u2502  ') + g('\u{1F31F}') + ' ' + j('JARVIS AGI') + d('                            \u2502') + '\n');
   process.stdout.write(d('\u2502') + d('                                             \u2502') + '\n');
-  process.stdout.write(d('\u2502  ') + 'Persistent task queue — executing tasks' + d('    \u2502') + '\n');
-  process.stdout.write(d('\u2502  ') + 'autonomously from .helixmind/jarvis/' + d('       \u2502') + '\n');
+  process.stdout.write(d('\u2502  ') + 'Autonomous agent — thinking, learning,' + d('     \u2502') + '\n');
+  process.stdout.write(d('\u2502  ') + 'proposing, executing tasks' + d('                 \u2502') + '\n');
   process.stdout.write(d('\u2502') + d('                                             \u2502') + '\n');
   process.stdout.write(d('\u2502  ') + d('/jarvis stop or ESC to stop') + d('             \u2502') + '\n');
   process.stdout.write(d('\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F') + '\n\n');
 
   queue.setDaemonState('running');
   callbacks.updateStatus();
+
+  // Check if thinking callbacks are available for AGI mode
+  const hasThinking = !!callbacks.thinkingCallbacks;
 
   while (!callbacks.isAborted()) {
     // Handle pause
@@ -99,17 +119,22 @@ export async function runJarvisDaemon(
     const task = queue.getNextTask();
 
     if (!task) {
-      emptyChecks++;
-      if (emptyChecks > 3) {
-        // Deep idle — check every 30s
-        await sleep(30_000);
+      // No task available — run thinking loop if available, else idle
+      if (hasThinking) {
+        try {
+          await runThinkingLoop(
+            callbacks.thinkingCallbacks as ThinkingCallbacks,
+            () => !!queue.getNextTask(),
+          );
+        } catch {
+          // Thinking loop error — fall back to simple idle
+          await sleep(30_000);
+        }
       } else {
-        await sleep(5000);
+        await sleep(30_000);
       }
       continue;
     }
-
-    emptyChecks = 0;
 
     // Start task
     queue.updateTask(task.id, { status: 'running', startedAt: Date.now() });
@@ -119,7 +144,32 @@ export async function runJarvisDaemon(
     process.stdout.write(chalk.dim(`  \u2500\u2500 Task #${task.id}: `) + chalk.white(task.title) + chalk.dim(' \u2500'.repeat(10)) + '\n');
 
     try {
-      const prompt = task.retries > 0 ? buildRetryPrompt(task) : buildTaskPrompt(task);
+      // Ethics check before task execution
+      try {
+        assertCanExecute({
+          action: 'execute_task',
+          toolName: 'agent_loop',
+          target: task.title,
+          autonomyLevel: 2,
+          recentActions: [],
+        });
+      } catch (ethicsErr) {
+        // Ethics violation — fail the task
+        queue.updateTask(task.id, {
+          status: 'failed',
+          error: `Ethics violation: ${ethicsErr instanceof Error ? ethicsErr.message : String(ethicsErr)}`,
+        });
+        callbacks.onTaskFailed(task, 'Ethics violation');
+        callbacks.updateStatus();
+        continue;
+      }
+
+      const identityPrompt = callbacks.getIdentityPrompt?.();
+      const ethicsPrompt = callbacks.getEthicsPrompt?.();
+      const prompt = task.retries > 0
+        ? buildRetryPrompt(task)
+        : buildTaskPrompt(task, identityPrompt, ethicsPrompt);
+
       const resultText = await callbacks.sendMessage(prompt);
 
       if (callbacks.isAborted()) break;

@@ -1386,6 +1386,16 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 connection.listJarvisTasks().catch(() => {});
               }}
               isConnected={isConnected}
+              proposals={connection.proposals}
+              identity={connection.identity}
+              autonomyLevel={connection.autonomyLevel}
+              workers={connection.workers}
+              thinkingUpdates={connection.thinkingUpdates}
+              consciousnessEvents={connection.consciousnessEvents}
+              onApproveProposal={(id) => connection.approveProposal(id).catch(() => {})}
+              onDenyProposal={(id, reason) => connection.denyProposal(id, reason).catch(() => {})}
+              onSetAutonomy={(level) => connection.setAutonomyLevel(level).catch(() => {})}
+              onTriggerDeepThink={() => connection.triggerDeepThink().catch(() => {})}
             />
           </div>
         ) : null}
