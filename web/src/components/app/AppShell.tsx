@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatView } from './ChatView';
@@ -1625,8 +1626,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         onConnect={(inst) => { connectTo(inst); setShowSpawnDialog(false); }}
       />
 
-      {/* Brain 3D Overlay — in-app iframe, z-[70] to cover navbar (z-50) */}
-      {showBrainOverlay && connectedPort && (
+      {/* Brain 3D Overlay — portal to body to escape app layout stacking context */}
+      {showBrainOverlay && connectedPort && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[70] bg-black">
           <div className="relative w-full h-full">
             <button
@@ -1641,7 +1642,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               title="HelixMind Brain"
             />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

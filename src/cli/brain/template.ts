@@ -839,8 +839,8 @@ function buildGeometry(P){
     const p=pos[i], n=nodes[i];
     nP[i*3]=p.x; nP[i*3+1]=p.y; nP[i*3+2]=p.z;
     if(n.level===1){
-      // L1 Focus: full spectrum color play — each node a different hue
-      const h=srand(i*137+42);
+      // L1 Focus: primarily magenta/fuchsia (characteristic L1) with subtle hue variation
+      const h=0.78+srand(i*137+42)*0.1; // hue 0.78-0.88 (magenta–fuchsia range)
       const s=0.7+srand(i*173)*0.3;
       const l=0.45+srand(i*211)*0.2;
       tc.setHSL(h,s,l);
@@ -1211,16 +1211,22 @@ const coreLight = new THREE.PointLight(0xFFD080, 0.15, curSpread*0.3);
 scene.add(coreLight);
 
 // ===== ORBIT PARTICLE STREAMS (animated orbital rings) =====
-const ORB_COUNT=120;
+const ORB_COUNT=200;
 const orbR=curSpread*1.6;
-// Orbit 1: green (Jarvis thoughts), horizontal
+// Per-particle radius for cloud-like band effect
+const orb1Rad=new Float32Array(ORB_COUNT), orb2Rad=new Float32Array(ORB_COUNT);
+// Orbit 1: green spectrum (Jarvis thoughts), horizontal cloud band
 const orb1Pos=new Float32Array(ORB_COUNT*3), orb1Col=new Float32Array(ORB_COUNT*3), orb1Sz=new Float32Array(ORB_COUNT);
 const orb1Phase=new Float32Array(ORB_COUNT);
 for(let i=0;i<ORB_COUNT;i++){
-  orb1Phase[i]=(i/ORB_COUNT)*Math.PI*2+srand(i*53)*0.3;
-  orb1Sz[i]=3+srand(i*67)*4;
-  const gc=new THREE.Color(0x00FF66);
-  orb1Col[i*3]=gc.r;orb1Col[i*3+1]=gc.g;orb1Col[i*3+2]=gc.b;
+  orb1Phase[i]=(i/ORB_COUNT)*Math.PI*2+srand(i*53)*0.5;
+  const isJ=i%12===0; // every 12th = Jarvis node (larger, brighter)
+  orb1Sz[i]=isJ?9+srand(i*67)*4:4+srand(i*67)*5;
+  orb1Rad[i]=orbR*(0.82+srand(i*113)*0.36);
+  // Mixed green spectrum: emerald → cyan → jade
+  const h=isJ?0.45+srand(i*137)*0.1:0.28+srand(i*137)*0.17;
+  const tc=new THREE.Color().setHSL(h,0.75+srand(i*73)*0.25,isJ?0.55+srand(i*91)*0.15:0.42+srand(i*91)*0.18);
+  orb1Col[i*3]=tc.r;orb1Col[i*3+1]=tc.g;orb1Col[i*3+2]=tc.b;
 }
 const orb1Geo=new THREE.BufferGeometry();
 orb1Geo.setAttribute('position',new THREE.BufferAttribute(orb1Pos,3));
@@ -1228,7 +1234,7 @@ orb1Geo.setAttribute('aColor',new THREE.BufferAttribute(orb1Col,3));
 orb1Geo.setAttribute('aSize',new THREE.BufferAttribute(orb1Sz,1));
 const orb1Pts=new THREE.Points(orb1Geo,new THREE.ShaderMaterial({
   vertexShader:\`attribute float aSize;attribute vec3 aColor;varying vec3 vC;void main(){vC=aColor;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=aSize*(800.0/-mv.z);gl_Position=projectionMatrix*mv;}\`,
-  fragmentShader:\`varying vec3 vC;void main(){float d=length(gl_PointCoord-vec2(.5));if(d>.5)discard;float g=exp(-d*d*12.0);gl_FragColor=vec4(vC*1.5,g*0.7);}\`,
+  fragmentShader:\`varying vec3 vC;void main(){float d=length(gl_PointCoord-vec2(.5));if(d>.5)discard;float g=exp(-d*d*8.0);gl_FragColor=vec4(vC*1.8,g*0.85);}\`,
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
 }));
 scene.add(orb1Pts);
@@ -1238,10 +1244,14 @@ const orb2Phase=new Float32Array(ORB_COUNT);
 const tiltX=Math.PI/2.5, tiltZ=Math.PI/6;
 const cosX=Math.cos(tiltX),sinX=Math.sin(tiltX),cosZ=Math.cos(tiltZ),sinZ=Math.sin(tiltZ);
 for(let i=0;i<ORB_COUNT;i++){
-  orb2Phase[i]=(i/ORB_COUNT)*Math.PI*2+srand(i*59)*0.3;
-  orb2Sz[i]=2.5+srand(i*71)*3.5;
-  const cc=new THREE.Color(0xFFDD00);
-  orb2Col[i*3]=cc.r;orb2Col[i*3+1]=cc.g;orb2Col[i*3+2]=cc.b;
+  orb2Phase[i]=(i/ORB_COUNT)*Math.PI*2+srand(i*59)*0.5;
+  const isJ=i%12===0;
+  orb2Sz[i]=isJ?8+srand(i*71)*3.5:3.5+srand(i*71)*5;
+  orb2Rad[i]=orbR*(0.82+srand(i*119)*0.36);
+  // Mixed gold spectrum: gold → amber → warm orange
+  const h=isJ?0.12+srand(i*143)*0.06:0.08+srand(i*143)*0.12;
+  const tc=new THREE.Color().setHSL(h,0.8+srand(i*79)*0.2,isJ?0.55+srand(i*97)*0.1:0.45+srand(i*97)*0.15);
+  orb2Col[i*3]=tc.r;orb2Col[i*3+1]=tc.g;orb2Col[i*3+2]=tc.b;
 }
 const orb2Geo=new THREE.BufferGeometry();
 orb2Geo.setAttribute('position',new THREE.BufferAttribute(orb2Pos,3));
@@ -1258,11 +1268,10 @@ const trail1Pos=new Float32Array(ORB_COUNT*TRAIL_LEN*3);
 const trail1Sz=new Float32Array(ORB_COUNT*TRAIL_LEN);
 const trail1Col=new Float32Array(ORB_COUNT*TRAIL_LEN*3);
 for(let i=0;i<ORB_COUNT;i++){
-  const gc=new THREE.Color(0x00FF66);
   for(let j=0;j<TRAIL_LEN;j++){
     const idx=i*TRAIL_LEN+j;
-    trail1Sz[idx]=Math.max(1,(3+srand(i*67)*4)*(1-j/TRAIL_LEN)*0.7);
-    trail1Col[idx*3]=gc.r;trail1Col[idx*3+1]=gc.g;trail1Col[idx*3+2]=gc.b;
+    trail1Sz[idx]=Math.max(1,orb1Sz[i]*(1-j/TRAIL_LEN)*0.6);
+    trail1Col[idx*3]=orb1Col[i*3];trail1Col[idx*3+1]=orb1Col[i*3+1];trail1Col[idx*3+2]=orb1Col[i*3+2];
   }
 }
 const trail1Geo=new THREE.BufferGeometry();
@@ -1271,7 +1280,7 @@ trail1Geo.setAttribute('aColor',new THREE.BufferAttribute(trail1Col,3));
 trail1Geo.setAttribute('aSize',new THREE.BufferAttribute(trail1Sz,1));
 const trail1Pts=new THREE.Points(trail1Geo,new THREE.ShaderMaterial({
   vertexShader:\`attribute float aSize;attribute vec3 aColor;varying vec3 vC;void main(){vC=aColor;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=aSize*(800.0/-mv.z);gl_Position=projectionMatrix*mv;}\`,
-  fragmentShader:\`varying vec3 vC;void main(){float d=length(gl_PointCoord-vec2(.5));if(d>.5)discard;float g=exp(-d*d*12.0);gl_FragColor=vec4(vC*1.2,g*0.35);}\`,
+  fragmentShader:\`varying vec3 vC;void main(){float d=length(gl_PointCoord-vec2(.5));if(d>.5)discard;float g=exp(-d*d*8.0);gl_FragColor=vec4(vC*1.4,g*0.45);}\`,
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
 }));
 scene.add(trail1Pts);
@@ -1280,11 +1289,10 @@ const trail2Pos=new Float32Array(ORB_COUNT*TRAIL_LEN*3);
 const trail2Sz=new Float32Array(ORB_COUNT*TRAIL_LEN);
 const trail2Col=new Float32Array(ORB_COUNT*TRAIL_LEN*3);
 for(let i=0;i<ORB_COUNT;i++){
-  const cc=new THREE.Color(0xFFDD00);
   for(let j=0;j<TRAIL_LEN;j++){
     const idx=i*TRAIL_LEN+j;
-    trail2Sz[idx]=Math.max(1,(2.5+srand(i*71)*3.5)*(1-j/TRAIL_LEN)*0.7);
-    trail2Col[idx*3]=cc.r;trail2Col[idx*3+1]=cc.g;trail2Col[idx*3+2]=cc.b;
+    trail2Sz[idx]=Math.max(1,orb2Sz[i]*(1-j/TRAIL_LEN)*0.6);
+    trail2Col[idx*3]=orb2Col[i*3];trail2Col[idx*3+1]=orb2Col[i*3+1];trail2Col[idx*3+2]=orb2Col[i*3+2];
   }
 }
 const trail2Geo=new THREE.BufferGeometry();
@@ -1294,6 +1302,46 @@ trail2Geo.setAttribute('aSize',new THREE.BufferAttribute(trail2Sz,1));
 const trail2Pts=new THREE.Points(trail2Geo,trail1Pts.material);
 scene.add(trail2Pts);
 
+// ===== ORBIT 3: cyan-violet spectrum, polar ring (cross-cutting path) =====
+const ORB3_COUNT=150;
+const orb3Pos=new Float32Array(ORB3_COUNT*3), orb3Col=new Float32Array(ORB3_COUNT*3), orb3Sz=new Float32Array(ORB3_COUNT);
+const orb3Phase=new Float32Array(ORB3_COUNT), orb3Rad=new Float32Array(ORB3_COUNT);
+const tilt3Y=Math.PI/3.2, tilt3X=Math.PI/2.1;
+const cos3Y=Math.cos(tilt3Y),sin3Y=Math.sin(tilt3Y),cos3X=Math.cos(tilt3X),sin3X=Math.sin(tilt3X);
+for(let i=0;i<ORB3_COUNT;i++){
+  orb3Phase[i]=(i/ORB3_COUNT)*Math.PI*2+srand(i*61)*0.5;
+  const isJ=i%15===0;
+  orb3Sz[i]=isJ?7+srand(i*83)*3:3+srand(i*83)*4;
+  orb3Rad[i]=orbR*(0.85+srand(i*127)*0.3);
+  // Cyan-violet spectrum
+  const h=isJ?0.7+srand(i*151)*0.1:0.5+srand(i*151)*0.25;
+  const tc=new THREE.Color().setHSL(h,0.7+srand(i*89)*0.3,isJ?0.55+srand(i*103)*0.1:0.4+srand(i*103)*0.2);
+  orb3Col[i*3]=tc.r;orb3Col[i*3+1]=tc.g;orb3Col[i*3+2]=tc.b;
+}
+const orb3Geo=new THREE.BufferGeometry();
+orb3Geo.setAttribute('position',new THREE.BufferAttribute(orb3Pos,3));
+orb3Geo.setAttribute('aColor',new THREE.BufferAttribute(orb3Col,3));
+orb3Geo.setAttribute('aSize',new THREE.BufferAttribute(orb3Sz,1));
+const orb3Pts=new THREE.Points(orb3Geo,orb1Pts.material);
+scene.add(orb3Pts);
+// Orbit 3 trails
+const trail3Pos=new Float32Array(ORB3_COUNT*TRAIL_LEN*3);
+const trail3Sz=new Float32Array(ORB3_COUNT*TRAIL_LEN);
+const trail3Col=new Float32Array(ORB3_COUNT*TRAIL_LEN*3);
+for(let i=0;i<ORB3_COUNT;i++){
+  for(let j=0;j<TRAIL_LEN;j++){
+    const idx=i*TRAIL_LEN+j;
+    trail3Sz[idx]=Math.max(1,orb3Sz[i]*(1-j/TRAIL_LEN)*0.6);
+    trail3Col[idx*3]=orb3Col[i*3];trail3Col[idx*3+1]=orb3Col[i*3+1];trail3Col[idx*3+2]=orb3Col[i*3+2];
+  }
+}
+const trail3Geo=new THREE.BufferGeometry();
+trail3Geo.setAttribute('position',new THREE.BufferAttribute(trail3Pos,3));
+trail3Geo.setAttribute('aColor',new THREE.BufferAttribute(trail3Col,3));
+trail3Geo.setAttribute('aSize',new THREE.BufferAttribute(trail3Sz,1));
+const trail3Pts=new THREE.Points(trail3Geo,trail1Pts.material);
+scene.add(trail3Pts);
+
 // ===== JARVIS NEURONS (shoot from orbits to core) =====
 const JARVIS_NEURON_COUNT=30;
 const jNeurons=[];
@@ -1301,15 +1349,21 @@ let jOrbitSpeed=1.0; // Dynamic: faster when thinking
 function fireNeuron(color,trigger){
   if(jNeurons.length>=JARVIS_NEURON_COUNT) return;
   const orbitAngle=Math.random()*Math.PI*2;
-  const useOrbit1=Math.random()>0.5;
+  const orbChoice=Math.random();
   let sx,sy,sz;
-  if(useOrbit1){
+  if(orbChoice<0.33){
     sx=orbCx+Math.cos(orbitAngle)*orbR;sy=orbCy;sz=orbCz+Math.sin(orbitAngle)*orbR;
-  } else {
+  } else if(orbChoice<0.66){
     const lx=Math.cos(orbitAngle)*orbR,ly=0,lz=Math.sin(orbitAngle)*orbR;
     const ry=ly*cosX-lz*sinX,rz=ly*sinX+lz*cosX;
     const fx=lx*cosZ-ry*sinZ,fy=lx*sinZ+ry*cosZ;
     sx=orbCx+fx;sy=orbCy+fy;sz=orbCz+rz;
+  } else {
+    // Orbit 3: polar ring
+    const lx=Math.cos(orbitAngle)*orbR,ly=0,lz=Math.sin(orbitAngle)*orbR;
+    const ry3=ly*cos3X-lz*sin3X,rz3=ly*sin3X+lz*cos3X;
+    const fx3=lx*cos3Y-ry3*sin3Y,fy3=lx*sin3Y+ry3*cos3Y;
+    sx=orbCx+fx3;sy=orbCy+fy3;sz=orbCz+rz3;
   }
   const c=new THREE.Color(color||0x00FF66);
   const speed=0.5+Math.random()*1.0;
@@ -1373,12 +1427,21 @@ function animate(){
     if(camTw.p>=1)camTw=null;
   }
 
-  // Energy core pulse
+  // Energy core pulse + color cycling
   const t=performance.now();
-  core.rotation.y += dt * 0.1;
-  core.rotation.x += dt * 0.05;
-  core.scale.setScalar(1 + Math.sin(t * 0.001) * 0.05);
-  core2.scale.setScalar(1 + Math.sin(t * 0.0015) * 0.08);
+  core.rotation.y += dt * 0.12;
+  core.rotation.x += dt * 0.06;
+  const corePulse=1 + Math.sin(t * 0.001) * 0.08;
+  core.scale.setScalar(corePulse);
+  core2.scale.setScalar(1 + Math.sin(t * 0.0015) * 0.1);
+  // Core HSL color cycling through spectrum
+  const coreHue=(t*0.00008)%1;
+  const _coreC=new THREE.Color().setHSL(coreHue,0.8,0.5);
+  coreMat.color.copy(_coreC);
+  core2Mat.color.copy(new THREE.Color().setHSL((coreHue+0.15)%1,0.7,0.55));
+  coreLight.color.copy(_coreC);
+  coreMat.opacity=0.06+Math.sin(t*0.002)*0.04;
+  core2Mat.opacity=0.05+Math.sin(t*0.0025)*0.03;
 
   // Edge breathing
   eMat.uniforms.uBreath.value = 1.0 + Math.sin(t * 0.0008) * 0.15;
@@ -1389,40 +1452,53 @@ function animate(){
   // Update Jarvis neurons
   updateNeurons(dt);
 
-  // Orbit particle streams (speed affected by thinking phase)
+  // Orbit particle streams — cloud-like bands with per-particle radius
   const oSp=t*0.0003*jOrbitSpeed;
   const o1=orb1Geo.attributes.position;
   for(let i=0;i<ORB_COUNT;i++){
     const a=orb1Phase[i]+oSp;
-    o1.array[i*3]=orbCx+Math.cos(a)*orbR;
-    o1.array[i*3+1]=orbCy+(srand(i*89)-0.5)*8;
-    o1.array[i*3+2]=orbCz+Math.sin(a)*orbR;
+    const r=orb1Rad[i];
+    o1.array[i*3]=orbCx+Math.cos(a)*r;
+    o1.array[i*3+1]=orbCy+(srand(i*89)-0.5)*16+Math.sin(t*0.0008+i*0.3)*4;
+    o1.array[i*3+2]=orbCz+Math.sin(a)*r;
   }
   o1.needsUpdate=true;
   const o2=orb2Geo.attributes.position;
-  const oSp2=t*0.00025;
+  const oSp2=t*0.00025*jOrbitSpeed;
   for(let i=0;i<ORB_COUNT;i++){
     const a=orb2Phase[i]-oSp2;
-    const lx=Math.cos(a)*orbR, ly=0, lz=Math.sin(a)*orbR;
-    // Apply tilt rotation (X then Z)
+    const r=orb2Rad[i];
+    const lx=Math.cos(a)*r, ly=0, lz=Math.sin(a)*r;
     const ry=ly*cosX-lz*sinX, rz=ly*sinX+lz*cosX;
     const fx=lx*cosZ-ry*sinZ, fy=lx*sinZ+ry*cosZ;
     o2.array[i*3]=orbCx+fx;
-    o2.array[i*3+1]=orbCy+fy+(srand(i*97)-0.5)*6;
+    o2.array[i*3+1]=orbCy+fy+(srand(i*97)-0.5)*14+Math.sin(t*0.0009+i*0.25)*3;
     o2.array[i*3+2]=orbCz+rz;
   }
   o2.needsUpdate=true;
+  // Orbit 3 animation (polar cross-ring)
+  const o3=orb3Geo.attributes.position;
+  const oSp3=t*0.00022*jOrbitSpeed;
+  for(let i=0;i<ORB3_COUNT;i++){
+    const a=orb3Phase[i]+oSp3;
+    const r=orb3Rad[i];
+    const lx=Math.cos(a)*r, ly=0, lz=Math.sin(a)*r;
+    const ry3=ly*cos3X-lz*sin3X, rz3=ly*sin3X+lz*cos3X;
+    const fx3=lx*cos3Y-ry3*sin3Y, fy3=lx*sin3Y+ry3*cos3Y;
+    o3.array[i*3]=orbCx+fx3;
+    o3.array[i*3+1]=orbCy+fy3+(srand(i*101)-0.5)*12+Math.sin(t*0.001+i*0.2)*3;
+    o3.array[i*3+2]=orbCz+rz3;
+  }
+  o3.needsUpdate=true;
 
   // Update orbit trails — shift positions backward, insert current at front
   const t1p=trail1Geo.attributes.position;
   for(let i=0;i<ORB_COUNT;i++){
     const base=i*TRAIL_LEN;
-    // Shift older positions back
     for(let j=TRAIL_LEN-1;j>0;j--){
       const dst=(base+j)*3, src=(base+j-1)*3;
       t1p.array[dst]=t1p.array[src]; t1p.array[dst+1]=t1p.array[src+1]; t1p.array[dst+2]=t1p.array[src+2];
     }
-    // Insert current position
     const f=base*3;
     t1p.array[f]=o1.array[i*3]; t1p.array[f+1]=o1.array[i*3+1]; t1p.array[f+2]=o1.array[i*3+2];
   }
@@ -1439,6 +1515,19 @@ function animate(){
     t2p.array[f]=o2.array[i*3]; t2p.array[f+1]=o2.array[i*3+1]; t2p.array[f+2]=o2.array[i*3+2];
   }
   t2p.needsUpdate=true;
+
+  // Trail 3
+  const t3p=trail3Geo.attributes.position;
+  for(let i=0;i<ORB3_COUNT;i++){
+    const base=i*TRAIL_LEN;
+    for(let j=TRAIL_LEN-1;j>0;j--){
+      const dst=(base+j)*3, src=(base+j-1)*3;
+      t3p.array[dst]=t3p.array[src]; t3p.array[dst+1]=t3p.array[src+1]; t3p.array[dst+2]=t3p.array[src+2];
+    }
+    const f=base*3;
+    t3p.array[f]=o3.array[i*3]; t3p.array[f+1]=o3.array[i*3+1]; t3p.array[f+2]=o3.array[i*3+2];
+  }
+  t3p.needsUpdate=true;
 
   updateSignals(dt);
   ctrl.update();
