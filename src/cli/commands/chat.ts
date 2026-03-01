@@ -435,7 +435,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       const engine = new SpiralEngine(spiralConfig);
       await engine.initialize();
       return engine;
-    } catch {
+    } catch (err) {
+      console.error('[Spiral] Init failed:', err instanceof Error ? err.message : err);
       return null;
     }
   }

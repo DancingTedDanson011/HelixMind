@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { logger } from '../utils/logger.js';
 
-const SCHEMA = `
+// Tables first — indexes created AFTER migration (content_hash may not exist yet)
+const SCHEMA_TABLES = `
 CREATE TABLE IF NOT EXISTS nodes (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL,
@@ -30,6 +31,10 @@ CREATE TABLE IF NOT EXISTS edges (
   UNIQUE(source_id, target_id, relation_type)
 );
 
+CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
+`;
+
+const SCHEMA_INDEXES = `
 CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(type);
 CREATE INDEX IF NOT EXISTS idx_nodes_level ON nodes(level);
 CREATE INDEX IF NOT EXISTS idx_nodes_relevance ON nodes(relevance_score);
@@ -39,8 +44,6 @@ CREATE INDEX IF NOT EXISTS idx_nodes_content_hash ON nodes(content_hash);
 CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source_id);
 CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_id);
 CREATE INDEX IF NOT EXISTS idx_edges_type ON edges(relation_type);
-
-CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
 `;
 
 export class Database {
@@ -62,11 +65,14 @@ export class Database {
     // Try to load sqlite-vec extension
     this.hasVecExtension = this.tryLoadVecExtension();
 
-    // Create schema
-    this.raw.exec(SCHEMA);
+    // Create tables (without indexes — old DBs may lack content_hash column)
+    this.raw.exec(SCHEMA_TABLES);
 
-    // Run migrations for existing databases with old CHECK constraints
+    // Run migrations for existing databases (adds content_hash etc.)
     this.migrate();
+
+    // Create indexes AFTER migration (content_hash column now exists)
+    this.raw.exec(SCHEMA_INDEXES);
 
     logger.debug(`Database opened at ${dbPath} (vec: ${this.hasVecExtension})`);
   }
