@@ -7,7 +7,9 @@ category: CLI-Nutzung
 
 # Slash-Befehle
 
-Tippe während einer interaktiven Chat-Session `/` gefolgt von einem Befehlsnamen. Diese Befehle steuern HelixMinds Verhalten, verwalten Memory und lösen spezielle Modi aus.
+Tippe waehrend einer interaktiven Chat-Session `/` gefolgt von einem Befehlsnamen. Diese Befehle steuern HelixMinds Verhalten, verwalten Memory und loesen spezielle Modi aus.
+
+> Einige Befehle erfordern einen kostenlosen Login. Diese sind im Hilfe-Menue mit einem Schloss-Symbol markiert und im Open Source Modus aus der Autovervollstaendigung ausgeblendet. Fuehre `helixmind login` aus um alle Befehle freizuschalten.
 
 ## Chat & Interaktion
 
@@ -53,16 +55,17 @@ Tippe während einer interaktiven Chat-Session `/` gefolgt von einem Befehlsname
 | `/logout` | Ausloggen und API-Key widerrufen |
 | `/whoami` | Konto-E-Mail, Plan und maskierten API-Key anzeigen |
 
-## Autonome & Hintergrund-Tasks
+## Autonome & Hintergrund-Tasks (Login erforderlich)
 
-| Befehl | Beschreibung |
-|--------|-------------|
-| `/auto` | Autonomen Modus als Hintergrund-Session starten |
-| `/stop` | Laufende Hintergrund-Session stoppen |
-| `/security` | Umfassenden Sicherheits-Audit als Hintergrund-Session starten |
-| `/monitor` | Security Monitor starten (Hintergrund) — Passiv/Defensiv/Aktiv-Modi |
-| `/sessions` | Alle aktiven Sessions/Tabs auflisten |
-| `/local` | Ollama-Konfiguration öffnen |
+| Befehl | Beschreibung | Erfordert |
+|--------|-------------|-----------|
+| `/auto` | Autonomen Scan als Hintergrund-Session starten | Free+ |
+| `/auto <ziel>` | Zielgerichtet: `"/auto Refactore alle API-Endpoints"` | Free+ |
+| `/security` | Umfassenden Sicherheits-Audit starten | Free+ |
+| `/monitor` | Security Monitor starten — Passiv/Defensiv/Aktiv | Free+ |
+| `/sessions` | Alle aktiven Sessions/Tabs auflisten | — |
+| `/stop` | Laufende Hintergrund-Sessions stoppen | — |
+| `/local` | Ollama-Konfiguration oeffnen | — |
 
 ## Code & Git
 
@@ -74,16 +77,47 @@ Tippe während einer interaktiven Chat-Session `/` gefolgt von einem Befehlsname
 | `/project` | Projektinformationen anzeigen |
 | `/export` | Spiral-Memory als ZIP exportieren |
 
-## Validation Matrix
+## Jarvis AGI (Login erforderlich)
+
+| Befehl | Beschreibung | Erfordert |
+|--------|-------------|-----------|
+| `/jarvis` | Jarvis-Daemon starten | Free+ |
+| `/jarvis task <desc>` | Task zur Queue hinzufuegen | Free+ |
+| `/jarvis tasks` | Alle Tasks auflisten | Free+ |
+| `/jarvis status` | Daemon-Status anzeigen | Free+ |
+| `/jarvis stop` | Jarvis-Daemon stoppen | Free+ |
+| `/jarvis pause` / `resume` | Daemon pausieren/fortsetzen | Free+ |
+| `/jarvis proposals` | Ausstehende Proposals auflisten | Free+ |
+| `/jarvis approve` / `deny` | Proposal genehmigen/ablehnen | Free+ |
+| `/jarvis think` | Deep-Thinking-Zyklus ausloesen | Pro |
+| `/jarvis schedule` / `schedules` | Scheduling-System | Pro |
+| `/jarvis trigger` / `triggers` | Event-Trigger | Pro |
+
+## Bug-Tracking
 
 | Befehl | Beschreibung |
 |--------|-------------|
-| `/validation` | Aktuellen Validierungsstatus anzeigen |
-| `/validation on` | Validation Matrix aktivieren |
-| `/validation off` | Validation Matrix deaktivieren |
-| `/validation verbose` | Verbose-Modus umschalten |
-| `/validation strict` | Strict-Modus umschalten |
-| `/validation stats` | Validierungsstatistiken anzeigen |
+| `/bugs` | Alle getrackte Bugs auflisten |
+| `/bugs open` | Nur offene Bugs anzeigen |
+| `/bugfix` | Alle offenen Bugs reviewen & fixen |
+
+## Browser Control
+
+| Befehl | Beschreibung |
+|--------|-------------|
+| `/browser` | Browser oeffnen (optionale URL) |
+| `/browser close` | Browser schliessen |
+
+## Validation Matrix (Login erforderlich)
+
+| Befehl | Beschreibung | Erfordert |
+|--------|-------------|-----------|
+| `/validation` | Aktuellen Validierungsstatus anzeigen | Free+ |
+| `/validation on` | Validation Matrix aktivieren | Free+ |
+| `/validation off` | Validation Matrix deaktivieren | Free+ |
+| `/validation verbose` | Verbose-Modus umschalten | Free+ |
+| `/validation strict` | Strict-Modus umschalten | Free+ |
+| `/validation stats` | Validierungsstatistiken anzeigen | Free+ |
 
 ## Tastenkürzel
 

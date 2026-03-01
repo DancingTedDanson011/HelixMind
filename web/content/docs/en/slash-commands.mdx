@@ -9,6 +9,8 @@ category: CLI Usage
 
 Type `/` followed by a command name during an interactive chat session.
 
+> Some commands require a free login. These are marked with a lock icon in the help menu and hidden from autocomplete in Open Source mode. Run `helixmind login` to unlock all commands.
+
 ## Chat & Interaction
 
 | Command | Description |
@@ -45,16 +47,16 @@ Type `/` followed by a command name during an interactive chat session.
 | `/yolo` | Toggle YOLO mode — auto-approve ALL operations (⚠️ dangerous) |
 | `/skip-permissions` | Toggle skip-permissions — auto-approve safe + ask, still prompt dangerous |
 
-## Autonomous & Background
+## Autonomous & Background (Requires Login)
 
-| Command | Description |
-|---------|-------------|
-| `/auto` | Start autonomous scan (background session) — finds & fixes issues |
-| `/auto <goal>` | Goal-driven mode: `"/auto Refactor all API endpoints to use validation"` |
-| `/security` | Run comprehensive security audit (background session) |
-| `/monitor` | Start security monitor (background) — passive/defensive/active modes |
-| `/sessions` | List all sessions/tabs with status |
-| `/stop` | Stop running background sessions |
+| Command | Description | Requires |
+|---------|-------------|----------|
+| `/auto` | Start autonomous scan (background session) | Free+ |
+| `/auto <goal>` | Goal-driven: `"/auto Refactor all API endpoints"` | Free+ |
+| `/security` | Run comprehensive security audit | Free+ |
+| `/monitor` | Start security monitor — passive/defensive/active | Free+ |
+| `/sessions` | List all sessions/tabs with status | — |
+| `/stop` | Stop running background sessions | — |
 
 ## Code & Git
 
@@ -66,16 +68,47 @@ Type `/` followed by a command name during an interactive chat session.
 | `/project` | Display project info: tech stack, file count, context |
 | `/export` | Export spiral memory to ZIP archive |
 
-## Validation Matrix
+## Validation Matrix (Requires Login)
+
+| Command | Description | Requires |
+|---------|-------------|----------|
+| `/validation` | Show current validation status | Free+ |
+| `/validation on` | Enable Validation Matrix | Free+ |
+| `/validation off` | Disable Validation Matrix | Free+ |
+| `/validation verbose` | Toggle detailed check results | Free+ |
+| `/validation strict` | Toggle strict mode (warnings as errors) | Free+ |
+| `/validation stats` | Show historical pass/fail statistics | Free+ |
+
+## Jarvis AGI (Requires Login)
+
+| Command | Description | Requires |
+|---------|-------------|----------|
+| `/jarvis` | Start Jarvis daemon | Free+ |
+| `/jarvis task <desc>` | Add task to queue | Free+ |
+| `/jarvis tasks` | List all tasks | Free+ |
+| `/jarvis status` | Show daemon status | Free+ |
+| `/jarvis stop` | Stop Jarvis daemon | Free+ |
+| `/jarvis pause` / `resume` | Pause/resume daemon | Free+ |
+| `/jarvis proposals` | List pending proposals | Free+ |
+| `/jarvis approve` / `deny` | Approve/deny a proposal | Free+ |
+| `/jarvis think` | Trigger deep thinking cycle | Pro |
+| `/jarvis schedule` / `schedules` | Scheduling system | Pro |
+| `/jarvis trigger` / `triggers` | Event triggers | Pro |
+
+## Bug Tracking
 
 | Command | Description |
 |---------|-------------|
-| `/validation` | Show current validation status |
-| `/validation on` | Enable Validation Matrix |
-| `/validation off` | Disable Validation Matrix |
-| `/validation verbose` | Toggle detailed check results |
-| `/validation strict` | Toggle strict mode (warnings → errors) |
-| `/validation stats` | Show historical pass/fail statistics |
+| `/bugs` | List all tracked bugs |
+| `/bugs open` | Show only open bugs |
+| `/bugfix` | Review & fix all open bugs |
+
+## Browser Control
+
+| Command | Description |
+|---------|-------------|
+| `/browser` | Open browser (optional URL) |
+| `/browser close` | Close the browser |
 
 ## Account & Auth
 

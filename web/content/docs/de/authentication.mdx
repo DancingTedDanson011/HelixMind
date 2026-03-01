@@ -65,34 +65,55 @@ Waehrend einer interaktiven Chat-Session kannst du auch verwenden:
 | `/logout` | Ausloggen und Key widerrufen |
 | `/whoami` | Kontoinformationen anzeigen |
 
-## Auth Guard
+## Auth Guard — Login vs Open Source
 
-Die meisten CLI-Befehle erfordern Authentifizierung. Wenn du einen Befehl ohne Login ausfuehrst, startet HelixMind automatisch den Login-Flow. Befehle, die **keine** Auth benoetigen:
+Beim ersten Start von HelixMind siehst du einen **Auswahl-Bildschirm** mit zwei Optionen:
 
-- `helixmind login`
-- `helixmind logout`
-- `helixmind whoami`
-- `helixmind config`
-- `helixmind --help` / `helixmind --version`
+1. **Login** (empfohlen) — kostenloses Konto, schaltet Jarvis AGI, Validation Matrix, Security Monitor und mehr frei
+2. **Open Source** — kein Konto noetig, voller CLI-Agent mit 22 Tools und Spiral Memory
 
-Nach dem ersten Login nutzt das CLI deine gecachten Zugangsdaten und verifiziert sie im Hintergrund, wenn online.
+HelixMind **erzwingt nie einen Login**. Du kannst immer im Open Source Modus fortfahren. Falls der Login fehlschlaegt, faellt das CLI automatisch in den Open Source Modus zurueck.
+
+Fuehre jederzeit `helixmind login` aus, um von Open Source zum vollen Erlebnis upzugraden.
+
+### Feature-Gating
+
+Im Open Source Modus (ohne Login) sind folgende Befehle gesperrt:
+
+| Gesperrter Befehl | Feature | Freischalten |
+|-------------------|---------|-------------|
+| `/jarvis` | Jarvis AGI | `helixmind login` (Free+) |
+| `/auto` | Autonomer Modus | `helixmind login` (Free+) |
+| `/security` | Sicherheits-Audit | `helixmind login` (Free+) |
+| `/monitor` | Security Monitor | `helixmind login` (Free+) |
+| `/validation` | Validation Matrix | `helixmind login` (Free+) |
+
+Diese Befehle zeigen ein Schloss-Symbol und einen Login-Hinweis wenn sie ohne Konto aufgerufen werden. Sie erscheinen auch nicht in der Autovervollstaendigung.
 
 ## Abo-Stufen
 
-| Feature | Free | Pro | Team | Enterprise |
-|---------|------|-----|------|------------|
-| AI Coding Agent | Ja | Ja | Ja | Ja |
-| Spiral Memory | Ja | Ja | Ja | Ja |
-| Web Knowledge Enricher | Ja | Ja | Ja | Ja |
-| Brain-Visualisierung | Ja | Ja | Ja | Ja |
-| Alle 14 Agent-Tools | Ja | Ja | Ja | Ja |
-| Cloud Sync | — | Ja | Ja | Ja |
-| Advanced Spiral | — | Ja | Ja | Ja |
-| Priority Support | — | Ja | Ja | Ja |
-| Team Sessions | — | — | Ja | Ja |
-| Kommerzielle Lizenz (AGPL-Ausnahme) | — | — | — | Ja |
+| Feature | Open Source | Free+ (Login) | Pro | Team | Enterprise |
+|---------|------------|---------------|-----|------|------------|
+| AI Coding Agent | Ja | Ja | Ja | Ja | Ja |
+| 22 Agent-Tools | Ja | Ja | Ja | Ja | Ja |
+| Spiral Memory | 1 lokales Brain | 3 Brains | 15 Brains | Unbegrenzt | Unbegrenzt |
+| Alle Provider | Ja | Ja | Ja | Ja | Ja |
+| Web Knowledge Enricher | Ja | Ja | Ja | Ja | Ja |
+| Bug Journal + Browser | Ja | Ja | Ja | Ja | Ja |
+| Brain-Visualisierung | Ja | Ja | Ja | Ja | Ja |
+| **Jarvis AGI** | — | 1 Instanz | 3 Instanzen | Unbegrenzt | Unbegrenzt |
+| **Validation Matrix** | — | Basic | Voll | Voll | Voll |
+| **Security Monitor** | — | — | Ja | Ja | Ja |
+| **Autonomer Modus** | — | Ja | Ja | Ja | Ja |
+| **Brain Management** | — | Ja | Ja | Ja | Ja |
+| **Live Brain WebSocket** | — | Ja | Ja | Ja | Ja |
+| Cloud Sync | — | — | Ja | Ja | Ja |
+| Team Features | — | — | — | Ja | Ja |
+| Self-Hosted / API | — | — | — | — | Ja |
 
-Der Web Knowledge Enricher — HelixMinds zentrale Intelligenz-Schicht, die automatisch Dokumentation und Web-Insights holt — ist auf **allen Stufen** verfuegbar, inklusive Free.
+**Open Source** (ohne Konto) gibt dir den vollen CLI-Agenten — 22 Tools, Spiral Memory, alle Provider, Browser Control, Bug Tracking und Sessions.
+
+**Free+** (kostenloser Login) fuegt Jarvis AGI, Validation Matrix, Autonomer Modus, Brain Management und Live Brain hinzu. Keine Kreditkarte, kein Trial, fuer immer kostenlos.
 
 ## API-Keys
 
