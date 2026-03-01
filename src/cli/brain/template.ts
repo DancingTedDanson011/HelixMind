@@ -879,11 +879,9 @@ function buildGeometry(P){
     const s=pos[si], d=pos[ti], o=i*6;
     eP[o]=s.x; eP[o+1]=s.y; eP[o+2]=s.z;
     eP[o+3]=d.x; eP[o+4]=d.y; eP[o+5]=d.z;
-    // Edge color = level color of connected nodes (gradient)
-    ec.set(LVL_HEX[nodes[si].level]||0x00FFFF);
-    eCol[o]=ec.r; eCol[o+1]=ec.g; eCol[o+2]=ec.b;
-    ec.set(LVL_HEX[nodes[ti].level]||0x00FFFF);
-    eCol[o+3]=ec.r; eCol[o+4]=ec.g; eCol[o+5]=ec.b;
+    // Edge color = per-node color (L1 uses individual rainbow, others level hex)
+    eCol[o]=nCol[si*3]; eCol[o+1]=nCol[si*3+1]; eCol[o+2]=nCol[si*3+2];
+    eCol[o+3]=nCol[ti*3]; eCol[o+4]=nCol[ti*3+1]; eCol[o+5]=nCol[ti*3+2];
     // Cross-level edges (bridges) get alpha boost so satellite connections are visible
     const ba=cross?(0.08+w*0.2):(0.04+w*0.1);
     eA[i*2]=ba*aS; eA[i*2+1]=ba*aS;
@@ -967,8 +965,9 @@ function updateSignals(dt){
     sp.array[i*3]=src.x+(tgt.x-src.x)*p;
     sp.array[i*3+1]=src.y+(tgt.y-src.y)*p;
     sp.array[i*3+2]=src.z+(tgt.z-src.z)*p;
-    tc.set(LVL_HEX[nodes[si].level]||0xE040FB);
-    tc2.set(LVL_HEX[nodes[ti].level]||0xE040FB);
+    // Signal color from per-node colors (matches edge gradient)
+    if(nGeo){const nc=nGeo.getAttribute('aColor');tc.setRGB(nc.array[si*3],nc.array[si*3+1],nc.array[si*3+2]);tc2.setRGB(nc.array[ti*3],nc.array[ti*3+1],nc.array[ti*3+2]);}
+    else{tc.set(LVL_HEX[nodes[si].level]||0xE040FB);tc2.set(LVL_HEX[nodes[ti].level]||0xE040FB);}
     tc.lerp(tc2,p);
     sc.array[i*3]=tc.r;sc.array[i*3+1]=tc.g;sc.array[i*3+2]=tc.b;
   }
