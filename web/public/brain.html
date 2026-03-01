@@ -106,14 +106,14 @@ const LEVEL_NAMES = {
   1: 'Focus', 2: 'Active', 3: 'Reference',
   4: 'Archive', 5: 'Deep Archive', 6: 'Web Knowledge',
 };
-// Organic nebula layout — layers spread wide and overlap slightly
-const SPATIAL = {
-  5: { iR: 5,   oR: 90,   yBase: 450,  yS: 120, size: 52, pulse: 0.3 },
-  4: { iR: 15,  oR: 180,  yBase: 280,  yS: 130, size: 42, pulse: 0.5 },
-  3: { iR: 30,  oR: 280,  yBase: 100,  yS: 140, size: 36, pulse: 0.8 },
-  2: { iR: 50,  oR: 380,  yBase: -90,  yS: 150, size: 28, pulse: 1.2 },
-  1: { iR: 70,  oR: 480,  yBase: -280, yS: 160, size: 22, pulse: 2.0 },
-  6: { iR: 90,  oR: 580,  yBase: -480, yS: 170, size: 30, pulse: 0.6 },
+// V6: Galaxy Brain — Force-directed 3D graph like a neural galaxy
+const LEVEL_STYLE = {
+  1: { size: 22, pulse: 2.0, activity: 1.0 },
+  2: { size: 20, pulse: 1.5, activity: 0.85 },
+  3: { size: 17, pulse: 1.0, activity: 0.7 },
+  4: { size: 15, pulse: 0.6, activity: 0.5 },
+  5: { size: 13, pulse: 0.3, activity: 0.3 },
+  6: { size: 18, pulse: 0.8, activity: 0.7 },
 };
 
 function srand(s){const x=Math.sin(s*9301+49297)*49297;return x-Math.floor(x)}
@@ -218,23 +218,92 @@ const projectName = 'HelixMind';
 const byLevel = {};
 nodes.forEach((n,i)=>{if(!byLevel[n.level])byLevel[n.level]=[];byLevel[n.level].push(i)});
 
-const positions = new Array(nodes.length);
-for(const[lv,indices]of Object.entries(byLevel)){
-  const s = SPATIAL[lv]||SPATIAL[3];
-  const c = indices.length;
-  indices.forEach((ni,j)=>{
-    const angle=(j/Math.max(c,1))*Math.PI*2+(srand(ni*19)-.5)*0.6;
-    const r=s.iR+srand(ni*7)*(s.oR-s.iR);
-    const spiral=angle+r*0.003+srand(ni*23)*0.4;
-    const y=(s.yBase||0)+(srand(ni*11)-.5)*s.yS;
-    const jx=(srand(ni*29)-.5)*r*0.15;
-    const jz=(srand(ni*37)-.5)*r*0.15;
-    positions[ni]=new THREE.Vector3(Math.cos(spiral)*r+jx,y,Math.sin(spiral)*r+jz);
-  });
+// Build nodeIdxMap first (needed for force layout)
+const nodeIdxMap={};nodes.forEach((n,i)=>{nodeIdxMap[n.id]=i});
+
+// Force-directed 3D layout
+function computeForceLayout(nodeList,edgeList,idxMap){
+  const N=nodeList.length;if(N===0)return[];
+  // Group nodes by level
+  const lvG={};
+  for(let i=0;i<N;i++){const lv=nodeList[i].level||3;if(!lvG[lv])lvG[lv]=[];lvG[lv].push(i);}
+  // Seed centroids per level
+  const lvs=Object.keys(lvG).map(Number).sort();
+  const seedC={};const CS=320;
+  for(let li=0;li<lvs.length;li++){
+    const lv=lvs[li];const golden=2.399963;
+    const theta=golden*li*2.5;const phi=Math.acos(1-2*(li+0.5)/Math.max(lvs.length,2));
+    seedC[lv]={x:CS*Math.sin(phi)*Math.cos(theta),y:CS*Math.cos(phi),z:CS*Math.sin(phi)*Math.sin(theta)};
+  }
+  const pos=new Array(N);
+  for(let i=0;i<N;i++){
+    const lv=nodeList[i].level||3;const c=seedC[lv]||{x:0,y:0,z:0};const SP=100;
+    pos[i]={x:c.x+(srand(i*7)-.5)*SP,y:c.y+(srand(i*13)-.5)*SP,z:c.z+(srand(i*19)-.5)*SP};
+  }
+  const adjL=new Array(N);for(let i=0;i<N;i++)adjL[i]=[];
+  for(const e of edgeList){
+    const si=idxMap[e.source],ti=idxMap[e.target];
+    if(si!==undefined&&ti!==undefined){adjL[si].push(ti);adjL[ti].push(si);}
+  }
+  const ITER=60,REP=5000,ATT=0.012,CPULL=0.02,IREP=18000,CEN=0.0005,DAMP=0.82;
+  const KS=Math.min(N,25);
+  const vel=new Array(N);for(let i=0;i<N;i++)vel[i]={x:0,y:0,z:0};
+  for(let it=0;it<ITER;it++){
+    const temp=1.0-it/ITER;const repS=REP*temp;
+    // Dynamic centroids
+    const dynC={},dynN={};
+    for(let i=0;i<N;i++){
+      const lv=nodeList[i].level||3;
+      if(!dynC[lv]){dynC[lv]={x:0,y:0,z:0};dynN[lv]=0;}
+      dynC[lv].x+=pos[i].x;dynC[lv].y+=pos[i].y;dynC[lv].z+=pos[i].z;dynN[lv]++;
+    }
+    for(const lv in dynC){dynC[lv].x/=dynN[lv];dynC[lv].y/=dynN[lv];dynC[lv].z/=dynN[lv];}
+    for(let i=0;i<N;i++){
+      let fx=0,fy=0,fz=0;const myLv=nodeList[i].level||3;
+      for(let k=0;k<KS;k++){
+        const j=Math.floor(srand(it*10007+i*997+k*31)*N);if(j===i)continue;
+        const dx=pos[i].x-pos[j].x,dy=pos[i].y-pos[j].y,dz=pos[i].z-pos[j].z;
+        const dSq=dx*dx+dy*dy+dz*dz+1;
+        const cm=(nodeList[j].level||3)!==myLv?2.5:1.0;
+        const f=repS*cm/dSq;const d=Math.sqrt(dSq);
+        fx+=(dx/d)*f;fy+=(dy/d)*f;fz+=(dz/d)*f;
+      }
+      const rb=N/KS;fx*=rb;fy*=rb;fz*=rb;
+      for(const j of adjL[i]){
+        const dx=pos[j].x-pos[i].x,dy=pos[j].y-pos[i].y,dz=pos[j].z-pos[i].z;
+        const d=Math.sqrt(dx*dx+dy*dy+dz*dz+1);
+        const sl=(nodeList[j].level||3)===myLv?2.5:0.3;
+        const f=ATT*d*sl;fx+=(dx/d)*f;fy+=(dy/d)*f;fz+=(dz/d)*f;
+      }
+      const mc=dynC[myLv];
+      if(mc){fx+=(mc.x-pos[i].x)*CPULL*temp;fy+=(mc.y-pos[i].y)*CPULL*temp;fz+=(mc.z-pos[i].z)*CPULL*temp;}
+      for(const lv in dynC){
+        if(parseInt(lv)===myLv)continue;const oc=dynC[lv];
+        const dx=pos[i].x-oc.x,dy=pos[i].y-oc.y,dz=pos[i].z-oc.z;
+        const dSq=dx*dx+dy*dy+dz*dz+1;const f=IREP*temp/dSq;const d=Math.sqrt(dSq);
+        fx+=(dx/d)*f;fy+=(dy/d)*f;fz+=(dz/d)*f;
+      }
+      fx-=pos[i].x*CEN;fy-=pos[i].y*CEN;fz-=pos[i].z*CEN;
+      vel[i].x=(vel[i].x+fx)*DAMP;vel[i].y=(vel[i].y+fy)*DAMP;vel[i].z=(vel[i].z+fz)*DAMP;
+      const maxV=30*temp+2;
+      const vL=Math.sqrt(vel[i].x*vel[i].x+vel[i].y*vel[i].y+vel[i].z*vel[i].z);
+      if(vL>maxV){vel[i].x=vel[i].x/vL*maxV;vel[i].y=vel[i].y/vL*maxV;vel[i].z=vel[i].z/vL*maxV;}
+    }
+    for(let i=0;i<N;i++){pos[i].x+=vel[i].x;pos[i].y+=vel[i].y;pos[i].z+=vel[i].z;}
+  }
+  let maxD=0;
+  for(let i=0;i<N;i++){const d=Math.sqrt(pos[i].x*pos[i].x+pos[i].y*pos[i].y+pos[i].z*pos[i].z);if(d>maxD)maxD=d;}
+  const sc=maxD>0?650/maxD:1;
+  for(let i=0;i<N;i++){pos[i].x*=sc;pos[i].y*=sc;pos[i].z*=sc;}
+  return pos;
 }
 
-// Adjacency
-const nodeIdxMap={};nodes.forEach((n,i)=>{nodeIdxMap[n.id]=i});
+const forcePos=computeForceLayout(nodes,edges,nodeIdxMap);
+const positions=new Array(nodes.length);
+for(let i=0;i<nodes.length;i++){
+  const fp=forcePos[i]||{x:0,y:0,z:0};
+  positions[i]=new THREE.Vector3(fp.x,fp.y,fp.z);
+}
 const adj={};const nodeEdgeMap={};
 edges.forEach((e,ei)=>{
   const si=nodeIdxMap[e.source],ti=nodeIdxMap[e.target];
@@ -256,17 +325,16 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#030308');
-scene.fog = new THREE.FogExp2('#030308',0.00025);
+scene.fog = new THREE.FogExp2('#030308',0.00018);
 
 const camera = new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,1,12000);
-camera.position.set(500,500,800);
+camera.position.set(900,500,900);
 
 const controls = new OrbitControls(camera,renderer.domElement);
 controls.target.set(0,0,0);
 controls.enableDamping=true;controls.dampingFactor=0.06;
-controls.autoRotate=true;controls.autoRotateSpeed=0.08;
+controls.autoRotate=true;controls.autoRotateSpeed=0.12;
 controls.minDistance=80;controls.maxDistance=4000;
-controls.maxPolarAngle=Math.PI*.85;controls.minPolarAngle=Math.PI*.15;
 controls.update();
 
 // ═══════════════════════════════════════════════════════════════
@@ -280,22 +348,25 @@ const nCol=new Float32Array(nCount*3);
 const nSize=new Float32Array(nCount);
 const nHighlight=new Float32Array(nCount);
 const nPulse=new Float32Array(nCount);
+const nActivity=new Float32Array(nCount);
 const tc=new THREE.Color();
 
 for(let i=0;i<nCount;i++){
-  const p=positions[i],n=nodes[i],s=SPATIAL[n.level]||SPATIAL[3];
+  const p=positions[i],n=nodes[i],s=LEVEL_STYLE[n.level]||LEVEL_STYLE[3];
   nPos[i*3]=p.x;nPos[i*3+1]=p.y;nPos[i*3+2]=p.z;
   tc.set(COLORS[n.level]);
   nCol[i*3]=tc.r;nCol[i*3+1]=tc.g;nCol[i*3+2]=tc.b;
   nSize[i]=s.size;
   nHighlight[i]=1.0;
   nPulse[i]=s.pulse;
+  nActivity[i]=s.activity||0.5;
 }
 nodeGeo.setAttribute('position',new THREE.BufferAttribute(nPos,3));
 nodeGeo.setAttribute('aColor',new THREE.BufferAttribute(nCol,3));
 nodeGeo.setAttribute('aSize',new THREE.BufferAttribute(nSize,1));
 nodeGeo.setAttribute('aHighlight',new THREE.BufferAttribute(nHighlight,1));
 nodeGeo.setAttribute('aPulse',new THREE.BufferAttribute(nPulse,1));
+nodeGeo.setAttribute('aActivity',new THREE.BufferAttribute(nActivity,1));
 
 const nodeMat = new THREE.ShaderMaterial({
   uniforms:{uTime:{value:0}},
@@ -304,14 +375,19 @@ const nodeMat = new THREE.ShaderMaterial({
     attribute vec3 aColor;
     attribute float aHighlight;
     attribute float aPulse;
+    attribute float aActivity;
     varying vec3 vColor;
     varying float vAlpha;
+    varying float vActivity;
     uniform float uTime;
     void main(){
       vColor=aColor;
-      float breath=1.0+sin(uTime*aPulse+position.x*.008+position.z*.006)*.12;
+      vActivity=aActivity;
+      float breath=1.0+sin(uTime*aPulse+position.x*.008+position.z*.006)*(.06+aActivity*.10);
       vec3 pos=position;
-      pos.y+=sin(uTime*.3+position.x*.01+position.z*.015)*3.0;
+      pos.y+=sin(uTime*(.3+aActivity*.2)+position.x*.01+position.z*.015)*(2.0+aActivity*3.0);
+      pos.x+=sin(uTime*.08+position.z*.003)*aActivity*2.0;
+      pos.z+=cos(uTime*.06+position.x*.003)*aActivity*2.0;
       vAlpha=aHighlight;
       vec4 mv=modelViewMatrix*vec4(pos,1.0);
       gl_PointSize=aSize*breath*aHighlight*(500.0/-mv.z);
@@ -321,16 +397,16 @@ const nodeMat = new THREE.ShaderMaterial({
   fragmentShader:`
     varying vec3 vColor;
     varying float vAlpha;
+    varying float vActivity;
     void main(){
       vec2 c=gl_PointCoord-vec2(.5);
       float d=length(c);
       if(d>.5)discard;
-      float core=exp(-d*d*100.0);
-      float g1=exp(-d*d*18.0)*.45;
-      float g2=exp(-d*d*4.0)*.15;
-      float g3=exp(-d*d*1.2)*.06;
-      float i=core+g1+g2+g3;
-      gl_FragColor=vec4(vColor*(1.0+core*.5),i*vAlpha);
+      float core=exp(-d*d*180.0)*0.95;
+      float halo=exp(-d*d*22.0)*0.25;
+      float outer=exp(-d*d*6.0)*0.06;
+      float i=core+halo+outer;
+      gl_FragColor=vec4(vColor*(0.85+core*0.15),i*vAlpha);
     }
   `,
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
@@ -342,20 +418,21 @@ scene.add(nodePoints);
 // EDGES (LineSegments)
 // ═══════════════════════════════════════════════════════════════
 
-const MAX_RENDERED_EDGES=8000;
+const MAX_RENDERED_EDGES=12000;
+const EDGE_COLORS={
+  imports:'#00ff88',calls:'#ffdd00',depends_on:'#ffdd00',
+  related_to:'#4488ff',similar_to:'#4488ff',
+  belongs_to:'#ff6600',part_of:'#ff6600',supersedes:'#ff4444',
+  evolves_from:'#aa66ff',default:'#334466',
+};
 const allEdgesPre=[];
 edges.forEach((e,i)=>{
   const si=nodeIdxMap[e.source],ti=nodeIdxMap[e.target];
   if(si!==undefined&&ti!==undefined){
-    const crossLevel=nodes[si].level!==nodes[ti].level;
-    allEdgesPre.push({si,ti,weight:e.weight,type:e.type||'related_to',idx:i,crossLevel});
+    allEdgesPre.push({si,ti,weight:e.weight,type:e.type||'related_to',idx:i});
   }
 });
-// Sort: cross-level first (vertical connections), then by weight
-allEdgesPre.sort((a,b)=>{
-  if(a.crossLevel!==b.crossLevel)return b.crossLevel?1:-1;
-  return b.weight-a.weight;
-});
+allEdgesPre.sort((a,b)=>b.weight-a.weight);
 const validEdges=allEdgesPre.slice(0,MAX_RENDERED_EDGES);
 
 const eCount=validEdges.length;
@@ -366,15 +443,16 @@ const sc=new THREE.Color(),dc=new THREE.Color();
 const alphaScale=Math.min(1.0,3000/eCount);
 
 for(let i=0;i<eCount;i++){
-  const{si,ti,weight,crossLevel}=validEdges[i];
+  const{si,ti,weight,type}=validEdges[i];
   const s=positions[si],t=positions[ti];
   const o=i*6;
   ePos[o]=s.x;ePos[o+1]=s.y;ePos[o+2]=s.z;
   ePos[o+3]=t.x;ePos[o+4]=t.y;ePos[o+5]=t.z;
-  sc.set(COLORS[nodes[si].level]);dc.set(COLORS[nodes[ti].level]);
+  const ec=EDGE_COLORS[type]||EDGE_COLORS.default;
+  sc.set(ec);dc.set(ec);
   eCol[o]=sc.r;eCol[o+1]=sc.g;eCol[o+2]=sc.b;
   eCol[o+3]=dc.r;eCol[o+4]=dc.g;eCol[o+5]=dc.b;
-  const baseAlpha=crossLevel?(0.08+weight*0.12):(0.03+weight*0.04);
+  const baseAlpha=0.06+weight*0.14;
   eAlpha[i*2]=baseAlpha*alphaScale;
   eAlpha[i*2+1]=baseAlpha*alphaScale;
 }
@@ -416,9 +494,9 @@ scene.add(edgeLines);
 const pData=[];// {edgeIdx, progress, speed, srcIdx, tgtIdx}
 const maxParticleEdges=Math.min(eCount,2000);
 for(let i=0;i<maxParticleEdges;i++){
-  const{si,ti,weight,crossLevel}=validEdges[i];
-  if(!crossLevel)continue;// only on vertical connections
-  const pc=weight>0.6?2:1;
+  const{si,ti,weight}=validEdges[i];
+  if(weight<0.4)continue;// only on stronger connections
+  const pc=weight>0.7?2:1;
   for(let j=0;j<pc;j++){
     pData.push({
       edgeIdx:i,progress:srand(i*100+j*31),
@@ -449,16 +527,22 @@ scene.add(particlePoints);
 // BACKGROUND STARS
 // ═══════════════════════════════════════════════════════════════
 
-const starCount=700;
+const starCount=1200;
 const starPos=new Float32Array(starCount*3);
+const starCol=new Float32Array(starCount*3);
+const stc=new THREE.Color();
 for(let i=0;i<starCount;i++){
-  starPos[i*3]=(srand(i*31)-.5)*5000;
-  starPos[i*3+1]=(srand(i*37)-.5)*5000;
-  starPos[i*3+2]=(srand(i*41)-.5)*5000;
+  starPos[i*3]=(srand(i*31)-.5)*6000;
+  starPos[i*3+1]=(srand(i*37)-.5)*6000;
+  starPos[i*3+2]=(srand(i*41)-.5)*6000;
+  const hue=srand(i*53)*0.15+0.55;
+  stc.setHSL(hue,0.3+srand(i*59)*0.3,0.25+srand(i*61)*0.15);
+  starCol[i*3]=stc.r;starCol[i*3+1]=stc.g;starCol[i*3+2]=stc.b;
 }
 const starGeo=new THREE.BufferGeometry();
 starGeo.setAttribute('position',new THREE.BufferAttribute(starPos,3));
-const starMat=new THREE.PointsMaterial({size:1.2,color:'#223344',transparent:true,opacity:.5,
+starGeo.setAttribute('color',new THREE.BufferAttribute(starCol,3));
+const starMat=new THREE.PointsMaterial({size:1.5,vertexColors:true,transparent:true,opacity:.6,
   blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
 scene.add(new THREE.Points(starGeo,starMat));
 
@@ -521,7 +605,7 @@ renderer.domElement.addEventListener('click',()=>{
       detail.classList.remove('visible');
       camTween={
         startPos:camera.position.clone(),startLookAt:controls.target.clone(),
-        targetPos:new THREE.Vector3(500,500,800),targetLookAt:new THREE.Vector3(0,0,0),
+        targetPos:new THREE.Vector3(600,350,600),targetLookAt:new THREE.Vector3(0,0,0),
         progress:0
       };
       controls.autoRotate=true;
@@ -544,7 +628,7 @@ renderer.domElement.addEventListener('click',()=>{
     detail.classList.remove('visible');
     camTween={
       startPos:camera.position.clone(),startLookAt:controls.target.clone(),
-      targetPos:new THREE.Vector3(500,500,800),targetLookAt:new THREE.Vector3(0,0,0),
+      targetPos:new THREE.Vector3(600,350,600),targetLookAt:new THREE.Vector3(0,0,0),
       progress:0
     };
     controls.autoRotate=true;
@@ -614,11 +698,11 @@ function updateHighlights(){
   legendRows.forEach((r,ri)=>{activeLvls[lvOrder[ri]]=r.classList.contains('active');});
   const aS=Math.min(1.0,3000/eCount);
   for(let i=0;i<eCount;i++){
-    const{si,ti,weight,crossLevel}=validEdges[i];
+    const{si,ti,weight}=validEdges[i];
     const sLv=nodes[si].level,tLv=nodes[ti].level;
     // Level toggle filter
     if(activeLvls[sLv]===false||activeLvls[tLv]===false){ea.array[i*2]=0;ea.array[i*2+1]=0;continue;}
-    const baseA=crossLevel?(0.08+weight*0.12):(0.03+weight*0.04);
+    const baseA=0.06+weight*0.14;
     let a=baseA*aS;
     if(hasFocus){
       const connected=(si===selectedIdx||ti===selectedIdx);
@@ -672,13 +756,13 @@ levelOrder.forEach(lv=>{
       activeLevels[levelOrder[ri]]=r.classList.contains('active');
     });
     for(let i=0;i<eCount;i++){
-      const{si,ti,weight,crossLevel}=validEdges[i];
+      const{si,ti,weight}=validEdges[i];
       const sLv=nodes[si].level,tLv=nodes[ti].level;
       if(activeLevels[sLv]===false||activeLevels[tLv]===false){
         ea.array[i*2]=0;ea.array[i*2+1]=0;
       }else{
         const aS=Math.min(1.0,3000/eCount);
-        const baseA=crossLevel?(0.08+weight*0.12):(0.03+weight*0.04);
+        const baseA=0.06+weight*0.14;
         ea.array[i*2]=baseA*aS;ea.array[i*2+1]=baseA*aS;
       }
     }
@@ -694,7 +778,7 @@ document.addEventListener('keydown',(e)=>{
     controls.autoRotate=true;updateHighlights();
     camTween={
       startPos:camera.position.clone(),startLookAt:controls.target.clone(),
-      targetPos:new THREE.Vector3(500,500,800),targetLookAt:new THREE.Vector3(0,0,0),
+      targetPos:new THREE.Vector3(600,350,600),targetLookAt:new THREE.Vector3(0,0,0),
       progress:0
     };
   }

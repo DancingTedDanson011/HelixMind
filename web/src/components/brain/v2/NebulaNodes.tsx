@@ -7,20 +7,10 @@ import type { DemoNode } from '../brain-demo-data';
 import { LEVEL_COLORS, LEVEL_GLOW } from '@/lib/constants';
 import { nodeVertexShader, nodeFragmentShader } from './shaders';
 
-// ─── V2 Helix Layer Layout ──────────────────────────────────
-// Vertical stacking with helix twist per level
-export const LAYER_CONFIG: Record<number, { y: number; radius: number; twist: number }> = {
-  1: { y: 300,  radius: 100, twist: 0 },                       // Focus — top
-  2: { y: 160,  radius: 130, twist: Math.PI / 3 },              // Active
-  3: { y: 20,   radius: 160, twist: (2 * Math.PI) / 3 },        // Reference — center
-  4: { y: -120, radius: 180, twist: Math.PI },                   // Archive
-  5: { y: -260, radius: 150, twist: (4 * Math.PI) / 3 },        // Deep Archive — bottom
-  6: { y: -400, radius: 200, twist: (5 * Math.PI) / 3 },        // Web Knowledge
-};
-
+// ─── V6 Force-Directed Galaxy Layout ──────────────────────────────────
 const NODE_SIZES: Record<number, number> = {
-  1: 60, 2: 48, 3: 40, 4: 32, 5: 24, 6: 55,
-  7: 50, 8: 40, 9: 35,
+  1: 22, 2: 20, 3: 17, 4: 15, 5: 13, 6: 18,
+  7: 15, 8: 13, 9: 11,
 };
 
 function seededRandom(seed: number) {
@@ -28,34 +18,152 @@ function seededRandom(seed: number) {
   return x - Math.floor(x);
 }
 
-export function computeNebulaPositions(nodes: DemoNode[]): THREE.Vector3[] {
-  const byLevel: Record<number, number[]> = {};
-  nodes.forEach((n, i) => {
-    const lvl = Math.min(n.level, 6);
-    if (!byLevel[lvl]) byLevel[lvl] = [];
-    byLevel[lvl].push(i);
-  });
+export function computeNebulaPositions(nodes: DemoNode[], edges?: { source: string; target: string; weight: number }[]): THREE.Vector3[] {
+  const N = nodes.length;
+  if (N === 0) return [];
 
-  const positions: THREE.Vector3[] = new Array(nodes.length);
+  const idxMap: Record<string, number> = {};
+  nodes.forEach((n, i) => { idxMap[n.id] = i; });
 
-  for (const [lvlStr, indices] of Object.entries(byLevel)) {
-    const lvl = parseInt(lvlStr);
-    const config = LAYER_CONFIG[lvl] || LAYER_CONFIG[3];
-    const count = indices.length;
-
-    indices.forEach((nodeIdx, j) => {
-      const angle = (j / Math.max(count, 1)) * Math.PI * 2 + config.twist;
-      const radiusVar = config.radius * (0.4 + seededRandom(nodeIdx * 7) * 0.6);
-      const jitter = 18;
-
-      positions[nodeIdx] = new THREE.Vector3(
-        Math.cos(angle) * radiusVar + (seededRandom(nodeIdx * 3) - 0.5) * jitter,
-        config.y + (seededRandom(nodeIdx * 11) - 0.5) * 30,
-        Math.sin(angle) * radiusVar + (seededRandom(nodeIdx * 13) - 0.5) * jitter,
-      );
-    });
+  // Group nodes by level
+  const lvG: Record<number, number[]> = {};
+  for (let i = 0; i < N; i++) {
+    const lv = Math.min(nodes[i].level, 6);
+    if (!lvG[lv]) lvG[lv] = [];
+    lvG[lv].push(i);
   }
 
+  // Seed centroids per level (spread on sphere)
+  const lvs = Object.keys(lvG).map(Number).sort();
+  const seedC: Record<number, { x: number; y: number; z: number }> = {};
+  const CS = 320;
+  for (let li = 0; li < lvs.length; li++) {
+    const lv = lvs[li];
+    const golden = 2.399963;
+    const theta = golden * li * 2.5;
+    const phi = Math.acos(1 - 2 * (li + 0.5) / Math.max(lvs.length, 2));
+    seedC[lv] = {
+      x: CS * Math.sin(phi) * Math.cos(theta),
+      y: CS * Math.cos(phi),
+      z: CS * Math.sin(phi) * Math.sin(theta),
+    };
+  }
+
+  // Initialize nodes near their level centroid
+  const pos: { x: number; y: number; z: number }[] = new Array(N);
+  for (let i = 0; i < N; i++) {
+    const lv = Math.min(nodes[i].level, 6);
+    const c = seedC[lv] || { x: 0, y: 0, z: 0 };
+    const SP = 100;
+    pos[i] = {
+      x: c.x + (seededRandom(i * 7) - 0.5) * SP,
+      y: c.y + (seededRandom(i * 13) - 0.5) * SP,
+      z: c.z + (seededRandom(i * 19) - 0.5) * SP,
+    };
+  }
+
+  // Build adjacency
+  const adjL: number[][] = new Array(N);
+  for (let i = 0; i < N; i++) adjL[i] = [];
+  if (edges) {
+    for (const e of edges) {
+      const si = idxMap[e.source], ti = idxMap[e.target];
+      if (si !== undefined && ti !== undefined) { adjL[si].push(ti); adjL[ti].push(si); }
+    }
+  }
+
+  // Force simulation with clustering
+  const ITER = 60, REP = 5000, ATT = 0.012, CPULL = 0.02, IREP = 18000, CEN = 0.0005, DAMP = 0.82;
+  const KS = Math.min(N, 25);
+  const vel: { x: number; y: number; z: number }[] = new Array(N);
+  for (let i = 0; i < N; i++) vel[i] = { x: 0, y: 0, z: 0 };
+
+  for (let it = 0; it < ITER; it++) {
+    const temp = 1.0 - it / ITER;
+    const repS = REP * temp;
+
+    // Dynamic centroids
+    const dynC: Record<number, { x: number; y: number; z: number }> = {};
+    const dynN: Record<number, number> = {};
+    for (let i = 0; i < N; i++) {
+      const lv = Math.min(nodes[i].level, 6);
+      if (!dynC[lv]) { dynC[lv] = { x: 0, y: 0, z: 0 }; dynN[lv] = 0; }
+      dynC[lv].x += pos[i].x; dynC[lv].y += pos[i].y; dynC[lv].z += pos[i].z;
+      dynN[lv]++;
+    }
+    for (const lv in dynC) {
+      dynC[Number(lv)].x /= dynN[Number(lv)];
+      dynC[Number(lv)].y /= dynN[Number(lv)];
+      dynC[Number(lv)].z /= dynN[Number(lv)];
+    }
+
+    for (let i = 0; i < N; i++) {
+      let fx = 0, fy = 0, fz = 0;
+      const myLv = Math.min(nodes[i].level, 6);
+
+      // Node repulsion (sampled)
+      for (let k = 0; k < KS; k++) {
+        const j = Math.floor(seededRandom(it * 10007 + i * 997 + k * 31) * N);
+        if (j === i) continue;
+        const dx = pos[i].x - pos[j].x, dy = pos[i].y - pos[j].y, dz = pos[i].z - pos[j].z;
+        const dSq = dx * dx + dy * dy + dz * dz + 1;
+        const cm = Math.min(nodes[j].level, 6) !== myLv ? 2.5 : 1.0;
+        const f = repS * cm / dSq;
+        const d = Math.sqrt(dSq);
+        fx += (dx / d) * f; fy += (dy / d) * f; fz += (dz / d) * f;
+      }
+      const rb = N / KS;
+      fx *= rb; fy *= rb; fz *= rb;
+
+      // Edge attraction (stronger same-level)
+      for (const j of adjL[i]) {
+        const dx = pos[j].x - pos[i].x, dy = pos[j].y - pos[i].y, dz = pos[j].z - pos[i].z;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz + 1);
+        const sl = Math.min(nodes[j].level, 6) === myLv ? 2.5 : 0.3;
+        const f = ATT * d * sl;
+        fx += (dx / d) * f; fy += (dy / d) * f; fz += (dz / d) * f;
+      }
+
+      // Cluster pull toward own centroid
+      const mc = dynC[myLv];
+      if (mc) {
+        fx += (mc.x - pos[i].x) * CPULL * temp;
+        fy += (mc.y - pos[i].y) * CPULL * temp;
+        fz += (mc.z - pos[i].z) * CPULL * temp;
+      }
+
+      // Inter-cluster repulsion
+      for (const lv in dynC) {
+        if (Number(lv) === myLv) continue;
+        const oc = dynC[Number(lv)];
+        const dx = pos[i].x - oc.x, dy = pos[i].y - oc.y, dz = pos[i].z - oc.z;
+        const dSq = dx * dx + dy * dy + dz * dz + 1;
+        const f = IREP * temp / dSq;
+        const d = Math.sqrt(dSq);
+        fx += (dx / d) * f; fy += (dy / d) * f; fz += (dz / d) * f;
+      }
+
+      fx -= pos[i].x * CEN; fy -= pos[i].y * CEN; fz -= pos[i].z * CEN;
+      vel[i].x = (vel[i].x + fx) * DAMP; vel[i].y = (vel[i].y + fy) * DAMP; vel[i].z = (vel[i].z + fz) * DAMP;
+      const maxV = 30 * temp + 2;
+      const vL = Math.sqrt(vel[i].x * vel[i].x + vel[i].y * vel[i].y + vel[i].z * vel[i].z);
+      if (vL > maxV) { vel[i].x = vel[i].x / vL * maxV; vel[i].y = vel[i].y / vL * maxV; vel[i].z = vel[i].z / vL * maxV; }
+    }
+    for (let i = 0; i < N; i++) { pos[i].x += vel[i].x; pos[i].y += vel[i].y; pos[i].z += vel[i].z; }
+  }
+
+  // Scale to fit (650 for spacious clusters)
+  let maxD = 0;
+  for (let i = 0; i < N; i++) {
+    const d = Math.sqrt(pos[i].x * pos[i].x + pos[i].y * pos[i].y + pos[i].z * pos[i].z);
+    if (d > maxD) maxD = d;
+  }
+  const sc = maxD > 0 ? 650 / maxD : 1;
+
+  const positions: THREE.Vector3[] = new Array(N);
+  for (let i = 0; i < N; i++) {
+    positions[i] = new THREE.Vector3(pos[i].x * sc, pos[i].y * sc, pos[i].z * sc);
+  }
   return positions;
 }
 
@@ -63,13 +171,14 @@ export function computeNebulaPositions(nodes: DemoNode[]): THREE.Vector3[] {
 
 interface NebulaNodesProps {
   nodes: DemoNode[];
+  edges?: { source: string; target: string; weight: number }[];
 }
 
-export function NebulaNodes({ nodes }: NebulaNodesProps) {
+export function NebulaNodes({ nodes, edges }: NebulaNodesProps) {
   const geoRef = useRef<THREE.BufferGeometry>(null!);
   const materialRef = useRef<THREE.ShaderMaterial>(null!);
 
-  const positions = useMemo(() => computeNebulaPositions(nodes), [nodes]);
+  const positions = useMemo(() => computeNebulaPositions(nodes, edges), [nodes, edges]);
 
   // Track births for smooth appearance of new nodes
   const birthTimesRef = useRef<Map<string, number>>(new Map());

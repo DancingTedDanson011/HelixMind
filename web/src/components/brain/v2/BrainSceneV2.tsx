@@ -10,26 +10,25 @@ import { demoNodes, demoEdges } from '../brain-demo-data';
 export function BrainSceneV2() {
   return (
     <Canvas
-      camera={{ position: [350, 150, 450], fov: 50, near: 1, far: 5000 }}
+      camera={{ position: [900, 500, 900], fov: 50, near: 1, far: 8000 }}
       gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
       dpr={1}
       style={{ background: 'transparent' }}
       frameloop="always"
     >
       <color attach="background" args={['#030308']} />
+      <fog attach="fog" args={['#030308', 1200, 5000]} />
 
       <NebulaStars />
-      <NebulaNodes nodes={demoNodes} />
+      <NebulaNodes nodes={demoNodes} edges={demoEdges} />
       <NebulaEdges nodes={demoNodes} edges={demoEdges} />
 
       <OrbitControls
-        target={[0, -50, 0]}
+        target={[0, 0, 0]}
         enableZoom={false}
         enablePan={false}
         autoRotate
-        autoRotateSpeed={0.12}
-        minPolarAngle={Math.PI / 4}
-        maxPolarAngle={(3 * Math.PI) / 4}
+        autoRotateSpeed={0.15}
       />
     </Canvas>
   );

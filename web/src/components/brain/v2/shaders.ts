@@ -50,16 +50,15 @@ export const nodeFragmentShader = `
     float d = length(center);
     if (d > 0.5) discard;
 
-    // Multi-layer Gaussian glow — creates nebula cloud effect
-    float core  = exp(-d * d * 100.0);          // tight bright center
-    float glow1 = exp(-d * d * 18.0)  * 0.45;   // inner glow ring
-    float glow2 = exp(-d * d * 4.0)   * 0.15;   // mid-range haze
-    float glow3 = exp(-d * d * 1.2)   * 0.06;   // outer nebula fringe
+    // Sharp saturated core with minimal glow — preserves level color
+    float core = exp(-d * d * 180.0) * 0.95;
+    float halo = exp(-d * d * 22.0) * 0.25;
+    float outer = exp(-d * d * 6.0) * 0.06;
 
-    float intensity = core + glow1 + glow2 + glow3;
+    float intensity = core + halo + outer;
 
-    // Birth flash brightens the core
-    vec3 color = vColor * (1.0 + vGlow * core * 1.5);
+    // Birth flash brightens the core, but keep color saturated
+    vec3 color = vColor * (0.85 + core * 0.15 + vGlow * core * 0.5);
 
     gl_FragColor = vec4(color, intensity * vAlpha);
   }

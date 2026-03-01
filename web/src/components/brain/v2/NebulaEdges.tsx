@@ -17,7 +17,7 @@ export function NebulaEdges({ nodes, edges }: NebulaEdgesProps) {
   const geoRef = useRef<THREE.BufferGeometry>(null!);
   const materialRef = useRef<THREE.ShaderMaterial>(null!);
 
-  const positions = useMemo(() => computeNebulaPositions(nodes), [nodes]);
+  const positions = useMemo(() => computeNebulaPositions(nodes, edges), [nodes, edges]);
 
   const nodeIdxMap = useMemo(() => {
     const map: Record<string, number> = {};
