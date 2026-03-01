@@ -214,6 +214,7 @@ export interface ListTriggersRequest extends WSMessage { type: 'list_triggers' }
 export interface ListProjectsRequest extends WSMessage { type: 'list_projects' }
 export interface RegisterProjectRequest extends WSMessage { type: 'register_project'; path: string; name?: string }
 export interface GetWorkersRequest extends WSMessage { type: 'get_workers' }
+export interface GetConfigRequest extends WSMessage { type: 'get_config' }
 
 // --- Responses (CLI → Browser) ---
 export interface SessionsListResponse extends WSMessage { type: 'sessions_list'; sessions: SessionInfo[] }
@@ -244,6 +245,7 @@ export interface SchedulesListResponse extends WSMessage { type: 'schedules_list
 export interface TriggersListResponse extends WSMessage { type: 'triggers_list'; triggers: TriggerInfo[] }
 export interface ProjectsListResponse extends WSMessage { type: 'projects_list'; projects: Array<{ name: string; path: string; health: number }> }
 export interface WorkersListResponse extends WSMessage { type: 'workers_list'; workers: WorkerInfo[] }
+export interface ConfigResponse extends WSMessage { type: 'config_response'; provider: string; apiKey: string; model: string }
 
 // --- Server-Push Events (CLI → Browser, async) ---
 export interface SessionUpdatedEvent extends WSMessage { type: 'session_updated'; session: SessionInfo }
@@ -351,6 +353,7 @@ export type ControlRequest =
   | RenameBrainRequest
   | SwitchBrainRequest
   | CreateBrainRequest
+  | GetConfigRequest
   | RemoteToolCallResult;
 
 // ---------------------------------------------------------------------------
@@ -399,6 +402,8 @@ export interface ControlHandlers {
   renameBrain(brainId: string, newName: string): boolean;
   switchBrain(brainId: string): boolean;
   createBrain(name: string, brainType: 'global' | 'local', projectPath?: string): BrainInstance | null;
+  // Config sharing (local connections only)
+  getConfig(): { provider: string; apiKey: string; model: string };
 }
 
 // ---------------------------------------------------------------------------

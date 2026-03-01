@@ -485,6 +485,12 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             break;
           }
 
+          case 'get_config': {
+            const cfg = controlHandlers.getConfig();
+            sendTo(ws, { type: 'config_response', provider: cfg.provider, apiKey: cfg.apiKey, model: cfg.model, requestId, timestamp: Date.now() });
+            break;
+          }
+
           // --- Brain Management ---
           case 'get_brain_list': {
             const { brains, limits } = controlHandlers.getBrainList();

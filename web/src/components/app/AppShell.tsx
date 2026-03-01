@@ -180,6 +180,26 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     })();
   }, []);
 
+  // ── Auto-sync CLI config → web on connect ──
+  const configSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!isConnected || configSyncedRef.current) return;
+    configSyncedRef.current = true;
+
+    connection.fetchConfig().then((cfg) => {
+      if (cfg) {
+        // Re-check hasLLMKey after syncing
+        setHasLLMKey(true);
+      }
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
+
+  // Reset config sync flag on disconnect
+  useEffect(() => {
+    if (!isConnected) configSyncedRef.current = false;
+  }, [isConnected]);
+
   // ── Close connect popover on outside click ──
   useEffect(() => {
     function handleClick(e: MouseEvent) {

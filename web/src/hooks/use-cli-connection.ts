@@ -125,6 +125,10 @@ export interface UseCliConnectionReturn {
   removeTrigger: (id: number) => Promise<void>;
   listTriggers: () => Promise<TriggerInfo[]>;
   getWorkers: () => Promise<WorkerInfo[]>;
+  /** Fetch CLI config (provider/apiKey/model) and sync to web */
+  fetchConfig: () => Promise<{ provider: string; apiKey: string; model: string } | null>;
+  /** Whether config has been synced from CLI in this session */
+  configSynced: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +168,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [thinkingUpdates, setThinkingUpdates] = useState<ThinkingUpdate[]>([]);
   const [consciousnessEvents, setConsciousnessEvents] = useState<ConsciousnessEvent[]>([]);
   const [autonomyLevel, setAutonomyLevelState] = useState(2);
+  const [configSynced, setConfigSynced] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const connectionStateRef = useRef<ConnectionState>('disconnected');
@@ -816,6 +821,26 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   }, [sendRequest]);
 
   // ---------------------------------------------------------------------------
+  // Config sync: fetch CLI config and save to web
+  // ---------------------------------------------------------------------------
+  const fetchConfig = useCallback(async (): Promise<{ provider: string; apiKey: string; model: string } | null> => {
+    try {
+      const res = (await sendRequest('get_config')) as { provider: string; apiKey: string; model: string };
+      if (res.provider && res.apiKey) {
+        // Save to web backend
+        await fetch('/api/user/llm-keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: res.provider, apiKey: res.apiKey }),
+        });
+        setConfigSynced(true);
+        return { provider: res.provider, apiKey: res.apiKey, model: res.model };
+      }
+    } catch { /* silent — config sync is best-effort */ }
+    return null;
+  }, [sendRequest]);
+
+  // ---------------------------------------------------------------------------
   // Cleanup on unmount
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -896,5 +921,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     removeTrigger,
     listTriggers,
     getWorkers,
+    fetchConfig,
+    configSynced,
   };
 }
