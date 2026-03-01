@@ -55,7 +55,7 @@ export const TYPE_SECTORS: Record<string, { xOff: number; yOff: number; zOff: nu
 } as const;
 
 export const LEVEL_COLORS = {
-  1: 0xffffff,   // Focus — White (bright, less dense)
+  1: 0x00ffff,   // Focus — Cyan
   2: 0x00ff88,
   3: 0x4169e1,
   4: 0x8a2be2,
@@ -70,7 +70,7 @@ export const LEVEL_COLORS = {
 } as const;
 
 export const LEVEL_SIZES = {
-  1: 10, 2: 7, 3: 5.5, 4: 4.5, 5: 3.5, 6: 9,
+  1: 8, 2: 7, 3: 5.5, 4: 4.5, 5: 3.5, 6: 9,
   7: 10, 8: 7, 9: 6,  // Monitor nodes
   10: 8,               // Jarvis consciousness
 } as const;
