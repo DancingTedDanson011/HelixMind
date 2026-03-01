@@ -1620,9 +1620,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         onConnect={(inst) => { connectTo(inst); setShowSpawnDialog(false); }}
       />
 
-      {/* Brain 3D Overlay — in-app iframe */}
+      {/* Brain 3D Overlay — in-app iframe, z-[70] to cover navbar (z-50) */}
       {showBrainOverlay && connectedPort && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[70] bg-black">
           <div className="relative w-full h-full">
             <button
               onClick={() => setShowBrainOverlay(false)}
