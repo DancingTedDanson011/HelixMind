@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { GlassPanel } from '@/components/ui/GlassPanel';
@@ -11,11 +11,6 @@ import { useCliDiscovery } from '@/hooks/use-cli-discovery';
 import { useCliConnection } from '@/hooks/use-cli-connection';
 import { useCliOutput } from '@/hooks/use-cli-output';
 import { InstanceCard } from '@/components/cli/InstanceCard';
-import { SessionList } from '@/components/cli/SessionList';
-import { TerminalViewer } from '@/components/cli/TerminalViewer';
-import { FindingsPanel } from '@/components/cli/FindingsPanel';
-import { BugJournalPanel } from '@/components/cli/BugJournalPanel';
-import { BrowserPreview } from '@/components/cli/BrowserPreview';
 import { TokenDialog } from '@/components/cli/TokenDialog';
 import {
   Terminal,
@@ -28,20 +23,56 @@ import {
   Unplug,
   Cpu,
   FolderOpen,
+  MessageSquare,
+  Clock,
 } from 'lucide-react';
-import type { DiscoveredInstance } from '@/lib/cli-types';
+import type { DiscoveredInstance, SessionInfo, SessionStatus } from '@/lib/cli-types';
+
+/* ─── Types ──────────────────────────────────── */
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
 
 /* ─── Animation ──────────────────────────────── */
 
-const container = {
+const fadeIn = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+  show: { opacity: 1, transition: { duration: 0.3 } },
 };
 
-const item = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+/* ─── Session sidebar helpers ────────────────── */
+
+const statusBadgeVariant: Record<SessionStatus, 'primary' | 'success' | 'error' | 'default' | 'warning'> = {
+  running: 'primary',
+  done: 'success',
+  error: 'error',
+  idle: 'default',
+  paused: 'warning',
 };
+
+function sessionIcon(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes('security') || lower.includes('audit')) return Shield;
+  if (lower.includes('auto')) return Zap;
+  return MessageSquare;
+}
+
+function formatElapsed(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}m ${s}s`;
+  }
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h ${m}m`;
+}
 
 /* ─── Component ──────────────────────────────── */
 
@@ -56,10 +87,12 @@ export function ConsolePage() {
   const [pendingInstance, setPendingInstance] = useState<DiscoveredInstance | null>(null);
   const [authToken, setAuthToken] = useState<string | undefined>(undefined);
   const [chatText, setChatText] = useState('');
-  const [autoGoal, setAutoGoal] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const connectAfterRenderRef = useRef(false);
   const hasAutoConnectedRef = useRef(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const processedLinesRef = useRef(0);
 
   // ── Hooks ───────────────────────────────────────
 
@@ -116,7 +149,6 @@ export function ConsolePage() {
 
   useEffect(() => {
     if (connection.connectionState === 'connected' && connection.sessions.length > 0 && !selectedSessionId) {
-      // Pick first running session, or first session
       const running = connection.sessions.find(s => s.status === 'running');
       setSelectedSessionId(running?.id || connection.sessions[0].id);
     }
@@ -130,15 +162,52 @@ export function ConsolePage() {
     }
   }, [connection.connectionState]);
 
+  // ── Track output lines → chat messages ──
+
+  useEffect(() => {
+    const newCount = output.lines.length;
+    if (newCount > processedLinesRef.current) {
+      const newLines = output.lines.slice(processedLinesRef.current);
+      processedLinesRef.current = newCount;
+
+      const content = newLines.join('\n');
+      if (content.trim()) {
+        setChatMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant') {
+            return [
+              ...prev.slice(0, -1),
+              { ...last, content: last.content + '\n' + content },
+            ];
+          }
+          return [...prev, {
+            id: crypto.randomUUID(),
+            role: 'assistant' as const,
+            content,
+            timestamp: Date.now(),
+          }];
+        });
+      }
+    }
+  }, [output.lines]);
+
+  // ── Reset chat when session changes ──
+
+  useEffect(() => {
+    setChatMessages([]);
+    processedLinesRef.current = 0;
+  }, [selectedSessionId]);
+
+  // ── Auto-scroll chat ──
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
   // ── Derived ─────────────────────────────────────
 
   const isConnected = connection.connectionState === 'connected';
   const isConnecting = connection.connectionState === 'connecting' || connection.connectionState === 'authenticating';
-
-  const selectedSession = useMemo(
-    () => connection.sessions.find((s) => s.id === selectedSessionId) ?? null,
-    [connection.sessions, selectedSessionId],
-  );
 
   // ── Handlers ────────────────────────────────────
 
@@ -168,186 +237,242 @@ export function ConsolePage() {
   );
 
   const handleDisconnect = useCallback(() => {
-    hasAutoConnectedRef.current = true; // Don't auto-reconnect after manual disconnect
+    hasAutoConnectedRef.current = true;
     connection.disconnect();
     setSelectedSessionId(null);
+    setChatMessages([]);
+    processedLinesRef.current = 0;
   }, [connection]);
 
   const handleSendChat = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (chatText.trim()) {
+      setChatMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'user' as const,
+        content: chatText.trim(),
+        timestamp: Date.now(),
+      }]);
       connection.sendChat(chatText.trim()).catch(() => {});
       setChatText('');
     }
   }, [chatText, connection]);
-
-  const handleStartAuto = useCallback(() => {
-    connection.startAuto(autoGoal.trim() || undefined).catch(() => {});
-    setAutoGoal('');
-  }, [autoGoal, connection]);
 
   const handleAbortSession = useCallback(
     (id: string) => { connection.abortSession(id).catch(() => {}); },
     [connection],
   );
 
-  const handleStopAll = useCallback(() => {
-    for (const session of connection.sessions) {
-      if (session.status === 'running') {
-        connection.abortSession(session.id).catch(() => {});
-      }
-    }
-  }, [connection]);
-
-  // ── Render: Connected ─────────────────────────
+  // ── Render: Connected — Chat Layout ─────────
 
   if (isConnected) {
     const meta = connection.instanceMeta;
     const hasRunningSessions = connection.sessions.some(s => s.status === 'running');
 
     return (
-      <motion.div variants={container} initial="hidden" animate="show" className="space-y-4">
-        {/* ── Compact connection bar ── */}
-        <motion.div variants={item}>
-          <GlassPanel className="px-4 py-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-success shadow-[0_0_6px_rgba(0,255,136,0.5)]" />
-                <span className="text-sm font-medium text-white">{meta?.projectName}</span>
-                {meta && (
-                  <span className="text-xs text-gray-500 hidden sm:inline">
-                    <Cpu size={10} className="inline mr-1" />
-                    {meta.model}
-                    <span className="mx-1.5 text-gray-700">·</span>
-                    <FolderOpen size={10} className="inline mr-1" />
-                    {meta.projectPath.split(/[/\\]/).slice(-2).join('/')}
-                  </span>
-                )}
-              </div>
-              <Button variant="ghost" size="sm" onClick={handleDisconnect}>
-                <Unplug size={12} />
-                {tCli('disconnect')}
-              </Button>
-            </div>
-          </GlassPanel>
-        </motion.div>
-
-        {/* ── Chat Input — ALWAYS VISIBLE ── */}
-        <motion.div variants={item}>
-          <GlassPanel className="p-4">
-            <form onSubmit={handleSendChat} className="flex gap-2">
-              <Input
-                ref={chatInputRef}
-                value={chatText}
-                onChange={(e) => setChatText(e.target.value)}
-                placeholder={tCli('chatPlaceholder')}
-                className="flex-1 text-base"
-              />
-              <Button
-                type="submit"
-                variant="primary"
-                size="sm"
-                disabled={!chatText.trim()}
-                className="px-4"
-              >
-                <SendHorizontal size={16} />
-              </Button>
-            </form>
-
-            {/* Quick actions */}
-            <div className="flex gap-2 mt-3">
-              <div className="flex gap-2 flex-1">
-                <Input
-                  value={autoGoal}
-                  onChange={(e) => setAutoGoal(e.target.value)}
-                  placeholder={tCli('autoGoalPlaceholder')}
-                  className="flex-1 text-xs"
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleStartAuto(); } }}
-                />
-                <Button variant="secondary" size="sm" onClick={handleStartAuto} className="flex-shrink-0 text-xs">
-                  <Zap size={12} />
-                  {tCli('startAuto')}
-                </Button>
-              </div>
-              <Button variant="secondary" size="sm" onClick={() => connection.startSecurity().catch(() => {})} className="flex-shrink-0 text-xs">
-                <Shield size={12} />
-              </Button>
-              {hasRunningSessions && (
-                <Button variant="danger" size="sm" onClick={handleStopAll} className="flex-shrink-0 text-xs">
-                  <StopCircle size={12} />
-                </Button>
+      <motion.div variants={fadeIn} initial="hidden" animate="show" className="flex flex-col h-[calc(100vh-120px)]">
+        {/* ── Connection bar ── */}
+        <GlassPanel className="px-4 py-2 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-success shadow-[0_0_6px_rgba(0,255,136,0.5)]" />
+              <span className="text-sm font-medium text-white">{meta?.projectName}</span>
+              {meta && (
+                <span className="text-xs text-gray-500 hidden sm:inline">
+                  <Cpu size={10} className="inline mr-1" />
+                  {meta.model}
+                  <span className="mx-1.5 text-gray-700">·</span>
+                  <FolderOpen size={10} className="inline mr-1" />
+                  {meta.projectPath.split(/[/\\]/).slice(-2).join('/')}
+                </span>
               )}
             </div>
-          </GlassPanel>
-        </motion.div>
+            <Button variant="ghost" size="sm" onClick={handleDisconnect}>
+              <Unplug size={12} />
+              {tCli('disconnect')}
+            </Button>
+          </div>
+        </GlassPanel>
 
-        {/* ── Main area: Terminal + Sidebar ── */}
-        <motion.div variants={item} className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Terminal output — main area */}
-          <div className="lg:col-span-8 space-y-4">
-            {selectedSession ? (
-              <>
-                {/* Session header */}
-                <GlassPanel className="px-4 py-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{selectedSession.icon}</span>
-                      <span className="text-sm font-medium text-white">{selectedSession.name}</span>
-                      <Badge variant={selectedSession.status === 'running' ? 'primary' : selectedSession.status === 'done' ? 'success' : selectedSession.status === 'error' ? 'error' : 'default'}>
-                        {selectedSession.status}
-                      </Badge>
-                    </div>
-                    {selectedSession.status === 'running' && (
-                      <Button variant="danger" size="sm" onClick={() => handleAbortSession(selectedSession.id)}>
-                        <StopCircle size={12} />
-                        {tCli('abort')}
-                      </Button>
-                    )}
+        {/* ── Main: Sidebar + Chat ── */}
+        <div className="flex gap-3 flex-1 min-h-0 mt-3">
+
+          {/* ── Left sidebar: Sessions ── */}
+          <div className="w-56 flex-shrink-0 flex flex-col gap-2">
+            <GlassPanel className="flex-1 overflow-hidden flex flex-col">
+              <div className="px-3 py-2.5 border-b border-white/5">
+                <h3 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                  {tCli('sessions')}
+                </h3>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {connection.sessions.length === 0 ? (
+                  <div className="p-4 text-center">
+                    <MessageSquare size={16} className="text-gray-600 mx-auto mb-1" />
+                    <p className="text-[11px] text-gray-600">{tCli('noSessions')}</p>
                   </div>
-                </GlassPanel>
+                ) : (
+                  <div className="divide-y divide-white/[0.03]">
+                    {connection.sessions.map((session: SessionInfo) => {
+                      const isSelected = session.id === selectedSessionId;
+                      const Icon = sessionIcon(session.name);
 
-                {/* Terminal */}
-                <TerminalViewer lines={output.lines} />
-
-                {/* Result */}
-                {(selectedSession.status === 'done' || selectedSession.status === 'error') && selectedSession.result && (
-                  <GlassPanel
-                    intensity="subtle"
-                    className={`p-3 border ${selectedSession.status === 'error' ? 'border-error/20 bg-error/[0.03]' : 'border-success/20 bg-success/[0.03]'}`}
-                  >
-                    <p className="text-xs text-gray-400 break-words">{selectedSession.result.text}</p>
-                    <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                      <span>{selectedSession.result.stepsCount} {tCli('steps')}</span>
-                      {selectedSession.result.errorsCount > 0 && (
-                        <span className="text-error">{selectedSession.result.errorsCount} {tCli('errors')}</span>
-                      )}
-                    </div>
-                  </GlassPanel>
+                      return (
+                        <button
+                          key={session.id}
+                          onClick={() => setSelectedSessionId(session.id)}
+                          className={`
+                            w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-all
+                            ${isSelected
+                              ? 'bg-primary/5 border-l-2 border-primary'
+                              : 'border-l-2 border-transparent hover:bg-white/[0.02]'
+                            }
+                          `}
+                        >
+                          <div className={`
+                            w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0
+                            ${isSelected ? 'bg-primary/10' : 'bg-white/[0.03]'}
+                          `}>
+                            <Icon size={12} className={isSelected ? 'text-primary' : 'text-gray-400'} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-white font-medium truncate">
+                                {session.name}
+                              </span>
+                              <Badge variant={statusBadgeVariant[session.status]} className="text-[9px] px-1 py-0">
+                                {session.status}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-1 mt-0.5 text-[10px] text-gray-600">
+                              <Clock size={8} />
+                              <span>{formatElapsed(session.elapsed)}</span>
+                            </div>
+                          </div>
+                          {session.status === 'running' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleAbortSession(session.id); }}
+                              className="text-error/60 hover:text-error p-0.5"
+                            >
+                              <StopCircle size={12} />
+                            </button>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
-              </>
-            ) : (
-              <GlassPanel intensity="subtle" className="p-8 text-center">
-                <Terminal size={24} className="text-gray-600 mx-auto mb-2" />
-                <p className="text-xs text-gray-500">{tCli('noOutput')}</p>
-              </GlassPanel>
-            )}
+              </div>
 
-            {/* Findings + Bugs inline */}
-            {connection.findings.length > 0 && <FindingsPanel findings={connection.findings} />}
-            {connection.bugs.length > 0 && <BugJournalPanel bugs={connection.bugs} />}
-            {connection.lastScreenshot && <BrowserPreview screenshot={connection.lastScreenshot} />}
+              {/* ── Quick actions ── */}
+              <div className="p-2 border-t border-white/5 space-y-1.5">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full text-[11px] justify-start"
+                  onClick={() => { connection.startAuto().catch(() => {}); }}
+                >
+                  <Zap size={11} />
+                  {tCli('startAuto')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full text-[11px] justify-start"
+                  onClick={() => { connection.startSecurity().catch(() => {}); }}
+                >
+                  <Shield size={11} />
+                  {tCli('startSecurity')}
+                </Button>
+                {hasRunningSessions && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="w-full text-[11px] justify-start"
+                    onClick={() => {
+                      for (const s of connection.sessions) {
+                        if (s.status === 'running') connection.abortSession(s.id).catch(() => {});
+                      }
+                    }}
+                  >
+                    <StopCircle size={11} />
+                    {tCli('stopAll')}
+                  </Button>
+                )}
+              </div>
+            </GlassPanel>
           </div>
 
-          {/* Sidebar: Session list */}
-          <div className="lg:col-span-4">
-            <SessionList
-              sessions={connection.sessions}
-              selectedId={selectedSessionId}
-              onSelect={setSelectedSessionId}
-              onAbort={handleAbortSession}
-            />
+          {/* ── Right: Chat area ── */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <GlassPanel className="flex-1 flex flex-col overflow-hidden">
+
+              {/* ── Chat messages ── */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                {chatMessages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-center">
+                    <div>
+                      <MessageSquare size={28} className="text-gray-700 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">{tCli('chatPlaceholder')}</p>
+                    </div>
+                  </div>
+                ) : (
+                  chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`
+                          max-w-[85%] rounded-xl px-3.5 py-2.5
+                          ${msg.role === 'user'
+                            ? 'bg-primary/15 border border-primary/20 text-white'
+                            : 'bg-white/[0.03] border border-white/5 text-gray-300'
+                          }
+                        `}
+                      >
+                        {msg.role === 'assistant' ? (
+                          <pre className="text-xs font-mono whitespace-pre-wrap break-words leading-5">
+                            {msg.content}
+                          </pre>
+                        ) : (
+                          <p className="text-sm">{msg.content}</p>
+                        )}
+                        <p className={`text-[10px] mt-1 ${msg.role === 'user' ? 'text-primary/40 text-right' : 'text-gray-600'}`}>
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* ── Chat input ── */}
+              <div className="p-3 border-t border-white/5">
+                <form onSubmit={handleSendChat} className="flex gap-2">
+                  <Input
+                    ref={chatInputRef}
+                    value={chatText}
+                    onChange={(e) => setChatText(e.target.value)}
+                    placeholder={tCli('chatPlaceholder')}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={!chatText.trim()}
+                    className="px-3"
+                  >
+                    <SendHorizontal size={14} />
+                  </Button>
+                </form>
+              </div>
+            </GlassPanel>
           </div>
-        </motion.div>
+        </div>
 
         <TokenDialog
           open={tokenDialogOpen}
@@ -359,61 +484,47 @@ export function ConsolePage() {
     );
   }
 
-  // ── Render: Connecting ────────────────────────
-
-  if (isConnecting) {
-    return (
-      <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
-        <motion.div variants={item} className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <Terminal size={20} className="text-primary" />
-            <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
-          </div>
-          <div className="flex items-center justify-center gap-2 mt-3 text-sm text-cyan-400">
-            <RefreshCw size={14} className="animate-spin" />
-            {tCli('connecting')}
-          </div>
-        </motion.div>
-      </motion.div>
-    );
-  }
-
-  // ── Render: Disconnected — Instance Tiles ─────
+  // ── Render: Disconnected / Connecting ────────
 
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
-      {/* Header */}
-      <motion.div variants={item} className="text-center">
+    <motion.div variants={fadeIn} initial="hidden" animate="show" className="space-y-6">
+      {/* Header — always present, stable */}
+      <div className="text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
           <Terminal size={20} className="text-primary" />
           <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
         </div>
-        <p className="text-sm text-gray-500">{t('subtitle')}</p>
-      </motion.div>
-
-      {/* Scanning indicator */}
-      {discovery.scanning && (
-        <motion.div variants={item} className="flex items-center justify-center gap-2 text-sm text-cyan-400">
-          <RefreshCw size={14} className="animate-spin" />
-          {t('scanning')}
-        </motion.div>
-      )}
+        {/* Status line — fixed height to prevent layout shift */}
+        <div className="h-6 flex items-center justify-center">
+          {isConnecting ? (
+            <span className="flex items-center gap-2 text-sm text-cyan-400">
+              <RefreshCw size={14} className="animate-spin" />
+              {tCli('connecting')}
+            </span>
+          ) : discovery.scanning ? (
+            <span className="flex items-center gap-2 text-sm text-cyan-400">
+              <RefreshCw size={14} className="animate-spin" />
+              {t('scanning')}
+            </span>
+          ) : (
+            <p className="text-sm text-gray-500">{t('subtitle')}</p>
+          )}
+        </div>
+      </div>
 
       {/* Error banner */}
       {connection.error && (
-        <motion.div variants={item}>
-          <GlassPanel className="p-3 border-error/20 bg-error/[0.03]">
-            <div className="flex items-center gap-2 text-sm text-error">
-              <AlertCircle size={14} />
-              <span>{connection.error}</span>
-            </div>
-          </GlassPanel>
-        </motion.div>
+        <GlassPanel className="p-3 border-error/20 bg-error/[0.03]">
+          <div className="flex items-center gap-2 text-sm text-error">
+            <AlertCircle size={14} />
+            <span>{connection.error}</span>
+          </div>
+        </GlassPanel>
       )}
 
-      {/* Empty state when no instances */}
-      {discovery.instances.length === 0 && !discovery.scanning && (
-        <motion.div variants={item}>
+      {/* Instance tiles or empty state — stable container */}
+      <div className="min-h-[200px]">
+        {discovery.instances.length === 0 && !discovery.scanning && !isConnecting ? (
           <GlassPanel intensity="subtle" className="p-12 text-center">
             <Terminal size={32} className="text-gray-600 mx-auto mb-4" />
             <p className="text-sm text-gray-400">{t('noInstances')}</p>
@@ -423,34 +534,31 @@ export function ConsolePage() {
               {tCli('rescan')}
             </Button>
           </GlassPanel>
-        </motion.div>
-      )}
-
-      {/* Instance tiles (shown only when multiple or auto-connect failed) */}
-      {discovery.instances.length > 0 && !discovery.scanning && (
-        <motion.div variants={item}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-400">
-              {discovery.instances.length} {t('instancesFound')}
-            </p>
-            <Button variant="ghost" size="sm" onClick={discovery.scan}>
-              <RefreshCw size={12} />
-              {tCli('rescan')}
-            </Button>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {discovery.instances.map((inst) => (
-              <InstanceCard
-                key={inst.port}
-                instance={inst}
-                connected={false}
-                onConnect={() => handleConnectClick(inst)}
-                onDisconnect={handleDisconnect}
-              />
-            ))}
-          </div>
-        </motion.div>
-      )}
+        ) : discovery.instances.length > 0 ? (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-gray-400">
+                {discovery.instances.length} {t('instancesFound')}
+              </p>
+              <Button variant="ghost" size="sm" onClick={discovery.scan}>
+                <RefreshCw size={12} />
+                {tCli('rescan')}
+              </Button>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {discovery.instances.map((inst) => (
+                <InstanceCard
+                  key={inst.port}
+                  instance={inst}
+                  connected={false}
+                  onConnect={() => handleConnectClick(inst)}
+                  onDisconnect={handleDisconnect}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
+      </div>
 
       <TokenDialog
         open={tokenDialogOpen}
