@@ -1590,6 +1590,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
   }
 
+  // Build Jarvis identity context for system prompt injection (when daemon is active)
+  function getJarvisContextForPrompt(): string | null {
+    if (!jarvisDaemonSession || jarvisDaemonSession.status !== 'running') return null;
+    return jarvisIdentity.getIdentityPrompt();
+  }
+
   // Update statusbar via BottomChrome row 1 (bottom border with embedded status).
   // Called during agent work by the footer timer to update token counts etc.
   function updateStatusBar(): void {
@@ -2245,6 +2251,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       },
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
       bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
+      getJarvisContextForPrompt(),
     );
 
     agentRunning = false;
@@ -2274,6 +2281,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           () => { isAtPrompt = true; rl.prompt(); },
           { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
           bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
+          getJarvisContextForPrompt(),
         );
 
         agentRunning = false;
@@ -2541,6 +2549,7 @@ async function sendAgentMessage(
   browserController?: BrowserController,
   visionProcessor?: VisionProcessor,
   onBrowserScreenshot?: ((info: { url: string; title?: string; imageBase64?: string; analysis?: string }) => void) | null,
+  jarvisContext?: string | null,
 ): Promise<void> {
   // User message was rendered by renderUserMessage() in the caller before entering here.
 
@@ -2610,6 +2619,7 @@ async function sendAgentMessage(
     sessionContext || undefined,
     { provider: provider.name, model: provider.model },
     bugSummary,
+    jarvisContext,
   );
 
   // Auto-trim context using model-aware budget (15% headroom for output + safety)

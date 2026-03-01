@@ -68,8 +68,11 @@ export function assembleSystemPrompt(
   const sections: string[] = [BASE_INSTRUCTIONS];
 
   // Dynamic model identity — so the agent knows what it is
-  if (identity) {
+  // When Jarvis is active, identity is overridden by the Jarvis identity prompt
+  if (identity && !jarvisIdentity) {
     sections.push(`## Identity\nYou are running as **${identity.model}** via the **${identity.provider}** provider.\nWhen asked who or what you are, say you are HelixMind powered by ${identity.model}. Do NOT claim to be a different model or provider.`);
+  } else if (identity && jarvisIdentity) {
+    sections.push(`## Model\nRunning on **${identity.model}** via **${identity.provider}**.`);
   }
 
   // Environment context (OS, CWD, shell)
