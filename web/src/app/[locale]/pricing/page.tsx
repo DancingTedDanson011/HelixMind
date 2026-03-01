@@ -75,15 +75,16 @@ export default function PricingPage() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-5">
           {tierKeys.map((key, i) => {
             const isPro = key === 'pro';
+            const isEnterprise = key === 'enterprise';
             const isPaid = key === 'pro' || key === 'team';
             const features = t.raw(`${key}.features`) as string[];
 
             const displayPrice = (() => {
               if (key === 'free' || key === 'freePlus') return '$0';
-              if (key === 'enterprise') return null;
+              if (isEnterprise) return null;
               if (isPaid && yearly) return `$${yearlyMonthlyRate[key as PaidTier]}`;
               return `$${t(`${key}.price`)}`;
             })();
@@ -91,21 +92,23 @@ export default function PricingPage() {
             return (
               <GlassPanel
                 key={key}
-                className={`flex flex-col ${isPro ? 'border-primary/30 glow-primary' : ''}`}
+                className={`flex flex-col ${
+                  isPro ? 'border-primary/30 glow-primary' : ''
+                } ${isEnterprise ? 'col-span-2 md:col-span-1' : ''}`}
               >
                 {isPro && (
                   <Badge variant="primary" className="self-start mb-3">{t('mostPopular')}</Badge>
                 )}
 
-                <h3 className="text-xl font-semibold text-white mb-1">{t(`${key}.name`)}</h3>
+                <h3 className="text-lg md:text-xl font-semibold text-white mb-1">{t(`${key}.name`)}</h3>
 
-                <div className="mb-2">
-                  {key === 'enterprise' ? (
-                    <span className="text-3xl font-bold text-white">{t('custom')}</span>
+                <div className={`mb-2 ${isEnterprise ? 'text-center md:text-left' : ''}`}>
+                  {isEnterprise ? (
+                    <span className="text-2xl md:text-3xl font-bold text-white">{t('custom')}</span>
                   ) : (
                     <>
-                      <span className="text-4xl font-bold text-white">{displayPrice}</span>
-                      <span className="text-gray-500 text-sm">
+                      <span className="text-2xl md:text-4xl font-bold text-white">{displayPrice}</span>
+                      <span className="text-gray-500 text-xs md:text-sm">
                         {key === 'team' ? t('perUser') : isPaid ? t('perMonth') : ''}
                       </span>
                       {isPaid && yearly && (
@@ -117,9 +120,12 @@ export default function PricingPage() {
                   )}
                 </div>
 
-                <p className="text-sm text-gray-500 mb-6">{t(`${key}.desc`)}</p>
+                <p className={`text-xs md:text-sm text-gray-500 mb-3 md:mb-6 ${
+                  isEnterprise ? 'text-center md:text-left' : ''
+                }`}>{t(`${key}.desc`)}</p>
 
-                <ul className="space-y-3 mb-8 flex-1">
+                {/* Features: hidden on mobile, visible from md up */}
+                <ul className="hidden md:block space-y-3 mb-8 flex-1">
                   {features.map((feature: string, fi: number) => (
                     <li key={fi} className="flex items-start gap-2.5 text-sm text-gray-300">
                       <Check size={15} className="mt-0.5 flex-shrink-0" style={{ color: tierColors[i] }} />
@@ -128,9 +134,12 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
+                {/* Spacer on mobile to push button down */}
+                <div className="flex-1 md:hidden" />
+
                 <Button
                   variant={isPro ? 'primary' : 'outline'}
-                  className="w-full"
+                  className="w-full text-sm md:text-base"
                   loading={loading === key}
                   onClick={() => {
                     if (key === 'free') {
@@ -141,7 +150,7 @@ export default function PricingPage() {
                       window.location.href = '/login';
                       return;
                     }
-                    if (key === 'enterprise') {
+                    if (isEnterprise) {
                       window.location.href = 'mailto:contact@helix-mind.ai?subject=Enterprise%20Inquiry';
                       return;
                     }
@@ -152,7 +161,7 @@ export default function PricingPage() {
                     ? t('getStarted')
                     : key === 'freePlus'
                       ? t('loginFree')
-                      : key === 'enterprise'
+                      : isEnterprise
                         ? t('contactSales')
                         : t('subscribe')}
                 </Button>
