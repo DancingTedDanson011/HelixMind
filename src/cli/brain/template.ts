@@ -12,7 +12,7 @@ export function generateBrainHTML(data: BrainExport): string {
 <title>\u{1F300} HelixMind Brain \u2014 ${data.meta.projectName}</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #050510; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; overflow: hidden; }
+body { background: #030308; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; overflow: hidden; }
 canvas { display: block; }
 
 #ui-overlay {
@@ -483,7 +483,7 @@ canvas { display: block; }
   <span class="mp-close" id="models-close">\u2715</span>
   <h2>\u{1F9E0} LLM Models</h2>
   <div class="mp-subtitle" id="ollama-status">Checking Ollama...</div>
-  
+
   <div class="mp-section" id="cloud-section">
     <div class="mp-section-title">\u{2601} Cloud Models</div>
     <div id="cloud-models"><div style="color:#445;font-size:11px">Loading cloud models...</div></div>
@@ -572,535 +572,470 @@ canvas { display: block; }
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 // =========== DATA ===========
 let BRAIN_DATA = ${dataJSON};
 
 // =========== CONSTANTS ===========
-const LEVEL_COLORS = { 1: 0x00FFFF, 2: 0x00FF88, 3: 0x4169E1, 4: 0x8A2BE2, 5: 0x6C757D, 6: 0xFFAA00 };
-const LEVEL_SIZES  = { 1: 8, 2: 7, 3: 5.5, 4: 4.5, 5: 3.5, 6: 9 };
-const LEVEL_GLOW   = { 1: 1.2, 2: 0.9, 3: 0.6, 4: 0.4, 5: 0.2, 6: 1.5 };
+const LEVEL_COLORS_HEX = { 1: 0x00FFFF, 2: 0x00FF88, 3: 0x4169E1, 4: 0x8A2BE2, 5: 0x6C757D, 6: 0xFFAA00 };
+const LEVEL_COLORS_CSS = { 1: '#00FFFF', 2: '#00FF88', 3: '#4169E1', 4: '#8A2BE2', 5: '#6C757D', 6: '#FFAA00' };
 const EDGE_COLORS = {
-  imports: 0x00ff88, calls: 0xffdd00, depends_on: 0xffdd00,
-  related_to: 0x4488ff, similar_to: 0x4488ff,
-  belongs_to: 0xff6600, part_of: 0xff6600, supersedes: 0xff4444,
-  default: 0x334466,
+  imports: '#00ff88', calls: '#ffdd00', depends_on: '#ffdd00',
+  related_to: '#4488ff', similar_to: '#4488ff',
+  belongs_to: '#ff6600', part_of: '#ff6600', supersedes: '#ff4444',
+  default: '#334466',
+};
+const SPATIAL = {
+  5: { iR: 10,  oR: 55,  yS: 18,  size: 48, pulse: 0.3 },
+  4: { iR: 75,  oR: 150, yS: 40,  size: 40, pulse: 0.5 },
+  3: { iR: 180, oR: 300, yS: 60,  size: 34, pulse: 0.8 },
+  2: { iR: 330, oR: 440, yS: 80,  size: 26, pulse: 1.2 },
+  1: { iR: 470, oR: 580, yS: 100, size: 20, pulse: 2.0 },
+  6: { iR: 600, oR: 720, yS: 110, size: 32, pulse: 0.6 },
 };
 
-// =========== SCENE ===========
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050510);
-scene.fog = new THREE.FogExp2(0x050510, 0.00005); // Reduced fog for clearer visibility
+function srand(s) { const x = Math.sin(s * 9301 + 49297) * 49297; return x - Math.floor(x); }
+function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 10000);
-camera.position.set(0, 200, 1200); // Centered on force-directed graph
-
-const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
-renderer.setSize(innerWidth, innerHeight);
+// =========== THREE.JS SETUP ===========
+const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
+renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(1);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
 document.body.prepend(renderer.domElement);
 
-// =========== POST-PROCESSING (Bloom at half resolution) ===========
-const bloomW = Math.round(innerWidth / 2);
-const bloomH = Math.round(innerHeight / 2);
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(bloomW, bloomH),
-  0.6,   // strength (reduced)
-  0.3,   // radius
-  0.7    // threshold (higher = fewer objects bloom)
-);
-composer.addPass(bloomPass);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#030308');
+scene.fog = new THREE.FogExp2('#030308', 0.0008);
 
-// =========== CONTROLS ===========
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 5000);
+camera.position.set(400, 200, 500);
+
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.autoRotate = true;
-controls.autoRotateSpeed = 0.12;
+controls.autoRotateSpeed = 0.08;
 controls.minDistance = 80;
-controls.maxDistance = 8000;
-controls.target.set(0, 0, 0); // Look at graph center
+controls.maxDistance = 1200;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.minPolarAngle = Math.PI * 0.15;
+controls.update();
 
-// =========== LIGHTING ===========
-scene.add(new THREE.AmbientLight(0x1a1a3a, 0.5));
-const mainLight = new THREE.PointLight(0x00d4ff, 1.8, 4000);
-mainLight.position.set(0, 200, 0);
-scene.add(mainLight);
-const rimLight = new THREE.PointLight(0x8A2BE2, 0.8, 3000);
-rimLight.position.set(-500, -300, 400);
-scene.add(rimLight);
-// Fill light from opposite side
-const fillLight = new THREE.PointLight(0x00FF88, 0.4, 3000);
-fillLight.position.set(400, 100, -300);
-scene.add(fillLight);
-
-// =========== BACKGROUND PARTICLES (reduced count) ===========
-const starGeo = new THREE.BufferGeometry();
-const starCount = 800;
+// =========== BACKGROUND STARS ===========
+const starCount = 500;
 const starPos = new Float32Array(starCount * 3);
-for (let i = 0; i < starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 8000;
+for (let i = 0; i < starCount; i++) {
+  starPos[i * 3] = (srand(i * 31) - 0.5) * 3000;
+  starPos[i * 3 + 1] = (srand(i * 37) - 0.5) * 3000;
+  starPos[i * 3 + 2] = (srand(i * 41) - 0.5) * 3000;
+}
+const starGeo = new THREE.BufferGeometry();
 starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-const starMat = new THREE.PointsMaterial({ color: 0x223355, size: 1.5, sizeAttenuation: true });
+const starMat = new THREE.PointsMaterial({
+  size: 1.2, color: '#223344', transparent: true, opacity: 0.5,
+  blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
+});
 scene.add(new THREE.Points(starGeo, starMat));
 
-// =========== BRAIN MANAGER ===========
-class BrainManager {
-  constructor() {
-    this.nodeMap = new Map();
-    this.nodeMeshes = [];
-    this.nodeHitMeshes = [];
-    this.edgeLines = [];
-    this.glowRings = [];
-    this.edgeGroup = new THREE.Group();
-    this.nodeGroup = new THREE.Group();
-    scene.add(this.edgeGroup);
-    scene.add(this.nodeGroup);
+// =========== NODE + EDGE SHADER MATERIALS ===========
+const nodeMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 } },
+  vertexShader: \`
+    attribute float aSize;
+    attribute vec3 aColor;
+    attribute float aHighlight;
+    attribute float aPulse;
+    varying vec3 vColor;
+    varying float vAlpha;
+    uniform float uTime;
+    void main(){
+      vColor = aColor;
+      float breath = 1.0 + sin(uTime * aPulse + position.x * .008 + position.z * .006) * .12;
+      vec3 pos = position;
+      pos.y += sin(uTime * .3 + position.x * .01 + position.z * .015) * 3.0;
+      vAlpha = aHighlight;
+      vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+      gl_PointSize = aSize * breath * aHighlight * (500.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }
+  \`,
+  fragmentShader: \`
+    varying vec3 vColor;
+    varying float vAlpha;
+    void main(){
+      vec2 c = gl_PointCoord - vec2(.5);
+      float d = length(c);
+      if(d > .5) discard;
+      float core = exp(-d*d*100.0);
+      float g1 = exp(-d*d*18.0) * .45;
+      float g2 = exp(-d*d*4.0) * .15;
+      float g3 = exp(-d*d*1.2) * .06;
+      float i = core + g1 + g2 + g3;
+      gl_FragColor = vec4(vColor * (1.0 + core * .5), i * vAlpha);
+    }
+  \`,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+});
+
+const edgeMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 } },
+  vertexShader: \`
+    attribute vec3 color;
+    attribute float aAlpha;
+    varying vec3 vColor;
+    varying float vAlpha;
+    uniform float uTime;
+    void main(){
+      vColor = color;
+      float pulse = .5 + .5 * sin(uTime * 1.2 + length(position) * .008);
+      vAlpha = aAlpha * (0.6 + pulse * 0.4);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  \`,
+  fragmentShader: \`
+    varying vec3 vColor;
+    varying float vAlpha;
+    void main(){ gl_FragColor = vec4(vColor, vAlpha); }
+  \`,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+});
+
+const particleMat = new THREE.PointsMaterial({
+  size: 3, vertexColors: true, transparent: true, opacity: 0.7,
+  blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
+});
+
+// =========== SCENE OBJECTS (rebuilt by rebuildScene) ===========
+let nodePoints = null;
+let nodeGeo = null;
+let edgeLines = null;
+let edgeGeo = null;
+let particlePoints = null;
+let particleGeo = null;
+
+// Data arrays rebuilt per scene
+let nodes = [];
+let positions = [];
+let byLevel = {};
+let adj = {};
+let nodeIdxMap = {};
+let nodeEdgeMap = {};
+let validEdges = [];
+let pData = [];
+let nCount = 0;
+let eCount = 0;
+let pCount = 0;
+
+const PARTICLES_PER_EDGE = 3;
+const tc = new THREE.Color();
+
+// =========== REBUILD SCENE ===========
+function rebuildScene() {
+  // Dispose old geometries
+  if (nodeGeo) { nodeGeo.dispose(); scene.remove(nodePoints); }
+  if (edgeGeo) { edgeGeo.dispose(); scene.remove(edgeLines); }
+  if (particleGeo) { particleGeo.dispose(); scene.remove(particlePoints); }
+
+  nodes = BRAIN_DATA.nodes;
+  nCount = nodes.length;
+
+  // Group by level
+  byLevel = {};
+  nodes.forEach((n, i) => {
+    const lv = n.level || 3;
+    if (!byLevel[lv]) byLevel[lv] = [];
+    byLevel[lv].push(i);
+  });
+
+  // Compute radial spiral positions
+  positions = new Array(nCount);
+  for (const [lv, indices] of Object.entries(byLevel)) {
+    const s = SPATIAL[lv] || SPATIAL[3];
+    const c = indices.length;
+    indices.forEach((ni, j) => {
+      const angle = (j / Math.max(c, 1)) * Math.PI * 2;
+      const r = s.iR + srand(ni * 7) * (s.oR - s.iR);
+      const spiral = angle + r * 0.004;
+      const y = (srand(ni * 11) - 0.5) * s.yS;
+      positions[ni] = new THREE.Vector3(Math.cos(spiral) * r, y, Math.sin(spiral) * r);
+    });
   }
 
-  clear() {
-    this.nodeGroup.clear();
-    this.edgeGroup.clear();
-    this.nodeMap.clear();
-    this.nodeMeshes = [];
-    this.nodeHitMeshes = [];
-    this.edgeLines = [];
-    this.glowRings = [];
-    this.webSignalRings = [];
+  // Build adjacency + nodeIdxMap
+  nodeIdxMap = {};
+  nodes.forEach((n, i) => { nodeIdxMap[n.id] = i; });
+  adj = {};
+  nodeEdgeMap = {};
+  BRAIN_DATA.edges.forEach((e, ei) => {
+    const si = nodeIdxMap[e.source], ti = nodeIdxMap[e.target];
+    if (si === undefined || ti === undefined) return;
+    if (!adj[si]) adj[si] = new Set();
+    if (!adj[ti]) adj[ti] = new Set();
+    adj[si].add(ti);
+    adj[ti].add(si);
+    if (!nodeEdgeMap[si]) nodeEdgeMap[si] = [];
+    if (!nodeEdgeMap[ti]) nodeEdgeMap[ti] = [];
+    nodeEdgeMap[si].push(ei);
+    nodeEdgeMap[ti].push(ei);
+  });
+
+  // ---- NODE POINTS ----
+  nodeGeo = new THREE.BufferGeometry();
+  const nPos = new Float32Array(nCount * 3);
+  const nCol = new Float32Array(nCount * 3);
+  const nSize = new Float32Array(nCount);
+  const nHighlight = new Float32Array(nCount);
+  const nPulse = new Float32Array(nCount);
+
+  for (let i = 0; i < nCount; i++) {
+    const p = positions[i];
+    const n = nodes[i];
+    const s = SPATIAL[n.level] || SPATIAL[3];
+    nPos[i * 3] = p.x; nPos[i * 3 + 1] = p.y; nPos[i * 3 + 2] = p.z;
+    tc.set(LEVEL_COLORS_HEX[n.level] || 0x00FFFF);
+    nCol[i * 3] = tc.r; nCol[i * 3 + 1] = tc.g; nCol[i * 3 + 2] = tc.b;
+    nSize[i] = s.size;
+    nHighlight[i] = 1.0;
+    nPulse[i] = s.pulse;
+  }
+  nodeGeo.setAttribute('position', new THREE.BufferAttribute(nPos, 3));
+  nodeGeo.setAttribute('aColor', new THREE.BufferAttribute(nCol, 3));
+  nodeGeo.setAttribute('aSize', new THREE.BufferAttribute(nSize, 1));
+  nodeGeo.setAttribute('aHighlight', new THREE.BufferAttribute(nHighlight, 1));
+  nodeGeo.setAttribute('aPulse', new THREE.BufferAttribute(nPulse, 1));
+  nodePoints = new THREE.Points(nodeGeo, nodeMat);
+  scene.add(nodePoints);
+
+  // ---- EDGES (LineSegments) ----
+  validEdges = [];
+  BRAIN_DATA.edges.forEach((e, i) => {
+    const si = nodeIdxMap[e.source], ti = nodeIdxMap[e.target];
+    if (si !== undefined && ti !== undefined) validEdges.push({ si, ti, weight: e.weight, type: e.type, idx: i });
+  });
+
+  eCount = validEdges.length;
+  const ePos = new Float32Array(eCount * 6);
+  const eCol = new Float32Array(eCount * 6);
+  const eAlpha = new Float32Array(eCount * 2);
+  const sc = new THREE.Color(), dc = new THREE.Color();
+
+  for (let i = 0; i < eCount; i++) {
+    const { si, ti, weight } = validEdges[i];
+    const s = positions[si], t = positions[ti];
+    const o = i * 6;
+    ePos[o] = s.x; ePos[o + 1] = s.y; ePos[o + 2] = s.z;
+    ePos[o + 3] = t.x; ePos[o + 4] = t.y; ePos[o + 5] = t.z;
+    sc.set(LEVEL_COLORS_HEX[nodes[si].level] || 0x00FFFF);
+    dc.set(LEVEL_COLORS_HEX[nodes[ti].level] || 0x00FFFF);
+    eCol[o] = sc.r; eCol[o + 1] = sc.g; eCol[o + 2] = sc.b;
+    eCol[o + 3] = dc.r; eCol[o + 4] = dc.g; eCol[o + 5] = dc.b;
+    eAlpha[i * 2] = 0.15 + weight * 0.1;
+    eAlpha[i * 2 + 1] = 0.15 + weight * 0.1;
   }
 
-  loadData(data) {
-    this.clear();
-    BRAIN_DATA = data;
-    const total = data.nodes.length;
+  edgeGeo = new THREE.BufferGeometry();
+  edgeGeo.setAttribute('position', new THREE.BufferAttribute(ePos, 3));
+  edgeGeo.setAttribute('color', new THREE.BufferAttribute(eCol, 3));
+  edgeGeo.setAttribute('aAlpha', new THREE.BufferAttribute(eAlpha, 1));
+  edgeLines = new THREE.LineSegments(edgeGeo, edgeMat);
+  scene.add(edgeLines);
 
-    // Create nodes — TRUE HELIX LAYOUT
-    // Nodes spiral along Y-axis in a DNA-like double helix.
-    // L1 (Focus) at center/bottom, L5 (Archive) at outer/top, L6 (Web) orbits outside.
-    this.webSignalRings = [];
-
-    // Group nodes by level for proper helix distribution
-    const levelBuckets = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
-    data.nodes.forEach((node, i) => {
-      const lvl = node.level || 3;
-      if (!levelBuckets[lvl]) levelBuckets[lvl] = [];
-      levelBuckets[lvl].push({ node, globalIndex: i });
-    });
-
-    // Force-directed layout: initial positions scattered in a sphere
-    // Connected nodes will pull together, unconnected repel — organic clusters form naturally
-    const SPREAD = 600; // Initial scatter radius
-
-    // Shared geometries — reuse instead of creating per node
-    const sharedIcoGeo = new THREE.IcosahedronGeometry(1, 1); // unit size, detail 1 (low poly)
-    const sharedOctGeo = new THREE.OctahedronGeometry(1, 1);
-    const sharedHitGeo = new THREE.SphereGeometry(1, 6, 4); // minimal segments
-    const sharedRingGeo = new THREE.RingGeometry(1, 1.6, 16); // reduced segments
-    const sharedWaveGeo = new THREE.RingGeometry(1, 1.1, 16);
-    const sharedWireGeo = new THREE.OctahedronGeometry(1, 0);
-
-    data.nodes.forEach((node, i) => {
-      const isWeb = node.level === 6;
-
-      // Random spherical distribution as starting positions
-      const phi = Math.acos(2 * Math.random() - 1);
-      const theta = Math.random() * Math.PI * 2;
-      const r = SPREAD * (0.3 + Math.random() * 0.7);
-      const x = r * Math.sin(phi) * Math.cos(theta);
-      const y = r * Math.sin(phi) * Math.sin(theta);
-      const z = r * Math.cos(phi);
-
-      node._pos = new THREE.Vector3(x, y, z);
-      node._vel = new THREE.Vector3();
-      this.nodeMap.set(node.id, node);
-
-      const size = LEVEL_SIZES[node.level] || 3;
-      const color = new THREE.Color(LEVEL_COLORS[node.level] || 0x00FFFF);
-
-      // Core mesh — shared geometry, scaled per node
-      const coreMat = new THREE.MeshStandardMaterial({
-        color, emissive: color, emissiveIntensity: LEVEL_GLOW[node.level] || 0.6,
-        roughness: isWeb ? 0.1 : 0.15,
-        metalness: isWeb ? 0.9 : 0.7,
-        transparent: true, opacity: 0.95,
+  // ---- FLOWING PARTICLES ----
+  pData = [];
+  for (let i = 0; i < eCount; i++) {
+    const { si, ti, weight } = validEdges[i];
+    for (let j = 0; j < PARTICLES_PER_EDGE; j++) {
+      pData.push({
+        edgeIdx: i, progress: srand(i * 100 + j * 31),
+        speed: 0.2 + weight * 0.5 + srand(i * 70 + j * 17) * 0.15,
+        srcIdx: si, tgtIdx: ti
       });
-      const coreMesh = new THREE.Mesh(isWeb ? sharedOctGeo : sharedIcoGeo, coreMat);
-      coreMesh.scale.set(size, size, size);
-      coreMesh.position.copy(node._pos);
-      coreMesh.userData = node;
-      coreMesh.userData._color = color.clone();
-      coreMesh.userData._baseSize = size;
-      this.nodeGroup.add(coreMesh);
-      this.nodeMeshes.push(coreMesh);
-
-      // Hit detection — shared geometry, scaled
-      const hitMat = new THREE.MeshBasicMaterial({ visible: false });
-      const hitMesh = new THREE.Mesh(sharedHitGeo, hitMat);
-      hitMesh.scale.set(size * 3, size * 3, size * 3);
-      hitMesh.position.copy(node._pos);
-      hitMesh.userData = node;
-      hitMesh.userData._coreMesh = coreMesh;
-      this.nodeGroup.add(hitMesh);
-      this.nodeHitMeshes.push(hitMesh);
-
-      // Glow ring — shared geometry, scaled
-      const ringScale = isWeb ? 2.8 : 1.4;
-      const ringMat = new THREE.MeshBasicMaterial({
-        color, transparent: true, opacity: isWeb ? 0.12 : 0.08, side: THREE.DoubleSide,
-      });
-      const ring = new THREE.Mesh(sharedRingGeo, ringMat);
-      ring.scale.set(size * ringScale, size * ringScale, size * ringScale);
-      ring.position.copy(node._pos);
-      ring.userData = { nodeIndex: i };
-      this.nodeGroup.add(ring);
-      this.glowRings.push(ring);
-
-      // L6 Web nodes: signal wave rings (reduced to 2) + wireframe shell
-      if (isWeb) {
-        for (let w = 0; w < 2; w++) {
-          const waveScale = size * (3 + w * 2);
-          const waveMat = new THREE.MeshBasicMaterial({
-            color: 0xFFAA00, transparent: true, opacity: 0, side: THREE.DoubleSide,
-          });
-          const waveMesh = new THREE.Mesh(sharedWaveGeo, waveMat);
-          waveMesh.scale.set(waveScale, waveScale, waveScale);
-          waveMesh.position.copy(node._pos);
-          waveMesh.userData = { nodeIndex: i, waveIndex: w, _startTime: 0 };
-          this.nodeGroup.add(waveMesh);
-          this.webSignalRings.push(waveMesh);
-        }
-
-        const wireMat = new THREE.MeshBasicMaterial({
-          color: 0xFFAA00, wireframe: true, transparent: true, opacity: 0.15,
-        });
-        const wireMesh = new THREE.Mesh(sharedWireGeo, wireMat);
-        const ws = size * 1.8;
-        wireMesh.scale.set(ws, ws, ws);
-        wireMesh.position.copy(node._pos);
-        wireMesh.userData = { nodeIndex: i, isWireShell: true };
-        this.nodeGroup.add(wireMesh);
-      }
-    });
-
-    // Create edges
-    data.edges.forEach(edge => {
-      const s = this.nodeMap.get(edge.source);
-      const t = this.nodeMap.get(edge.target);
-      if (!s || !t) return;
-
-      const color = new THREE.Color(EDGE_COLORS[edge.type] || EDGE_COLORS.default);
-      const points = [s._pos.clone(), t._pos.clone()];
-      const geo = new THREE.BufferGeometry().setFromPoints(points);
-      const mat = new THREE.LineBasicMaterial({
-        color, transparent: true,
-        opacity: Math.min(0.12 + edge.weight * 0.3, 0.55),
-      });
-      const line = new THREE.Line(geo, mat);
-      line.userData = edge;
-      this.edgeGroup.add(line);
-      this.edgeLines.push(line);
-    });
-
-    // Update counter
-    document.getElementById('node-count').textContent = data.nodes.length;
-    const webCount = data.meta.webKnowledgeCount || data.nodes.filter(n => n.level === 6).length;
-    document.getElementById('stats-text').textContent =
-      data.nodes.length + ' nodes \\u00B7 ' + data.edges.length + ' connections' +
-      (webCount > 0 ? ' \\u00B7 ' + webCount + ' web' : '') +
-      ' \\u00B7 ' + data.meta.projectName;
-    document.getElementById('web-count').textContent = webCount > 0 ? '\\u{1F310} ' + webCount + ' web' : '';
-
-    // Reset simulation
-    this.simSteps = 800;
-    this.simActive = true;
-
-    // Intro animation
-    this.nodeMeshes.forEach((m, i) => {
-      m.scale.set(0, 0, 0);
-      const delay = (5 - m.userData.level) * 200 + i * 3;
-      setTimeout(() => {
-        const grow = () => {
-          if (m.scale.x >= 1) { m.scale.set(1,1,1); return; }
-          const s = Math.min(m.scale.x + 0.08, 1);
-          m.scale.set(s, s, s);
-          requestAnimationFrame(grow);
-        };
-        grow();
-      }, delay);
-    });
-
-    // Glow rings start invisible
-    this.glowRings.forEach(r => r.scale.set(0,0,0));
-    setTimeout(() => {
-      this.glowRings.forEach((r, i) => {
-        setTimeout(() => { r.scale.set(1,1,1); }, i * 3);
-      });
-    }, 600);
-  }
-
-  simulateForces() {
-    if (!this.simActive) return;
-    if (this.simSteps <= 0) { this.simActive = false; return; }
-
-    // Run multiple sim steps per frame to converge faster (less total frames with sim overhead)
-    const stepsPerFrame = Math.min(4, this.simSteps);
-    const nodes = BRAIN_DATA.nodes;
-    const n = nodes.length;
-    const repulsion = 18000;
-    const edgeAttraction = 0.003;
-    const edgeIdealLen = 80;
-    const damping = 0.82;
-    const centerPull = 0.0003;
-    const cutoff = 800;
-    const cutoff2 = cutoff * cutoff;
-    const cellSize = cutoff;
-
-    for (let step = 0; step < stepsPerFrame; step++) {
-      this.simSteps--;
-
-      // Spatial grid — reuse object for less GC
-      const grid = new Map();
-      for (let i = 0; i < n; i++) {
-        const p = nodes[i]._pos;
-        const key = (Math.floor(p.x / cellSize) * 73856093 ^ Math.floor(p.y / cellSize) * 19349663 ^ Math.floor(p.z / cellSize) * 83492791) | 0;
-        const arr = grid.get(key);
-        if (arr) arr.push(i); else grid.set(key, [i]);
-      }
-
-      // Repulsion
-      for (const [, cell] of grid) {
-        const len = cell.length;
-        for (let a = 0; a < len; a++) {
-          const i = cell[a];
-          const pi = nodes[i]._pos;
-          const vi = nodes[i]._vel;
-          for (let b = a + 1; b < len; b++) {
-            const j = cell[b];
-            const pj = nodes[j]._pos;
-            const ddx = pi.x - pj.x;
-            const ddy = pi.y - pj.y;
-            const ddz = pi.z - pj.z;
-            const dist2 = ddx*ddx + ddy*ddy + ddz*ddz;
-            if (dist2 > cutoff2) continue;
-            const dist = Math.sqrt(dist2) + 1;
-            const force = repulsion / (dist * dist);
-            const fx = (ddx / dist) * force;
-            const fy = (ddy / dist) * force;
-            const fz = (ddz / dist) * force;
-            vi.x += fx; vi.y += fy; vi.z += fz;
-            nodes[j]._vel.x -= fx; nodes[j]._vel.y -= fy; nodes[j]._vel.z -= fz;
-          }
-        }
-      }
-
-      // Edge springs
-      const edges = BRAIN_DATA.edges;
-      for (let e = 0; e < edges.length; e++) {
-        const edge = edges[e];
-        const s = this.nodeMap.get(edge.source);
-        const t = this.nodeMap.get(edge.target);
-        if (!s || !t) continue;
-        const dx = t._pos.x - s._pos.x;
-        const dy = t._pos.y - s._pos.y;
-        const dz = t._pos.z - s._pos.z;
-        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) + 0.01;
-        const strength = edgeAttraction * (dist - edgeIdealLen) * (0.5 + edge.weight * 0.5);
-        const fx = (dx / dist) * strength;
-        const fy = (dy / dist) * strength;
-        const fz = (dz / dist) * strength;
-        s._vel.x += fx; s._vel.y += fy; s._vel.z += fz;
-        t._vel.x -= fx; t._vel.y -= fy; t._vel.z -= fz;
-      }
-
-      // Apply velocity + centering
-      for (let i = 0; i < n; i++) {
-        const node = nodes[i];
-        node._vel.x -= node._pos.x * centerPull;
-        node._vel.y -= node._pos.y * centerPull;
-        node._vel.z -= node._pos.z * centerPull;
-        node._vel.x *= damping; node._vel.y *= damping; node._vel.z *= damping;
-        node._pos.x += node._vel.x; node._pos.y += node._vel.y; node._pos.z += node._vel.z;
-      }
-    }
-
-    // Sync meshes (once per frame, not per sim step)
-    for (let i = 0; i < n; i++) {
-      const p = nodes[i]._pos;
-      this.nodeMeshes[i].position.set(p.x, p.y, p.z);
-      this.nodeHitMeshes[i].position.set(p.x, p.y, p.z);
-    }
-    const rings = this.glowRings;
-    for (let i = 0; i < rings.length; i++) {
-      const ni = rings[i].userData.nodeIndex;
-      if (ni < n) rings[i].position.copy(nodes[ni]._pos);
-    }
-
-    // Update edges
-    const lines = this.edgeLines;
-    for (let i = 0; i < lines.length; i++) {
-      const e = lines[i].userData;
-      const s = this.nodeMap.get(e.source);
-      const t = this.nodeMap.get(e.target);
-      if (s && t) {
-        const pos = lines[i].geometry.attributes.position;
-        pos.setXYZ(0, s._pos.x, s._pos.y, s._pos.z);
-        pos.setXYZ(1, t._pos.x, t._pos.y, t._pos.z);
-        pos.needsUpdate = true;
-      }
     }
   }
+  pCount = pData.length;
+  const pPos = new Float32Array(pCount * 3);
+  const pCol = new Float32Array(pCount * 3);
+
+  particleGeo = new THREE.BufferGeometry();
+  particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  particleGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+  particlePoints = new THREE.Points(particleGeo, particleMat);
+  scene.add(particlePoints);
+
+  // ---- UPDATE HUD COUNTERS ----
+  document.getElementById('node-count').textContent = nCount;
+  const webCount = BRAIN_DATA.meta.webKnowledgeCount || nodes.filter(n => n.level === 6).length;
+  document.getElementById('stats-text').textContent =
+    nCount + ' nodes \\u00B7 ' + BRAIN_DATA.edges.length + ' connections' +
+    (webCount > 0 ? ' \\u00B7 ' + webCount + ' web' : '') +
+    ' \\u00B7 ' + BRAIN_DATA.meta.projectName;
+  document.getElementById('web-count').textContent = webCount > 0 ? '\\u{1F310} ' + webCount + ' web' : '';
+
+  // Reset level toggles to all active
+  levelToggles = {};
+  document.querySelectorAll('[data-level]').forEach(btn => {
+    levelToggles[parseInt(btn.dataset.level)] = btn.classList.contains('active');
+  });
+
+  // Reset interaction state
+  hoveredIdx = -1;
+  selectedIdx = -1;
 }
 
-const brain = new BrainManager();
-brain.loadData(BRAIN_DATA);
-
-// =========== RAYCASTER & INTERACTION (throttled) ===========
+// =========== INTERACTION STATE ===========
 const raycaster = new THREE.Raycaster();
+raycaster.params.Points = { threshold: 12 };
 const mouse = new THREE.Vector2();
-let hoveredMesh = null;
-let selectedMesh = null;
-let hoverScale = 1;
-let lastRayTime = 0;
-let pendingMouseEvent = null;
+let hoveredIdx = -1;
+let selectedIdx = -1;
+let camTween = null;
+let levelToggles = {};
 
-function doRaycast(e) {
-  mouse.x = (e.clientX / innerWidth) * 2 - 1;
-  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+const tooltipEl = document.getElementById('tooltip');
+const ttNameEl = tooltipEl.querySelector('.tt-name');
+const ttTypeEl = tooltipEl.querySelector('.tt-type');
+const ttMetaEl = tooltipEl.querySelector('.tt-meta');
 
+// =========== MOUSEMOVE (hover) ===========
+renderer.domElement.addEventListener('mousemove', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+  if (!nodePoints) return;
   raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(brain.nodeHitMeshes);
-
-  const tooltip = document.getElementById('tooltip');
+  const hits = raycaster.intersectObject(nodePoints);
+  const prevHovered = hoveredIdx;
 
   if (hits.length > 0) {
-    const hitMesh = hits[0].object;
-    const node = hitMesh.userData;
-    const coreMesh = hitMesh.userData._coreMesh;
-
-    if (hoveredMesh && hoveredMesh !== coreMesh) {
-      hoveredMesh.material.emissiveIntensity = LEVEL_GLOW[hoveredMesh.userData.level] || 0.6;
-    }
-
-    hoveredMesh = coreMesh;
+    hoveredIdx = hits[0].index;
     renderer.domElement.style.cursor = 'pointer';
-    coreMesh.material.emissiveIntensity = 1.8;
 
-    tooltip.style.display = 'block';
-    const tx = Math.min(e.clientX + 18, innerWidth - 330);
-    const ty = Math.min(e.clientY + 18, innerHeight - 100);
-    tooltip.style.left = tx + 'px';
-    tooltip.style.top = ty + 'px';
-    tooltip.querySelector('.tt-name').textContent = node.label;
-    const levelLabel = node.level === 6 ? '\\u{1F310} Web Knowledge' : node.type + ' \\u00B7 Level ' + node.level;
-    tooltip.querySelector('.tt-type').textContent = levelLabel;
-    const metaExtra = node.webTopic ? ' \\u00B7 ' + node.webTopic : '';
-    tooltip.querySelector('.tt-meta').textContent =
-      'Relevance: ' + node.relevanceScore.toFixed(2) + ' \\u00B7 ' + node.createdAt.slice(0,10) + metaExtra;
+    const n = nodes[hoveredIdx];
+    ttNameEl.textContent = n.label;
+    const levelLabel = n.level === 6 ? '\\u{1F310} Web Knowledge' : n.type + ' \\u00B7 Level ' + n.level;
+    ttTypeEl.textContent = levelLabel;
+    const metaExtra = n.webTopic ? ' \\u00B7 ' + n.webTopic : '';
+    ttMetaEl.textContent =
+      'Relevance: ' + n.relevanceScore.toFixed(2) + ' \\u00B7 ' + n.createdAt.slice(0, 10) + metaExtra;
+    tooltipEl.style.display = 'block';
+    tooltipEl.style.left = (e.clientX + 14) + 'px';
+    tooltipEl.style.top = (e.clientY - 10) + 'px';
   } else {
-    if (hoveredMesh && hoveredMesh !== selectedMesh) {
-      hoveredMesh.material.emissiveIntensity = LEVEL_GLOW[hoveredMesh.userData.level] || 0.6;
-    }
-    hoveredMesh = null;
+    hoveredIdx = -1;
     renderer.domElement.style.cursor = 'default';
-    tooltip.style.display = 'none';
+    tooltipEl.style.display = 'none';
   }
-}
 
-renderer.domElement.addEventListener('mousemove', (e) => {
-  // Throttle raycasting to max every 60ms (~16 checks/sec instead of 100+)
-  pendingMouseEvent = e;
-  const now = performance.now();
-  if (now - lastRayTime < 60) return;
-  lastRayTime = now;
-  doRaycast(e);
-  pendingMouseEvent = null;
+  if (prevHovered !== hoveredIdx) updateHighlights();
 });
 
+// =========== CLICK (select) ===========
 renderer.domElement.addEventListener('click', () => {
-  if (hoveredMesh) {
-    selectedMesh = hoveredMesh;
-    const node = hoveredMesh.userData;
-    highlightConnected(node.id);
-    showSidebar(node);
+  if (hoveredIdx >= 0) {
+    selectedIdx = hoveredIdx;
+    showSidebar(nodes[selectedIdx]);
     controls.autoRotate = false;
 
-    // Smooth zoom to node
-    const target = hoveredMesh.position.clone();
-    const dir = camera.position.clone().sub(target).normalize().multiplyScalar(120);
-    const dest = target.clone().add(dir);
-    animateCamera(dest, target);
+    // Fly to node
+    const np = positions[selectedIdx];
+    const dir = camera.position.clone().sub(np).normalize();
+    camTween = {
+      startPos: camera.position.clone(), startLookAt: controls.target.clone(),
+      targetPos: np.clone().add(dir.multiplyScalar(70)), targetLookAt: np.clone(),
+      progress: 0
+    };
+    updateHighlights();
   }
 });
 
-function animateCamera(pos, lookAt) {
-  const startPos = camera.position.clone();
-  const startTarget = controls.target.clone();
-  let t = 0;
-  const step = () => {
-    t += 0.03;
-    if (t >= 1) { t = 1; }
-    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // easeInOut
-    camera.position.lerpVectors(startPos, pos, ease);
-    controls.target.lerpVectors(startTarget, lookAt, ease);
-    controls.update();
-    if (t < 1) requestAnimationFrame(step);
-  };
-  step();
+// =========== HIGHLIGHTS ===========
+function updateHighlights() {
+  if (!nodeGeo || !edgeGeo) return;
+  const ha = nodeGeo.attributes.aHighlight;
+  const ea = edgeGeo.attributes.aAlpha;
+  const searchQuery = document.getElementById('search-input').value.toLowerCase();
+  const hasSearch = searchQuery.length > 0;
+  const hasFocus = selectedIdx >= 0;
+  const connectedToHover = hoveredIdx >= 0 && adj[hoveredIdx] ? adj[hoveredIdx] : new Set();
+  const connectedToSelected = selectedIdx >= 0 && adj[selectedIdx] ? adj[selectedIdx] : new Set();
+
+  for (let i = 0; i < nCount; i++) {
+    let h = 1.0;
+
+    // Level toggle filter
+    const lv = nodes[i].level;
+    if (levelToggles[lv] === false) { h = 0.05; ha.array[i] = h; continue; }
+
+    if (hasSearch) {
+      const n = nodes[i];
+      const match = n.label.toLowerCase().includes(searchQuery) || n.content.toLowerCase().includes(searchQuery);
+      h = match ? 1.0 : 0.12;
+    }
+    if (hasFocus) {
+      h = connectedToSelected.has(i) || i === selectedIdx ? 1.0 : 0.1;
+    }
+    if (hoveredIdx >= 0) {
+      if (i === hoveredIdx) h = Math.max(h, 1.5);
+      else if (connectedToHover.has(i)) h = Math.max(h, 1.2);
+    }
+    ha.array[i] = h;
+  }
+  ha.needsUpdate = true;
+
+  // Edge highlights
+  const activeEdgeTypes = getActiveEdgeTypes();
+  for (let i = 0; i < eCount; i++) {
+    const { si, ti, weight, type } = validEdges[i];
+    let a = 0.15 + weight * 0.1;
+
+    // Edge type filter
+    if (activeEdgeTypes !== null && !activeEdgeTypes.has(type)) { a = 0; }
+
+    if (hasFocus) {
+      const connected = (si === selectedIdx || ti === selectedIdx);
+      a = connected ? 0.4 + weight * 0.3 : 0.02;
+    }
+    if (hoveredIdx >= 0) {
+      const connected = (si === hoveredIdx || ti === hoveredIdx);
+      if (connected) a = Math.max(a, 0.35 + weight * 0.3);
+    }
+    if (hasSearch) {
+      const sm = nodes[si].label.toLowerCase().includes(searchQuery);
+      const tm = nodes[ti].label.toLowerCase().includes(searchQuery);
+      if (!sm && !tm) a = 0.02;
+    }
+    ea.array[i * 2] = a;
+    ea.array[i * 2 + 1] = a;
+  }
+  ea.needsUpdate = true;
 }
 
-function highlightConnected(nodeId) {
-  // Dim all
-  brain.nodeMeshes.forEach(m => {
-    m.material.emissiveIntensity = 0.05;
-    m.material.opacity = 0.25;
+function getActiveEdgeTypes() {
+  const allBtn = document.querySelector('[data-edge="all"]');
+  if (allBtn && allBtn.classList.contains('active')) return null; // show all
+  const active = new Set();
+  document.querySelectorAll('[data-edge].active').forEach(b => {
+    if (b.dataset.edge !== 'all') active.add(b.dataset.edge);
   });
-  brain.edgeLines.forEach(l => { l.material.opacity = 0.02; });
-  brain.glowRings.forEach(r => { r.material.opacity = 0.01; });
-
-  // Find connected
-  const connectedIds = new Set([nodeId]);
-  brain.edgeLines.forEach(l => {
-    const e = l.userData;
-    if (e.source === nodeId || e.target === nodeId) {
-      connectedIds.add(e.source);
-      connectedIds.add(e.target);
-      l.material.opacity = 0.6;
-    }
-  });
-
-  // Highlight connected nodes
-  brain.nodeMeshes.forEach((m, i) => {
-    if (connectedIds.has(m.userData.id)) {
-      m.material.emissiveIntensity = m.userData.id === nodeId ? 2.0 : 1.2;
-      m.material.opacity = 1;
-    }
-  });
-  brain.glowRings.forEach(r => {
-    const ni = r.userData.nodeIndex;
-    if (ni < brain.nodeMeshes.length && connectedIds.has(brain.nodeMeshes[ni].userData.id)) {
-      r.material.opacity = 0.15;
-    }
-  });
+  return active.size > 0 ? active : null;
 }
 
+// =========== SIDEBAR ===========
 function showSidebar(node) {
   const sidebar = document.getElementById('sidebar');
   const content = document.getElementById('sidebar-content');
 
-  const typeColors = { code:'#00FFFF', module:'#00CED1', architecture:'#8A2BE2', pattern:'#00ff88', error:'#ff4444', decision:'#ffdd00', summary:'#888', web_knowledge:'#FFAA00' };
+  const typeColors = { code: '#00FFFF', module: '#00CED1', architecture: '#8A2BE2', pattern: '#00ff88', error: '#ff4444', decision: '#ffdd00', summary: '#888', web_knowledge: '#FFAA00' };
   const color = typeColors[node.type] || '#888';
 
   const connEdges = BRAIN_DATA.edges.filter(e => e.source === node.id || e.target === node.id);
   const relHtml = connEdges.map(e => {
     const otherId = e.source === node.id ? e.target : e.source;
-    const other = brain.nodeMap.get(otherId);
-    return '<li><span style="color:' + (new THREE.Color(EDGE_COLORS[e.type]||EDGE_COLORS.default).getStyle()) + '">' + e.type + '</span> \\u2192 ' + (other ? other.label : otherId.slice(0,8)) + '</li>';
+    const otherIdx = nodeIdxMap[otherId];
+    const otherLabel = otherIdx !== undefined ? nodes[otherIdx].label : otherId.slice(0, 8);
+    const edgeColor = EDGE_COLORS[e.type] || EDGE_COLORS.default;
+    return '<li><span style="color:' + edgeColor + '">' + e.type + '</span> \\u2192 ' + escapeHtml(otherLabel) + '</li>';
   }).join('');
 
   const levelName = node.level === 6 ? 'Web Knowledge' : 'L' + node.level;
@@ -1118,39 +1053,31 @@ function showSidebar(node) {
     webInfoHtml +
     '<div class="content-preview">' + escapeHtml(node.content) + '</div>' +
     '<div class="meta-row">Relevance: ' + node.relevanceScore.toFixed(3) + '</div>' +
-    '<div class="meta-row">Created: ' + node.createdAt.slice(0,10) + '</div>' +
-    '<div class="meta-row">Accessed: ' + node.lastAccessed.slice(0,10) + '</div>' +
+    '<div class="meta-row">Created: ' + node.createdAt.slice(0, 10) + '</div>' +
+    '<div class="meta-row">Accessed: ' + node.lastAccessed.slice(0, 10) + '</div>' +
     (connEdges.length > 0 ? '<h3 style="margin-top:16px;font-size:11px;color:#556;text-transform:uppercase;letter-spacing:1px">Relations (' + connEdges.length + ')</h3><ul class="relations">' + relHtml + '</ul>' : '');
 
   sidebar.classList.add('open');
 }
 
-// Remember camera home position for zoom-out
-const cameraHome = { pos: camera.position.clone(), target: controls.target.clone() };
-
 function closeSidebar(evt) {
   document.getElementById('sidebar').classList.remove('open');
-  brain.nodeMeshes.forEach(m => {
-    m.material.emissiveIntensity = LEVEL_GLOW[m.userData.level] || 0.6;
-    m.material.opacity = 0.95;
-  });
-  brain.edgeLines.forEach(l => {
-    l.material.opacity = Math.min(0.08 + l.userData.weight * 0.25, 0.45);
-  });
-  brain.glowRings.forEach(r => { r.material.opacity = 0.08; });
-  selectedMesh = null;
+  selectedIdx = -1;
+  updateHighlights();
 
   // Shift+click = stay zoomed in, otherwise zoom back to overview
   const holdPosition = evt && evt.shiftKey;
   if (!holdPosition) {
     controls.autoRotate = true;
-    animateCamera(cameraHome.pos.clone(), cameraHome.target.clone());
+    camTween = {
+      startPos: camera.position.clone(), startLookAt: controls.target.clone(),
+      targetPos: new THREE.Vector3(400, 200, 500), targetLookAt: new THREE.Vector3(0, 0, 0),
+      progress: 0
+    };
   }
 }
 
 document.getElementById('sidebar-close').addEventListener('click', (e) => closeSidebar(e));
-
-function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // =========== HELP OVERLAY ===========
 const helpOverlay = document.getElementById('help-overlay');
@@ -1161,9 +1088,8 @@ helpOverlay.addEventListener('click', (e) => {
   if (e.target === helpOverlay) helpOverlay.classList.remove('open');
 });
 
-// Global keyboard shortcuts
+// =========== GLOBAL KEYBOARD ===========
 document.addEventListener('keydown', (e) => {
-  // Ignore if typing in search or voice
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
   if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
@@ -1180,21 +1106,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 // =========== SEARCH ===========
-document.getElementById('search-input').addEventListener('input', (e) => {
-  const query = e.target.value.toLowerCase();
-  if (!query) {
-    brain.nodeMeshes.forEach(m => { m.material.emissiveIntensity = LEVEL_GLOW[m.userData.level]||0.6; m.material.opacity = 0.95; m.visible = true; });
-    brain.edgeLines.forEach(l => { l.visible = true; });
-    brain.glowRings.forEach(r => { r.visible = true; r.material.opacity = 0.08; });
-    return;
-  }
-  brain.nodeMeshes.forEach((m, i) => {
-    const n = m.userData;
-    const match = n.label.toLowerCase().includes(query) || n.content.toLowerCase().includes(query) || n.type.toLowerCase().includes(query);
-    m.material.emissiveIntensity = match ? 2.0 : 0.02;
-    m.material.opacity = match ? 1 : 0.1;
-    brain.glowRings[i].material.opacity = match ? 0.2 : 0.01;
-  });
+document.getElementById('search-input').addEventListener('input', () => {
+  updateHighlights();
 });
 
 // =========== LEVEL TOGGLES ===========
@@ -1202,14 +1115,8 @@ document.querySelectorAll('[data-level]').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
     const level = parseInt(btn.dataset.level);
-    const show = btn.classList.contains('active');
-    brain.nodeMeshes.forEach((m, i) => {
-      if (m.userData.level === level) {
-        m.visible = show;
-        brain.nodeHitMeshes[i].visible = show;
-        brain.glowRings[i].visible = show;
-      }
-    });
+    levelToggles[level] = btn.classList.contains('active');
+    updateHighlights();
   });
 });
 
@@ -1219,7 +1126,6 @@ document.querySelectorAll('[data-edge]').forEach(btn => {
     if (btn.dataset.edge === 'all') {
       document.querySelectorAll('[data-edge]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      brain.edgeLines.forEach(l => { l.visible = true; });
     } else {
       document.querySelector('[data-edge="all"]').classList.remove('active');
       btn.classList.toggle('active');
@@ -1229,124 +1135,87 @@ document.querySelectorAll('[data-edge]').forEach(btn => {
       });
       if (activeTypes.size === 0) {
         document.querySelector('[data-edge="all"]').classList.add('active');
-        brain.edgeLines.forEach(l => { l.visible = true; });
-      } else {
-        brain.edgeLines.forEach(l => { l.visible = activeTypes.has(l.userData.type); });
       }
     }
+    updateHighlights();
   });
 });
 
-// =========== ANIMATION LOOP (optimized) ===========
-let frameCount = 0;
+// =========== ANIMATION LOOP ===========
+const clock = new THREE.Clock();
 let fpsFrames = 0;
 let lastFpsTime = performance.now();
 
 function animate() {
   requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const t = clock.getElapsedTime();
 
-  // Force simulation — only when active, skip when converged
-  brain.simulateForces();
+  // Update shader uniforms
+  nodeMat.uniforms.uTime.value = t;
+  edgeMat.uniforms.uTime.value = t;
+
+  // Camera tween
+  if (camTween) {
+    camTween.progress = Math.min(camTween.progress + dt * 1.8, 1);
+    const ease = 1 - Math.pow(1 - camTween.progress, 3);
+    camera.position.lerpVectors(camTween.startPos, camTween.targetPos, ease);
+    controls.target.lerpVectors(camTween.startLookAt, camTween.targetLookAt, ease);
+    if (camTween.progress >= 1) camTween = null;
+  }
+
   controls.update();
 
-  const now = Date.now();
-
-  // Node animations — every 3rd frame (imperceptible difference, 3x less work)
-  if (frameCount % 3 === 0) {
-    const meshes = brain.nodeMeshes;
-    for (let i = 0; i < meshes.length; i++) {
-      const m = meshes[i];
-      if (selectedMesh && selectedMesh !== m) continue;
-      if (m.material.emissiveIntensity > 1.5) continue;
-
-      const lvl = m.userData.level;
-      const base = LEVEL_GLOW[lvl] || 0.6;
-
-      if (lvl === 6) {
-        m.rotation.y += 0.015; // 3x per update = same visual speed
-        m.rotation.x += 0.006;
-        const t = Math.sin(now * 0.003 + i * 0.5);
-        m.material.emissiveIntensity = base + t * 0.35;
-        m.material.emissive.setRGB(1.0 - t * 0.5, 0.67 + t * 0.16, t * 0.5);
-      } else {
-        const speed = 0.002 + (lvl * 0.0004);
-        m.material.emissiveIntensity = base + Math.sin(now * speed + i * 0.7) * 0.15;
-        const bs = m.userData._baseSize || 1;
-        const s = bs * (1 + Math.sin(now * 0.0015 + i * 1.1) * 0.04);
-        m.scale.set(s, s, s);
-      }
+  // Update flowing particles
+  if (particleGeo && pCount > 0) {
+    const pPosArr = particleGeo.attributes.position.array;
+    const pColArr = particleGeo.attributes.color.array;
+    const sc2 = new THREE.Color(), dc2 = new THREE.Color();
+    for (let i = 0; i < pCount; i++) {
+      const pd = pData[i];
+      pd.progress += pd.speed * dt;
+      if (pd.progress > 1) pd.progress -= 1;
+      const p = pd.progress;
+      const sp = positions[pd.srcIdx], tp = positions[pd.tgtIdx];
+      pPosArr[i * 3] = sp.x + (tp.x - sp.x) * p;
+      pPosArr[i * 3 + 1] = sp.y + (tp.y - sp.y) * p;
+      pPosArr[i * 3 + 2] = sp.z + (tp.z - sp.z) * p;
+      sc2.set(LEVEL_COLORS_HEX[nodes[pd.srcIdx].level] || 0x00FFFF);
+      dc2.set(LEVEL_COLORS_HEX[nodes[pd.tgtIdx].level] || 0x00FFFF);
+      pColArr[i * 3] = sc2.r + (dc2.r - sc2.r) * p;
+      pColArr[i * 3 + 1] = sc2.g + (dc2.g - sc2.g) * p;
+      pColArr[i * 3 + 2] = sc2.b + (dc2.b - sc2.b) * p;
     }
+    particleGeo.attributes.position.needsUpdate = true;
+    particleGeo.attributes.color.needsUpdate = true;
   }
 
-  // Glow rings — every 8th frame
-  if (frameCount % 8 === 0) {
-    const rings = brain.glowRings;
-    for (let i = 0; i < rings.length; i++) {
-      rings[i].lookAt(camera.position);
-    }
-  }
-
-  // L6 signal waves — every 6th frame
-  if (brain.webSignalRings && brain.webSignalRings.length > 0 && frameCount % 6 === 0) {
-    const rings = brain.webSignalRings;
-    for (let i = 0; i < rings.length; i++) {
-      const ring = rings[i];
-      const ni = ring.userData.nodeIndex;
-      const wi = ring.userData.waveIndex;
-      if (ni < BRAIN_DATA.nodes.length) {
-        ring.position.copy(BRAIN_DATA.nodes[ni]._pos);
-      }
-      ring.lookAt(camera.position);
-      const cycle = 3000;
-      const offset = wi * (cycle / 3);
-      const t = ((now + offset) % cycle) / cycle;
-      ring.material.opacity = (t < 0.5 ? t : 1 - t) * 0.16;
-      const s = 1 + t * 0.6;
-      ring.scale.set(s, s, s);
-    }
-  }
-
-  // Light animation — every 4th frame
-  if (frameCount % 4 === 0) {
-    mainLight.position.x = Math.sin(now * 0.0003) * 40;
-    mainLight.position.z = Math.cos(now * 0.0003) * 40;
-    rimLight.intensity = 0.6 + Math.sin(now * 0.001) * 0.25;
-  }
-
-  // Process pending mousemove if throttled
-  if (pendingMouseEvent) {
-    doRaycast(pendingMouseEvent);
-    pendingMouseEvent = null;
-  }
-
-  // Render with bloom
-  composer.render();
+  // Render (no bloom/composer, direct render)
+  renderer.render(scene, camera);
 
   // FPS counter
-  frameCount++;
   fpsFrames++;
+  const now = performance.now();
   if (now - lastFpsTime > 1000) {
     document.getElementById('fps-counter').textContent = fpsFrames;
     fpsFrames = 0;
     lastFpsTime = now;
   }
 }
-animate();
 
 // =========== RESIZE ===========
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-  composer.setSize(innerWidth, innerHeight);
-  bloomPass.resolution.set(Math.round(innerWidth / 2), Math.round(innerHeight / 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // =========== WEBSOCKET LIVE UPDATES ===========
+let ws = null;
+
 (function connectWebSocket() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = proto + '//' + location.host;
-  let ws;
 
   function connect() {
     try { ws = new WebSocket(wsUrl); } catch { return; }
@@ -1355,10 +1224,10 @@ addEventListener('resize', () => {
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === 'full_sync' && msg.data) {
-          // Check if data actually changed
           if (msg.data.nodes.length !== BRAIN_DATA.nodes.length ||
               msg.data.edges.length !== BRAIN_DATA.edges.length) {
-            brain.loadData(msg.data);
+            BRAIN_DATA = msg.data;
+            rebuildScene();
           }
         }
         if (msg.type === 'web_knowledge') {
@@ -1371,12 +1240,10 @@ addEventListener('resize', () => {
           updateScopeUI(msg.scope);
         }
         if (msg.type === 'model_activated') {
-          // Re-enable all activate buttons and show confirmation
           document.querySelectorAll('[data-activate]').forEach(btn => {
             btn.disabled = false;
             btn.textContent = '\\u26A1 Activate';
           });
-          // Brief flash notification
           const note = document.createElement('div');
           note.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);' +
             'background:rgba(0,255,100,0.15);border:1px solid rgba(0,255,100,0.3);' +
@@ -1391,7 +1258,6 @@ addEventListener('resize', () => {
     };
 
     ws.onclose = () => {
-      // Reconnect after 3s (server might not be running for static files)
       setTimeout(connect, 3000);
     };
 
@@ -1405,11 +1271,9 @@ addEventListener('resize', () => {
 function showWebKnowledgePopup(topic, summary, source) {
   const container = document.getElementById('web-knowledge-container');
 
-  // Create popup element
   const popup = document.createElement('div');
   popup.className = 'web-knowledge-popup';
 
-  // Truncate source URL for display
   let displayUrl = source;
   try {
     const u = new URL(source);
@@ -1428,22 +1292,18 @@ function showWebKnowledgePopup(topic, summary, source) {
 
   container.appendChild(popup);
 
-  // Particle burst effect at the popup location
   setTimeout(() => {
     const rect = popup.getBoundingClientRect();
     spawnParticleBurst(rect.left + rect.width / 2, rect.top + 20);
   }, 400);
 
-  // Flash a node in the 3D scene to show connection
   flashRandomNode();
 
-  // Auto-remove after 6 seconds
   setTimeout(() => {
     popup.classList.add('removing');
     setTimeout(() => popup.remove(), 500);
   }, 6000);
 
-  // Keep max 3 popups visible
   while (container.children.length > 3) {
     container.firstChild.remove();
   }
@@ -1470,33 +1330,31 @@ function spawnParticleBurst(x, y) {
 }
 
 function flashRandomNode() {
-  if (brain.nodeMeshes.length === 0) return;
+  if (!nodeGeo || nCount === 0) return;
 
   // Pick a random L2 node (or any if no L2)
-  const l2Nodes = brain.nodeMeshes.filter(m => m.userData.level === 2);
-  const targets = l2Nodes.length > 0 ? l2Nodes : brain.nodeMeshes;
-  const mesh = targets[Math.floor(Math.random() * targets.length)];
+  const l2Indices = (byLevel[2] || []);
+  const targets = l2Indices.length > 0 ? l2Indices : Object.values(byLevel).flat();
+  const idx = targets[Math.floor(Math.random() * targets.length)];
 
-  // Save original values
-  const origEmissive = mesh.material.emissiveIntensity;
-  const origColor = mesh.material.emissive.clone();
+  const ha = nodeGeo.attributes.aHighlight;
+  const origVal = ha.array[idx];
 
-  // Flash green
-  mesh.material.emissive.set(0x00ff88);
-  mesh.material.emissiveIntensity = 3.0;
+  // Flash to 2.0
+  ha.array[idx] = 2.0;
+  ha.needsUpdate = true;
 
-  // Animate back
-  let t = 0;
+  // Animate back to 1.0
+  let progress = 0;
   const restore = () => {
-    t += 0.02;
-    if (t >= 1) {
-      mesh.material.emissive.copy(origColor);
-      mesh.material.emissiveIntensity = origEmissive;
+    progress += 0.02;
+    if (progress >= 1) {
+      ha.array[idx] = origVal;
+      ha.needsUpdate = true;
       return;
     }
-    mesh.material.emissiveIntensity = 3.0 - t * (3.0 - origEmissive);
-    const green = new THREE.Color(0x00ff88);
-    mesh.material.emissive.copy(green.lerp(origColor, t));
+    ha.array[idx] = 2.0 - progress * (2.0 - origVal);
+    ha.needsUpdate = true;
     requestAnimationFrame(restore);
   };
   setTimeout(restore, 800);
@@ -1510,7 +1368,6 @@ document.querySelectorAll('#scope-switcher .scope-btn').forEach(btn => {
     const newScope = btn.dataset.scope;
     if (newScope === currentScope) return;
 
-    // Send scope switch command to CLI via WebSocket
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = proto + '//' + location.host;
     const scopeWs = new WebSocket(wsUrl);
@@ -1519,7 +1376,6 @@ document.querySelectorAll('#scope-switcher .scope-btn').forEach(btn => {
       scopeWs.close();
     };
 
-    // Optimistic UI update
     updateScopeUI(newScope);
   });
 });
@@ -1535,12 +1391,12 @@ function updateScopeUI(scope) {
 const RECOMMENDED_MODELS = [
   { name: 'qwen3-coder:30b', size: '~18 GB', desc: 'Best coding model for 32GB VRAM (MoE, 30B/3B active)', vram: 18 },
   { name: 'qwen2.5-coder:32b', size: '~22 GB', desc: 'Battle-tested coding champion, excellent tool use', vram: 22 },
-  { name: 'qwen2.5-coder:14b', size: '~10 GB', desc: 'Great coding, lower VRAM — fast on any GPU', vram: 10 },
+  { name: 'qwen2.5-coder:14b', size: '~10 GB', desc: 'Great coding, lower VRAM \\u2014 fast on any GPU', vram: 10 },
   { name: 'deepseek-r1:32b', size: '~22 GB', desc: 'Strong reasoning + coding (chain-of-thought)', vram: 22 },
   { name: 'qwen2.5-coder:7b', size: '~5 GB', desc: 'Lightweight coder, runs on almost anything', vram: 5 },
   { name: 'deepseek-coder-v2:16b', size: '~11 GB', desc: 'Good all-round coder, MoE architecture', vram: 11 },
   { name: 'codellama:34b', size: '~20 GB', desc: 'Meta code model, good for infill + completion', vram: 20 },
-  { name: 'llama3.3:70b-instruct-q4_K_M', size: '~42 GB', desc: 'Full Llama 3.3 70B — needs 48GB+ VRAM', vram: 42 },
+  { name: 'llama3.3:70b-instruct-q4_K_M', size: '~42 GB', desc: 'Full Llama 3.3 70B \\u2014 needs 48GB+ VRAM', vram: 42 },
 ];
 
 const modelsPanel = document.getElementById('models-panel');
@@ -1580,14 +1436,14 @@ async function checkOllamaStatus() {
     const data = await res.json();
     if (data.version) {
       ollamaOnline = true;
-      ollamaStatus.textContent = 'Ollama v' + data.version + ' — running';
+      ollamaStatus.textContent = 'Ollama v' + data.version + ' \\u2014 running';
       ollamaStatus.style.color = '#00ff88';
       ollamaDot.className = 'status-dot online';
       return true;
     }
   } catch {}
   ollamaOnline = false;
-  ollamaStatus.textContent = 'Ollama not running — start with: ollama serve';
+  ollamaStatus.textContent = 'Ollama not running \\u2014 start with: ollama serve';
   ollamaStatus.style.color = '#ff4444';
   ollamaDot.className = 'status-dot offline';
   return false;
@@ -1867,12 +1723,10 @@ findingsToggle.addEventListener('click', () => {
 function addAgentFinding(sessionName, finding, severity, file) {
   findingsData.push({ sessionName, finding, severity, file, time: Date.now() });
 
-  // Update badge
   findingsBadge.style.display = 'inline';
   findingsBadge.textContent = findingsData.length;
   findingsCount.textContent = findingsData.length + ' finding(s)';
 
-  // Rebuild list (newest first)
   findingsList.innerHTML = '';
   const sorted = [...findingsData].reverse();
   for (const f of sorted) {
@@ -1886,10 +1740,8 @@ function addAgentFinding(sessionName, finding, severity, file) {
     findingsList.appendChild(item);
   }
 
-  // Flash a node and show popup notification
   flashRandomNode();
 
-  // Auto-open panel on first finding
   if (findingsData.length === 1) {
     findingsPanel.classList.add('open');
   }
@@ -1975,10 +1827,8 @@ function addAgentFinding(sessionName, finding, severity, file) {
   }
 
   async function startRecording() {
-    // Request microphone permission first — this triggers the browser permission dialog
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Stop the stream immediately — SpeechRecognition manages its own audio
       stream.getTracks().forEach(t => t.stop());
     } catch (permErr) {
       statusEl.textContent = 'denied';
@@ -2088,6 +1938,10 @@ function addAgentFinding(sessionName, finding, severity, file) {
     };
   }
 })();
+
+// =========== INITIAL LOAD ===========
+rebuildScene();
+animate();
 </script>
 </body>
 </html>`;
