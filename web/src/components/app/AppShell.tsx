@@ -809,17 +809,53 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         `}
       >
         <div className="flex flex-col h-full">
-          <ChatSidebar
-            chats={chats}
-            sessions={isConnected ? connection.sessions : undefined}
-            activeChatId={activeChatId}
-            onSelect={handleChatSelect}
-            onSessionClick={openSessionInTab}
-            onCreate={createChat}
-            onDelete={deleteChat}
-            onRename={renameChat}
-          />
-
+          {activeTab === 'chat' ? (
+            <ChatSidebar
+              chats={chats}
+              sessions={isConnected ? connection.sessions : undefined}
+              activeChatId={activeChatId}
+              onSelect={handleChatSelect}
+              onSessionClick={openSessionInTab}
+              onCreate={createChat}
+              onDelete={deleteChat}
+              onRename={renameChat}
+            />
+          ) : activeTab === 'console' ? (
+            <SessionSidebar
+              sessions={consoleSessions}
+              selectedId={consoleSessionId}
+              onSelect={(id) => setConsoleSessionId(id)}
+              onAbort={handleAbortSession}
+              emptyLabel={t('consoleNoSessions')}
+              emptyHint={t('consoleTabHint')}
+              actions={[
+                { label: 'Start Auto', icon: Zap, onClick: () => handleStartAuto(), color: 'text-gray-400', hoverColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
+                { label: 'Start Security', icon: Shield, onClick: handleStartSecurity, color: 'text-gray-400', hoverColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+              ]}
+            />
+          ) : activeTab === 'monitor' ? (
+            <SessionSidebar
+              sessions={monitorSessions}
+              selectedId={monitorSessionId}
+              onSelect={(id) => setMonitorSessionId(id)}
+              onAbort={handleAbortSession}
+              emptyLabel={t('monitorIdle')}
+              emptyHint={t('monitorTabHint')}
+              actions={[
+                { label: t('monitorStartPassive'), icon: Eye, onClick: () => handleStartMonitor('passive'), color: 'text-gray-400', hoverColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+                { label: t('monitorStartDefensive'), icon: Shield, onClick: () => handleStartMonitor('defensive'), color: 'text-gray-400', hoverColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+                { label: t('monitorStartActive'), icon: ShieldAlert, onClick: () => handleStartMonitor('active'), color: 'text-gray-400', hoverColor: 'bg-red-500/10 text-red-400 border-red-500/20' },
+              ]}
+            />
+          ) : activeTab === 'jarvis' ? (
+            <SessionSidebar
+              sessions={jarvisSessions}
+              selectedId={null}
+              onSelect={() => {}}
+              onAbort={handleAbortSession}
+              emptyLabel={t('jarvisNoTasks')}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -1134,58 +1170,22 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             />
           </div>
         ) : activeTab === 'console' ? (
-          <div className="flex-1 flex overflow-hidden">
-            {/* Session sidebar */}
-            <div className="border-r border-white/5 flex-shrink-0">
-              <SessionSidebar
-                sessions={consoleSessions}
-                selectedId={consoleSessionId}
-                onSelect={(id) => setConsoleSessionId(id)}
-                onAbort={handleAbortSession}
-                emptyLabel={t('consoleNoSessions')}
-                emptyHint={t('consoleTabHint')}
-                actions={[
-                  { label: 'Start Auto', icon: Zap, onClick: () => handleStartAuto(), color: 'text-gray-400', hoverColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
-                  { label: 'Start Security', icon: Shield, onClick: handleStartSecurity, color: 'text-gray-400', hoverColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-                ]}
-              />
-            </div>
-            {/* Terminal output */}
-            <div className="flex-1 overflow-hidden">
-              {consoleSessionId ? (
-                <TerminalViewer lines={cliOutput.lines} fullHeight />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center space-y-3 px-6">
-                    <Terminal size={32} className="mx-auto text-gray-700" />
-                    <p className="text-sm text-gray-500">{t('consoleSelectSession')}</p>
-                    <p className="text-xs text-gray-600 mt-1">{t('consoleHint')}</p>
-                  </div>
+          <div className="flex-1 overflow-hidden">
+            {consoleSessionId ? (
+              <TerminalViewer lines={cliOutput.lines} fullHeight />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-3 px-6">
+                  <Terminal size={32} className="mx-auto text-gray-700" />
+                  <p className="text-sm text-gray-500">{t('consoleSelectSession')}</p>
+                  <p className="text-xs text-gray-600 mt-1">{t('consoleHint')}</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         ) : activeTab === 'monitor' ? (
           /* ─── Monitor Tab ─── */
-          <div className="flex-1 flex overflow-hidden">
-            {/* Session sidebar */}
-            <div className="border-r border-white/5 flex-shrink-0">
-              <SessionSidebar
-                sessions={monitorSessions}
-                selectedId={monitorSessionId}
-                onSelect={(id) => setMonitorSessionId(id)}
-                onAbort={handleAbortSession}
-                emptyLabel={t('monitorIdle')}
-                emptyHint={t('monitorTabHint')}
-                actions={[
-                  { label: t('monitorStartPassive'), icon: Eye, onClick: () => handleStartMonitor('passive'), color: 'text-gray-400', hoverColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-                  { label: t('monitorStartDefensive'), icon: Shield, onClick: () => handleStartMonitor('defensive'), color: 'text-gray-400', hoverColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-                  { label: t('monitorStartActive'), icon: ShieldAlert, onClick: () => handleStartMonitor('active'), color: 'text-gray-400', hoverColor: 'bg-red-500/10 text-red-400 border-red-500/20' },
-                ]}
-              />
-            </div>
-            {/* Monitor content */}
-            <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             <div className="max-w-3xl mx-auto space-y-4">
 
               {/* Monitor status header */}
@@ -1345,37 +1345,23 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               )}
             </div>
           </div>
-          </div>
         ) : activeTab === 'jarvis' ? (
           /* ─── Jarvis Tab ─── */
-          <div className="flex-1 flex overflow-hidden">
-            {/* Session sidebar */}
-            <div className="border-r border-white/5 flex-shrink-0">
-              <SessionSidebar
-                sessions={jarvisSessions}
-                selectedId={null}
-                onSelect={() => {}}
-                onAbort={handleAbortSession}
-                emptyLabel={t('jarvisNoTasks')}
-              />
-            </div>
-            {/* Jarvis content */}
-            <div className="flex-1 overflow-hidden">
-          <JarvisPanel
-            tasks={connection.jarvisTasks}
-            status={connection.jarvisStatus}
-            onStartJarvis={() => connection.startJarvis().catch(() => {})}
-            onStopJarvis={() => connection.stopJarvis().catch(() => {})}
-            onPauseJarvis={() => connection.pauseJarvis().catch(() => {})}
-            onResumeJarvis={() => connection.resumeJarvis().catch(() => {})}
-            onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
-            onClearCompleted={() => {
-              connection.sendRequest('clear_jarvis_completed').catch(() => {});
-              connection.listJarvisTasks().catch(() => {});
-            }}
-            isConnected={isConnected}
-          />
-            </div>
+          <div className="flex-1 overflow-hidden">
+            <JarvisPanel
+              tasks={connection.jarvisTasks}
+              status={connection.jarvisStatus}
+              onStartJarvis={() => connection.startJarvis().catch(() => {})}
+              onStopJarvis={() => connection.stopJarvis().catch(() => {})}
+              onPauseJarvis={() => connection.pauseJarvis().catch(() => {})}
+              onResumeJarvis={() => connection.resumeJarvis().catch(() => {})}
+              onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
+              onClearCompleted={() => {
+                connection.sendRequest('clear_jarvis_completed').catch(() => {});
+                connection.listJarvisTasks().catch(() => {});
+              }}
+              isConnected={isConnected}
+            />
           </div>
         ) : null}
 
