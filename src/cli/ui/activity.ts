@@ -43,12 +43,18 @@ export class ActivityIndicator {
   private _restoreContent = '';
   private _onMute: (() => void) | null = null;
   private _onUnmute: (() => void) | null = null;
+  private _displayName = 'HelixMind';
 
   /** Reference to the shared BottomChrome instance */
   private chrome: BottomChrome | null;
 
   constructor(chrome?: BottomChrome) {
     this.chrome = chrome ?? null;
+  }
+
+  /** Override the display name shown in the animation (default: "HelixMind") */
+  setDisplayName(name: string): void {
+    this._displayName = name;
   }
 
   /** Set the hints content to restore on chrome row 2 when activity stops/pauses */
@@ -137,7 +143,7 @@ export class ActivityIndicator {
 
     if (this.startTime > 0 && wasAnimating) {
       // Write colorful final status inline (part of conversation flow)
-      const text = 'HelixMind';
+      const text = this._displayName;
       let coloredText = '';
       for (let i = 0; i < text.length; i++) {
         coloredText += chalk.hex(GRADIENT[i * 2 % GRADIENT.length]).bold(text[i]);
@@ -189,8 +195,8 @@ export class ActivityIndicator {
     const symbolColor = GRADIENT[this.frame % GRADIENT.length];
     const symbol = chalk.hex(symbolColor)(PULSE_SYMBOLS[symbolIdx]);
 
-    // Wave-colored "HelixMind" text
-    const text = 'HelixMind';
+    // Wave-colored display name text
+    const text = this._displayName;
     let coloredText = '';
     for (let i = 0; i < text.length; i++) {
       const gradIdx = (i * 2 + this.frame) % GRADIENT.length;

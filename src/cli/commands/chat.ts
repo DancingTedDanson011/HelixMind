@@ -2230,6 +2230,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     roundToolCalls = 0;
     agentRunning = true;
     agentController.reset();
+    // Set activity display name: custom Jarvis name when daemon is running, else "HelixMind"
+    activity.setDisplayName(
+      jarvisDaemonSession && jarvisDaemonSession.status === 'running'
+        ? jarvisIdentity.getIdentity().name
+        : 'HelixMind',
+    );
     updateStatusBar();
 
     await sendAgentMessage(
