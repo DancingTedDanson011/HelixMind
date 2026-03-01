@@ -84,6 +84,18 @@ const COMMANDS: CommandDef[] = [
   { cmd: '/quit', description: 'Exit HelixMind' },
 ];
 
+// Blocked command prefixes (e.g. ['/jarvis', '/validation', '/auto', '/security', '/monitor'])
+// Set at startup based on plan — if not logged in, gated features are blocked.
+let blockedPrefixes: string[] = [];
+
+/**
+ * Set which command prefixes are blocked (feature-gated).
+ * Called once at startup based on user's plan.
+ */
+export function setBlockedCommands(prefixes: string[]): void {
+  blockedPrefixes = prefixes;
+}
+
 /**
  * Get matching command suggestions for a partial input.
  */
@@ -91,17 +103,22 @@ export function getSuggestions(partial: string, max = 5): CommandDef[] {
   if (!partial || !partial.startsWith('/') || partial.length < 2) return [];
   const lower = partial.toLowerCase();
 
+  // Filter out blocked commands
+  const available = COMMANDS.filter(c =>
+    !blockedPrefixes.some(prefix => c.cmd === prefix || c.cmd.startsWith(prefix + ' ')),
+  );
+
   // Don't suggest if it's an exact match
-  const exact = COMMANDS.find(c => c.cmd === lower);
+  const exact = available.find(c => c.cmd === lower);
   if (exact) return [];
 
   // Prefix match first
-  const prefixed = COMMANDS.filter(c => c.cmd.startsWith(lower));
+  const prefixed = available.filter(c => c.cmd.startsWith(lower));
   if (prefixed.length > 0) return prefixed.slice(0, max);
 
   // Fuzzy: contains the typed chars (without /)
   const chars = lower.slice(1);
-  const fuzzy = COMMANDS.filter(c => c.cmd.slice(1).includes(chars));
+  const fuzzy = available.filter(c => c.cmd.slice(1).includes(chars));
   return fuzzy.slice(0, max);
 }
 

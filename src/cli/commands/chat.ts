@@ -40,7 +40,7 @@ import { trimConversation, estimateTokens } from '../context/trimmer.js';
 import { runAutonomousLoop, SECURITY_PROMPT } from '../agent/autonomous.js';
 import { SessionManager } from '../sessions/manager.js';
 import { renderSessionNotification, renderSessionList } from '../sessions/tab-view.js';
-import { getSuggestions, getBestCompletion, writeSuggestions, clearSuggestions } from '../ui/command-suggest.js';
+import { getSuggestions, getBestCompletion, writeSuggestions, clearSuggestions, setBlockedCommands } from '../ui/command-suggest.js';
 import { selectMenu, type MenuItem } from '../ui/select-menu.js';
 import { BugJournal } from '../bugs/journal.js';
 import { detectBugReport } from '../bugs/detector.js';
@@ -63,6 +63,7 @@ import { validationLoop } from '../validation/autofix.js';
 import { getValidationModelConfig, createValidationProvider } from '../validation/model.js';
 import { renderValidationSummary, renderValidationStart, renderClassification, renderValidationOneLine } from '../validation/reporter.js';
 import { storeValidationResult, getValidationStats, renderValidationStats } from '../validation/stats.js';
+import { isFeatureAvailable, getLoginCTA, type Feature } from '../auth/feature-gate.js';
 import chalk from 'chalk';
 
 interface ChatOptions {
@@ -76,7 +77,7 @@ interface ChatOptions {
 
 // Interactive help menu — structured data for arrow-key navigation
 interface HelpItem { cmd: string; label: string; description: string }
-interface HelpCategory { category: string; color: string; items: HelpItem[] }
+interface HelpCategory { category: string; color: string; items: HelpItem[]; gatedFeature?: Feature }
 
 const HELP_CATEGORIES: HelpCategory[] = [
   {
@@ -112,7 +113,7 @@ const HELP_CATEGORIES: HelpCategory[] = [
     ],
   },
   {
-    category: 'Autonomous & Security', color: '#ff6600',
+    category: 'Autonomous & Security', color: '#ff6600', gatedFeature: 'monitor' as Feature,
     items: [
       { cmd: '/auto', label: '/auto', description: 'Autonomous mode' },
       { cmd: '/stop', label: '/stop', description: 'Stop autonomous mode' },
@@ -123,7 +124,7 @@ const HELP_CATEGORIES: HelpCategory[] = [
     ],
   },
   {
-    category: 'Jarvis', color: '#ff00ff',
+    category: 'Jarvis', color: '#ff00ff', gatedFeature: 'jarvis' as Feature,
     items: [
       { cmd: '/jarvis', label: '/jarvis', description: 'Start Jarvis daemon' },
       { cmd: '/jarvis task', label: '/jarvis task "..."', description: 'Add task to queue' },
@@ -139,7 +140,7 @@ const HELP_CATEGORIES: HelpCategory[] = [
     ],
   },
   {
-    category: 'Validation Matrix', color: '#00cc66',
+    category: 'Validation Matrix', color: '#00cc66', gatedFeature: 'validation_basic' as Feature,
     items: [
       { cmd: '/validation', label: '/validation', description: 'Show validation status' },
       { cmd: '/validation on', label: '/validation on', description: 'Enable output validation' },
@@ -191,11 +192,20 @@ const HELP_CATEGORIES: HelpCategory[] = [
 ];
 
 /** Build flat MenuItem[] with category headers as disabled separators */
-function buildHelpMenuItems(): { items: MenuItem[]; commands: string[] } {
+function buildHelpMenuItems(store?: ConfigStore): { items: MenuItem[]; commands: string[] } {
   const items: MenuItem[] = [];
   const commands: string[] = [];
 
   for (const cat of HELP_CATEGORIES) {
+    // Skip gated categories if feature not available
+    if (cat.gatedFeature && store && !isFeatureAvailable(store, cat.gatedFeature)) {
+      items.push({ label: chalk.hex(cat.color).dim(`${cat.category} 🔒`), disabled: true });
+      commands.push('');
+      items.push({ label: chalk.dim('  Login to unlock → helixmind login'), disabled: true });
+      commands.push('');
+      continue;
+    }
+
     items.push({ label: chalk.hex(cat.color).bold(cat.category), disabled: true });
     commands.push('');
 
@@ -287,6 +297,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // Background auth check: verify token is still valid when online.
     // If offline or server unreachable, cached auth stays valid silently.
     import('../auth/feature-gate.js').then(({ refreshPlanInfo }) => refreshPlanInfo(store)).catch(() => {});
+  }
+
+  // ─── Feature Gate: block gated commands in autocomplete ─────
+  {
+    const blocked: string[] = [];
+    if (!isFeatureAvailable(store, 'jarvis')) blocked.push('/jarvis');
+    if (!isFeatureAvailable(store, 'monitor')) blocked.push('/auto', '/security', '/monitor');
+    if (!isFeatureAvailable(store, 'validation_basic')) blocked.push('/validation');
+    if (blocked.length > 0) setBlockedCommands(blocked);
   }
 
   // First-time setup: prompt for LLM API key if none configured
@@ -407,8 +426,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     },
   });
 
-  // Validation Matrix state
-  let validationEnabled = options.validation !== false; // Default ON
+  // Validation Matrix state — requires login (FREE_PLUS+)
+  let validationEnabled = (options.validation !== false) && isFeatureAvailable(store, 'validation_basic');
   let validationVerbose = options.validationVerbose ?? false;
   let validationStrict = options.validationStrict ?? false;
 
@@ -3046,6 +3065,21 @@ async function handleSlashCommand(
   const parts = input.split(/\s+/);
   let cmd = parts[0].toLowerCase();
 
+  // ─── Feature Gate Helper ─────────────────────────────────
+  // Shows a login-or-upgrade prompt when a gated feature is used.
+  const gateCheck = (feature: Feature, label: string): boolean => {
+    if (isFeatureAvailable(store, feature)) return true;
+    process.stdout.write('\n');
+    process.stdout.write(chalk.dim('  ╭──────────────────────────────────────────────────╮') + '\n');
+    process.stdout.write(chalk.dim('  │  ') + theme.primary(`🔒 ${label}`) + chalk.dim(' requires login'.padEnd(48 - label.length - 4)) + chalk.dim('│') + '\n');
+    process.stdout.write(chalk.dim('  │                                                  │') + '\n');
+    process.stdout.write(chalk.dim('  │  ') + chalk.white('[1]') + ' Run ' + chalk.white('helixmind login') + chalk.dim(' to unlock (free)      │') + '\n');
+    process.stdout.write(chalk.dim('  │  ') + chalk.white('[2]') + ' Continue in Open Source mode' + chalk.dim('             │') + '\n');
+    process.stdout.write(chalk.dim('  │      ') + chalk.gray('Full agent · 22 Tools · Spiral Memory') + chalk.dim('   │') + '\n');
+    process.stdout.write(chalk.dim('  ╰──────────────────────────────────────────────────╯') + '\n\n');
+    return false;
+  };
+
   // Allow custom Jarvis name as alias for /jarvis (e.g. /atlas → /jarvis)
   if (jarvisCtx && cmd.startsWith('/') && cmd !== '/jarvis') {
     const customName = jarvisCtx.identity.getIdentity().name.toLowerCase();
@@ -3066,7 +3100,7 @@ async function handleSlashCommand(
       onSubPrompt?.(true);
       rl.pause();
       process.stdout.write('\n');
-      const { items: helpItems, commands: helpCmds } = buildHelpMenuItems();
+      const { items: helpItems, commands: helpCmds } = buildHelpMenuItems(store);
       const helpIdx = await selectMenu(helpItems, {
         title: chalk.hex('#00d4ff').bold('HelixMind Commands'),
         cancelLabel: 'Close',
@@ -3524,6 +3558,7 @@ async function handleSlashCommand(
     }
 
     case '/validation': {
+      if (!gateCheck('validation_basic', 'Validation Matrix')) break;
       const vArg = parts[1]?.toLowerCase();
       if (onValidation) {
         onValidation(vArg || 'status');
@@ -3614,6 +3649,7 @@ async function handleSlashCommand(
 
     case '/auto':
     case '/dontstop': {
+      if (!gateCheck('monitor', 'Autonomous Mode')) break;
       if (!onAutonomous) break;
       // Extract goal text after "/auto " (e.g. "/auto fix all TypeScript errors")
       const autoGoal = input.replace(/^\/(auto|dontstop)\s*/i, '').trim() || undefined;
@@ -3651,12 +3687,14 @@ async function handleSlashCommand(
       break;
 
     case '/security':
+      if (!gateCheck('monitor', 'Security Audit')) break;
       if (onAutonomous) {
         await onAutonomous('security');
       }
       break;
 
     case '/jarvis': {
+      if (!gateCheck('jarvis', 'Jarvis AGI')) break;
       if (!jarvisCtx) { renderInfo('Jarvis not available.'); break; }
       const sub = parts[1]?.toLowerCase();
       const jq = jarvisCtx.queue;
@@ -3829,6 +3867,7 @@ async function handleSlashCommand(
     }
 
     case '/monitor': {
+      if (!gateCheck('monitor', 'Security Monitor')) break;
       if (!onAutonomous) break;
       const { MONITOR_MODES, MONITOR_WARNINGS } = await import('../agent/autonomous.js');
 
