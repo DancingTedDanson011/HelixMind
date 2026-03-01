@@ -979,6 +979,33 @@ function rebuildScene() {
     nodeEdgeMap[ti].push(ei);
   });
 
+  // ---- NODE COLOR: blend level + dominant edge type ----
+  // Pre-compute dominant edge type per node
+  const nodeEdgeTypeCounts = {};
+  for (const e of BRAIN_DATA.edges) {
+    const si = nodeIdxMap[e.source], ti = nodeIdxMap[e.target];
+    if (si === undefined || ti === undefined) continue;
+    const type = e.type || 'related_to';
+    if (!nodeEdgeTypeCounts[si]) nodeEdgeTypeCounts[si] = {};
+    if (!nodeEdgeTypeCounts[ti]) nodeEdgeTypeCounts[ti] = {};
+    nodeEdgeTypeCounts[si][type] = (nodeEdgeTypeCounts[si][type] || 0) + 1;
+    nodeEdgeTypeCounts[ti][type] = (nodeEdgeTypeCounts[ti][type] || 0) + 1;
+  }
+  const nodeDomType = {};
+  for (const idx in nodeEdgeTypeCounts) {
+    let maxT = 'default', maxC = 0;
+    for (const [t, c] of Object.entries(nodeEdgeTypeCounts[idx])) {
+      if (c > maxC) { maxC = c; maxT = t; }
+    }
+    nodeDomType[idx] = maxT;
+  }
+  // Max degree for brightness scaling
+  let maxDegree = 1;
+  for (let i = 0; i < nCount; i++) {
+    const deg = adj[i] ? adj[i].size : 0;
+    if (deg > maxDegree) maxDegree = deg;
+  }
+
   // ---- NODE POINTS ----
   nodeGeo = new THREE.BufferGeometry();
   const nPos = new Float32Array(nCount * 3);
@@ -987,13 +1014,23 @@ function rebuildScene() {
   const nHighlight = new Float32Array(nCount);
   const nPulse = new Float32Array(nCount);
   const nActivity = new Float32Array(nCount);
+  const ec = new THREE.Color();
 
   for (let i = 0; i < nCount; i++) {
     const p = positions[i];
     const n = nodes[i];
     const s = LEVEL_STYLE[n.level] || LEVEL_STYLE[3];
     nPos[i * 3] = p.x; nPos[i * 3 + 1] = p.y; nPos[i * 3 + 2] = p.z;
+    // Base level color
     tc.set(LEVEL_COLORS_HEX[n.level] || 0x00FFFF);
+    // Blend with dominant edge type color (35% influence) for color variety
+    const domType = nodeDomType[i] || 'default';
+    ec.set(EDGE_COLORS[domType] || EDGE_COLORS.default);
+    tc.lerp(ec, 0.35);
+    // Brightness by degree: low-degree dimmer, high-degree brighter
+    const deg = adj[i] ? adj[i].size : 0;
+    const bright = 0.6 + (deg / maxDegree) * 0.4;
+    tc.multiplyScalar(bright);
     nCol[i * 3] = tc.r; nCol[i * 3 + 1] = tc.g; nCol[i * 3 + 2] = tc.b;
     nSize[i] = s.size;
     nHighlight[i] = 1.0;
@@ -1041,8 +1078,8 @@ function rebuildScene() {
     sc.set(edgeColor); dc.set(edgeColor);
     eCol[o] = sc.r; eCol[o + 1] = sc.g; eCol[o + 2] = sc.b;
     eCol[o + 3] = dc.r; eCol[o + 4] = dc.g; eCol[o + 5] = dc.b;
-    // Galaxy: all edges visible, weighted by importance
-    const baseAlpha = 0.06 + weight * 0.14;
+    // Boosted edge alpha for colorful connections
+    const baseAlpha = 0.12 + weight * 0.28;
     eAlpha[i * 2] = baseAlpha * alphaScale;
     eAlpha[i * 2 + 1] = baseAlpha * alphaScale;
   }
