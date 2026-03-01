@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle, Wifi } from 'lucide-react';
+import { MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle, Wifi, Terminal, Download, Plug } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
 import type { ChatMessage } from './AppShell';
@@ -91,44 +91,67 @@ export function ChatView({
     setShowScrollBtn(!atBottom);
   }, []);
 
-  // Empty state — no chat selected
-  if (!hasChat) {
+  // Empty state — no chat selected or empty chat without connection
+  if (!hasChat || (messages.length === 0 && !isAgentRunning && !isConnected)) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-center space-y-4 max-w-md px-6">
+        <div className="text-center space-y-5 max-w-sm px-6">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-white/5 flex items-center justify-center">
-            <MessageSquare size={28} className="text-cyan-500/50" />
+            <Plug size={28} className="text-cyan-500/40" />
           </div>
-          <h3 className="text-lg font-medium text-gray-300">{t('noMessages')}</h3>
-          <p className="text-sm text-gray-600">{t('noMessagesHint')}</p>
+          <div className="space-y-2">
+            <h3 className="text-base font-medium text-gray-300">{t('setupTitle')}</h3>
+            <p className="text-xs text-gray-600">{t('setupDesc')}</p>
+          </div>
+          <div className="space-y-2.5 text-left">
+            <div className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5">
+              <div className="w-6 h-6 rounded-md bg-cyan-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Download size={12} className="text-cyan-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-300">{t('setupStep1Title')}</p>
+                <p className="text-[11px] text-gray-600 mt-0.5">
+                  <code className="px-1 py-0.5 rounded bg-white/5 text-cyan-400/80 text-[10px]">npm i -g helixmind</code>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5">
+              <div className="w-6 h-6 rounded-md bg-cyan-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Terminal size={12} className="text-cyan-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-300">{t('setupStep2Title')}</p>
+                <p className="text-[11px] text-gray-600 mt-0.5">
+                  <code className="px-1 py-0.5 rounded bg-white/5 text-cyan-400/80 text-[10px]">hx</code> {t('setupStep2Hint')}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5">
+              <div className="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Wifi size={12} className="text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-300">{t('setupStep3Title')}</p>
+                <p className="text-[11px] text-gray-600 mt-0.5">{t('setupStep3Hint')}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Empty chat — no messages yet
+  // Empty chat — connected, no messages yet
   if (messages.length === 0 && !isAgentRunning) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-4 max-w-md px-6">
-            {isConnected ? (
-              <>
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/10 flex items-center justify-center">
-                  <Wifi size={28} className="text-emerald-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-300">{t('cliConnected')}</h3>
-                <p className="text-sm text-gray-600">{t('chatTabHint')}</p>
-              </>
-            ) : (
-              <>
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-white/5 flex items-center justify-center">
-                  <Bot size={28} className="text-cyan-500/50" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-300">{t('noMessages')}</h3>
-                <p className="text-sm text-gray-600">{t('noMessagesHint')}</p>
-              </>
-            )}
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/10 flex items-center justify-center">
+              <Wifi size={28} className="text-emerald-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-300">{t('cliConnected')}</h3>
+            <p className="text-sm text-gray-600">{t('chatTabHint')}</p>
           </div>
         </div>
       </div>
