@@ -213,10 +213,11 @@ export async function checkAuthStatus(store: ConfigStore): Promise<AuthStatus> {
       store.set('relay.plan', verifiedPlan);
     }
 
+    const effectivePlan = (data.plan && data.plan !== 'FREE') ? data.plan : 'FREE_PLUS';
     return {
       loggedIn: true,
       email: data.email ?? auth.email,
-      plan: data.plan ?? auth.plan,
+      plan: effectivePlan,
       userId: data.userId ?? auth.userId,
       webappUrl: auth.url,
     };
