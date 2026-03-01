@@ -313,10 +313,12 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     connection.abortSession(sessionId).catch(() => {});
   }, [connection]);
 
-  // ── Brain: open in popup window ───────────────
+  // ── Brain: open CLI's local brain server in popup window ───────────────
   const handleBrainClick = useCallback(() => {
-    window.open('/brain.html', 'helix-brain', 'width=1200,height=800,menubar=no,toolbar=no');
-  }, []);
+    if (connectedPort) {
+      window.open(`http://127.0.0.1:${connectedPort}`, 'helix-brain', 'width=1200,height=800,menubar=no,toolbar=no');
+    }
+  }, [connectedPort]);
 
   // ── Auto-select first console-type session for console tab ─────
   useEffect(() => {
