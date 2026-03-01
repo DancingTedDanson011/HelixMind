@@ -20,6 +20,9 @@
     "subtitle": "The only AI coding tool with persistent spiral memory. Every pattern, every decision, every context — preserved and evolved across sessions.",
     "cta": "Install App",
     "ctaUpdate": "Update App",
+    "ctaInstall": "Install App",
+    "ctaOpen": "Open Dashboard",
+    "ctaFallback": "Copy Install Command",
     "ctaSecondary": "See it in action",
     "installCommand": "npm install -g helixmind",
     "updateCommand": "npm update -g helixmind",
@@ -56,31 +59,94 @@
     "subtitle": "Everything you need to code faster with persistent AI context.",
     "memory": {
       "title": "Spiral Memory",
-      "desc": "5-level memory system that evolves. Context promotes on use, decays when stale."
+      "desc": "5-level memory system that evolves. Context promotes on use, decays when stale.",
+      "modalTitle": "Spiral Memory — Context that evolves",
+      "modalDesc": "A 5-level memory system inspired by how human memory works. Knowledge automatically promotes when referenced frequently and gracefully decays when no longer relevant.",
+      "capabilities": [
+        "Automatic promotion on repeated use",
+        "Graceful decay of stale context",
+        "Cross-session knowledge persistence",
+        "Semantic search across all levels"
+      ],
+      "docsLink": "/docs/spiral-memory"
     },
     "brain": {
       "title": "3D Brain Visualization",
-      "desc": "See your AI's knowledge as a living 3D helix. Watch connections form in real-time."
+      "desc": "See your AI's knowledge as a living 3D helix. Watch connections form in real-time.",
+      "modalTitle": "3D Brain — Your knowledge, visualized",
+      "modalDesc": "A real-time 3D helix visualization of your spiral memory. Watch nodes light up as knowledge flows between levels, with connections forming live as the AI works.",
+      "capabilities": [
+        "Real-time node activity visualization",
+        "Level-colored connections and edges",
+        "Live knowledge flow particles",
+        "Interactive rotate, zoom, and pan"
+      ],
+      "docsLink": "/docs/brain-visualization"
     },
     "validation": {
       "title": "Validation Matrix",
-      "desc": "3-phase validation catches bugs before they exist. Static, dynamic, and knowledge checks."
+      "desc": "3-phase validation catches bugs before they exist. Static, dynamic, and knowledge checks.",
+      "modalTitle": "Validation Matrix — Zero bugs shipped",
+      "modalDesc": "A 3-phase validation pipeline that classifies every task, applies static and dynamic checks, then validates against your spiral knowledge to catch issues before they reach production.",
+      "capabilities": [
+        "15+ static checks (HTML, SQL, imports, secrets)",
+        "Mini-LLM dynamic analysis",
+        "Knowledge-based pattern validation",
+        "Automatic fix loop (up to 3 iterations)"
+      ],
+      "docsLink": "/docs/validation-matrix"
     },
     "web": {
       "title": "Web Knowledge Enricher",
-      "desc": "Auto-fetches relevant documentation and stores it in your brain. Always up to date."
+      "desc": "Auto-fetches relevant documentation and stores it in your brain. Always up to date.",
+      "modalTitle": "Web Knowledge — Always up to date",
+      "modalDesc": "Automatically detects topics during conversation, searches the web for relevant documentation and best practices, then stores extracted knowledge in your spiral brain as L6 nodes.",
+      "capabilities": [
+        "Automatic topic detection from conversation",
+        "DuckDuckGo search with content extraction",
+        "Structured knowledge storage in L6",
+        "Explicit web_research tool for deep dives"
+      ],
+      "docsLink": "/docs/web-knowledge"
     },
     "offline": {
       "title": "Fully Offline Capable",
-      "desc": "Run with Ollama locally. Your data never leaves your machine. Zero cloud dependency."
+      "desc": "Run with Ollama locally. Your data never leaves your machine. Zero cloud dependency.",
+      "modalTitle": "Offline Mode — Your machine, your data",
+      "modalDesc": "Run HelixMind entirely on your local machine with Ollama. Auto-detects local models, pulls new ones on demand, and keeps every byte of your data private.",
+      "capabilities": [
+        "Ollama auto-detection and model listing",
+        "One-command model pull and setup",
+        "Zero data leaves your machine",
+        "Works without any internet connection"
+      ],
+      "docsLink": "/docs/offline-mode"
     },
     "sessions": {
       "title": "Multi-Session Agent",
-      "desc": "Background security audits, parallel code analysis. Each with its own context."
+      "desc": "Background security audits, parallel code analysis. Each with its own context.",
+      "modalTitle": "Multi-Session — Parallel intelligence",
+      "modalDesc": "Run multiple agent sessions simultaneously. Each session gets its own context, history, undo stack, and agent controller. Switch between sessions with keyboard shortcuts.",
+      "capabilities": [
+        "Independent context per session",
+        "Background security and auto sessions",
+        "Keyboard shortcuts for tab switching",
+        "Findings panel for session results"
+      ],
+      "docsLink": "/docs/multi-session"
     },
     "monitor": {
       "title": "Security Monitor",
-      "desc": "Autonomous system guardian. Detects threats, blocks attacks, and rotates secrets — passive, defensive, or active mode."
+      "desc": "Autonomous system guardian. Detects threats, blocks attacks, and rotates secrets — passive, defensive, or active mode.",
+      "modalTitle": "Security Monitor — Autonomous guardian",
+      "modalDesc": "An autonomous security system that continuously monitors your project for threats. Three modes let you choose your protection level: passive observation, defensive blocking, or active response.",
+      "capabilities": [
+        "Real-time threat detection and alerting",
+        "Automatic secret rotation on exposure",
+        "Three modes: passive, defensive, active",
+        "Approval workflow for sensitive actions"
+      ],
+      "docsLink": "/docs/security-monitor"
     }
   },
   "comparison": {
@@ -179,6 +245,7 @@
     "subtitle": "Install HelixMind in 30 seconds. Free forever for individual use.",
     "button": "Install App",
     "buttonUpdate": "Update App",
+    "buttonOpen": "Open Dashboard",
     "github": "Star on GitHub",
     "readyToInstall": "Ready to install",
     "copied": "Copied!"
@@ -498,6 +565,10 @@
     "startSecurity": "Security Audit",
     "stopAll": "Stop All",
     "abort": "Abort",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "confirmDisconnect": "Disconnect from this CLI instance?",
+    "confirmStopAll": "Stop all running sessions?",
     "autoGoalPlaceholder": "Describe the goal (optional)...",
     "chatPlaceholder": "Send a message to CLI...",
     "send": "Send",

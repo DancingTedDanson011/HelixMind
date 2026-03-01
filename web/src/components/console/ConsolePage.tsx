@@ -88,6 +88,7 @@ export function ConsolePage() {
   const [authToken, setAuthToken] = useState<string | undefined>(undefined);
   const [chatText, setChatText] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [confirmAction, setConfirmAction] = useState<'disconnect' | 'stopAll' | null>(null);
   const connectAfterRenderRef = useRef(false);
   const hasAutoConnectedRef = useRef(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -287,12 +288,54 @@ export function ConsolePage() {
                 </span>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={handleDisconnect}>
-              <Unplug size={12} />
-              {tCli('disconnect')}
-            </Button>
+            <div className="flex items-center gap-1.5">
+              {hasRunningSessions && (
+                <Button variant="danger" size="sm" onClick={() => setConfirmAction('stopAll')}>
+                  <StopCircle size={12} />
+                  {tCli('stopAll')}
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setConfirmAction('disconnect')}>
+                <Unplug size={12} />
+                {tCli('disconnect')}
+              </Button>
+            </div>
           </div>
         </GlassPanel>
+
+        {/* ── Confirmation dialog ── */}
+        {confirmAction && (
+          <GlassPanel className="px-4 py-3 flex-shrink-0 border-warning/20 bg-warning/[0.03]">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-warning">
+                {confirmAction === 'disconnect'
+                  ? tCli('confirmDisconnect')
+                  : tCli('confirmStopAll')}
+              </p>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setConfirmAction(null)}>
+                  {tCli('cancel')}
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => {
+                    if (confirmAction === 'disconnect') {
+                      handleDisconnect();
+                    } else {
+                      for (const s of connection.sessions) {
+                        if (s.status === 'running') connection.abortSession(s.id).catch(() => {});
+                      }
+                    }
+                    setConfirmAction(null);
+                  }}
+                >
+                  {tCli('confirm')}
+                </Button>
+              </div>
+            </div>
+          </GlassPanel>
+        )}
 
         {/* ── Main: Sidebar + Chat ── */}
         <div className="flex gap-3 flex-1 min-h-0 mt-3">
@@ -459,6 +502,18 @@ export function ConsolePage() {
                     placeholder={tCli('chatPlaceholder')}
                     className="flex-1"
                   />
+                  {hasRunningSessions && (
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      className="px-2"
+                      onClick={() => setConfirmAction('stopAll')}
+                      title={tCli('stopAll')}
+                    >
+                      <StopCircle size={14} />
+                    </Button>
+                  )}
                   <Button
                     type="submit"
                     variant="primary"

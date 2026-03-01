@@ -97,6 +97,7 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/helix', label: '/helix', description: 'Command Center + Brain (auto-start)' },
       { cmd: '/helixlocal', label: '/helixlocal', description: 'Command Center + local brain' },
       { cmd: '/helixglobal', label: '/helixglobal', description: 'Command Center + global brain' },
+      { cmd: '/connect', label: '/connect', description: 'Reconnect brain server for web dashboard' },
     ],
   },
   {
@@ -209,6 +210,7 @@ ${chalk.hex('#4169e1').bold('  Visualization & Brain')}
   ${theme.primary('/helix'.padEnd(22))} ${theme.dim('Command Center + Brain (auto-start local)')}
   ${theme.primary('/helixlocal'.padEnd(22))} ${theme.dim('Command Center + local brain')}
   ${theme.primary('/helixglobal'.padEnd(22))} ${theme.dim('Command Center + global brain')}
+  ${theme.primary('/connect'.padEnd(22))} ${theme.dim('Reconnect brain server for web dashboard')}
 
 ${chalk.hex('#ff6600').bold('  Autonomous & Security')}
   ${theme.primary('/auto'.padEnd(22))} ${theme.dim('Autonomous mode \u2014 find & fix issues continuously')}
@@ -3498,6 +3500,29 @@ async function handleSlashCommand(
         } else {
           renderError(`Failed to download ${selected.model}. Check Ollama logs.`);
         }
+      }
+      break;
+    }
+
+    case '/connect': {
+      // Reconnect brain server for web dashboard
+      try {
+        const { startLiveBrain, isBrainServerRunning, getBrainPort } = await import('../brain/generator.js');
+        if (isBrainServerRunning()) {
+          const port = getBrainPort();
+          process.stdout.write(`  ${theme.success('\u{1F310} Already connected')} on port ${port}\n`);
+        } else if (spiralEngine) {
+          const { exportBrainData } = await import('../brain/exporter.js');
+          exportBrainData(spiralEngine, 'HelixMind Project', currentBrainScope || 'project');
+          const url = await startLiveBrain(spiralEngine, 'HelixMind Project', currentBrainScope || 'project');
+          if (onRegisterBrainHandlers) await onRegisterBrainHandlers();
+          process.stdout.write(`  ${theme.success('\u{1F310} Brain server started:')} ${url}\n`);
+          process.stdout.write(`  ${theme.dim('Web dashboard can now connect.')}\n`);
+        } else {
+          renderError('No spiral engine available. Run /helix first.');
+        }
+      } catch (err) {
+        renderError(`Failed to start brain server: ${err}`);
       }
       break;
     }

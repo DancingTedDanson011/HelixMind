@@ -20,6 +20,9 @@
     "subtitle": "Das einzige AI-Coding-Tool mit persistentem Spiral-Memory. Jedes Pattern, jede Entscheidung, jeder Kontext — bewahrt und weiterentwickelt über Sessions hinweg.",
     "cta": "App installieren",
     "ctaUpdate": "App aktualisieren",
+    "ctaInstall": "App installieren",
+    "ctaOpen": "Dashboard \u00f6ffnen",
+    "ctaFallback": "Install-Befehl kopieren",
     "ctaSecondary": "In Aktion sehen",
     "installCommand": "npm install -g helixmind",
     "updateCommand": "npm update -g helixmind",
@@ -56,31 +59,94 @@
     "subtitle": "Alles was du brauchst, um schneller mit persistentem AI-Kontext zu coden.",
     "memory": {
       "title": "Spiral Memory",
-      "desc": "5-Level-Memory-System das sich entwickelt. Kontext steigt bei Nutzung auf, verfällt wenn veraltet."
+      "desc": "5-Level-Memory-System das sich entwickelt. Kontext steigt bei Nutzung auf, verf\u00e4llt wenn veraltet.",
+      "modalTitle": "Spiral Memory \u2014 Kontext der sich entwickelt",
+      "modalDesc": "Ein 5-Level-Memory-System inspiriert von menschlichem Ged\u00e4chtnis. Wissen wird automatisch bef\u00f6rdert bei h\u00e4ufiger Referenzierung und verf\u00e4llt sanft wenn nicht mehr relevant.",
+      "capabilities": [
+        "Automatische Bef\u00f6rderung bei wiederholter Nutzung",
+        "Sanfter Verfall veralteten Kontexts",
+        "Session-\u00fcbergreifende Wissenspersistenz",
+        "Semantische Suche \u00fcber alle Ebenen"
+      ],
+      "docsLink": "/docs/spiral-memory"
     },
     "brain": {
       "title": "3D Brain Visualisierung",
-      "desc": "Sieh das Wissen deiner AI als lebendige 3D-Helix. Beobachte Verbindungen in Echtzeit."
+      "desc": "Sieh das Wissen deiner AI als lebendige 3D-Helix. Beobachte Verbindungen in Echtzeit.",
+      "modalTitle": "3D Brain \u2014 Dein Wissen, visualisiert",
+      "modalDesc": "Eine Echtzeit-3D-Helix-Visualisierung deines Spiral-Memory. Beobachte wie Nodes aufleuchten w\u00e4hrend Wissen zwischen Ebenen flie\u00dft, mit Verbindungen die live entstehen.",
+      "capabilities": [
+        "Echtzeit-Node-Aktivit\u00e4ts-Visualisierung",
+        "Level-gef\u00e4rbte Verbindungen und Kanten",
+        "Live-Wissensfluss-Partikel",
+        "Interaktives Drehen, Zoomen und Schwenken"
+      ],
+      "docsLink": "/docs/brain-visualization"
     },
     "validation": {
       "title": "Validation Matrix",
-      "desc": "3-Phasen-Validierung fängt Bugs bevor sie entstehen. Statische, dynamische und wissensbasierte Checks."
+      "desc": "3-Phasen-Validierung f\u00e4ngt Bugs bevor sie entstehen. Statische, dynamische und wissensbasierte Checks.",
+      "modalTitle": "Validation Matrix \u2014 Null Bugs ausgeliefert",
+      "modalDesc": "Eine 3-Phasen-Validierungs-Pipeline die jede Aufgabe klassifiziert, statische und dynamische Checks anwendet, und gegen dein Spiral-Wissen validiert.",
+      "capabilities": [
+        "15+ statische Checks (HTML, SQL, Imports, Secrets)",
+        "Mini-LLM dynamische Analyse",
+        "Wissensbasierte Pattern-Validierung",
+        "Automatische Fix-Schleife (bis zu 3 Iterationen)"
+      ],
+      "docsLink": "/docs/validation-matrix"
     },
     "web": {
       "title": "Web Knowledge Enricher",
-      "desc": "Holt automatisch relevante Dokumentation und speichert sie in deinem Brain. Immer aktuell."
+      "desc": "Holt automatisch relevante Dokumentation und speichert sie in deinem Brain. Immer aktuell.",
+      "modalTitle": "Web Knowledge \u2014 Immer aktuell",
+      "modalDesc": "Erkennt automatisch Themen im Gespr\u00e4ch, durchsucht das Web nach relevanter Dokumentation und Best Practices, und speichert extrahiertes Wissen als L6-Nodes in deinem Spiral-Brain.",
+      "capabilities": [
+        "Automatische Themenerkennung aus dem Gespr\u00e4ch",
+        "DuckDuckGo-Suche mit Inhaltsextraktion",
+        "Strukturierte Wissensspeicherung in L6",
+        "Explizites web_research Tool f\u00fcr Deep Dives"
+      ],
+      "docsLink": "/docs/web-knowledge"
     },
     "offline": {
-      "title": "Vollständig offline nutzbar",
-      "desc": "Läuft mit Ollama lokal. Deine Daten verlassen nie deinen Rechner. Null Cloud-Abhängigkeit."
+      "title": "Vollst\u00e4ndig offline nutzbar",
+      "desc": "L\u00e4uft mit Ollama lokal. Deine Daten verlassen nie deinen Rechner. Null Cloud-Abh\u00e4ngigkeit.",
+      "modalTitle": "Offline-Modus \u2014 Dein Rechner, deine Daten",
+      "modalDesc": "Betreibe HelixMind komplett auf deinem lokalen Rechner mit Ollama. Erkennt lokale Modelle automatisch, l\u00e4dt neue auf Anfrage und h\u00e4lt jedes Byte deiner Daten privat.",
+      "capabilities": [
+        "Ollama Auto-Erkennung und Modell-Liste",
+        "Ein-Befehl Modell-Download und Setup",
+        "Null Daten verlassen deinen Rechner",
+        "Funktioniert ohne Internetverbindung"
+      ],
+      "docsLink": "/docs/offline-mode"
     },
     "sessions": {
       "title": "Multi-Session Agent",
-      "desc": "Hintergrund-Security-Audits, parallele Code-Analyse. Jede mit eigenem Kontext."
+      "desc": "Hintergrund-Security-Audits, parallele Code-Analyse. Jede mit eigenem Kontext.",
+      "modalTitle": "Multi-Session \u2014 Parallele Intelligenz",
+      "modalDesc": "F\u00fchre mehrere Agent-Sessions gleichzeitig aus. Jede Session erh\u00e4lt eigenen Kontext, History, Undo-Stack und Agent-Controller. Wechsle zwischen Sessions mit Tastaturk\u00fcrzeln.",
+      "capabilities": [
+        "Unabh\u00e4ngiger Kontext pro Session",
+        "Hintergrund-Security- und Auto-Sessions",
+        "Tastaturk\u00fcrzel zum Tab-Wechsel",
+        "Findings-Panel f\u00fcr Session-Ergebnisse"
+      ],
+      "docsLink": "/docs/multi-session"
     },
     "monitor": {
       "title": "Security Monitor",
-      "desc": "Autonomer System-Wächter. Erkennt Bedrohungen, blockiert Angriffe und rotiert Secrets — passiv, defensiv oder aktiv."
+      "desc": "Autonomer System-W\u00e4chter. Erkennt Bedrohungen, blockiert Angriffe und rotiert Secrets \u2014 passiv, defensiv oder aktiv.",
+      "modalTitle": "Security Monitor \u2014 Autonomer W\u00e4chter",
+      "modalDesc": "Ein autonomes Sicherheitssystem das dein Projekt kontinuierlich auf Bedrohungen \u00fcberwacht. Drei Modi lassen dich dein Schutzniveau w\u00e4hlen: passive Beobachtung, defensive Blockierung oder aktive Reaktion.",
+      "capabilities": [
+        "Echtzeit-Bedrohungserkennung und Alarmierung",
+        "Automatische Secret-Rotation bei Exposition",
+        "Drei Modi: passiv, defensiv, aktiv",
+        "Genehmigungs-Workflow f\u00fcr sensible Aktionen"
+      ],
+      "docsLink": "/docs/security-monitor"
     }
   },
   "comparison": {
@@ -179,6 +245,7 @@
     "subtitle": "Installiere HelixMind in 30 Sekunden. Für immer kostenlos für Einzelnutzer.",
     "button": "App installieren",
     "buttonUpdate": "App aktualisieren",
+    "buttonOpen": "Dashboard \u00f6ffnen",
     "github": "Auf GitHub staren",
     "readyToInstall": "Bereit zur Installation",
     "copied": "Kopiert!"
@@ -498,6 +565,10 @@
     "startSecurity": "Security Audit",
     "stopAll": "Alle stoppen",
     "abort": "Abbrechen",
+    "confirm": "Bestätigen",
+    "cancel": "Abbrechen",
+    "confirmDisconnect": "Verbindung zu dieser CLI trennen?",
+    "confirmStopAll": "Alle laufenden Sessions stoppen?",
     "autoGoalPlaceholder": "Ziel beschreiben (optional)...",
     "chatPlaceholder": "Nachricht an CLI senden...",
     "send": "Senden",

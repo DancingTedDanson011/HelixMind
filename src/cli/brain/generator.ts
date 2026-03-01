@@ -213,6 +213,11 @@ export function getBrainToken(): string | null {
   return activeBrainServer?.connectionToken ?? null;
 }
 
+/** Get the port of the active brain server */
+export function getBrainPort(): number | null {
+  return activeBrainServer?.port ?? null;
+}
+
 /** Push a raw control event to control clients (used by web-chat-handler) */
 export function pushControlEvent(event: Record<string, unknown>): void {
   if (!activeBrainServer) return;
