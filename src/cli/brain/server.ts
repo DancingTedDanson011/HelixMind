@@ -385,6 +385,13 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
                 if (instanceMeta) {
                   sendTo(ws, { type: 'instance_meta', instance: instanceMeta, timestamp: Date.now() });
                 }
+                // Auto-push sessions list so clients don't need to request it
+                if (controlHandlers) {
+                  const sessions = controlHandlers.listSessions();
+                  for (const session of sessions) {
+                    sendTo(ws, { type: 'session_created', session, timestamp: Date.now() });
+                  }
+                }
               } else {
                 sendTo(ws, { type: 'auth_fail', reason: 'Invalid token', timestamp: Date.now() });
                 ws.close(4001, 'Invalid token');
@@ -491,6 +498,6 @@ function isControlRequest(type: string): boolean {
   return [
     'list_sessions', 'start_auto', 'start_security',
     'abort_session', 'subscribe_output', 'unsubscribe_output',
-    'send_chat', 'get_findings', 'ping',
+    'send_chat', 'get_findings', 'get_bugs', 'ping',
   ].includes(type);
 }

@@ -101,6 +101,17 @@ export function ConsolePage() {
     }
   }, [discovery.instances, connection.connectionState]);
 
+  // ── Fetch sessions + data when connected ──
+
+  useEffect(() => {
+    if (connection.connectionState === 'connected') {
+      connection.listSessions().catch(() => {});
+      connection.getFindings().catch(() => {});
+      connection.getBugs().catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection.connectionState]);
+
   // ── Auto-select first session when connected ──
 
   useEffect(() => {
