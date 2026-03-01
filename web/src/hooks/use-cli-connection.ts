@@ -98,6 +98,8 @@ export interface UseCliConnectionReturn {
   respondApproval: (requestId: string, approved: boolean) => Promise<void>;
   sendMonitorCommand: (command: string, params?: Record<string, string>) => Promise<void>;
   abortSession: (sessionId: string) => Promise<void>;
+  /** Locally dismiss a session from the sidebar (for error/done sessions that linger) */
+  dismissSession: (sessionId: string) => void;
   sendChat: (text: string) => Promise<void>;
   getFindings: () => Promise<Finding[]>;
   getBugs: () => Promise<BugInfo[]>;
@@ -625,9 +627,19 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     return res.sessionId;
   }, [sendRequest]);
 
+  const dismissSession = useCallback((sessionId: string) => {
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+  }, []);
+
   const abortSession = useCallback(
     async (sessionId: string): Promise<void> => {
       await sendRequest('abort_session', { sessionId });
+      // Auto-dismiss after abort — CLI marks aborted sessions as error which lingers
+      setTimeout(() => {
+        if (mountedRef.current) {
+          setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        }
+      }, 1500);
     },
     [sendRequest],
   );
@@ -847,6 +859,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     respondApproval,
     sendMonitorCommand,
     abortSession,
+    dismissSession,
     sendChat,
     getFindings,
     getBugs,

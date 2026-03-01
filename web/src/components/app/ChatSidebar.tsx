@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  Plus, Trash2, Pencil, MessageSquare, Check, X,
+  Plus, Trash2, Pencil, MessageSquare, Check, X, XCircle,
   Shield, Zap, Activity, Bot,
 } from 'lucide-react';
 import type { ChatSummary } from './AppShell';
@@ -62,6 +62,7 @@ interface ChatSidebarProps {
   activeChatId: string | null;
   onSelect: (id: string) => void;
   onSessionClick?: (sessionId: string) => void;
+  onSessionDismiss?: (sessionId: string) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
@@ -73,6 +74,7 @@ export function ChatSidebar({
   activeChatId,
   onSelect,
   onSessionClick,
+  onSessionDismiss,
   onCreate,
   onDelete,
   onRename,
@@ -130,6 +132,7 @@ export function ChatSidebar({
                     key={`session-${item.session.id}`}
                     session={item.session}
                     onClick={() => onSessionClick?.(item.session.id)}
+                    onDismiss={onSessionDismiss ? () => onSessionDismiss(item.session.id) : undefined}
                   />
                 ) : (
                   <ChatItem
@@ -167,38 +170,51 @@ export function ChatSidebar({
 
 /* ─── Session item ───────────────────────────── */
 
-function SessionItem({ session, onClick }: { session: SessionEntry; onClick: () => void }) {
+function SessionItem({ session, onClick, onDismiss }: { session: SessionEntry; onClick: () => void; onDismiss?: () => void }) {
   const colors = sessionModeColor(session.name);
   return (
-    <button
-      onClick={onClick}
-      className={`
-        w-full text-left px-3 py-2 rounded-lg text-sm transition-all
-        ${colors.bg} ${colors.border} border hover:brightness-125
-      `}
-    >
-      <div className="flex items-center gap-2">
-        <SessionIcon name={session.name} size={14} className={`flex-shrink-0 ${colors.text}`} />
-        <div className="flex-1 min-w-0">
-          <div className={`truncate text-xs font-medium ${colors.text}`}>
-            {session.name}
+    <div className="group relative">
+      <button
+        onClick={onClick}
+        className={`
+          w-full text-left px-3 py-2 rounded-lg text-sm transition-all
+          ${colors.bg} ${colors.border} border hover:brightness-125
+        `}
+      >
+        <div className="flex items-center gap-2">
+          <SessionIcon name={session.name} size={14} className={`flex-shrink-0 ${colors.text}`} />
+          <div className="flex-1 min-w-0">
+            <div className={`truncate text-xs font-medium ${colors.text}`}>
+              {session.name}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {session.status === 'running' && (
+              <Activity size={8} className="text-emerald-400 animate-pulse" />
+            )}
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+              session.status === 'running' ? 'bg-emerald-500/10 text-emerald-400' :
+              session.status === 'done' ? 'bg-emerald-500/5 text-emerald-500' :
+              session.status === 'error' ? 'bg-red-500/5 text-red-400' :
+              'bg-white/5 text-gray-500'
+            }`}>
+              {session.status === 'running' ? formatElapsed(session.elapsed) : session.status}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {session.status === 'running' && (
-            <Activity size={8} className="text-emerald-400 animate-pulse" />
-          )}
-          <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
-            session.status === 'running' ? 'bg-emerald-500/10 text-emerald-400' :
-            session.status === 'done' ? 'bg-emerald-500/5 text-emerald-500' :
-            session.status === 'error' ? 'bg-red-500/5 text-red-400' :
-            'bg-white/5 text-gray-500'
-          }`}>
-            {session.status === 'running' ? formatElapsed(session.elapsed) : session.status}
-          </span>
-        </div>
-      </div>
-    </button>
+      </button>
+
+      {/* Dismiss button for non-running sessions */}
+      {onDismiss && session.status !== 'running' && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center justify-center w-5 h-5 rounded text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          title="Dismiss"
+        >
+          <XCircle size={12} />
+        </button>
+      )}
+    </div>
   );
 }
 

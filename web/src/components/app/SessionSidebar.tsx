@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import {
-  Shield, Zap, Activity, Bot, MessageSquare, X, StopCircle,
+  Shield, Zap, Activity, Bot, MessageSquare, X, StopCircle, XCircle,
 } from 'lucide-react';
 
 /* ─── Types ───────────────────────────────────── */
@@ -37,6 +37,7 @@ interface SessionSidebarProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onAbort: (id: string) => void;
+  onDismiss?: (id: string) => void;
   actions?: ActionButton[];
   emptyLabel?: string;
   emptyHint?: string;
@@ -81,6 +82,7 @@ export function SessionSidebar({
   selectedId,
   onSelect,
   onAbort,
+  onDismiss,
   actions,
   emptyLabel,
   emptyHint,
@@ -143,6 +145,16 @@ export function SessionSidebar({
                 title="Stop"
               >
                 <StopCircle size={12} />
+              </span>
+            )}
+            {/* Dismiss button on hover for non-running sessions */}
+            {onDismiss && session.status !== 'running' && (
+              <span
+                onClick={(e) => { e.stopPropagation(); onDismiss(session.id); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center justify-center w-5 h-5 rounded text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                title="Dismiss"
+              >
+                <XCircle size={12} />
               </span>
             )}
           </button>
