@@ -513,7 +513,8 @@
     "noInstances": "Keine CLI-Instanzen gefunden",
     "noInstancesHint": "Starte HelixMind CLI mit: npx helixmind",
     "scanning": "Suche nach Instanzen...",
-    "instancesFound": "Instanzen gefunden"
+    "instancesFound": "Instanzen gefunden",
+    "useActionsHint": "Nutze die Aktionsbuttons oben um eine Session zu starten"
   },
   "cli": {
     "title": "CLI Manager",
@@ -613,7 +614,9 @@
     "commands": "Befehle",
     "securityAudit": "Sicherheitsanalyse",
     "selectSession": "Wähle eine Session um Details zu sehen",
-    "selectSessionHint": "Klicke auf eine Session aus der Liste um ihre Ausgabe zu sehen"
+    "selectSessionHint": "Klicke auf eine Session aus der Liste um ihre Ausgabe zu sehen",
+    "terminalEmpty": "Noch keine Ausgabe",
+    "scrollToBottom": "Nach unten scrollen"
   },
   "app": {
     "title": "HelixMind App",

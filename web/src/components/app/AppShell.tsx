@@ -51,6 +51,16 @@ export interface ChatFull {
   messages: ChatMessage[];
 }
 
+/* ─── Session icon helper ────────────────────── */
+
+function SessionIcon({ name, size = 12, className = '' }: { name: string; size?: number; className?: string }) {
+  const lower = name.toLowerCase();
+  if (lower.includes('security') || lower.includes('audit')) return <Shield size={size} className={className} />;
+  if (lower.includes('auto')) return <Zap size={size} className={className} />;
+  if (lower.includes('monitor')) return <Activity size={size} className={className} />;
+  return <MessageSquare size={size} className={className} />;
+}
+
 /* ─── Component ───────────────────────────────── */
 
 export function AppShell() {
@@ -716,7 +726,7 @@ export function AppShell() {
                       onClick={() => openSessionConsole(session.id)}
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.03] hover:bg-cyan-500/5 border border-white/5 hover:border-cyan-500/10 group text-left transition-all"
                     >
-                      <span className="text-xs">{session.icon}</span>
+                      <SessionIcon name={session.name} size={11} className="text-gray-400 flex-shrink-0" />
                       <span className="flex-1 text-[11px] text-gray-300 truncate">{session.name}</span>
                       <Activity size={10} className="text-emerald-400 animate-pulse" />
                       <span
@@ -739,7 +749,7 @@ export function AppShell() {
                       onClick={() => openSessionConsole(session.id)}
                       className="w-full flex items-center gap-2 px-2 py-1 rounded-md bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.03] text-left transition-all"
                     >
-                      <span className="text-xs opacity-50">{session.icon}</span>
+                      <SessionIcon name={session.name} size={10} className="text-gray-600 flex-shrink-0" />
                       <span className="flex-1 text-[10px] text-gray-500 truncate">{session.name}</span>
                       <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
                         session.status === 'done' ? 'bg-emerald-500/5 text-emerald-500' :
@@ -1040,7 +1050,7 @@ export function AppShell() {
                     : 'bg-white/5 border-white/10 text-gray-300 hover:bg-cyan-500/5 hover:border-cyan-500/10'
                 }`}
               >
-                <span>{session.icon}</span>
+                <SessionIcon name={session.name} size={10} className="text-gray-400" />
                 <span>{session.name}</span>
                 <Activity size={8} className="text-emerald-400 animate-pulse" />
                 {session.result && (
