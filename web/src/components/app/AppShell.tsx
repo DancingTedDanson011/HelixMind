@@ -216,9 +216,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   // ── Auto-create or select chat on CLI connect ─────────
   useEffect(() => {
     if (!isConnected) return;
-    if (chats.length === 0 && !activeChatId) {
-      createChat();
-    } else if (!activeChatId && chats.length > 0) {
+    // Don't auto-create chat — show guide until user presses New Chat
+    if (!activeChatId && chats.length > 0) {
       // Select most recent chat so user doesn't need to press New Chat
       loadChat(chats[0].id);
     }
@@ -1048,6 +1047,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               >
                 <MessageSquare size={11} />
                 Chat
+                {isConnected && connection.sessions.find(s => s.id === 'main')?.status === 'running' && (
+                  <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.chat.dot} animate-pulse`} />
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('console')}
@@ -1247,21 +1249,35 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
 
         {/* Main content — Chat, Console, or Monitor */}
         {activeTab === 'chat' ? (
-          <div className="flex-1 overflow-hidden">
-            <ChatView
-              messages={activeChat?.messages || []}
-              isAgentRunning={isAgentRunning}
-              streamingContent={streamingContent}
-              activeTools={cliExecuting ? cliChat.state.activeTools : []}
-              hasChat={!!activeChat}
-              agentPrompt={activeChat?.agentPrompt}
-              chatStatus={activeChat?.status}
-              onEditPrompt={handleEditPrompt}
-              onConnectInstance={() => setShowInstancePicker(true)}
-              onExecutePrompt={handleExecutePrompt}
-              isConnected={isConnected}
-              isExecuting={cliExecuting}
-            />
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {/* CLI active session indicator */}
+            {isConnected && (() => {
+              const mainSession = connection.sessions.find(s => s.id === 'main');
+              return mainSession?.status === 'running' ? (
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/[0.03] border-b border-emerald-500/10 flex-shrink-0">
+                  <Terminal size={12} className="text-emerald-400" />
+                  <span className="text-[11px] text-emerald-400 font-medium">CLI Active</span>
+                  <span className="text-[10px] text-gray-500">{connection.instanceMeta?.projectName || ''}</span>
+                  <Activity size={8} className="text-emerald-400 animate-pulse ml-auto" />
+                </div>
+              ) : null;
+            })()}
+            <div className="flex-1 overflow-hidden">
+              <ChatView
+                messages={activeChat?.messages || []}
+                isAgentRunning={isAgentRunning}
+                streamingContent={streamingContent}
+                activeTools={cliExecuting ? cliChat.state.activeTools : []}
+                hasChat={!!activeChat}
+                agentPrompt={activeChat?.agentPrompt}
+                chatStatus={activeChat?.status}
+                onEditPrompt={handleEditPrompt}
+                onConnectInstance={() => setShowInstancePicker(true)}
+                onExecutePrompt={handleExecutePrompt}
+                isConnected={isConnected}
+                isExecuting={cliExecuting}
+              />
+            </div>
           </div>
         ) : activeTab === 'console' ? (
           <div className="flex-1 overflow-hidden flex flex-col">
@@ -1517,6 +1533,20 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 <TerminalViewer lines={cliOutput.lines} fullHeight />
               </div>
             )}
+            {/* Embedded input — integrated in Jarvis tab */}
+            <div className="flex-shrink-0">
+              <ChatInput
+                onSend={sendMessage}
+                isAgentRunning={isAgentRunning}
+                onStop={handleStop}
+                mode={mode}
+                onModeChange={setMode}
+                disabled={!isConnected && !hasLLMKey}
+                hasLLMKey={isConnected || hasLLMKey}
+                hasChat={true}
+                isConnected={isConnected}
+              />
+            </div>
           </div>
         ) : null}
 
@@ -1533,40 +1563,42 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           </div>
         )}
 
-        {/* Input — always visible */}
-        <div className="relative">
-          {/* Bug toggle button — floating above input right side */}
-          {isConnected && activeTab === 'chat' && (
-            <button
-              onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
-              className={`absolute -top-8 right-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
-                showBugPanel
-                  ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                  : connection.bugs.filter(b => b.status === 'open').length > 0
-                    ? 'bg-red-500/5 border-red-500/10 text-red-400 hover:bg-red-500/10'
-                    : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
-              }`}
-            >
-              <Bug size={11} />
-              {connection.bugs.filter(b => b.status === 'open').length > 0 && (
-                <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
-                  {connection.bugs.filter(b => b.status === 'open').length}
-                </span>
-              )}
-            </button>
-          )}
-        <ChatInput
-          onSend={sendMessage}
-          isAgentRunning={isAgentRunning}
-          onStop={handleStop}
-          mode={mode}
-          onModeChange={setMode}
-          disabled={!isConnected && !hasLLMKey}
-          hasLLMKey={isConnected || hasLLMKey}
-          hasChat={!!activeChat}
-          isConnected={isConnected}
-        />
-        </div>
+        {/* Input — visible on chat/console/monitor tabs (Jarvis has its own embedded input) */}
+        {activeTab !== 'jarvis' && (
+          <div className="relative">
+            {/* Bug toggle button — floating above input right side */}
+            {isConnected && activeTab === 'chat' && (
+              <button
+                onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
+                className={`absolute -top-8 right-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
+                  showBugPanel
+                    ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                    : connection.bugs.filter(b => b.status === 'open').length > 0
+                      ? 'bg-red-500/5 border-red-500/10 text-red-400 hover:bg-red-500/10'
+                      : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
+                }`}
+              >
+                <Bug size={11} />
+                {connection.bugs.filter(b => b.status === 'open').length > 0 && (
+                  <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
+                    {connection.bugs.filter(b => b.status === 'open').length}
+                  </span>
+                )}
+              </button>
+            )}
+            <ChatInput
+              onSend={sendMessage}
+              isAgentRunning={isAgentRunning}
+              onStop={handleStop}
+              mode={mode}
+              onModeChange={setMode}
+              disabled={!isConnected && !hasLLMKey}
+              hasLLMKey={isConnected || hasLLMKey}
+              hasChat={!!activeChat}
+              isConnected={isConnected}
+            />
+          </div>
+        )}
       </div>
 
       {/* Instance Picker Modal */}
