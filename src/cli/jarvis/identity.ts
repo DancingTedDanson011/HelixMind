@@ -313,6 +313,7 @@ Active Capabilities (these are IMPLEMENTED and RUNNING — not hypothetical):
 
 **Communication:**
 - Telegram Bot: bidirectional polling (receive tasks/commands, send notifications, inline approve/deny buttons)
+- IMPORTANT: To configure Telegram, tell the user to run \`/jarvis telegram setup\`. Do NOT write notifications.json directly.
 - Notification channels: browser, email, slack, webhook, system, telegram
 - Scheduled Tasks: cron, interval, one-time automatic execution
 - Triggers: event-based reactions (file changes, git hooks, CI status)

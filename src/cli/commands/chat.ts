@@ -59,6 +59,7 @@ import { JarvisTelegramBot, parseTelegramCommand } from '../jarvis/telegram-bot.
 import type { ThinkingCallbacks, MoodAnalysis } from '../jarvis/types.js';
 import { SentimentAnalyzer } from '../jarvis/sentiment.js';
 import { acquireJarvisSlot, releaseJarvisSlot } from '../jarvis/instance-lock.js';
+import { buildRuntimeContext } from '../jarvis/runtime-context.js';
 import { BrainInstanceManager } from '../brain/instance-manager.js';
 import { BrowserController } from '../browser/controller.js';
 import { VisionProcessor } from '../browser/vision.js';
@@ -2035,7 +2036,28 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   function getJarvisContextForPrompt(): string | null {
     if (!jarvisDaemonSession || jarvisDaemonSession.status !== 'running') return null;
     const sentimentGuidance = jarvisSentiment.getResponseGuidance();
-    return jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined, sentimentGuidance || undefined);
+    const identityPrompt = jarvisIdentity.getIdentityPrompt(
+      jarvisSkills.getSkillsPrompt() ?? undefined,
+      sentimentGuidance || undefined,
+    );
+
+    const runtimeContext = buildRuntimeContext({
+      queue: jarvisQueue,
+      proposals: jarvisProposals,
+      identity: jarvisIdentity,
+      autonomy: jarvisAutonomy,
+      sentiment: jarvisSentiment,
+      scheduler: jarvisScheduler,
+      triggers: jarvisTriggers,
+      worldModel: jarvisWorldModel,
+      notifications: jarvisNotifications,
+      skills: jarvisSkills,
+      telegramBot: jarvisTelegramBot,
+      daemonSession: jarvisDaemonSession,
+      sessionCount: sessionMgr.all.length,
+    });
+
+    return identityPrompt + '\n\n' + runtimeContext;
   }
 
   // Update statusbar via BottomChrome row 1 (bottom border with embedded status).
@@ -2577,6 +2599,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           getTelegramBot: () => jarvisTelegramBot,
           setTelegramBot: (bot: JarvisTelegramBot | null) => { jarvisTelegramBot = bot; },
           buildSkillContext,
+          startTelegramBot,
           startDaemon: () => {
             const jName = jarvisIdentity.getIdentity().name;
             const bgSession = sessionMgr.create(`\u{1F916} ${jName}`, '\u{1F916}', agentHistory);
@@ -3414,6 +3437,7 @@ async function handleSlashCommand(
     getTelegramBot: () => JarvisTelegramBot | null;
     setTelegramBot: (bot: JarvisTelegramBot | null) => void;
     buildSkillContext: () => import('../jarvis/types.js').SkillContext;
+    startTelegramBot: () => void;
   },
   onModeChange?: () => void,
 ): Promise<string | void> {
@@ -4316,6 +4340,7 @@ async function handleSlashCommand(
             const verify = await testBot.verify();
             if (verify.ok) {
               renderInfo(chalk.hex('#ff00ff')(`Telegram configured! Bot: @${verify.botName}`));
+              jarvisCtx.startTelegramBot();
             } else {
               renderInfo(chalk.yellow('Token saved but verification failed — check your token.'));
             }
