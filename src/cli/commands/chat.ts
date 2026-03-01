@@ -861,6 +861,28 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         };
       };
 
+      // Wire main session output so web clients can subscribe to 'main'
+      wireSessionOutput(sessionMgr.main);
+
+      // Hook stdout to capture main session output for web streaming
+      const _origWrite = process.stdout.write.bind(process.stdout);
+      let _mainBuf = '';
+      process.stdout.write = function(chunk: any, encoding?: any, callback?: any) {
+        const text = typeof chunk === 'string' ? chunk : chunk.toString();
+        _mainBuf += text;
+        let ni;
+        while ((ni = _mainBuf.indexOf('\n')) !== -1) {
+          const line = _mainBuf.slice(0, ni);
+          _mainBuf = _mainBuf.slice(ni + 1);
+          // Capture lines with actual content (skip cursor-movement-only / empty)
+          const stripped = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
+          if (stripped.length > 0) {
+            sessionMgr.main.capture(line);
+          }
+        }
+        return _origWrite(chunk, encoding, callback);
+      } as typeof process.stdout.write;
+
       // Register control handlers
       registerControlHandlers({
         listSessions: () => sessionMgr.all.map(serializeSession),
