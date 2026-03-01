@@ -389,6 +389,34 @@ code {
   font-family: var(--font-mono);
 }
 
+/* ─── Reduced Motion Accessibility ─────────── */
+/* When prefers-reduced-motion is active, framer-motion skips animations
+   but leaves elements at their initial state (opacity: 0). This ensures
+   all content remains visible regardless of animation engine state. */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [style*="opacity: 0"] {
+    opacity: 1 !important;
+  }
+
+  [style*="blur("] {
+    filter: none !important;
+  }
+
+  [style*="translateY("] {
+    transform: none !important;
+  }
+}
+
 /* ─── Focus styles ─────────────────────────── */
 
 :focus-visible {
