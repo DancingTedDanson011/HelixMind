@@ -990,8 +990,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
 
           {/* CLI Connection badge */}
           {isConnected && connection.instanceMeta ? (
-            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
-              <div className="flex items-center gap-1 text-emerald-400">
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+              <div className="hidden sm:flex items-center gap-1 text-emerald-400">
                 <Wifi size={11} />
               </div>
               <div className="flex items-center gap-1 text-gray-400">
