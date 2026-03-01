@@ -106,13 +106,14 @@ const LEVEL_NAMES = {
   1: 'Instant', 2: 'Focus', 3: 'Context',
   4: 'Knowledge', 5: 'Wisdom', 6: 'Web',
 };
+// 6 clearly separated horizontal layers — like floors of a building
 const SPATIAL = {
-  5: { iR: 10,  oR: 70,  yBase: 0,    yS: 60,  size: 52, pulse: 0.3 },
-  4: { iR: 80,  oR: 180, yBase: 120,  yS: 80,  size: 42, pulse: 0.5 },
-  3: { iR: 160, oR: 320, yBase: -80,  yS: 100, size: 36, pulse: 0.8 },
-  2: { iR: 280, oR: 440, yBase: 200,  yS: 120, size: 28, pulse: 1.2 },
-  1: { iR: 400, oR: 560, yBase: -180, yS: 140, size: 22, pulse: 2.0 },
-  6: { iR: 500, oR: 680, yBase: 300,  yS: 160, size: 34, pulse: 0.6 },
+  5: { iR: 40,  oR: 160, yBase: 500,  yS: 30,  size: 48, pulse: 0.3 },
+  4: { iR: 60,  oR: 220, yBase: 300,  yS: 35,  size: 40, pulse: 0.5 },
+  3: { iR: 80,  oR: 280, yBase: 100,  yS: 40,  size: 34, pulse: 0.8 },
+  2: { iR: 100, oR: 340, yBase: -100, yS: 40,  size: 28, pulse: 1.2 },
+  1: { iR: 120, oR: 400, yBase: -300, yS: 45,  size: 22, pulse: 2.0 },
+  6: { iR: 140, oR: 460, yBase: -500, yS: 45,  size: 30, pulse: 0.6 },
 };
 
 function srand(s){const x=Math.sin(s*9301+49297)*49297;return x-Math.floor(x)}
@@ -253,16 +254,16 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#030308');
-scene.fog = new THREE.FogExp2('#030308',0.0004);
+scene.fog = new THREE.FogExp2('#030308',0.00025);
 
-const camera = new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,1,8000);
-camera.position.set(500,350,700);
+const camera = new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,1,12000);
+camera.position.set(600,400,900);
 
 const controls = new OrbitControls(camera,renderer.domElement);
-controls.target.set(0,60,0);
+controls.target.set(0,0,0);
 controls.enableDamping=true;controls.dampingFactor=0.06;
 controls.autoRotate=true;controls.autoRotateSpeed=0.08;
-controls.minDistance=80;controls.maxDistance=2500;
+controls.minDistance=80;controls.maxDistance=4000;
 controls.maxPolarAngle=Math.PI*.85;controls.minPolarAngle=Math.PI*.15;
 controls.update();
 
@@ -339,20 +340,31 @@ scene.add(nodePoints);
 // EDGES (LineSegments)
 // ═══════════════════════════════════════════════════════════════
 
-const validEdges=[];
+const MAX_RENDERED_EDGES=8000;
+const allEdgesPre=[];
 edges.forEach((e,i)=>{
   const si=nodeIdxMap[e.source],ti=nodeIdxMap[e.target];
-  if(si!==undefined&&ti!==undefined)validEdges.push({si,ti,weight:e.weight,idx:i});
+  if(si!==undefined&&ti!==undefined){
+    const crossLevel=nodes[si].level!==nodes[ti].level;
+    allEdgesPre.push({si,ti,weight:e.weight,type:e.type||'related_to',idx:i,crossLevel});
+  }
 });
+// Sort: cross-level first (vertical connections), then by weight
+allEdgesPre.sort((a,b)=>{
+  if(a.crossLevel!==b.crossLevel)return b.crossLevel?1:-1;
+  return b.weight-a.weight;
+});
+const validEdges=allEdgesPre.slice(0,MAX_RENDERED_EDGES);
 
 const eCount=validEdges.length;
 const ePos=new Float32Array(eCount*6);
 const eCol=new Float32Array(eCount*6);
 const eAlpha=new Float32Array(eCount*2);
 const sc=new THREE.Color(),dc=new THREE.Color();
+const alphaScale=Math.min(1.0,3000/eCount);
 
 for(let i=0;i<eCount;i++){
-  const{si,ti,weight}=validEdges[i];
+  const{si,ti,weight,crossLevel}=validEdges[i];
   const s=positions[si],t=positions[ti];
   const o=i*6;
   ePos[o]=s.x;ePos[o+1]=s.y;ePos[o+2]=s.z;
@@ -360,8 +372,9 @@ for(let i=0;i<eCount;i++){
   sc.set(COLORS[nodes[si].level]);dc.set(COLORS[nodes[ti].level]);
   eCol[o]=sc.r;eCol[o+1]=sc.g;eCol[o+2]=sc.b;
   eCol[o+3]=dc.r;eCol[o+4]=dc.g;eCol[o+5]=dc.b;
-  eAlpha[i*2]=0.15+weight*0.1;
-  eAlpha[i*2+1]=0.15+weight*0.1;
+  const baseAlpha=crossLevel?(0.08+weight*0.12):(0.03+weight*0.04);
+  eAlpha[i*2]=baseAlpha*alphaScale;
+  eAlpha[i*2+1]=baseAlpha*alphaScale;
 }
 
 const edgeGeo=new THREE.BufferGeometry();
@@ -398,19 +411,21 @@ scene.add(edgeLines);
 // FLOWING PARTICLES (along edges)
 // ═══════════════════════════════════════════════════════════════
 
-const PARTICLES_PER_EDGE=3;
-const pCount=eCount*PARTICLES_PER_EDGE;
 const pData=[];// {edgeIdx, progress, speed, srcIdx, tgtIdx}
-for(let i=0;i<eCount;i++){
-  const{si,ti,weight}=validEdges[i];
-  for(let j=0;j<PARTICLES_PER_EDGE;j++){
+const maxParticleEdges=Math.min(eCount,2000);
+for(let i=0;i<maxParticleEdges;i++){
+  const{si,ti,weight,crossLevel}=validEdges[i];
+  if(!crossLevel)continue;// only on vertical connections
+  const pc=weight>0.6?2:1;
+  for(let j=0;j<pc;j++){
     pData.push({
       edgeIdx:i,progress:srand(i*100+j*31),
-      speed:0.2+weight*0.5+srand(i*70+j*17)*0.15,
+      speed:0.15+weight*0.4+srand(i*70+j*17)*0.1,
       srcIdx:si,tgtIdx:ti
     });
   }
 }
+const pCount=pData.length;
 
 const pPos=new Float32Array(pCount*3);
 const pCol=new Float32Array(pCount*3);
@@ -504,7 +519,7 @@ renderer.domElement.addEventListener('click',()=>{
       detail.classList.remove('visible');
       camTween={
         startPos:camera.position.clone(),startLookAt:controls.target.clone(),
-        targetPos:new THREE.Vector3(500,350,700),targetLookAt:new THREE.Vector3(0,60,0),
+        targetPos:new THREE.Vector3(600,400,900),targetLookAt:new THREE.Vector3(0,0,0),
         progress:0
       };
       controls.autoRotate=true;
@@ -527,7 +542,7 @@ renderer.domElement.addEventListener('click',()=>{
     detail.classList.remove('visible');
     camTween={
       startPos:camera.position.clone(),startLookAt:controls.target.clone(),
-      targetPos:new THREE.Vector3(500,350,700),targetLookAt:new THREE.Vector3(0,60,0),
+      targetPos:new THREE.Vector3(600,400,900),targetLookAt:new THREE.Vector3(0,0,0),
       progress:0
     };
     controls.autoRotate=true;
@@ -590,13 +605,22 @@ function updateHighlights(){
   }
   ha.needsUpdate=true;
 
-  // Edge highlights
+  // Edge highlights — respect level toggles
+  const activeLvls={};
+  const legendRows=document.querySelectorAll('.legend-row');
+  const lvOrder=[5,4,3,2,1,6];
+  legendRows.forEach((r,ri)=>{activeLvls[lvOrder[ri]]=r.classList.contains('active');});
+  const aS=Math.min(1.0,3000/eCount);
   for(let i=0;i<eCount;i++){
-    const{si,ti,weight}=validEdges[i];
-    let a=0.15+weight*0.1;
+    const{si,ti,weight,crossLevel}=validEdges[i];
+    const sLv=nodes[si].level,tLv=nodes[ti].level;
+    // Level toggle filter
+    if(activeLvls[sLv]===false||activeLvls[tLv]===false){ea.array[i*2]=0;ea.array[i*2+1]=0;continue;}
+    const baseA=crossLevel?(0.08+weight*0.12):(0.03+weight*0.04);
+    let a=baseA*aS;
     if(hasFocus){
       const connected=(si===selectedIdx||ti===selectedIdx);
-      a=connected?0.4+weight*0.3:0.02;
+      a=connected?0.4+weight*0.3:0.01;
     }
     if(hoveredIdx>=0){
       const connected=(si===hoveredIdx||ti===hoveredIdx);
@@ -605,7 +629,7 @@ function updateHighlights(){
     if(hasSearch){
       const sm=nodes[si].label.toLowerCase().includes(searchTerm.value);
       const tm=nodes[ti].label.toLowerCase().includes(searchTerm.value);
-      if(!sm&&!tm)a=0.02;
+      if(!sm&&!tm)a=0.01;
     }
     ea.array[i*2]=a;ea.array[i*2+1]=a;
   }
@@ -633,11 +657,30 @@ levelOrder.forEach(lv=>{
   row.addEventListener('click',()=>{
     row.classList.toggle('active');
     const visible=row.classList.contains('active');
+    // Update nodes
     (byLevel[lv]||[]).forEach(ni=>{
       const h=nodeGeo.attributes.aHighlight;
       h.array[ni]=visible?1.0:0.05;
       h.needsUpdate=true;
     });
+    // Update edges — hide edges connected to disabled levels
+    const ea=edgeGeo.attributes.aAlpha;
+    const activeLevels={};
+    legendEl.querySelectorAll('.legend-row').forEach((r,ri)=>{
+      activeLevels[levelOrder[ri]]=r.classList.contains('active');
+    });
+    for(let i=0;i<eCount;i++){
+      const{si,ti,weight,crossLevel}=validEdges[i];
+      const sLv=nodes[si].level,tLv=nodes[ti].level;
+      if(activeLevels[sLv]===false||activeLevels[tLv]===false){
+        ea.array[i*2]=0;ea.array[i*2+1]=0;
+      }else{
+        const aS=Math.min(1.0,3000/eCount);
+        const baseA=crossLevel?(0.08+weight*0.12):(0.03+weight*0.04);
+        ea.array[i*2]=baseA*aS;ea.array[i*2+1]=baseA*aS;
+      }
+    }
+    ea.needsUpdate=true;
   });
   legendEl.appendChild(row);
 });
@@ -649,7 +692,7 @@ document.addEventListener('keydown',(e)=>{
     controls.autoRotate=true;updateHighlights();
     camTween={
       startPos:camera.position.clone(),startLookAt:controls.target.clone(),
-      targetPos:new THREE.Vector3(500,350,700),targetLookAt:new THREE.Vector3(0,60,0),
+      targetPos:new THREE.Vector3(600,400,900),targetLookAt:new THREE.Vector3(0,0,0),
       progress:0
     };
   }

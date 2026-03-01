@@ -439,9 +439,15 @@ canvas { display: block; }
   <div class="control-group">
     <label>Relations</label>
     <span class="toggle-btn active" data-edge="all">All</span>
-    <span class="toggle-btn" data-edge="imports">Imports</span>
+    <span class="toggle-btn" data-edge="references">Refs</span>
     <span class="toggle-btn" data-edge="depends_on">Depends</span>
     <span class="toggle-btn" data-edge="related_to">Related</span>
+    <span class="toggle-btn" data-edge="evolved_from">Evolved</span>
+    <span class="toggle-btn" data-edge="supports">Supports</span>
+    <span class="toggle-btn" data-edge="extends">Extends</span>
+    <span class="toggle-btn" data-edge="implements">Impl</span>
+    <span class="toggle-btn" data-edge="uses">Uses</span>
+    <span class="toggle-btn" data-edge="imports">Imports</span>
   </div>
 </div>
 
@@ -585,14 +591,17 @@ const EDGE_COLORS = {
   belongs_to: '#ff6600', part_of: '#ff6600', supersedes: '#ff4444',
   default: '#334466',
 };
+// 6 clearly separated horizontal layers — like floors of a building
+// yBase has LARGE gaps (200 units), yS is SMALL (tight layer thickness)
 const SPATIAL = {
-  5: { iR: 10,  oR: 70,  yBase: 0,    yS: 60,  size: 52, pulse: 0.3 },
-  4: { iR: 80,  oR: 180, yBase: 120,  yS: 80,  size: 42, pulse: 0.5 },
-  3: { iR: 160, oR: 320, yBase: -80,  yS: 100, size: 36, pulse: 0.8 },
-  2: { iR: 280, oR: 440, yBase: 200,  yS: 120, size: 28, pulse: 1.2 },
-  1: { iR: 400, oR: 560, yBase: -180, yS: 140, size: 22, pulse: 2.0 },
-  6: { iR: 500, oR: 680, yBase: 300,  yS: 160, size: 34, pulse: 0.6 },
+  5: { iR: 40,  oR: 160, yBase: 500,  yS: 30,  size: 48, pulse: 0.3 },
+  4: { iR: 60,  oR: 220, yBase: 300,  yS: 35,  size: 40, pulse: 0.5 },
+  3: { iR: 80,  oR: 280, yBase: 100,  yS: 40,  size: 34, pulse: 0.8 },
+  2: { iR: 100, oR: 340, yBase: -100, yS: 40,  size: 28, pulse: 1.2 },
+  1: { iR: 120, oR: 400, yBase: -300, yS: 45,  size: 22, pulse: 2.0 },
+  6: { iR: 140, oR: 460, yBase: -500, yS: 45,  size: 30, pulse: 0.6 },
 };
+const MAX_RENDERED_EDGES = 8000; // cap for performance + clarity
 
 function srand(s) { const x = Math.sin(s * 9301 + 49297) * 49297; return x - Math.floor(x); }
 function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -605,19 +614,19 @@ document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#030308');
-scene.fog = new THREE.FogExp2('#030308', 0.0004);
+scene.fog = new THREE.FogExp2('#030308', 0.00025);
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 8000);
-camera.position.set(500, 350, 700);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 12000);
+camera.position.set(600, 400, 900);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 60, 0);
+controls.target.set(0, 0, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.08;
 controls.minDistance = 80;
-controls.maxDistance = 2500;
+controls.maxDistance = 4000;
 controls.maxPolarAngle = Math.PI * 0.85;
 controls.minPolarAngle = Math.PI * 0.15;
 controls.update();
@@ -808,11 +817,21 @@ function rebuildScene() {
   scene.add(nodePoints);
 
   // ---- EDGES (LineSegments) ----
-  validEdges = [];
+  // Prioritize cross-level edges (vertical) over intra-level (horizontal)
+  const allEdges = [];
   BRAIN_DATA.edges.forEach((e, i) => {
     const si = nodeIdxMap[e.source], ti = nodeIdxMap[e.target];
-    if (si !== undefined && ti !== undefined) validEdges.push({ si, ti, weight: e.weight, type: e.type, idx: i });
+    if (si !== undefined && ti !== undefined) {
+      const crossLevel = nodes[si].level !== nodes[ti].level;
+      allEdges.push({ si, ti, weight: e.weight, type: e.type, idx: i, crossLevel });
+    }
   });
+  // Sort: cross-level edges first (they create the beautiful vertical connections)
+  allEdges.sort((a, b) => {
+    if (a.crossLevel !== b.crossLevel) return b.crossLevel ? 1 : -1;
+    return b.weight - a.weight; // then by weight
+  });
+  validEdges = allEdges.slice(0, MAX_RENDERED_EDGES);
 
   eCount = validEdges.length;
   const ePos = new Float32Array(eCount * 6);
@@ -820,8 +839,11 @@ function rebuildScene() {
   const eAlpha = new Float32Array(eCount * 2);
   const sc = new THREE.Color(), dc = new THREE.Color();
 
+  // Scale alpha down when there are many edges
+  const alphaScale = Math.min(1.0, 3000 / eCount);
+
   for (let i = 0; i < eCount; i++) {
-    const { si, ti, weight } = validEdges[i];
+    const { si, ti, weight, crossLevel } = validEdges[i];
     const s = positions[si], t = positions[ti];
     const o = i * 6;
     ePos[o] = s.x; ePos[o + 1] = s.y; ePos[o + 2] = s.z;
@@ -830,8 +852,10 @@ function rebuildScene() {
     dc.set(LEVEL_COLORS_HEX[nodes[ti].level] || 0x00FFFF);
     eCol[o] = sc.r; eCol[o + 1] = sc.g; eCol[o + 2] = sc.b;
     eCol[o + 3] = dc.r; eCol[o + 4] = dc.g; eCol[o + 5] = dc.b;
-    eAlpha[i * 2] = 0.15 + weight * 0.1;
-    eAlpha[i * 2 + 1] = 0.15 + weight * 0.1;
+    // Cross-level edges brighter, intra-level edges dimmer
+    const baseAlpha = crossLevel ? (0.08 + weight * 0.12) : (0.03 + weight * 0.04);
+    eAlpha[i * 2] = baseAlpha * alphaScale;
+    eAlpha[i * 2 + 1] = baseAlpha * alphaScale;
   }
 
   edgeGeo = new THREE.BufferGeometry();
@@ -841,14 +865,17 @@ function rebuildScene() {
   edgeLines = new THREE.LineSegments(edgeGeo, edgeMat);
   scene.add(edgeLines);
 
-  // ---- FLOWING PARTICLES ----
+  // ---- FLOWING PARTICLES (only on cross-level edges for clarity) ----
   pData = [];
-  for (let i = 0; i < eCount; i++) {
-    const { si, ti, weight } = validEdges[i];
-    for (let j = 0; j < PARTICLES_PER_EDGE; j++) {
+  const maxParticleEdges = Math.min(eCount, 2000);
+  for (let i = 0; i < maxParticleEdges; i++) {
+    const { si, ti, weight, crossLevel } = validEdges[i];
+    if (!crossLevel) continue; // only particles on vertical connections
+    const particleCount = weight > 0.6 ? 2 : 1;
+    for (let j = 0; j < particleCount; j++) {
       pData.push({
         edgeIdx: i, progress: srand(i * 100 + j * 31),
-        speed: 0.2 + weight * 0.5 + srand(i * 70 + j * 17) * 0.15,
+        speed: 0.15 + weight * 0.4 + srand(i * 70 + j * 17) * 0.1,
         srcIdx: si, tgtIdx: ti
       });
     }
@@ -985,16 +1012,22 @@ function updateHighlights() {
 
   // Edge highlights
   const activeEdgeTypes = getActiveEdgeTypes();
+  const alphaS = Math.min(1.0, 3000 / eCount);
   for (let i = 0; i < eCount; i++) {
-    const { si, ti, weight, type } = validEdges[i];
-    let a = 0.15 + weight * 0.1;
+    const { si, ti, weight, type, crossLevel } = validEdges[i];
+    const baseA = crossLevel ? (0.08 + weight * 0.12) : (0.03 + weight * 0.04);
+    let a = baseA * alphaS;
+
+    // Level toggle: hide edges connected to hidden levels
+    const sLv = nodes[si].level, tLv = nodes[ti].level;
+    if (levelToggles[sLv] === false || levelToggles[tLv] === false) { a = 0; ea.array[i * 2] = 0; ea.array[i * 2 + 1] = 0; continue; }
 
     // Edge type filter
     if (activeEdgeTypes !== null && !activeEdgeTypes.has(type)) { a = 0; }
 
     if (hasFocus) {
       const connected = (si === selectedIdx || ti === selectedIdx);
-      a = connected ? 0.4 + weight * 0.3 : 0.02;
+      a = connected ? 0.4 + weight * 0.3 : 0.01;
     }
     if (hoveredIdx >= 0) {
       const connected = (si === hoveredIdx || ti === hoveredIdx);
@@ -1003,7 +1036,7 @@ function updateHighlights() {
     if (hasSearch) {
       const sm = nodes[si].label.toLowerCase().includes(searchQuery);
       const tm = nodes[ti].label.toLowerCase().includes(searchQuery);
-      if (!sm && !tm) a = 0.02;
+      if (!sm && !tm) a = 0.01;
     }
     ea.array[i * 2] = a;
     ea.array[i * 2 + 1] = a;
