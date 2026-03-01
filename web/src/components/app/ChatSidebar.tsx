@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Plus, Trash2, Pencil, MessageSquare, Check, X, XCircle,
-  Shield, Zap, Activity, Bot, Terminal, Square,
+  Shield, Zap, Activity, Bot, Terminal,
 } from 'lucide-react';
 import type { ChatSummary } from './AppShell';
 import type { InstanceMeta } from '@/lib/cli-types';
@@ -77,9 +77,6 @@ interface ChatSidebarProps {
   onRename: (id: string, title: string) => void;
   instanceMeta?: InstanceMeta;
   instanceMode?: 'safe' | 'skip-permissions' | 'yolo';
-  onInstanceClick?: () => void;
-  onInstanceStop?: () => void;
-  isInstanceActive?: boolean;
 }
 
 export function ChatSidebar({
@@ -95,9 +92,6 @@ export function ChatSidebar({
   onRename,
   instanceMeta,
   instanceMode,
-  onInstanceClick,
-  onInstanceStop,
-  isInstanceActive,
 }: ChatSidebarProps) {
   const t = useTranslations('app');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -138,19 +132,6 @@ export function ChatSidebar({
         </button>
       </div>
 
-      {/* CLI Instance */}
-      {instanceMeta && (
-        <div className="px-2 pb-1">
-          <CliInstanceItem
-            meta={instanceMeta}
-            mode={instanceMode || 'safe'}
-            onStop={() => onInstanceStop?.()}
-            onClick={() => onInstanceClick?.()}
-            isActive={isInstanceActive || false}
-          />
-        </div>
-      )}
-
       {/* Unified list */}
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
         {grouped.map(({ label, items }) => (
@@ -185,6 +166,8 @@ export function ChatSidebar({
                     onConfirmDelete={() => confirmDelete(item.chat.id)}
                     onCancelDelete={() => setDeletingId(null)}
                     t={t}
+                    cliMeta={activeChatId === item.chat.id ? instanceMeta : undefined}
+                    cliMode={instanceMode}
                   />
                 ),
               )}
@@ -258,6 +241,7 @@ function ChatItem({
   chat, isActive, editingId, editTitle, deletingId,
   onSelect, onStartRename, onConfirmRename, onCancelRename, onEditTitleChange,
   onStartDelete, onConfirmDelete, onCancelDelete, t,
+  cliMeta, cliMode,
 }: {
   chat: ChatSummary;
   isActive: boolean;
@@ -273,6 +257,9 @@ function ChatItem({
   onConfirmDelete: () => void;
   onCancelDelete: () => void;
   t: (key: string) => string;
+  /** When active + connected, show CLI folder info merged into chat entry */
+  cliMeta?: InstanceMeta;
+  cliMode?: 'safe' | 'skip-permissions' | 'yolo';
 }) {
   if (editingId === chat.id) {
     return (
@@ -319,6 +306,14 @@ function ChatItem({
     );
   }
 
+  // When active + CLI connected, merge folder info into this chat entry
+  const showCli = isActive && !!cliMeta;
+  const folderName = cliMeta?.projectPath.split(/[/\\]/).filter(Boolean).pop() || cliMeta?.projectName;
+  const modeBorderColor = cliMode === 'yolo' ? 'border-red-500/60'
+    : cliMode === 'skip-permissions' ? 'border-amber-500/60'
+    : cliMode === 'safe' ? 'border-emerald-500/60'
+    : 'border-cyan-400';
+
   return (
     <div className="group relative">
       <button
@@ -326,23 +321,39 @@ function ChatItem({
         className={`
           w-full text-left px-3 py-2 rounded-lg text-sm transition-all border-l-2
           ${isActive
-            ? 'bg-cyan-500/10 text-white border-cyan-400'
+            ? `bg-cyan-500/10 text-white ${showCli ? modeBorderColor : 'border-cyan-400'}`
             : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border-transparent hover:border-cyan-400/30'
           }
         `}
       >
         <div className="flex items-start gap-2">
-          <MessageSquare size={14} className={`mt-0.5 flex-shrink-0 ${isActive ? 'text-cyan-400' : 'opacity-40'}`} />
+          {showCli ? (
+            <Terminal size={14} className="mt-0.5 flex-shrink-0 text-emerald-400" />
+          ) : (
+            <MessageSquare size={14} className={`mt-0.5 flex-shrink-0 ${isActive ? 'text-cyan-400' : 'opacity-40'}`} />
+          )}
           <div className="flex-1 min-w-0">
-            <div className="truncate text-xs font-medium">
-              {chat.title}
-            </div>
-            {chat.messages[0] && (
-              <div className="truncate text-[11px] text-gray-600 mt-0.5">
-                {chat.messages[0].content.slice(0, 60)}
-              </div>
+            {showCli ? (
+              <>
+                <div className="truncate text-xs font-semibold text-white">{folderName}</div>
+                <div className="truncate text-[10px] text-gray-500">{chat.title}</div>
+              </>
+            ) : (
+              <>
+                <div className="truncate text-xs font-medium">
+                  {chat.title}
+                </div>
+                {chat.messages[0] && (
+                  <div className="truncate text-[11px] text-gray-600 mt-0.5">
+                    {chat.messages[0].content.slice(0, 60)}
+                  </div>
+                )}
+              </>
             )}
           </div>
+          {showCli && (
+            <Activity size={8} className="text-emerald-400 animate-pulse flex-shrink-0 mt-1" />
+          )}
         </div>
 
         {/* Hover actions */}
@@ -362,50 +373,6 @@ function ChatItem({
             <Trash2 size={12} />
           </button>
         </div>
-      </button>
-    </div>
-  );
-}
-
-/* ─── CLI Instance item ──────────────────────── */
-
-function CliInstanceItem({ meta, mode, onStop, onClick, isActive }: {
-  meta: InstanceMeta;
-  mode: 'safe' | 'skip-permissions' | 'yolo';
-  onStop: () => void;
-  onClick: () => void;
-  isActive: boolean;
-}) {
-  const folderName = meta.projectPath.split(/[/\\]/).filter(Boolean).pop() || meta.projectName;
-  const modeColor = mode === 'yolo' ? 'border-red-500/60'
-    : mode === 'skip-permissions' ? 'border-amber-500/60'
-    : 'border-emerald-500/60';
-
-  return (
-    <div className="group relative">
-      <button
-        onClick={onClick}
-        className={`
-          w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all
-          border-2 ${modeColor}
-          ${isActive ? 'bg-cyan-500/10' : 'bg-white/[0.02] hover:bg-white/5'}
-        `}
-      >
-        <div className="flex items-center gap-2">
-          <Terminal size={14} className="text-emerald-400 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="truncate text-xs font-semibold text-white">{folderName}</div>
-            <div className="truncate text-[10px] text-gray-500">{meta.projectPath}</div>
-          </div>
-          <Activity size={8} className="text-emerald-400 animate-pulse flex-shrink-0" />
-        </div>
-      </button>
-      <button
-        onClick={(e) => { e.stopPropagation(); onStop(); }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center justify-center w-6 h-6 rounded text-red-400 hover:bg-red-500/10 transition-all"
-        title="Stop"
-      >
-        <Square size={10} />
       </button>
     </div>
   );

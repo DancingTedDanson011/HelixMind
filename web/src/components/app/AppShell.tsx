@@ -985,9 +985,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onRename={renameChat}
               instanceMeta={isConnected ? connection.instanceMeta ?? undefined : undefined}
               instanceMode={mode === 'yolo' ? 'yolo' : mode === 'skip-permissions' ? 'skip-permissions' : 'safe'}
-              onInstanceClick={() => setActiveTab('chat')}
-              onInstanceStop={() => { connection.abortSession('main').catch(() => {}); }}
-              isInstanceActive={activeTab === 'chat'}
             />
           ) : activeTab === 'console' ? (
             <SessionSidebar
@@ -1032,9 +1029,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onRename={renameChat}
               instanceMeta={isConnected ? connection.instanceMeta ?? undefined : undefined}
               instanceMode={mode === 'yolo' ? 'yolo' : mode === 'skip-permissions' ? 'skip-permissions' : 'safe'}
-              onInstanceClick={() => setActiveTab('chat')}
-              onInstanceStop={() => { connection.abortSession('main').catch(() => {}); }}
-              isInstanceActive={false}
             />
           ) : null}
         </div>
