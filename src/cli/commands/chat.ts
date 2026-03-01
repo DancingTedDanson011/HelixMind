@@ -1079,6 +1079,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         listProjects: () => [],
         registerProject: () => null,
         getWorkers: () => [],
+        getBrainList: () => ({ brains: [], limits: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity } }),
+        renameBrain: () => false,
+        switchBrain: () => false,
+        createBrain: () => null,
       });
 
       // Wire bug journal change events to brain server
@@ -1218,6 +1222,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           listProjects: () => [],
           registerProject: () => null,
           getWorkers: () => [],
+        getBrainList: () => ({ brains: [], limits: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity } }),
+        renameBrain: () => false,
+        switchBrain: () => false,
+        createBrain: () => null,
         }, updateMeta).catch(() => {});
       }
     } catch { /* control protocol optional */ }

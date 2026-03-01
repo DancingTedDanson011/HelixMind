@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Check } from 'lucide-react';
 
-const tierKeys = ['free', 'pro', 'team', 'enterprise'] as const;
+const tierKeys = ['free', 'freePlus', 'pro', 'team', 'enterprise'] as const;
 type PaidTier = 'pro' | 'team';
 
-const tierColors = ['#6c757d', '#00d4ff', '#4169e1', '#8a2be2'];
+const tierColors = ['#6c757d', '#00ff88', '#00d4ff', '#4169e1', '#8a2be2'];
 
 // Monthly prices shown per-month when billed yearly
 const yearlyMonthlyRate: Record<PaidTier, number> = {
@@ -48,7 +48,7 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen pt-28 pb-20 px-4">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-7xl">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">{t('title')}</h1>
           <p className="text-gray-400 text-lg mb-8">{t('subtitle')}</p>
@@ -75,14 +75,14 @@ export default function PricingPage() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-5">
           {tierKeys.map((key, i) => {
             const isPro = key === 'pro';
             const isPaid = key === 'pro' || key === 'team';
             const features = t.raw(`${key}.features`) as string[];
 
             const displayPrice = (() => {
-              if (key === 'free') return '$0';
+              if (key === 'free' || key === 'freePlus') return '$0';
               if (key === 'enterprise') return null;
               if (isPaid && yearly) return `$${yearlyMonthlyRate[key as PaidTier]}`;
               return `$${t(`${key}.price`)}`;
@@ -106,7 +106,7 @@ export default function PricingPage() {
                     <>
                       <span className="text-4xl font-bold text-white">{displayPrice}</span>
                       <span className="text-gray-500 text-sm">
-                        {key === 'team' ? t('perUser') : key !== 'free' ? t('perMonth') : ''}
+                        {key === 'team' ? t('perUser') : isPaid ? t('perMonth') : ''}
                       </span>
                       {isPaid && yearly && (
                         <p className="text-xs text-success mt-1">
@@ -133,19 +133,28 @@ export default function PricingPage() {
                   className="w-full"
                   loading={loading === key}
                   onClick={() => {
-                    if (key === 'free') return;
+                    if (key === 'free') {
+                      window.location.href = 'https://www.npmjs.com/package/helixmind';
+                      return;
+                    }
+                    if (key === 'freePlus') {
+                      window.location.href = '/login';
+                      return;
+                    }
                     if (key === 'enterprise') {
                       window.location.href = 'mailto:contact@helix-mind.ai?subject=Enterprise%20Inquiry';
                       return;
                     }
-                    handleCheckout(key);
+                    handleCheckout(key as PaidTier);
                   }}
                 >
                   {key === 'free'
                     ? t('getStarted')
-                    : key === 'enterprise'
-                      ? t('contactSales')
-                      : t('subscribe')}
+                    : key === 'freePlus'
+                      ? t('loginFree')
+                      : key === 'enterprise'
+                        ? t('contactSales')
+                        : t('subscribe')}
                 </Button>
               </GlassPanel>
             );

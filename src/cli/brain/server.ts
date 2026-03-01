@@ -484,6 +484,63 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             sendTo(ws, { type: 'workers_list', workers, requestId, timestamp: Date.now() });
             break;
           }
+
+          // --- Brain Management ---
+          case 'get_brain_list': {
+            const { brains, limits } = controlHandlers.getBrainList();
+            sendTo(ws, { type: 'brain_list', brains, limits, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'rename_brain': {
+            const success = controlHandlers.renameBrain((msg as any).brainId, (msg as any).newName);
+            if (success) {
+              sendTo(ws, { type: 'brain_renamed', brainId: (msg as any).brainId, newName: (msg as any).newName, requestId, timestamp: Date.now() });
+              // Broadcast to all control clients
+              for (const client of controlClients) {
+                if (client !== ws && client.readyState === WebSocket.OPEN) {
+                  sendTo(client, { type: 'brain_renamed', brainId: (msg as any).brainId, newName: (msg as any).newName, timestamp: Date.now() });
+                }
+              }
+            } else {
+              sendTo(ws, { type: 'error', message: 'Brain not found or rename failed', requestId, timestamp: Date.now() });
+            }
+            break;
+          }
+
+          case 'switch_brain': {
+            const success = controlHandlers.switchBrain((msg as any).brainId);
+            if (success) {
+              sendTo(ws, { type: 'brain_switched', brainId: (msg as any).brainId, requestId, timestamp: Date.now() });
+            } else {
+              sendTo(ws, { type: 'error', message: 'Brain not found or switch failed', requestId, timestamp: Date.now() });
+            }
+            break;
+          }
+
+          case 'create_brain': {
+            const brain = controlHandlers.createBrain((msg as any).name, (msg as any).brainType, (msg as any).projectPath);
+            if (brain) {
+              sendTo(ws, { type: 'brain_created', brain, requestId, timestamp: Date.now() });
+              // Broadcast to all control clients
+              for (const client of controlClients) {
+                if (client !== ws && client.readyState === WebSocket.OPEN) {
+                  sendTo(client, { type: 'brain_created', brain, timestamp: Date.now() });
+                }
+              }
+            } else {
+              // Limit reached — send limit event
+              sendTo(ws, { type: 'brain_limit_reached', limitType: (msg as any).brainType, current: 0, max: 0, requestId, timestamp: Date.now() });
+            }
+            break;
+          }
+
+          // --- Remote Tool Execution (Jarvis Server → CLI) ---
+          case 'remote_tool_result': {
+            // Forward to relay for server-side Jarvis
+            // This is handled by the relay client, not the local server
+            break;
+          }
         }
       }
 
@@ -661,5 +718,9 @@ function isControlRequest(type: string): boolean {
     'add_schedule', 'remove_schedule', 'list_schedules',
     'add_trigger', 'remove_trigger', 'list_triggers',
     'list_projects', 'register_project', 'get_workers',
+    // Brain management
+    'get_brain_list', 'rename_brain', 'switch_brain', 'create_brain',
+    // Remote tool execution
+    'remote_tool_result',
   ].includes(type);
 }

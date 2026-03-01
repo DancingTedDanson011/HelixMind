@@ -15,6 +15,7 @@ enum Role {
 
 enum Plan {
   FREE
+  FREE_PLUS
   PRO
   TEAM
   ENTERPRISE
@@ -78,6 +79,8 @@ model User {
   usageLogs     UsageLog[]
   chats         Chat[]
   llmKeys       UserLLMKey[]
+  brainInstances BrainInstance[]
+  jarvisInstances JarvisInstance[]
 }
 
 model Account {
@@ -287,4 +290,41 @@ model PlanConfig {
   stripePriceYearly  String? // Stripe Price ID
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// ─── Brain Instances ────────────────────────
+
+model BrainInstance {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  type            String   // 'global' | 'local'
+  projectPath     String?
+  nodeCount       Int      @default(0)
+  active          Boolean  @default(false)
+  lastAccessedAt  DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Jarvis Instances ───────────────────────
+
+model JarvisInstance {
+  id              String   @id @default(cuid())
+  userId          String
+  status          String   @default("stopped") // 'stopped' | 'running' | 'paused' | 'error'
+  autonomyLevel   Int      @default(2)
+  identityJson    Json?
+  tasksCompleted  Int      @default(0)
+  tasksFailed     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

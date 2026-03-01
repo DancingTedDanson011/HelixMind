@@ -174,7 +174,7 @@
   },
   "pricing": {
     "title": "Simple, transparent pricing",
-    "subtitle": "Start free. Upgrade when you need cloud sync and team features.",
+    "subtitle": "Start free. Upgrade when you need Jarvis AGI, cloud sync, and team features.",
     "monthly": "Monthly",
     "yearly": "Yearly",
     "yearlyDiscount": "Save 2 months",
@@ -182,61 +182,78 @@
     "perUser": "/user/month",
     "custom": "Custom",
     "getStarted": "Get Started Free",
+    "loginFree": "Login — it's free",
     "subscribe": "Subscribe",
     "contactSales": "Contact Sales",
     "mostPopular": "Most popular",
     "sectionLabel": "Pricing",
     "yearlyBilled": "${amount}/year billed annually",
     "free": {
-      "name": "Free",
+      "name": "Open Source",
       "price": "0",
-      "desc": "For solo developers and open source.",
+      "desc": "Full CLI agent, unlimited local use.",
       "features": [
-        "Full CLI with all features",
-        "Unlimited local spiral memory",
-        "Ollama integration",
-        "3D Brain visualization",
+        "Full AI agent with 22 tools",
+        "Spiral Memory (1 local brain)",
+        "All providers (Anthropic, OpenAI, Ollama)",
+        "Web Knowledge Enricher",
+        "Bug Journal + Browser Control",
         "Community support"
+      ]
+    },
+    "freePlus": {
+      "name": "Free+",
+      "price": "0",
+      "desc": "Login for Jarvis AGI + Brain Management.",
+      "features": [
+        "Everything in Open Source",
+        "Jarvis AGI (1 instance)",
+        "Basic Validation Matrix",
+        "3 Brains (1 global + 2 local)",
+        "3D Brain Management UI",
+        "Live Brain WebSocket"
       ]
     },
     "pro": {
       "name": "Pro",
       "price": "19",
       "yearlyPrice": "190",
-      "desc": "For power users who want more.",
+      "desc": "Power-user with cloud sync and deep thinking.",
       "features": [
-        "Everything in Free",
-        "Cloud brain sync",
-        "Web Knowledge Enricher",
-        "Priority support",
-        "API access",
-        "Usage analytics"
+        "Everything in Free+",
+        "Jarvis AGI (3 instances)",
+        "Jarvis Deep Thinking + Scheduling",
+        "Full Validation Matrix + Monitor",
+        "15 Brains (5 global + 10 local)",
+        "Cloud Brain Sync",
+        "Priority support"
       ]
     },
     "team": {
       "name": "Team",
       "price": "39",
       "yearlyPrice": "390",
-      "desc": "For teams building together.",
+      "desc": "Shared brains, unlimited Jarvis.",
       "features": [
         "Everything in Pro",
-        "Shared team brain",
-        "Team analytics dashboard",
-        "Role-based access",
-        "Dedicated support",
-        "Custom integrations"
+        "Unlimited Jarvis + Parallel Execution",
+        "Shared Team Brain Pool",
+        "Unlimited Brains",
+        "Team Analytics Dashboard",
+        "Role-based access"
       ]
     },
     "enterprise": {
       "name": "Enterprise",
-      "desc": "For organizations with compliance needs.",
+      "desc": "Full API, self-hosted, everything.",
       "features": [
         "Everything in Team",
-        "Self-hosted deployment",
+        "Full Brain API (REST + WS + GraphQL)",
+        "Self-hosted deployment (Docker + Helm)",
+        "On-premise Jarvis (licensed)",
         "SSO / SAML",
-        "SOC 2 compliance",
-        "SLA guarantee",
-        "Custom training"
+        "Benchmark Suite",
+        "SLA guarantee"
       ]
     }
   },

@@ -105,23 +105,43 @@ export const JARVIS_CONSCIOUSNESS = 0xff00ff;      // Consciousness nodes
 
 export const plans = {
   FREE: {
-    name: 'Free',
+    name: 'Open Source',
     monthlyPrice: 0,
     yearlyPrice: 0,
+    description: 'Full CLI agent, unlimited local use',
+    brains: { maxGlobal: 0, maxLocal: 1, maxActive: 1 },
+    jarvisInstances: 0,
+  },
+  FREE_PLUS: {
+    name: 'Free+',
+    monthlyPrice: 0,
+    yearlyPrice: 0,
+    description: 'Jarvis AGI + Brain Management',
+    brains: { maxGlobal: 1, maxLocal: 2, maxActive: 3 },
+    jarvisInstances: 1,
   },
   PRO: {
     name: 'Pro',
     monthlyPrice: 19,
     yearlyPrice: 190,
+    description: 'Power-user, cloud sync, 15 brains',
+    brains: { maxGlobal: 5, maxLocal: 10, maxActive: 10 },
+    jarvisInstances: 3,
   },
   TEAM: {
     name: 'Team',
     monthlyPrice: 39,
     yearlyPrice: 390, // per user, billed annually
+    description: 'Shared brains, unlimited Jarvis',
+    brains: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity },
+    jarvisInstances: Infinity,
   },
   ENTERPRISE: {
     name: 'Enterprise',
     monthlyPrice: null,
     yearlyPrice: null,
+    description: 'Full API, self-hosted, everything',
+    brains: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity },
+    jarvisInstances: Infinity,
   },
 } as const;

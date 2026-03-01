@@ -48,6 +48,68 @@ canvas { display: block; }
 }
 #scope-switcher .scope-btn:hover:not(.active) { background: rgba(0,212,255,0.08); color: #889; }
 
+/* Brain Manager Panel */
+#brain-manager {
+  position: fixed; top: 110px; left: 16px; z-index: 20;
+  width: 280px; max-height: calc(100vh - 140px); overflow-y: auto;
+  background: rgba(5,5,16,0.92); border: 1px solid rgba(0,212,255,0.12);
+  border-radius: 12px; padding: 12px; backdrop-filter: blur(16px);
+  display: none;
+}
+#brain-manager.open { display: block; }
+#brain-manager h3 {
+  font-size: 11px; color: #556; text-transform: uppercase; letter-spacing: 1.5px;
+  margin: 0 0 8px 0; padding-bottom: 6px; border-bottom: 1px solid rgba(0,212,255,0.08);
+}
+#brain-manager h3:not(:first-child) { margin-top: 14px; }
+.brain-card {
+  background: rgba(0,212,255,0.04); border: 1px solid rgba(0,212,255,0.1);
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer;
+  transition: all 0.2s;
+}
+.brain-card:hover { border-color: rgba(0,212,255,0.25); background: rgba(0,212,255,0.08); }
+.brain-card.selected { border-color: rgba(0,212,255,0.5); background: rgba(0,212,255,0.12); }
+.brain-card .bc-top { display: flex; align-items: center; gap: 6px; }
+.brain-card .bc-name {
+  font-size: 12px; color: #e0e0e0; flex: 1; outline: none;
+  background: transparent; border: none; border-bottom: 1px solid transparent;
+  font-family: inherit; padding: 0;
+}
+.brain-card .bc-name:focus { border-bottom-color: rgba(0,212,255,0.4); color: #00d4ff; }
+.brain-card .bc-edit {
+  font-size: 10px; cursor: pointer; color: #445; transition: color 0.2s;
+}
+.brain-card .bc-edit:hover { color: #00d4ff; }
+.brain-card .bc-meta { font-size: 10px; color: #445; margin-top: 3px; display: flex; gap: 8px; }
+.brain-card .bc-dot {
+  width: 6px; height: 6px; border-radius: 50%; display: inline-block;
+}
+.brain-card .bc-dot.active { background: #0f0; box-shadow: 0 0 4px #0f0; }
+.brain-card .bc-dot.inactive { background: #333; }
+
+/* Plan View */
+#plan-view { margin-top: 14px; }
+#plan-view h3 { margin-bottom: 6px; }
+.plan-item {
+  font-size: 11px; color: #889; padding: 4px 0; display: flex; align-items: center; gap: 6px;
+}
+.plan-item .pi-icon { font-size: 12px; }
+.plan-item.pending .pi-icon { color: #556; }
+.plan-item.running .pi-icon { color: #FFD700; }
+.plan-item.completed .pi-icon { color: #00ff88; }
+.plan-item.failed .pi-icon { color: #ff4444; }
+.plan-item .pi-text { flex: 1; }
+
+/* Brain Manager Toggle */
+#brain-toggle {
+  position: fixed; top: 80px; left: 16px; z-index: 21;
+  padding: 4px 10px; border-radius: 6px; font-size: 10px; cursor: pointer;
+  border: 1px solid rgba(0,212,255,0.12); background: rgba(5,5,16,0.9);
+  color: #556; transition: all 0.25s; backdrop-filter: blur(16px);
+}
+#brain-toggle:hover { background: rgba(0,212,255,0.08); color: #889; }
+#brain-toggle.active { background: rgba(0,212,255,0.15); color: #00d4ff; border-color: rgba(0,212,255,0.4); }
+
 #controls {
   position: fixed; top: 16px; right: 16px; z-index: 20;
   display: flex; flex-direction: column; gap: 6px;
@@ -342,6 +404,19 @@ canvas { display: block; }
   <div id="scope-switcher">
     <span class="scope-btn project-btn${data.meta.brainScope === 'project' ? ' active' : ''}" data-scope="project">\u{1F4C1} Local</span>
     <span class="scope-btn global-btn${data.meta.brainScope !== 'project' ? ' active' : ''}" data-scope="global">\u{1F310} Global</span>
+  </div>
+</div>
+
+<div id="brain-toggle">\u{1F9E0} Brains</div>
+
+<div id="brain-manager">
+  <h3>\u{1F310} Global</h3>
+  <div id="bm-global"></div>
+  <h3>\u{1F4C1} Local</h3>
+  <div id="bm-local"></div>
+  <div id="plan-view">
+    <h3>\u{1F4CB} Plan</h3>
+    <div id="plan-items"><div class="plan-item pending"><span class="pi-icon">\u25CB</span><span class="pi-text" style="color:#445">No active tasks</span></div></div>
   </div>
 </div>
 
@@ -1334,6 +1409,14 @@ let ws=null;
         if(m.type==='worker_started') addFinding('Jarvis','Worker started: '+(m.worker?.taskTitle||''),'info','');
         if(m.type==='worker_completed') addFinding('Jarvis','Worker done: '+(m.worker?.taskTitle||''),'info','');
         if(m.type==='tts_audio'&&m.audioBase64){ try{const a=new Audio('data:audio/mpeg;base64,'+m.audioBase64);a.play();}catch{} }
+        // Brain Management
+        if(m.type==='brain_list') renderBrainList(m.brains,m.limits);
+        if(m.type==='brain_renamed') updateBrainName(m.brainId,m.newName);
+        if(m.type==='brain_switched') selectBrainCard(m.brainId);
+        if(m.type==='brain_created') requestBrainList();
+        if(m.type==='brain_limit_reached') showLimitToast(m.limitType,m.current,m.max);
+        // Jarvis task updates for plan view
+        if(m.type==='jarvis_task_created'||m.type==='jarvis_task_updated') updatePlanView(m.task);
         if(m.type==='model_activated'){
           document.querySelectorAll('[data-activate]').forEach(b=>{b.disabled=false;b.textContent='\\u26A1 Activate';});
           const n=document.createElement('div');
@@ -1519,6 +1602,167 @@ checkOllama();
   document.addEventListener('keydown',(e)=>{if(e.key==='Enter'&&!e.shiftKey&&fT.trim()&&sB.classList.contains('visible')){e.preventDefault();sB.click();}});
   lS.addEventListener('change',()=>{if(isR){stopR();startR();}});
 })();
+
+// ===== BRAIN MANAGER =====
+const bmToggle=document.getElementById('brain-toggle');
+const bmPanel=document.getElementById('brain-manager');
+const bmGlobal=document.getElementById('bm-global');
+const bmLocal=document.getElementById('bm-local');
+const planItems=document.getElementById('plan-items');
+let brainListData=[];
+let selectedBrainId=null;
+let planTasks=new Map();
+
+bmToggle.addEventListener('click',()=>{
+  bmPanel.classList.toggle('open');
+  bmToggle.classList.toggle('active');
+  if(bmPanel.classList.contains('open')) requestBrainList();
+});
+
+function requestBrainList(){
+  if(ws&&ws.readyState===WebSocket.OPEN){
+    ws.send(JSON.stringify({type:'get_brain_list',timestamp:Date.now()}));
+  }
+}
+
+function renderBrainList(brains,limits){
+  brainListData=brains;
+  bmGlobal.innerHTML='';
+  bmLocal.innerHTML='';
+  const globals=brains.filter(b=>b.type==='global');
+  const locals=brains.filter(b=>b.type==='local');
+
+  if(globals.length===0) bmGlobal.innerHTML='<div style="font-size:10px;color:#334;padding:4px">No global brains</div>';
+  globals.forEach(b=>bmGlobal.appendChild(createBrainCard(b)));
+
+  if(locals.length===0) bmLocal.innerHTML='<div style="font-size:10px;color:#334;padding:4px">No local brains</div>';
+  locals.forEach(b=>bmLocal.appendChild(createBrainCard(b)));
+
+  if(!selectedBrainId&&brains.length>0){
+    const active=brains.find(b=>b.active);
+    if(active) selectBrainCard(active.id);
+  }
+}
+
+function createBrainCard(b){
+  const card=document.createElement('div');
+  card.className='brain-card'+(b.id===selectedBrainId?' selected':'');
+  card.dataset.brainId=b.id;
+
+  const top=document.createElement('div');
+  top.className='bc-top';
+
+  const dot=document.createElement('span');
+  dot.className='bc-dot '+(b.active?'active':'inactive');
+  dot.title=b.active?'Active':'Inactive';
+
+  const nameInput=document.createElement('input');
+  nameInput.className='bc-name';
+  nameInput.value=b.name;
+  nameInput.readOnly=true;
+  nameInput.addEventListener('blur',()=>{
+    nameInput.readOnly=true;
+    if(nameInput.value!==b.name&&nameInput.value.trim()){
+      renameBrain(b.id,nameInput.value.trim());
+    }
+  });
+  nameInput.addEventListener('keydown',(e)=>{
+    if(e.key==='Enter'){nameInput.blur();e.preventDefault();}
+    if(e.key==='Escape'){nameInput.value=b.name;nameInput.blur();}
+  });
+
+  const editBtn=document.createElement('span');
+  editBtn.className='bc-edit';
+  editBtn.textContent='\\u270F\\uFE0F';
+  editBtn.title='Rename';
+  editBtn.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    nameInput.readOnly=false;
+    nameInput.focus();
+    nameInput.select();
+  });
+
+  top.appendChild(dot);
+  top.appendChild(nameInput);
+  top.appendChild(editBtn);
+
+  const meta=document.createElement('div');
+  meta.className='bc-meta';
+  meta.textContent=b.nodeCount+' nodes';
+  if(b.projectPath){
+    const short=b.projectPath.split('/').pop()||b.projectPath.split('\\\\').pop()||'';
+    if(short) meta.textContent+=' \\u00B7 '+short;
+  }
+
+  card.appendChild(top);
+  card.appendChild(meta);
+
+  card.addEventListener('click',()=>{
+    if(!nameInput.readOnly) return;
+    switchBrain(b.id);
+  });
+
+  return card;
+}
+
+function switchBrain(brainId){
+  if(ws&&ws.readyState===WebSocket.OPEN){
+    ws.send(JSON.stringify({type:'switch_brain',brainId,timestamp:Date.now()}));
+  }
+  selectBrainCard(brainId);
+}
+
+function selectBrainCard(brainId){
+  selectedBrainId=brainId;
+  document.querySelectorAll('.brain-card').forEach(c=>{
+    c.classList.toggle('selected',c.dataset.brainId===brainId);
+  });
+}
+
+function renameBrain(brainId,newName){
+  if(ws&&ws.readyState===WebSocket.OPEN){
+    ws.send(JSON.stringify({type:'rename_brain',brainId,newName,timestamp:Date.now()}));
+  }
+}
+
+function updateBrainName(brainId,newName){
+  const card=document.querySelector('.brain-card[data-brain-id="'+brainId+'"]');
+  if(card){
+    const inp=card.querySelector('.bc-name');
+    if(inp) inp.value=newName;
+  }
+}
+
+function showLimitToast(limitType,current,max){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(255,100,0,0.15);border:1px solid rgba(255,100,0,0.3);color:#ff6600;padding:8px 20px;border-radius:8px;font-size:12px;z-index:999;backdrop-filter:blur(10px);';
+  t.textContent='\\u26A0 Brain limit reached: '+current+'/'+max+' '+limitType+'. Upgrade for more.';
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),4000);
+}
+
+// Plan View (Jarvis Tasks)
+function updatePlanView(task){
+  if(!task||!task.id) return;
+  planTasks.set(task.id,task);
+  renderPlanItems();
+}
+
+function renderPlanItems(){
+  if(planTasks.size===0){
+    planItems.innerHTML='<div class="plan-item pending"><span class="pi-icon">\\u25CB</span><span class="pi-text" style="color:#445">No active tasks</span></div>';
+    return;
+  }
+  planItems.innerHTML='';
+  const sorted=[...planTasks.values()].sort((a,b)=>a.id-b.id);
+  sorted.forEach(task=>{
+    const item=document.createElement('div');
+    item.className='plan-item '+(task.status||'pending');
+    const icons={pending:'\\u25CB',running:'\\u23F3',completed:'\\u2714',failed:'\\u2718',paused:'\\u23F8'};
+    item.innerHTML='<span class="pi-icon">'+(icons[task.status]||'\\u25CB')+'</span><span class="pi-text">'+esc(task.title||'Untitled')+'</span>';
+    planItems.appendChild(item);
+  });
+}
 
 // ===== START =====
 lastNodeIds=BRAIN_DATA.nodes.map(n=>n.id).sort().join(',');

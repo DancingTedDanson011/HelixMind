@@ -3,6 +3,7 @@
  * Used by both local WebSocket (Brain Server) and remote Relay connections.
  */
 import type { Session, SessionStatus } from '../sessions/session.js';
+import type { BrainInstance, BrainLimits } from './instance-manager.js';
 
 // ---------------------------------------------------------------------------
 // Data types
@@ -281,6 +282,24 @@ export interface WorkerCompletedEvent extends WSMessage { type: 'worker_complete
 export interface TTSAudioEvent extends WSMessage { type: 'tts_audio'; audioBase64: string; text: string; duration: number }
 export interface NotificationSentEvent extends WSMessage { type: 'notification_sent'; channel: string; title: string }
 
+// --- Brain Management Requests (Browser → CLI) ---
+export interface GetBrainListRequest extends WSMessage { type: 'get_brain_list' }
+export interface RenameBrainRequest extends WSMessage { type: 'rename_brain'; brainId: string; newName: string }
+export interface SwitchBrainRequest extends WSMessage { type: 'switch_brain'; brainId: string }
+export interface CreateBrainRequest extends WSMessage { type: 'create_brain'; name: string; brainType: 'global' | 'local'; projectPath?: string }
+
+// --- Brain Management Responses (CLI → Browser) ---
+export interface BrainListResponse extends WSMessage { type: 'brain_list'; brains: BrainInstance[]; limits: BrainLimits }
+export interface BrainRenamedResponse extends WSMessage { type: 'brain_renamed'; brainId: string; newName: string }
+export interface BrainSwitchedResponse extends WSMessage { type: 'brain_switched'; brainId: string }
+export interface BrainCreatedResponse extends WSMessage { type: 'brain_created'; brain: BrainInstance }
+export interface BrainLimitReachedEvent extends WSMessage { type: 'brain_limit_reached'; limitType: string; current: number; max: number }
+
+// --- Remote Tool Execution (Server → CLI → Server) ---
+export interface RemoteToolCallRequest extends WSMessage { type: 'remote_tool_call'; callId: string; toolName: string; toolInput: Record<string, unknown>; jarvisSessionId: string }
+export interface RemoteToolCallResult extends WSMessage { type: 'remote_tool_result'; callId: string; jarvisSessionId: string; success: boolean; result?: string; error?: string }
+export interface JarvisResultEvent extends WSMessage { type: 'jarvis_result'; taskId: number; result: string; steps: number }
+
 // --- Web Chat Events (CLI → Browser, streamed) ---
 export interface ChatStartedEvent extends WSMessage { type: 'chat_started'; chatId: string }
 export interface ChatTextChunkEvent extends WSMessage { type: 'chat_text_chunk'; chatId: string; text: string }
@@ -327,7 +346,12 @@ export type ControlRequest =
   | ListTriggersRequest
   | ListProjectsRequest
   | RegisterProjectRequest
-  | GetWorkersRequest;
+  | GetWorkersRequest
+  | GetBrainListRequest
+  | RenameBrainRequest
+  | SwitchBrainRequest
+  | CreateBrainRequest
+  | RemoteToolCallResult;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts
@@ -370,6 +394,11 @@ export interface ControlHandlers {
   listProjects(): Array<{ name: string; path: string; health: number }>;
   registerProject(path: string, name?: string): { name: string; path: string; health: number } | null;
   getWorkers(): WorkerInfo[];
+  // Brain Management
+  getBrainList(): { brains: BrainInstance[]; limits: BrainLimits };
+  renameBrain(brainId: string, newName: string): boolean;
+  switchBrain(brainId: string): boolean;
+  createBrain(name: string, brainType: 'global' | 'local', projectPath?: string): BrainInstance | null;
 }
 
 // ---------------------------------------------------------------------------

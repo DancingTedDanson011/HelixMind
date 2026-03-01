@@ -112,4 +112,43 @@ describe('generateBrainHTML', () => {
     expect(html).toContain('Archive');
     expect(html).toContain('Deep Archive');
   });
+
+  // --- Brain Manager UI ---
+
+  it('should include brain-toggle button', () => {
+    const html = generateBrainHTML(mockData);
+    expect(html).toContain('brain-toggle');
+    expect(html).toContain('Brains');
+  });
+
+  it('should include brain-manager panel with global/local sections', () => {
+    const html = generateBrainHTML(mockData);
+    expect(html).toContain('brain-manager');
+    expect(html).toContain('bm-global');
+    expect(html).toContain('bm-local');
+  });
+
+  it('should include plan-view section', () => {
+    const html = generateBrainHTML(mockData);
+    expect(html).toContain('plan-view');
+    expect(html).toContain('plan-items');
+  });
+
+  it('should include brain management WS handlers', () => {
+    const html = generateBrainHTML(mockData);
+    expect(html).toContain('brain_list');
+    expect(html).toContain('brain_renamed');
+    expect(html).toContain('brain_switched');
+    expect(html).toContain('brain_created');
+    expect(html).toContain('brain_limit_reached');
+  });
+
+  it('should include brain management functions', () => {
+    const html = generateBrainHTML(mockData);
+    expect(html).toContain('requestBrainList');
+    expect(html).toContain('renderBrainList');
+    expect(html).toContain('createBrainCard');
+    expect(html).toContain('renameBrain');
+    expect(html).toContain('switchBrain');
+  });
 });
