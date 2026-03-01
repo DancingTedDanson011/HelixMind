@@ -256,7 +256,7 @@
       "profile": "Profil",
       "billing": "Abrechnung",
       "apiKeys": "API-Schlüssel",
-      "cli": "CLI",
+      "console": "Konsole",
       "monitor": "Monitor",
       "support": "Support"
     }
@@ -439,6 +439,14 @@
     "noResults": "Keine Ergebnisse gefunden",
     "error": "Etwas ist schiefgelaufen",
     "success": "Erfolg"
+  },
+  "console": {
+    "title": "Konsole",
+    "subtitle": "Verbinde dich mit deiner laufenden HelixMind CLI und chatte direkt",
+    "noInstances": "Keine CLI-Instanzen gefunden",
+    "noInstancesHint": "Starte HelixMind CLI mit: npx helixmind",
+    "scanning": "Suche nach Instanzen...",
+    "instancesFound": "Instanzen gefunden"
   },
   "cli": {
     "title": "CLI Manager",
@@ -674,7 +682,9 @@
     "subtitle": "Echtzeit-Sicherheitsüberwachung und Bedrohungserkennung",
     "connectFirst": "Verbinde dich mit einer HelixMind CLI-Instanz, um Monitor-Daten zu sehen.",
     "scanning": "Suche nach CLI-Instanzen...",
-    "noInstances": "Keine CLI-Instanzen gefunden. Starte HelixMind CLI mit /monitor zuerst.",
+    "noInstances": "Keine CLI-Instanzen gefunden",
+    "noInstancesHint": "Starte HelixMind CLI mit: npx helixmind → /monitor",
+    "instancesFound": "Instanzen gefunden",
     "uptime": "Laufzeit",
     "status": {
       "disconnected": "Nicht verbunden",

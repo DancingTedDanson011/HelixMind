@@ -2,9 +2,9 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
-import { CliManager } from '@/components/cli/CliManager';
+import { ConsolePage } from '@/components/console/ConsolePage';
 
-export default async function CliPage() {
+export default async function ConsolePageRoute() {
   const session = await auth();
   if (!session?.user) redirect('/auth/login');
 
@@ -23,7 +23,7 @@ export default async function CliPage() {
         plan: user.subscription?.plan || 'FREE',
       }}
     >
-      <CliManager />
+      <ConsolePage />
     </DashboardLayout>
   );
 }
