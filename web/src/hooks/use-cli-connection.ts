@@ -139,7 +139,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   // Wrapper to update both state and ref in sync
   const updateConnectionState = useCallback((state: ConnectionState) => {
     connectionStateRef.current = state;
-    updateConnectionState(state);
+    setConnectionState(state);
   }, []);
 
   // ---------------------------------------------------------------------------
