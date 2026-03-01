@@ -204,7 +204,7 @@ export function AppShell() {
 
   // ── Brain: open in popup window ───────────────
   const handleBrainClick = useCallback(() => {
-    window.open('/brain', 'helix-brain', 'width=1200,height=800,menubar=no,toolbar=no');
+    window.open('/brain.html', 'helix-brain', 'width=1200,height=800,menubar=no,toolbar=no');
   }, []);
 
   // ── Auto-select first session for console ─────
