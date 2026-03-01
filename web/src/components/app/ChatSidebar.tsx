@@ -358,14 +358,7 @@ function groupByDateWithSessions(
   const yesterdayItems: SidebarItem[] = [];
   const olderItems: SidebarItem[] = [];
 
-  // Sessions are always "now" — they go to Today, running first
-  const running = sessions.filter(s => s.status === 'running');
-  const done = sessions.filter(s => s.status !== 'running');
-  for (const s of [...running, ...done]) {
-    todayItems.push({ kind: 'session', session: s });
-  }
-
-  // Chats sorted into date buckets
+  // Chats sorted into date buckets (chats first, then sessions below)
   for (const chat of chats) {
     const chatDate = new Date(chat.updatedAt);
     if (chatDate >= today) {
@@ -375,6 +368,13 @@ function groupByDateWithSessions(
     } else {
       olderItems.push({ kind: 'chat', chat });
     }
+  }
+
+  // Sessions are always "now" — they go to Today after chats, running first
+  const running = sessions.filter(s => s.status === 'running');
+  const done = sessions.filter(s => s.status !== 'running');
+  for (const s of [...running, ...done]) {
+    todayItems.push({ kind: 'session', session: s });
   }
 
   if (todayItems.length > 0) groups.push({ label: 'Today', items: todayItems });

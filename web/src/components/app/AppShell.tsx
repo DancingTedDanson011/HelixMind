@@ -969,10 +969,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               sessions={isConnected ? connection.sessions : undefined}
               jarvisName={connection.jarvisStatus?.jarvisName}
               activeChatId={activeChatId}
-              onSelect={handleChatSelect}
+              onSelect={(id) => { handleChatSelect(id); setActiveTab('chat'); }}
               onSessionClick={openSessionInTab}
               onSessionDismiss={connection.dismissSession}
-              onCreate={createChat}
+              onCreate={() => { createChat(); setActiveTab('chat'); }}
               onDelete={deleteChat}
               onRename={renameChat}
             />
@@ -1486,7 +1486,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         ) : activeTab === 'jarvis' ? (
           /* ─── Jarvis Tab ─── */
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className={jarvisSessionIdForOutput ? 'flex-shrink-0 max-h-[55%] overflow-y-auto' : 'flex-1 overflow-hidden'}>
+            <div className={jarvisSessionIdForOutput ? 'flex-shrink-0 max-h-[55%] overflow-y-auto' : 'flex-1 overflow-y-auto'}>
               <JarvisPanel
                 tasks={connection.jarvisTasks}
                 status={connection.jarvisStatus}
