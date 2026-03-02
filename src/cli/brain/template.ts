@@ -115,6 +115,13 @@ canvas { display: block; }
   display: flex; flex-direction: column; gap: 6px;
   pointer-events: none;
 }
+#controls.collapsed .control-group { display: none; }
+#controls-toggle {
+  background: rgba(5,5,16,0.85); border: 1px solid rgba(0,212,255,0.15);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer; color: #889;
+  font-size: 11px; transition: all 0.2s; pointer-events: auto; align-self: flex-end;
+}
+#controls-toggle:hover { border-color: rgba(0,212,255,0.4); color: #00d4ff; }
 .control-group {
   background: rgba(5,5,16,0.65); border: 1px solid rgba(0,212,255,0.1);
   border-radius: 8px; padding: 8px 12px; backdrop-filter: blur(12px);
@@ -427,7 +434,8 @@ canvas { display: block; }
 
 <div id="search-box"><input id="search-input" type="text" placeholder="Search nodes..." aria-label="Search nodes" /></div>
 
-<div id="controls">
+<div id="controls" class="collapsed">
+  <button id="controls-toggle">\u2699 Filters</button>
   <div class="control-group">
     <label>Levels</label>
     <span class="toggle-btn active" data-level="5" data-color="#FF6B6B"><span class="ldot" style="background:#FF6B6B;box-shadow:0 0 6px #FF6B6B"></span>L5 Deep<span class="lcount" id="lc5"></span></span>
@@ -1216,6 +1224,13 @@ document.querySelectorAll('[data-edge]').forEach(b=>{
   });
 });
 
+// ===== CONTROLS TOGGLE =====
+const ctrlEl=document.getElementById('controls'), ctrlToggle=document.getElementById('controls-toggle');
+ctrlToggle.addEventListener('click',()=>{
+  ctrlEl.classList.toggle('collapsed');
+  ctrlToggle.textContent=ctrlEl.classList.contains('collapsed')?'\\u2699 Filters':'\\u2715 Close';
+});
+
 // ===== GOLDEN ENERGY CORE (Jarvis consciousness center) =====
 const coreGeo = new THREE.IcosahedronGeometry(curSpread * 0.06, 3);
 const coreMat = new THREE.MeshBasicMaterial({
@@ -1675,6 +1690,15 @@ function animate(){
 
 // ===== RESIZE =====
 addEventListener('resize',()=>{ const w=innerWidth,h=innerHeight,d=Math.min(window.devicePixelRatio,2); cam.aspect=w/h; cam.updateProjectionMatrix(); R.setSize(w,h); composer.setSize(Math.floor(w*d),Math.floor(h*d)); });
+
+// ===== STATIC MODE DETECTION =====
+// Hide interactive controls when served as static file (no CLI WebSocket available)
+const isStatic=window!==window.top||!location.host.match(/^(127\\.0\\.0\\.1|localhost)(:\\d+)?$/);
+if(isStatic){
+  const vp=document.getElementById('voice-panel');if(vp)vp.style.display='none';
+  const ft=document.getElementById('findings-toggle');if(ft)ft.style.display='none';
+  const mt=document.getElementById('models-toggle');if(mt)mt.style.display='none';
+}
 
 // ===== WEBSOCKET =====
 let ws=null;

@@ -1,17 +1,50 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { motion } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import { Sparkles, Terminal, Shield, ArrowRight } from 'lucide-react';
 import { Link } from '@/i18n/routing';
+import { useRef } from 'react';
+
+// ─── Mode Definitions ─────────────────────────────────────────
 
 const modes = [
-  { key: 'jarvis', icon: Sparkles, color: '#ff00ff', borderColor: '#ff00ff', docsHref: '/docs/jarvis' },
-  { key: 'agent', icon: Terminal, color: '#00d4ff', borderColor: '#00d4ff', docsHref: '/docs/agent-tools' },
-  { key: 'monitor', icon: Shield, color: '#ff4444', borderColor: '#ff4444', docsHref: '/docs/monitor' },
+  {
+    key: 'jarvis',
+    index: '01',
+    icon: Sparkles,
+    color: '#ff00ff',
+    shadowColor: 'rgba(255,0,255,0.15)',
+    glowColor: 'rgba(255,0,255,0.06)',
+    borderColor: '#ff00ff',
+    docsHref: '/docs/jarvis',
+    flip: false,
+  },
+  {
+    key: 'agent',
+    index: '02',
+    icon: Terminal,
+    color: '#00d4ff',
+    shadowColor: 'rgba(0,212,255,0.15)',
+    glowColor: 'rgba(0,212,255,0.06)',
+    borderColor: '#00d4ff',
+    docsHref: '/docs/agent-tools',
+    flip: true,
+  },
+  {
+    key: 'monitor',
+    index: '03',
+    icon: Shield,
+    color: '#ff4444',
+    shadowColor: 'rgba(255,68,68,0.15)',
+    glowColor: 'rgba(255,68,68,0.06)',
+    borderColor: '#ff4444',
+    docsHref: '/docs/monitor',
+    flip: false,
+  },
 ] as const;
 
-// ─── Demo Components ──────────────────────────────────────────
+// ─── Demo Components ───────────────────────────────────────────
 
 function JarvisDemo({ t }: { t: (key: string) => string }) {
   const lines = [
@@ -23,31 +56,41 @@ function JarvisDemo({ t }: { t: (key: string) => string }) {
   ];
 
   return (
-    <div className="rounded-xl bg-black/50 border border-white/[0.06] p-4 font-mono text-[11px] space-y-2.5">
+    <div className="rounded-2xl bg-black/60 border border-white/[0.07] p-5 font-mono text-[12px] space-y-3 backdrop-blur-sm">
+      <div className="flex items-center gap-1.5 mb-4 pb-3 border-b border-white/[0.06]">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+        <span className="ml-2 text-[10px] text-white/30 tracking-wide">jarvis — spiral memory</span>
+      </div>
       {lines.map((line, i) => (
         <motion.div
           key={i}
-          className={`flex items-start gap-2 ${line.indent ? 'pl-5' : ''}`}
-          initial={{ opacity: 0, x: -8 }}
+          className={`flex items-start gap-2.5 ${line.indent ? 'pl-6' : ''}`}
+          initial={{ opacity: 0, x: -10 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.3 + i * 0.12, duration: 0.4 }}
+          transition={{ delay: 0.4 + i * 0.13, duration: 0.45 }}
         >
-          <span className="shrink-0 w-4 text-center">{line.icon}</span>
-          <span style={{ color: line.color }} className={line.bold ? 'font-bold' : ''}>
+          <span className="shrink-0 w-4 text-center leading-relaxed">{line.icon}</span>
+          <span style={{ color: line.color }} className={`leading-relaxed ${line.bold ? 'font-bold' : ''}`}>
             {line.text}
           </span>
         </motion.div>
       ))}
       <motion.div
-        className="flex gap-2 pl-6 mt-1.5"
-        initial={{ opacity: 0, scale: 0.95 }}
+        className="flex gap-2 pl-6 pt-1"
+        initial={{ opacity: 0, scale: 0.92 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true }}
-        transition={{ delay: 1.0 }}
+        transition={{ delay: 1.1, duration: 0.4 }}
       >
-        <span className="px-2.5 py-0.5 rounded-md bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/20 text-[10px]">Approve</span>
-        <span className="px-2.5 py-0.5 rounded-md bg-[#ff4444]/10 text-[#ff4444] border border-[#ff4444]/20 text-[10px]">Deny</span>
+        <span className="px-3 py-1 rounded-lg bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/25 text-[11px] font-semibold">
+          Approve
+        </span>
+        <span className="px-3 py-1 rounded-lg bg-[#ff4444]/10 text-[#ff4444] border border-[#ff4444]/25 text-[11px] font-semibold">
+          Deny
+        </span>
       </motion.div>
     </div>
   );
@@ -63,18 +106,24 @@ function AgentDemo({ t }: { t: (key: string) => string }) {
   ];
 
   return (
-    <div className="rounded-xl bg-black/50 border border-white/[0.06] p-4 font-mono text-[11px] space-y-2.5">
+    <div className="rounded-2xl bg-black/60 border border-white/[0.07] p-5 font-mono text-[12px] space-y-3 backdrop-blur-sm">
+      <div className="flex items-center gap-1.5 mb-4 pb-3 border-b border-white/[0.06]">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+        <span className="ml-2 text-[10px] text-white/30 tracking-wide">hx agent — 22 tools active</span>
+      </div>
       {lines.map((line, i) => (
         <motion.div
           key={i}
-          className="flex items-start gap-2"
-          initial={{ opacity: 0, x: -8 }}
+          className="flex items-start gap-2.5"
+          initial={{ opacity: 0, x: -10 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.3 + i * 0.12, duration: 0.4 }}
+          transition={{ delay: 0.4 + i * 0.13, duration: 0.45 }}
         >
-          <span className="shrink-0 w-4 text-center">{line.prefix}</span>
-          <span style={{ color: line.color }}>{line.text}</span>
+          <span className="shrink-0 w-8 text-[10px] text-white/40 pt-0.5">{line.prefix}</span>
+          <span style={{ color: line.color }} className="leading-relaxed">{line.text}</span>
         </motion.div>
       ))}
     </div>
@@ -89,23 +138,34 @@ function MonitorDemo({ t }: { t: (key: string) => string }) {
     { severity: 'INFO', color: '#00d4ff', text: t('monitor.demo4') },
   ];
 
-  const dots: Record<string, string> = { CRITICAL: '\uD83D\uDD34', HIGH: '\uD83D\uDFE0', MEDIUM: '\uD83D\uDFE1', INFO: '\uD83D\uDFE2' };
+  const dots: Record<string, string> = {
+    CRITICAL: '\uD83D\uDD34',
+    HIGH: '\uD83D\uDFE0',
+    MEDIUM: '\uD83D\uDFE1',
+    INFO: '\uD83D\uDFE2',
+  };
 
   return (
-    <div className="rounded-xl bg-black/50 border border-white/[0.06] p-4 font-mono text-[11px] space-y-2.5">
+    <div className="rounded-2xl bg-black/60 border border-white/[0.07] p-5 font-mono text-[12px] space-y-3 backdrop-blur-sm">
+      <div className="flex items-center gap-1.5 mb-4 pb-3 border-b border-white/[0.06]">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+        <span className="ml-2 text-[10px] text-white/30 tracking-wide">hx monitor — security audit</span>
+      </div>
       {findings.map((f, i) => (
         <motion.div
           key={i}
-          className="flex items-center gap-2"
-          initial={{ opacity: 0, x: -8 }}
+          className="flex items-center gap-2.5"
+          initial={{ opacity: 0, x: -10 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.3 + i * 0.12, duration: 0.4 }}
+          transition={{ delay: 0.4 + i * 0.13, duration: 0.45 }}
         >
-          <span className="shrink-0">{dots[f.severity]}</span>
+          <span className="shrink-0 text-sm">{dots[f.severity]}</span>
           <span
-            className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded"
-            style={{ color: f.color, backgroundColor: `${f.color}15` }}
+            className="shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-md tracking-wider"
+            style={{ color: f.color, backgroundColor: `${f.color}18` }}
           >
             {f.severity}
           </span>
@@ -116,107 +176,221 @@ function MonitorDemo({ t }: { t: (key: string) => string }) {
   );
 }
 
-const demos: Record<string, React.ComponentType<{ t: (key: string) => string }>> = {
+const demoComponents: Record<string, React.ComponentType<{ t: (key: string) => string }>> = {
   jarvis: JarvisDemo,
   agent: AgentDemo,
   monitor: MonitorDemo,
 };
 
-// ─── Main Component ───────────────────────────────────────────
+// ─── Mode Row ─────────────────────────────────────────────────
+
+interface ModeRowProps {
+  mode: (typeof modes)[number];
+  index: number;
+  t: (key: string) => string;
+}
+
+function ModeRow({ mode, index, t }: ModeRowProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: '-80px' });
+  const Icon = mode.icon;
+  const Demo = demoComponents[mode.key];
+
+  const textContent = (
+    <motion.div
+      className="flex flex-col justify-center gap-6"
+      initial={{ opacity: 0, x: mode.flip ? 32 : -32 }}
+      animate={isInView ? { opacity: 1, x: 0 } : {}}
+      transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+    >
+      {/* Big faint index number */}
+      <div
+        className="absolute select-none pointer-events-none font-display font-black text-[160px] sm:text-[200px] leading-none -top-8 opacity-[0.04]"
+        style={{ color: mode.color, left: mode.flip ? 'auto' : '-0.02em', right: mode.flip ? '-0.02em' : 'auto' }}
+      >
+        {mode.index}
+      </div>
+
+      {/* Icon + badge */}
+      <div className="flex items-center gap-3">
+        <motion.div
+          className="flex items-center justify-center w-10 h-10 rounded-xl border"
+          style={{
+            borderColor: `${mode.color}40`,
+            backgroundColor: `${mode.color}0f`,
+            boxShadow: `0 0 20px ${mode.color}20`,
+          }}
+          whileHover={{ scale: 1.08, boxShadow: `0 0 32px ${mode.color}40` }}
+          transition={{ duration: 0.2 }}
+        >
+          <Icon size={18} style={{ color: mode.color }} />
+        </motion.div>
+        <span
+          className="text-xs font-bold tracking-[0.22em] uppercase"
+          style={{ color: `${mode.color}99` }}
+        >
+          Mode {mode.index}
+        </span>
+      </div>
+
+      {/* Title */}
+      <h3
+        className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] font-black tracking-tight leading-tight"
+        style={{
+          background: `linear-gradient(135deg, ${mode.color} 0%, ${mode.color}99 60%, ${mode.color}55 100%)`,
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        }}
+      >
+        {t(`${mode.key}.title`)}
+      </h3>
+
+      {/* Description */}
+      <p className="text-gray-300 text-base sm:text-lg leading-relaxed font-light max-w-lg">
+        {t(`${mode.key}.desc`)}
+      </p>
+
+      {/* Learn more */}
+      <div>
+        <Link
+          href={mode.docsHref}
+          className="group/link inline-flex items-center gap-2 text-sm font-semibold tracking-wide transition-all duration-200"
+          style={{ color: mode.color }}
+        >
+          <span className="border-b border-transparent group-hover/link:border-current transition-all duration-200">
+            {t('learnMore')}
+          </span>
+          <ArrowRight
+            size={15}
+            className="transition-transform duration-200 group-hover/link:translate-x-1"
+          />
+        </Link>
+      </div>
+    </motion.div>
+  );
+
+  const demoContent = (
+    <motion.div
+      className="relative"
+      initial={{ opacity: 0, x: mode.flip ? -32 : 32, scale: 0.96 }}
+      animate={isInView ? { opacity: 1, x: 0, scale: 1 } : {}}
+      transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1], delay: 0.22 }}
+    >
+      {/* Glow behind demo */}
+      <div
+        className="absolute -inset-6 rounded-3xl blur-2xl pointer-events-none"
+        style={{ background: `radial-gradient(ellipse at center, ${mode.shadowColor} 0%, transparent 70%)` }}
+      />
+      {/* Demo border wrapper */}
+      <div
+        className="relative rounded-2xl p-px"
+        style={{
+          background: `linear-gradient(135deg, ${mode.color}30 0%, transparent 50%, ${mode.color}15 100%)`,
+        }}
+      >
+        <div className="rounded-2xl overflow-hidden bg-[#0a0a0f]">
+          <Demo t={t} />
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Per-row ambient glow */}
+      <div
+        className="absolute inset-0 pointer-events-none overflow-hidden"
+        aria-hidden="true"
+      >
+        <div
+          className="absolute w-[500px] h-[500px] rounded-full blur-[120px]"
+          style={{
+            background: mode.glowColor,
+            left: mode.flip ? '55%' : '-5%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}
+        />
+      </div>
+
+      {/* Divider line */}
+      {index > 0 && (
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+      )}
+
+      {/* Row content */}
+      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-20 lg:py-24">
+        <div
+          className={`grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center ${
+            mode.flip ? 'lg:[&>*:first-child]:order-2 lg:[&>*:last-child]:order-1' : ''
+          }`}
+        >
+          {textContent}
+          {demoContent}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Section ─────────────────────────────────────────────
 
 export function ModesShowcase() {
   const t = useTranslations('modes');
 
   return (
-    <section id="modes" className="py-24 sm:py-32 px-4 relative overflow-hidden">
-      {/* Ambient glow */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[140px] bg-primary/[0.04]" />
+    <section id="modes" className="relative overflow-hidden">
+      {/* Section header */}
+      <div className="relative mx-auto max-w-6xl px-4 pt-24 sm:pt-32 pb-4 text-center">
+        <motion.p
+          className="font-display text-xs font-bold tracking-[0.3em] uppercase mb-4"
+          style={{ color: 'rgba(255,255,255,0.35)' }}
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
+          {t('sectionLabel')}
+        </motion.p>
+
+        <motion.h2
+          className="font-display text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white mb-5 leading-tight"
+          initial={{ opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.65, delay: 0.05 }}
+        >
+          {t('title')}
+        </motion.h2>
+
+        <motion.p
+          className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto font-light leading-relaxed mb-2"
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.12 }}
+        >
+          {t('subtitle')}
+        </motion.p>
+
+        {/* Decorative line below header */}
+        <motion.div
+          className="mt-12 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent"
+          initial={{ scaleX: 0 }}
+          whileInView={{ scaleX: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.9, delay: 0.2 }}
+        />
       </div>
 
-      <div className="mx-auto max-w-6xl relative">
-        {/* Header */}
-        <div className="text-center mb-14">
-          <motion.p
-            className="font-display text-sm font-semibold tracking-[0.2em] uppercase text-primary/60 mb-3"
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            {t('sectionLabel')}
-          </motion.p>
-          <motion.h2
-            className="heading-lg text-3xl sm:text-4xl text-white mb-4"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.05 }}
-          >
-            {t('title')}
-          </motion.h2>
-          <motion.p
-            className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto font-light"
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-          >
-            {t('subtitle')}
-          </motion.p>
-        </div>
+      {/* Mode rows */}
+      {modes.map((mode, i) => (
+        <ModeRow key={mode.key} mode={mode} index={i} t={t} />
+      ))}
 
-        {/* 3-Column Grid — all modes visible */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {modes.map((mode, i) => {
-            const Icon = mode.icon;
-            const Demo = demos[mode.key];
-
-            return (
-              <motion.div
-                key={mode.key}
-                initial={{ opacity: 0, y: 28, filter: 'blur(4px)' }}
-                whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 + i * 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="group relative flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-300 hover:border-white/[0.12]"
-                style={{ borderTopWidth: 3, borderTopColor: mode.borderColor }}
-              >
-                {/* Icon + Title */}
-                <div className="flex items-center gap-3 mb-3">
-                  <Icon size={18} style={{ color: mode.color }} />
-                  <h3
-                    className="font-display text-lg font-bold tracking-tight"
-                    style={{ color: mode.color }}
-                  >
-                    {t(`${mode.key}.title`)}
-                  </h3>
-                </div>
-
-                {/* Description */}
-                <p className="text-gray-400 text-sm leading-relaxed mb-5">
-                  {t(`${mode.key}.desc`)}
-                </p>
-
-                {/* Demo */}
-                <div className="flex-1 mb-5">
-                  <Demo t={t} />
-                </div>
-
-                {/* Learn more link */}
-                <Link
-                  href={mode.docsHref}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 group/link"
-                  style={{ color: mode.color }}
-                >
-                  {t('learnMore')}
-                  <ArrowRight size={14} className="transition-transform duration-200 group-hover/link:translate-x-0.5" />
-                </Link>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Bottom fade */}
+      <div className="h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
     </section>
   );
 }
