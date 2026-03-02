@@ -35,6 +35,24 @@ function toolDetail(tool: ActiveTool): string | null {
   return null;
 }
 
+/* ─── Thinking Dots ─────────────────────────────── */
+
+function ThinkingDots() {
+  return (
+    <div className="flex items-center gap-1">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="w-1.5 h-1.5 rounded-full bg-gray-400"
+          style={{
+            animation: `thinking-bounce 1.2s ease-in-out ${i * 0.15}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 interface ChatViewProps {
   messages: ChatMessage[];
   isAgentRunning: boolean;
@@ -94,30 +112,26 @@ export function ChatView({
     }
   }, []);
 
-  // Track when agent starts responding — scroll to answer start, not bottom
+  // Track when agent starts responding — scroll to answer start
   const prevAgentRunningRef = useRef(false);
   const answerStartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // When agent just started (new response), scroll to where the answer begins
     if (isAgentRunning && !prevAgentRunningRef.current) {
-      // Small delay to let the streaming indicator render
       requestAnimationFrame(() => {
         answerStartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
-      autoScrollRef.current = false; // Don't auto-scroll to bottom during this response
+      autoScrollRef.current = false;
     }
     prevAgentRunningRef.current = isAgentRunning;
   }, [isAgentRunning]);
 
-  // Auto-scroll on new user messages only (not during agent streaming)
+  // Auto-scroll on new user messages only
   useEffect(() => {
     if (autoScrollRef.current && !isAgentRunning) {
       scrollToBottom(false);
     }
   }, [messages.length, scrollToBottom, isAgentRunning]);
-
-  // No rAF auto-scroll during streaming — keep user at answer start
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
@@ -143,7 +157,6 @@ export function ChatView({
 
           {/* Steps — 2-column grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
-            {/* Step 1 — Install */}
             <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <Download size={12} className="text-cyan-400 flex-shrink-0" />
@@ -152,8 +165,6 @@ export function ChatView({
               <code className="block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[10px] font-mono">npm i -g helixmind</code>
               <p className="text-[9px] text-gray-700">{t('setupStep1Requires')}</p>
             </div>
-
-            {/* Step 2 — Configure provider */}
             <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <Key size={12} className="text-amber-400 flex-shrink-0" />
@@ -162,8 +173,6 @@ export function ChatView({
               <code className="block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[10px] font-mono">hx config set provider anthropic</code>
               <code className="block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[10px] font-mono mt-1">hx config set apiKey sk-ant-...</code>
             </div>
-
-            {/* Step 3 — Start agent */}
             <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <Terminal size={12} className="text-cyan-400 flex-shrink-0" />
@@ -172,8 +181,6 @@ export function ChatView({
               <code className="block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[10px] font-mono">cd your-project && helixmind</code>
               <p className="text-[9px] text-gray-700">{t('setupStep3Alias')}</p>
             </div>
-
-            {/* Step 4 — Init + Auto-connect */}
             <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <Wifi size={12} className="text-emerald-400 flex-shrink-0" />
@@ -184,7 +191,6 @@ export function ChatView({
             </div>
           </div>
 
-          {/* Full docs link */}
           <div className="text-center">
             <a href="/docs/getting-started" className="inline-flex items-center gap-1.5 text-[10px] text-cyan-500/60 hover:text-cyan-400 transition-colors">
               <BookOpen size={11} />{t('setupDocsFullGuide')}
@@ -212,7 +218,6 @@ export function ChatView({
       <div className="flex flex-col h-full">
         <div className="flex-1 overflow-y-auto flex items-center justify-center py-8">
           <div className="space-y-6 max-w-lg px-6 w-full">
-            {/* ASCII Art Banner */}
             <pre
               className="text-[10px] sm:text-xs leading-tight font-mono text-center select-none"
               style={{
@@ -239,7 +244,6 @@ export function ChatView({
               ─── Mind ───
             </div>
 
-            {/* Info Grid */}
             <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 font-mono text-xs px-4">
               <span className="text-gray-600">{t('bannerProvider')}</span>
               <span className="text-gray-300 truncate">{provider}</span>
@@ -257,7 +261,6 @@ export function ChatView({
               <span className="text-gray-500">{version}</span>
             </div>
 
-            {/* CLI Output Preview */}
             {outputPreview.length > 0 && (
               <div className="space-y-1.5 px-4">
                 <div className="text-[10px] font-mono text-gray-600 tracking-wider">── Recent Output ──</div>
@@ -269,7 +272,6 @@ export function ChatView({
               </div>
             )}
 
-            {/* Start hint */}
             <p className="text-center text-xs text-gray-600 animate-pulse">{t('bannerStartHint')}</p>
           </div>
         </div>
@@ -282,9 +284,9 @@ export function ChatView({
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="h-full overflow-y-auto px-4 py-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
+        className="h-full overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
       >
-        <div className="max-w-3xl mx-auto space-y-4">
+        <div className="max-w-2xl mx-auto space-y-6">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
@@ -315,92 +317,58 @@ export function ChatView({
             </div>
           )}
 
-          {/* Active tool calls */}
+          {/* Active tool calls — compact inline style */}
           {activeTools.length > 0 && isAgentRunning && (
-            <div className="space-y-1.5 pl-10">
+            <div className="space-y-1 ml-1">
               {activeTools.map((tool) => (
-                <div
-                  key={tool.stepNum}
-                  className="flex flex-col gap-0.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    {tool.status === 'running' ? (
-                      <Loader2 size={12} className="text-cyan-400 animate-spin flex-shrink-0" />
-                    ) : tool.status === 'done' ? (
-                      <CheckCircle2 size={12} className="text-emerald-400 flex-shrink-0" />
-                    ) : (
-                      <XCircle size={12} className="text-red-400 flex-shrink-0" />
-                    )}
-                    <span className="text-cyan-400 font-medium">{toolLabel(tool.toolName)}</span>
-                    {toolDetail(tool) && (
-                      <span className="text-gray-500 font-mono truncate max-w-[300px]">{toolDetail(tool)}</span>
-                    )}
-                  </div>
-                  {tool.status !== 'running' && tool.result && (
-                    <div className="text-gray-600 text-[11px] pl-5 truncate max-w-full">
-                      {String(tool.result).slice(0, 150)}
-                    </div>
+                <div key={tool.stepNum} className="flex items-center gap-2 text-xs text-gray-500">
+                  {tool.status === 'running' ? (
+                    <Loader2 size={11} className="text-gray-400 animate-spin flex-shrink-0" />
+                  ) : tool.status === 'done' ? (
+                    <CheckCircle2 size={11} className="text-emerald-500/60 flex-shrink-0" />
+                  ) : (
+                    <XCircle size={11} className="text-red-400/60 flex-shrink-0" />
+                  )}
+                  <span className="text-gray-400">{toolLabel(tool.toolName)}</span>
+                  {toolDetail(tool) && (
+                    <span className="text-gray-600 font-mono truncate max-w-[280px]">{toolDetail(tool)}</span>
                   )}
                 </div>
               ))}
             </div>
           )}
 
-          {/* Streaming indicator */}
+          {/* Streaming response */}
           {isAgentRunning && (
-            <div ref={answerStartRef} className="flex gap-3">
-              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
-                <Bot size={14} className="text-cyan-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                {streamingContent ? (
-                  <div className="prose prose-invert prose-sm max-w-none text-sm text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
-                    <StreamingText text={streamingContent} />
-                    <span className="inline-block w-2 h-5 rounded-sm bg-gradient-to-b from-cyan-400 to-purple-400 ml-0.5 align-middle" style={{ animation: 'helix-glow 1.5s ease-in-out infinite, blink 1s step-end infinite' }} />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 text-sm text-gray-500">
-                    {/* Helix DNA thinking animation */}
-                    <div className="flex items-end gap-[2px]">
-                      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="flex flex-col gap-[2px]">
-                          <span
-                            className="w-[3px] rounded-full bg-cyan-400"
-                            style={{
-                              height: '14px',
-                              animation: `helix-strand-a 1.4s linear ${i * 0.1}s infinite`,
-                              transformOrigin: 'bottom',
-                              willChange: 'transform, opacity',
-                            }}
-                          />
-                          <span
-                            className="w-[3px] rounded-full bg-purple-400"
-                            style={{
-                              height: '14px',
-                              animation: `helix-strand-b 1.4s linear ${i * 0.1}s infinite`,
-                              transformOrigin: 'top',
-                              willChange: 'transform, opacity',
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <span className="animate-pulse">{t('thinking')}</span>
-                  </div>
-                )}
-              </div>
+            <div ref={answerStartRef} className="animate-message-in">
+              {streamingContent ? (
+                <div className="text-[15px] text-gray-200 whitespace-pre-wrap break-words leading-[1.7]">
+                  <StreamingText text={streamingContent} />
+                  <span
+                    className="inline-block w-[2px] h-[1.1em] bg-gray-400 ml-0.5 align-middle rounded-full"
+                    style={{ animation: 'cursor-blink 1s step-end infinite' }}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2.5 py-1">
+                  <ThinkingDots />
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {/* Bottom padding for breathing room */}
+        <div className="h-8" />
       </div>
 
       {/* Scroll to bottom */}
       {showScrollBtn && (
         <button
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-4 right-4 p-2 rounded-full bg-surface/90 border border-white/10 text-gray-400 hover:text-white shadow-lg backdrop-blur-sm transition-all hover:scale-105"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-surface/90 border border-white/10 text-gray-400 hover:text-white shadow-lg backdrop-blur-sm transition-all hover:scale-105 text-xs flex items-center gap-1.5"
         >
-          <ArrowDown size={16} />
+          <ArrowDown size={12} />
         </button>
       )}
     </div>
