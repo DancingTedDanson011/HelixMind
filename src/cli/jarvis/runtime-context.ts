@@ -75,9 +75,9 @@ export function buildRuntimeContext(m: RuntimeModules): string {
   const telegramBot = m.telegramBot;
   const teleConfig = m.notifications.getConfig().targets.find(t => t.channel === 'telegram');
   if (telegramBot?.isRunning) {
-    commLines.push('Telegram: active (polling)');
+    commLines.push('Telegram: ACTIVE — built-in polling is running. Incoming messages/mentions are handled automatically. Do NOT manually call the Telegram API.');
   } else if (teleConfig?.enabled) {
-    commLines.push('Telegram: configured (not polling)');
+    commLines.push('Telegram: configured but not polling (daemon not started)');
   } else {
     commLines.push('Telegram: not configured');
   }
