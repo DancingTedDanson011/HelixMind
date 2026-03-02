@@ -3,11 +3,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-
-function srand(seed: number) {
-  const x = Math.sin(seed * 9301 + 49297) * 49297;
-  return x - Math.floor(x);
-}
+import { srand } from './brain-utils';
 
 export function BackgroundStars() {
   const ref1 = useRef<THREE.Points>(null!);

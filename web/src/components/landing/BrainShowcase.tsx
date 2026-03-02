@@ -1,9 +1,11 @@
 'use client';
 
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Maximize2, Minimize2 } from 'lucide-react';
+import { BrainHUD } from '../brain/BrainHUD';
+import { demoNodes, demoEdges } from '../brain/brain-demo-data';
 
 const InteractiveBrainCanvas = lazy(() =>
   import('./InteractiveBrainCanvas').then((m) => ({ default: m.InteractiveBrainCanvas }))
@@ -17,9 +19,23 @@ function BrainFallback() {
   );
 }
 
+// Pre-compute HUD stats from demo data
+const nodeCount = demoNodes.length;
+const edgeCount = demoEdges.length;
+
 export function BrainShowcase() {
   const t = useTranslations('brainShowcase');
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const { levelCounts, webKnowledgeCount } = useMemo(() => {
+    const counts: Record<number, number> = {};
+    let webCount = 0;
+    for (const node of demoNodes) {
+      counts[node.level] = (counts[node.level] || 0) + 1;
+      if (node.level === 6) webCount++;
+    }
+    return { levelCounts: counts, webKnowledgeCount: webCount };
+  }, []);
 
   return (
     <section className="py-24 sm:py-32 px-4 relative overflow-hidden">
@@ -86,13 +102,24 @@ export function BrainShowcase() {
 
           {/* Canvas container with smooth height transition */}
           <div
-            className={`w-full transition-[height] duration-500 ease-in-out ${
+            className={`w-full relative transition-[height] duration-500 ease-in-out ${
               isExpanded ? 'h-[75vh]' : 'h-[400px] sm:h-[500px]'
             }`}
           >
             <Suspense fallback={<BrainFallback />}>
               <InteractiveBrainCanvas />
             </Suspense>
+
+            {/* HUD overlay — visible when expanded (matches CLI brain view) */}
+            {isExpanded && (
+              <BrainHUD
+                nodeCount={nodeCount}
+                edgeCount={edgeCount}
+                levelCounts={levelCounts}
+                webKnowledgeCount={webKnowledgeCount}
+                projectName="HelixMind"
+              />
+            )}
           </div>
         </motion.div>
 

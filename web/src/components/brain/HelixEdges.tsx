@@ -40,7 +40,15 @@ export function HelixEdges({ nodes, edges, positions, nodeColors }: HelixEdgesPr
     return map;
   }, [nodes]);
 
-  const { linePositions, lineColors, lineAlphas, material } = useMemo(() => {
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: edgeVertexShader,
+    fragmentShader: edgeFragmentShader,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  }), []);
+
+  const { linePositions, lineColors, lineAlphas } = useMemo(() => {
     const { MAX_E } = FORCE_LAYOUT;
 
     // Separate cross-level and same-level edges, prioritize cross-level
@@ -95,15 +103,7 @@ export function HelixEdges({ nodes, edges, positions, nodeColors }: HelixEdgesPr
       alphaArr[i * 2 + 1] = ba * aS;
     }
 
-    const mat = new THREE.ShaderMaterial({
-      vertexShader: edgeVertexShader,
-      fragmentShader: edgeFragmentShader,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-
-    return { linePositions: posArr, lineColors: colArr, lineAlphas: alphaArr, material: mat };
+    return { linePositions: posArr, lineColors: colArr, lineAlphas: alphaArr };
   }, [edges, nodeIdxMap, positions, nodes, nodeColors]);
 
   return (
