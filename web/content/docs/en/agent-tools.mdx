@@ -1,6 +1,6 @@
 ---
 title: "Coding Agent — 22 Tools"
-description: "Your AI coding partner with 22 built-in tools — in the terminal or the web console. Reads, writes, tests, and commits with persistent spiral memory."
+description: "Your AI coding partner with 22 built-in tools. in the terminal or the web console. Reads, writes, tests, and commits with persistent spiral memory."
 order: 7
 category: Three Modes
 ---
@@ -9,13 +9,13 @@ The Coding Agent is **Mode 2** of HelixMind and the core experience. It is your 
 
 Unlike other AI tools that forget everything between sessions, HelixMind has **persistent spiral memory**. It remembers your codebase, your patterns, and your decisions across every session. Ask it to refactor a module today, and next week it still knows why you chose that architecture.
 
-Use it in your terminal with `helixmind` or from the web console. Same power, your choice.
+Use it in your terminal with `hx` or from the web console. Same power, your choice.
 
 ## Where does the Agent run?
 
 | Environment | How to start | What you get |
 |-------------|-------------|--------------|
-| **CLI Terminal** | Install with `npm install -g helixmind`, then run `helixmind` or `helixmind chat` | Full interactive chat with all 22 tools. This is the primary experience. |
+| **CLI Terminal** | Install with `npm install -g helixmind`, then run `hx` | Full interactive chat with all 22 tools. This is the primary experience. |
 | **Web Console** | Open the **Console** tab in your HelixMind dashboard | Same agent, same tools, streamed to your browser. Start sessions with `/auto` or `/security`, or use the interactive console. |
 
 Both connect to the same spiral memory and project context. Work in the terminal at home, check progress from the web console on your phone. Everything stays in sync.
@@ -30,7 +30,7 @@ The foundation of every coding session. The agent reads your code, writes new fi
 |------|-------------|
 | `read_file` | Reads any file in your project. The agent uses this constantly to understand your code before making changes. |
 | `write_file` | Creates new files or overwrites existing ones. Used for new components, configs, tests. |
-| `edit_file` | Surgically edits specific lines in a file. No full rewrites needed — just the lines that matter. |
+| `edit_file` | Surgically edits specific lines in a file. No full rewrites needed. just the lines that matter. |
 | `list_directory` | Explores your project structure recursively. The agent maps out your codebase before diving into details. |
 
 ### Search and Discovery (2 tools)
@@ -63,18 +63,18 @@ The agent manages your version control so you can focus on the code. It checks s
 
 ### Spiral Memory (4 tools)
 
-This is what makes HelixMind fundamentally different. The agent can read and write to your project's persistent memory — a 6-level knowledge graph that evolves over time.
+This is what makes HelixMind fundamentally different. The agent can read and write to your project's persistent memory. a 6-level knowledge graph that evolves over time.
 
 | Tool | What it does |
 |------|-------------|
 | `spiral_search` | Semantic search across all memory levels. Finds concepts, not just keywords. Ask about "authentication flow" and it finds relevant nodes even if they use different words. |
-| `spiral_store` | Stores new knowledge with auto-generated vector embeddings. Decisions, patterns, architecture choices — all persisted. |
+| `spiral_store` | Stores new knowledge with auto-generated vector embeddings. Decisions, patterns, architecture choices. all persisted. |
 | `spiral_status` | Shows memory statistics per level: how many nodes, total size, last activity. |
 | `spiral_compact` | Triggers memory evolution. Frequently accessed knowledge gets promoted. Unused nodes decay. Old context gets compressed into summaries. |
 
 ### Bug Tracking (2 tools)
 
-The agent maintains a persistent bug journal across sessions. Bugs are never forgotten — even if you switch tasks and come back weeks later.
+The agent maintains a persistent bug journal across sessions. Bugs are never forgotten. even if you switch tasks and come back weeks later.
 
 | Tool | What it does |
 |------|-------------|
@@ -116,8 +116,8 @@ Every tool call goes through a permission check. Three levels protect you from u
 Choose your comfort level:
 
 - **Normal mode** (default): Safe operations auto-run. Ask operations prompt you. Dangerous operations always prompt.
-- **Skip Permissions** (`helixmind chat -s`): Safe and Ask operations auto-run. Dangerous operations still prompt. Good for when you trust the agent but want a safety net.
-- **YOLO Mode** (`helixmind chat --yolo`): Everything auto-runs. No prompts. Full speed, full trust. Use this when you know what you are asking for and want zero interruptions.
+- **Skip Permissions** (`hx -s`): Safe and Ask operations auto-run. Dangerous operations still prompt. Good for when you trust the agent but want a safety net.
+- **YOLO Mode** (`hx --yolo`): Everything auto-runs. No prompts. Full speed, full trust. Use this when you know what you are asking for and want zero interruptions.
 
 ## How the Agent Works
 
@@ -138,16 +138,16 @@ The agent does not just execute instructions blindly. It uses spiral memory to u
 
 ```bash
 # Start interactive chat
-helixmind
+hx
 
 # Send a single instruction
-helixmind chat -m "Add input validation to the signup form"
+hx -m "Add input validation to the signup form"
 
-# Full autonomous mode — no permission prompts
-helixmind chat --yolo
+# Full autonomous mode. no permission prompts
+hx --yolo
 
 # Skip confirmation prompts (but not dangerous ops)
-helixmind chat -s
+hx -s
 ```
 
 Once inside the chat, you can use slash commands like `/help`, `/undo`, `/diff`, `/brain`, `/sessions`, and many more. See the [Slash Commands](/docs/slash-commands) reference for the full list.

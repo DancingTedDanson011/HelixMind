@@ -7,7 +7,7 @@ category: Erste Schritte
 
 # Erste Schritte
 
-HelixMind ist ein Open-Source AI Coding CLI mit **Spiral Context Memory** — das einzige AI-Coding-Tool, das sich wirklich an deine Codebase, deine Muster und deine Entscheidungen über Sessions hinweg erinnert.
+HelixMind ist ein Open-Source AI Coding CLI mit **Spiral Context Memory**: das einzige AI-Coding-Tool, das sich wirklich an deine Codebase, deine Muster und deine Entscheidungen über Sessions hinweg erinnert.
 
 ## Voraussetzungen
 
@@ -27,20 +27,20 @@ Installation überprüfen:
 helixmind --version
 ```
 
-## Erster Start — Waehle deinen Weg
+## Erster Start. Waehle deinen Weg
 
 Beim ersten Start von HelixMind siehst du einen Auswahl-Bildschirm:
 
 ### Option 1: Login (Empfohlen)
 
-Kostenloses Konto — schaltet das volle Erlebnis frei:
+Kostenloses Konto. schaltet das volle Erlebnis frei:
 
-- **Jarvis** — autonomer Coding-Agent
-- **Validation Matrix** — automatische Code-Validierung
-- **Security Monitor** — kontinuierliches Vulnerability-Scanning
-- **Autonomer Modus** — findet & fixt Issues selbststaendig
-- **3D Brain Management** — mehrere Brains, Umbenennen, Visualisierung
-- **Live Brain WebSocket** — Echtzeit-Brain-Updates
+- **Jarvis**: autonomer Coding-Agent
+- **Validation Matrix**: automatische Code-Validierung
+- **Security Monitor**: kontinuierliches Vulnerability-Scanning
+- **Autonomer Modus**: findet & fixt Issues selbststaendig
+- **3D Brain Management**: mehrere Brains, Umbenennen, Visualisierung
+- **Live Brain WebSocket**: Echtzeit-Brain-Updates
 
 Keine Kreditkarte. Kein Trial. Fuer immer kostenlos. Funktioniert offline nach erstem Login.
 
@@ -51,7 +51,7 @@ helixmind login
 
 ### Option 2: Open Source
 
-Kein Konto noetig — sofort loslegen:
+Kein Konto noetig. sofort loslegen:
 
 - AI Agent + 22 Tools
 - Spiral Memory (1 lokales Brain pro Projekt)
@@ -59,27 +59,24 @@ Kein Konto noetig — sofort loslegen:
 - Bug Journal + Browser Control
 - Sessions + Checkpoints
 
-Features wie Jarvis, Validation, Security Monitor und Autonomer Modus sind im Open Source Modus nicht verfuegbar. Fuehre jederzeit `helixmind login` aus um upzugraden — es ist kostenlos.
+Features wie Jarvis, Validation, Security Monitor und Autonomer Modus sind im Open Source Modus nicht verfuegbar. Fuehre jederzeit `helixmind login` aus um upzugraden. es ist kostenlos.
 
 Siehe [Authentifizierung](/docs/authentication) fuer Details zu Tiers und Feature-Gating.
 
 ## Schnellstart
 
 ```bash
-# Interaktiven Chat starten (Standard-Befehl)
-helixmind
-
-# Oder explizit
-helixmind chat
+# Interaktiven Chat starten
+hx
 
 # Eine einzelne Nachricht senden
-helixmind chat -m "Erkläre den Auth-Flow in diesem Projekt"
+hx -m "Erkläre den Auth-Flow in diesem Projekt"
 
-# YOLO-Modus — alle Bestätigungen überspringen
-helixmind chat --yolo
+# YOLO-Modus. alle Bestätigungen überspringen
+hx --yolo
 
 # Berechtigungen überspringen (aber bei gefährlichen Operationen nachfragen)
-helixmind chat --skip-permissions
+hx -s
 ```
 
 ## Projekt einrichten
@@ -92,8 +89,8 @@ helixmind init
 ```
 
 Dies erstellt ein `.helixmind/` Verzeichnis mit:
-- `spiral.db` — Die Spiral-Memory-Datenbank deines Projekts
-- `context.md` — Eigene Anweisungen für die AI über dein Projekt
+- `spiral.db`: Die Spiral-Memory-Datenbank deines Projekts
+- `context.md`: Eigene Anweisungen für die AI über dein Projekt
 
 Bearbeite `.helixmind/context.md`, um HelixMind über die Konventionen, Architektur und Präferenzen deines Projekts zu informieren. Diese Datei wird in jeden Gesprächskontext eingebunden.
 
@@ -127,7 +124,7 @@ Siehe [Provider](/docs/providers) für die vollständige Liste unterstützter Mo
 ## Deine erste Session
 
 1. Navigiere zu deinem Projektverzeichnis
-2. Starte `helixmind` für einen Chat
+2. Starte `hx` für einen Chat
 3. Frage die AI, deine Codebase zu erkunden: *"Was macht dieses Projekt?"*
 4. Die AI liest Dateien, analysiert Code und baut Spiral-Memory auf
 5. In deiner **nächsten** Session kennt die AI dein Projekt bereits
@@ -145,7 +142,7 @@ Anders als andere AI-Coding-Tools, die jede Session bei null anfangen, pflegt He
 | **L5** | Deep Archive | Komprimierte Zusammenfassungen |
 | **L6** | Web Knowledge | Automatisch geholte Dokumentation und Web-Insights |
 
-Dein Kontext wird **promoted** bei häufigem Zugriff und **decayed** bei Nichtnutzung — genau wie menschliches Gedächtnis.
+Dein Kontext wird **promoted** bei häufigem Zugriff und **decayed** bei Nichtnutzung. genau wie menschliches Gedächtnis.
 
 ## MCP-Server-Modus
 
@@ -155,18 +152,18 @@ HelixMind funktioniert auch als MCP-Server und gibt anderen AI-Tools Zugriff auf
 # Claude Code
 claude mcp add spiral-context -- npx -y spiral-context-mcp
 
-# Cursor — in .cursor/mcp.json eintragen
-# VS Code — in .vscode/mcp.json eintragen
-# Windsurf — in ~/.codeium/windsurf/mcp_config.json eintragen
+# Cursor. in .cursor/mcp.json eintragen
+# VS Code. in .vscode/mcp.json eintragen
+# Windsurf. in ~/.codeium/windsurf/mcp_config.json eintragen
 ```
 
 Siehe [MCP-Integration](/docs/mcp-integration) für vollständige Setup-Anleitungen.
 
 ## Nächste Schritte
 
-- [Authentifizierung](/docs/authentication) — Login, API-Keys und Abo-Stufen
-- [Spiral Memory](/docs/spiral-memory) — Deep Dive in das 6-Level-Memory-System
-- [CLI-Referenz](/docs/cli-reference) — Alle Befehle, Flags und Optionen
-- [Agent-Tools](/docs/agent-tools) — Die 22 Tools des AI-Agenten
-- [Brain-Visualisierung](/docs/brain-visualization) — Echtzeit-3D-Brain-Viewer
-- [Provider](/docs/providers) — Anthropic, OpenAI, Ollama und mehr konfigurieren
+- [Authentifizierung](/docs/authentication). Login, API-Keys und Abo-Stufen
+- [Spiral Memory](/docs/spiral-memory). Deep Dive in das 6-Level-Memory-System
+- [CLI-Referenz](/docs/cli-reference). Alle Befehle, Flags und Optionen
+- [Agent-Tools](/docs/agent-tools). Die 22 Tools des AI-Agenten
+- [Brain-Visualisierung](/docs/brain-visualization). Echtzeit-3D-Brain-Viewer
+- [Provider](/docs/providers). Anthropic, OpenAI, Ollama und mehr konfigurieren

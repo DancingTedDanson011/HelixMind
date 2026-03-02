@@ -1,6 +1,6 @@
 ---
 title: "Coding Agent — 22 Tools"
-description: "Dein KI-Coding-Partner mit 22 eingebauten Tools — im Terminal oder in der Web-Konsole. Liest, schreibt, testet und committet mit persistentem Spiral Memory."
+description: "Dein KI-Coding-Partner mit 22 eingebauten Tools. im Terminal oder in der Web-Konsole. Liest, schreibt, testet und committet mit persistentem Spiral Memory."
 order: 7
 category: Drei Modi
 ---
@@ -9,13 +9,13 @@ Der Coding Agent ist **Modus 2** von HelixMind und das Herzstück der ganzen Erf
 
 Anders als andere KI-Tools, die zwischen Sessions alles vergessen, hat HelixMind **persistenten Spiral Memory**. Es merkt sich deine Codebase, deine Patterns und deine Entscheidungen über jede Session hinweg. Refactore heute ein Modul, und nächste Woche weiß der Agent immer noch, warum du diese Architektur gewählt hast.
 
-Nutze ihn im Terminal mit `helixmind` oder über die Web-Konsole. Gleiche Power, deine Wahl.
+Nutze ihn im Terminal mit `hx` oder über die Web-Konsole. Gleiche Power, deine Wahl.
 
 ## Wo läuft der Agent?
 
 | Umgebung | So startest du | Was du bekommst |
 |----------|---------------|-----------------|
-| **CLI Terminal** | Installiere mit `npm install -g helixmind`, dann starte mit `helixmind` oder `helixmind chat` | Vollständiger interaktiver Chat mit allen 22 Tools. Das ist die primäre Erfahrung. |
+| **CLI Terminal** | Installiere mit `npm install -g helixmind`, dann starte mit `hx` | Vollständiger interaktiver Chat mit allen 22 Tools. Das ist die primäre Erfahrung. |
 | **Web-Konsole** | Öffne den **Console**-Tab in deinem HelixMind Dashboard | Gleicher Agent, gleiche Tools, gestreamt in deinen Browser. Starte Sessions mit `/auto` oder `/security`, oder nutze die interaktive Konsole. |
 
 Beide verbinden sich mit dem gleichen Spiral Memory und Projekt-Kontext. Arbeite zu Hause im Terminal, prüfe den Fortschritt unterwegs über die Web-Konsole. Alles bleibt synchron.
@@ -30,7 +30,7 @@ Das Fundament jeder Coding-Session. Der Agent liest deinen Code, erstellt neue D
 |------|-------------|
 | `read_file` | Liest jede Datei in deinem Projekt. Der Agent nutzt das ständig, um deinen Code zu verstehen, bevor er Änderungen macht. |
 | `write_file` | Erstellt neue Dateien oder überschreibt bestehende. Für neue Komponenten, Configs, Tests. |
-| `edit_file` | Bearbeitet chirurgisch bestimmte Zeilen in einer Datei. Kein komplettes Neuschreiben nötig — nur die Zeilen, die sich ändern müssen. |
+| `edit_file` | Bearbeitet chirurgisch bestimmte Zeilen in einer Datei. Kein komplettes Neuschreiben nötig. nur die Zeilen, die sich ändern müssen. |
 | `list_directory` | Erkundet deine Projektstruktur rekursiv. Der Agent kartografiert deine Codebase, bevor er ins Detail geht. |
 
 ### Suche und Erkennung (2 Tools)
@@ -63,18 +63,18 @@ Der Agent verwaltet deine Versionskontrolle, damit du dich auf den Code konzentr
 
 ### Spiral Memory (4 Tools)
 
-Das ist es, was HelixMind fundamental anders macht. Der Agent kann den persistenten Speicher deines Projekts lesen und beschreiben — ein 6-stufiger Knowledge Graph, der sich über die Zeit weiterentwickelt.
+Das ist es, was HelixMind fundamental anders macht. Der Agent kann den persistenten Speicher deines Projekts lesen und beschreiben. ein 6-stufiger Knowledge Graph, der sich über die Zeit weiterentwickelt.
 
 | Tool | Was es macht |
 |------|-------------|
 | `spiral_search` | Semantische Suche über alle Memory-Level. Findet Konzepte, nicht nur Keywords. Frag nach "Authentifizierungsablauf" und es findet relevante Knoten, selbst wenn sie andere Wörter verwenden. |
-| `spiral_store` | Speichert neues Wissen mit automatisch generierten Vektor-Embeddings. Entscheidungen, Patterns, Architektur-Choices — alles wird persistiert. |
+| `spiral_store` | Speichert neues Wissen mit automatisch generierten Vektor-Embeddings. Entscheidungen, Patterns, Architektur-Choices. alles wird persistiert. |
 | `spiral_status` | Zeigt Memory-Statistiken pro Level: Anzahl Knoten, Gesamtgröße, letzte Aktivität. |
 | `spiral_compact` | Löst Memory-Evolution aus. Häufig genutztes Wissen wird promotet. Ungenutzte Knoten zerfallen. Alter Kontext wird zu Zusammenfassungen komprimiert. |
 
 ### Bug-Tracking (2 Tools)
 
-Der Agent führt ein persistentes Bug-Journal über Sessions hinweg. Bugs werden nie vergessen — selbst wenn du die Aufgabe wechselst und Wochen später zurückkommst.
+Der Agent führt ein persistentes Bug-Journal über Sessions hinweg. Bugs werden nie vergessen. selbst wenn du die Aufgabe wechselst und Wochen später zurückkommst.
 
 | Tool | Was es macht |
 |------|-------------|
@@ -116,8 +116,8 @@ Jeder Tool-Call durchläuft eine Berechtigungsprüfung. Drei Stufen schützen di
 Wähle dein Komfortlevel:
 
 - **Normaler Modus** (Standard): Safe-Operationen laufen automatisch. Ask-Operationen fragen nach. Dangerous fragt immer.
-- **Skip Permissions** (`helixmind chat -s`): Safe und Ask laufen automatisch. Dangerous fragt weiterhin. Gut, wenn du dem Agenten vertraust, aber ein Sicherheitsnetz willst.
-- **YOLO-Modus** (`helixmind chat --yolo`): Alles läuft automatisch. Keine Nachfragen. Volle Geschwindigkeit, volles Vertrauen. Nutze das, wenn du genau weißt, was du verlangst und null Unterbrechungen willst.
+- **Skip Permissions** (`hx -s`): Safe und Ask laufen automatisch. Dangerous fragt weiterhin. Gut, wenn du dem Agenten vertraust, aber ein Sicherheitsnetz willst.
+- **YOLO-Modus** (`hx --yolo`): Alles läuft automatisch. Keine Nachfragen. Volle Geschwindigkeit, volles Vertrauen. Nutze das, wenn du genau weißt, was du verlangst und null Unterbrechungen willst.
 
 ## Wie der Agent arbeitet
 
@@ -130,7 +130,7 @@ Das passiert, wenn du eine Nachricht eingibst:
 5. **Die Berechtigungsprüfung** läuft für jeden Tool-Call (safe / ask / dangerous).
 6. **Das Tool wird ausgeführt** und ein Checkpoint wird automatisch erstellt, damit du rückgängig machen kannst.
 7. **Das Ergebnis wird zurückgegeben** an den Agenten für den nächsten Schritt.
-8. **Wiederholen** — bis zu 25 Tool-Calls in einem einzelnen Turn.
+8. **Wiederholen**: bis zu 25 Tool-Calls in einem einzelnen Turn.
 
 Der Agent führt nicht einfach blind Anweisungen aus. Er nutzt den Spiral Memory, um dein Projekt zu verstehen, bevor er Änderungen macht. Er prüft `git_status` vor dem Commit. Er liest bestehenden Code vor dem Editieren. Er sucht nach Patterns, bevor er neue hinzufügt.
 
@@ -138,16 +138,16 @@ Der Agent führt nicht einfach blind Anweisungen aus. Er nutzt den Spiral Memory
 
 ```bash
 # Interaktiven Chat starten
-helixmind
+hx
 
 # Einzelne Anweisung senden
-helixmind chat -m "Füge Input-Validierung zum Signup-Formular hinzu"
+hx -m "Füge Input-Validierung zum Signup-Formular hinzu"
 
-# Voller autonomer Modus — keine Berechtigungsabfragen
-helixmind chat --yolo
+# Voller autonomer Modus. keine Berechtigungsabfragen
+hx --yolo
 
 # Bestätigungsabfragen überspringen (aber nicht für gefährliche Ops)
-helixmind chat -s
+hx -s
 ```
 
 Im Chat kannst du Slash-Commands wie `/help`, `/undo`, `/diff`, `/brain`, `/sessions` und viele mehr verwenden. Siehe die [Slash-Commands](/docs/slash-commands) Referenz für die vollständige Liste.

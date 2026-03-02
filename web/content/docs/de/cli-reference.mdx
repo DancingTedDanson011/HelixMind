@@ -7,18 +7,18 @@ category: CLI-Nutzung
 
 # CLI-Referenz
 
-> HelixMind funktioniert in zwei Modi: **Open Source** (ohne Konto) und **Eingeloggt** (kostenloses Konto). Einige Features erfordern Login — diese sind unten markiert. Fuehre jederzeit `helixmind login` aus um alle Features kostenlos freizuschalten.
+> HelixMind funktioniert in zwei Modi: **Open Source** (ohne Konto) und **Eingeloggt** (kostenloses Konto). Einige Features erfordern Login. diese sind unten markiert. Fuehre jederzeit `helixmind login` aus um alle Features kostenlos freizuschalten.
 
 HelixMind bietet eine umfangreiche Sammlung von Befehlen fuer interaktives Coding, Memory-Management und Konfiguration.
 
 ## Hauptbefehle
 
-### `helixmind` / `helixmind chat`
+### `hx` (Alias: `helixmind`)
 
 Startet eine interaktive AI-Coding-Session. Dies ist der **Standard-Befehl**. Beim ersten Start waehlst du zwischen Login und Open Source Modus.
 
 ```bash
-helixmind [chat] [optionen]
+hx [optionen]
 ```
 
 **Optionen:**
@@ -36,13 +36,13 @@ helixmind [chat] [optionen]
 
 ```bash
 # Interaktiver Chat (Standard)
-helixmind
+hx
 
 # Einzelne Nachricht senden
-helixmind chat -m "Fehlerbehandlung zu den API-Endpoints hinzufügen"
+hx -m "Fehlerbehandlung zu den API-Endpoints hinzufügen"
 
-# Voller Auto-Modus — keine Prompts, keine Validierung
-helixmind --yolo --no-validation
+# Voller Auto-Modus. keine Prompts, keine Validierung
+hx --yolo --no-validation
 ```
 
 ### `helixmind login`
@@ -111,7 +111,7 @@ helixmind config list
 | Key | Beschreibung | Standard |
 |-----|-------------|---------|
 | `provider` | LLM-Provider | `anthropic` |
-| `apiKey` | API-Key für den Provider | — |
+| `apiKey` | API-Key für den Provider |. |
 | `model` | Modellname | Provider-Standard |
 | `logLevel` | Debug-Ausgabe-Level | `info` |
 | `validationEnabled` | Validation Matrix an/aus | `true` |

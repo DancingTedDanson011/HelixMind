@@ -1,6 +1,6 @@
 ---
 title: Berechtigungssystem
-description: HelixMinds 3-stufiges Berechtigungssystem — safe, ask, dangerous — und wie du steuerst, was die AI darf.
+description: HelixMinds 3-stufiges Berechtigungssystem. safe, ask, dangerous. und wie du steuerst, was die AI darf.
 order: 13
 category: Kernkonzepte
 ---
@@ -27,9 +27,9 @@ Potenziell destruktiv: `run_command` mit `rm -rf`, `dd`, `format`, `DROP TABLE`,
 
 | Modus | Verhalten | Befehl |
 |-------|-----------|--------|
-| **Standard** | Safe=auto, Ask=prompt, Dangerous=prompt | `helixmind chat` |
-| **Skip** | Safe+Ask=auto, Dangerous=prompt | `helixmind -s` / `/skip-permissions` |
-| **YOLO** | Alles auto (auch Dangerous!) | `helixmind --yolo` / `/yolo` |
+| **Standard** | Safe=auto, Ask=prompt, Dangerous=prompt | `hx` |
+| **Skip** | Safe+Ask=auto, Dangerous=prompt | `hx -s` / `/skip-permissions` |
+| **YOLO** | Alles auto (auch Dangerous!) | `hx --yolo` / `/yolo` |
 
 ## Berechtigungs-Prompt
 
@@ -38,9 +38,9 @@ Potenziell destruktiv: `run_command` mit `rm -rf`, `dd`, `format`, `DROP TABLE`,
    Erlauben? [y/n/always]:
 ```
 
-- **y** — Einmalig erlauben
-- **n** — Ablehnen
-- **always** — Diesen Tool-Typ für den Rest der Session erlauben
+- **y**: Einmalig erlauben
+- **n**: Ablehnen
+- **always**: Diesen Tool-Typ für den Rest der Session erlauben
 
 ## Notfall-Stopp
 
@@ -49,4 +49,4 @@ Potenziell destruktiv: `run_command` mit `rm -rf`, `dd`, `format`, `DROP TABLE`,
 2. Checkpoint-Browser öffnen
 3. State zurücksetzen
 
-Funktioniert in **jedem Modus** — auch in YOLO.
+Funktioniert in **jedem Modus**: auch in YOLO.

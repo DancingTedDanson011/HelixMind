@@ -1,13 +1,13 @@
 ---
 title: Projekt einrichten
-description: Initialisiere HelixMind in deinem Projekt — lokales Gedächtnis erstellen, Kontext konfigurieren und Codebase einspeisen.
+description: Initialisiere HelixMind in deinem Projekt. lokales Gedächtnis erstellen, Kontext konfigurieren und Codebase einspeisen.
 order: 2
 category: Erste Schritte
 ---
 
 # Projekt einrichten
 
-Initialisiere HelixMind in deinem Projekt, um **projekt-lokales Gedächtnis** zu aktivieren — die AI erinnert sich an alles über dieses spezifische Projekt über Sessions hinweg.
+Initialisiere HelixMind in deinem Projekt, um **projekt-lokales Gedächtnis** zu aktivieren. die AI erinnert sich an alles über dieses spezifische Projekt über Sessions hinweg.
 
 ## Initialisierung
 
@@ -30,7 +30,7 @@ dein-projekt/
 
 ## Das `.helixmind/` Verzeichnis
 
-### `context.md` — Eigene Anweisungen
+### `context.md`: Eigene Anweisungen
 
 Diese Datei wird **in jedes Gespräch** mit der AI eingebunden. Nutze sie, um HelixMind über dein Projekt zu informieren:
 
@@ -60,7 +60,7 @@ Diese Datei wird **in jedes Gespräch** mit der AI eingebunden. Nutze sie, um He
 - Environment-Variablen in .env.local (nicht committet)
 ```
 
-### `spiral.db` — Projekt-Memory
+### `spiral.db`: Projekt-Memory
 
 SQLite-Datenbank mit:
 - Allen Spiral-Memory-Knoten (L1-L6)
@@ -101,7 +101,7 @@ helixmind feed --watch src/
 
 ## `.gitignore`
 
-Füge `.helixmind/` zu deiner `.gitignore` hinzu — Spiral-Memory ist entwicklerspezifisch:
+Füge `.helixmind/` zu deiner `.gitignore` hinzu. Spiral-Memory ist entwicklerspezifisch:
 
 ```
 # HelixMind lokales Gedächtnis

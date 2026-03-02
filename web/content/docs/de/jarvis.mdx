@@ -1,11 +1,11 @@
 ---
 title: "Jarvis — Autonomer Assistent"
-description: "Jarvis denkt, plant und handelt in deinem Auftrag — im CLI-Terminal oder im Web-Dashboard. Task-Queues, Proposals und mehrstufiges Reasoning."
+description: "Jarvis denkt, plant und handelt in deinem Auftrag. im CLI-Terminal oder im Web-Dashboard. Task-Queues, Proposals und mehrstufiges Reasoning."
 order: 6
 category: Drei Modi
 ---
 
-Jarvis ist **Modus 1** von HelixMind. Ein autonomer KI-Assistent, der im Hintergrund laueft — plant, analysiert und Tasks aus einer Queue abarbeitet. Anders als ein normaler Chatbot wartet Jarvis nicht darauf, dass du ihm sagst, was als naechstes zu tun ist. Er denkt voraus, erstellt Proposals zur Ueberpruefung und fuehrt genehmigte Arbeit mit mehrstufigem Reasoning aus.
+Jarvis ist **Modus 1** von HelixMind. Ein autonomer KI-Assistent, der im Hintergrund laueft. plant, analysiert und Tasks aus einer Queue abarbeitet. Anders als ein normaler Chatbot wartet Jarvis nicht darauf, dass du ihm sagst, was als naechstes zu tun ist. Er denkt voraus, erstellt Proposals zur Ueberpruefung und fuehrt genehmigte Arbeit mit mehrstufigem Reasoning aus.
 
 Du kannst Jarvis im **CLI-Terminal** oder im **Web-App-Dashboard** starten. Gleiche Engine, gleiche Intelligenz, zwei Interfaces.
 
@@ -13,10 +13,10 @@ Du kannst Jarvis im **CLI-Terminal** oder im **Web-App-Dashboard** starten. Glei
 
 | Interface | Wie starten | Wo erscheint der Output |
 |-----------|------------|------------------------|
-| **CLI** | `helixmind` Terminal, dann `/jarvis start` | Laeuft als Background-Session. Output in den Session-Tabs. |
+| **CLI** | `hx` Terminal, dann `/jarvis` | Laeuft als Background-Session. Output in den Session-Tabs. |
 | **Web App** | Jarvis-Tab im Dashboard | Task-Panel, Proposal-Queue, Echtzeit-Output-Stream. |
 
-Beide Interfaces teilen sich die gleiche Task-Queue. Starte Jarvis ueber die CLI, verwalte Proposals in der Web App — oder umgekehrt.
+Beide Interfaces teilen sich die gleiche Task-Queue. Starte Jarvis ueber die CLI, verwalte Proposals in der Web App. oder umgekehrt.
 
 ## Wie Jarvis denkt
 
@@ -24,7 +24,7 @@ Jarvis springt nicht direkt zu Loesungen. Er denkt in Phasen und steigt in tiefe
 
 ### Quick Check
 
-Ein schneller Durchlauf in Sekunden. Jarvis erfasst den aktuellen Zustand deines Projekts, prueft auf offensichtliche Probleme und markiert alles, was Aufmerksamkeit braucht. Stell dir das als ersten Blick vor — genug, um die einfachen Sachen zu finden.
+Ein schneller Durchlauf in Sekunden. Jarvis erfasst den aktuellen Zustand deines Projekts, prueft auf offensichtliche Probleme und markiert alles, was Aufmerksamkeit braucht. Stell dir das als ersten Blick vor. genug, um die einfachen Sachen zu finden.
 
 ### Medium Analysis
 
@@ -32,7 +32,7 @@ Wenn der Quick Check Fragen aufwirft, geht Jarvis tiefer. Er untersucht Muster, 
 
 ### Deep Think
 
-Fuer komplexe Probleme geht Jarvis in eine erweiterte Reasoning-Session mit vollstaendiger Chain-of-Thought-Analyse. Er betrachtet mehrere Ansaetze, waegt Trade-offs ab und erstellt einen detaillierten Aktionsplan. Deep Think ist die gruendlichste Phase — dauert laenger, liefert aber deutlich bessere Ergebnisse bei schwierigen Problemen.
+Fuer komplexe Probleme geht Jarvis in eine erweiterte Reasoning-Session mit vollstaendiger Chain-of-Thought-Analyse. Er betrachtet mehrere Ansaetze, waegt Trade-offs ab und erstellt einen detaillierten Aktionsplan. Deep Think ist die gruendlichste Phase. dauert laenger, liefert aber deutlich bessere Ergebnisse bei schwierigen Problemen.
 
 Jede Phase kann automatisch in die naechste aufsteigen. Ergebnisse aus allen Phasen fliessen in Proposals, die du pruefst, bevor etwas passiert.
 
@@ -42,10 +42,10 @@ Jarvis arbeitet von einer **Task-Queue**. Jeder Task hat einen Titel, eine Besch
 
 | Prioritaet | Verhalten |
 |-----------|-----------|
-| **Kritisch** | Wird sofort ausgefuehrt — ueberspringt die Queue |
+| **Kritisch** | Wird sofort ausgefuehrt. ueberspringt die Queue |
 | **Hoch** | Naechster in der Reihe nach kritischen Tasks |
 | **Normal** | Standard-Queue-Reihenfolge |
-| **Niedrig** | Hintergrund-Arbeit — wird bearbeitet, wenn die Queue leer ist |
+| **Niedrig** | Hintergrund-Arbeit. wird bearbeitet, wenn die Queue leer ist |
 
 Tasks kommen aus zwei Quellen: **Du** fuegst sie explizit hinzu, oder **Jarvis selbst** erstellt sie, wenn er bei der Analyse Probleme entdeckt. Zum Beispiel kann ein Security-Scan drei neue Tasks generieren, die Jarvis automatisch in die Queue einreiht.
 
@@ -53,20 +53,20 @@ Tasks kommen aus zwei Quellen: **Du** fuegst sie explizit hinzu, oder **Jarvis s
 
 Bevor Jarvis signifikante Aktionen durchfuehrt, erstellt er ein **Proposal** zur Ueberpruefung. Jedes Proposal enthaelt:
 
-- **Was** — Die konkrete Aktion, die Jarvis ausfuehren will
-- **Warum** — Die Begruendung hinter der Entscheidung
-- **Auswirkung** — Was sich aendert und wo
-- **Risiko** — Wie wahrscheinlich die Aenderung Probleme verursacht
+- **Was**: Die konkrete Aktion, die Jarvis ausfuehren will
+- **Warum**: Die Begruendung hinter der Entscheidung
+- **Auswirkung**: Was sich aendert und wo
+- **Risiko**: Wie wahrscheinlich die Aenderung Probleme verursacht
 
-Du **genehmigst** oder **lehnst ab**. Wenn du ablehnst, geht dein Feedback zurueck an Jarvis, damit er seinen Ansatz anpassen kann. Das haelt dich fest in der Kontrolle — selbst bei hohen Autonomie-Leveln tauchen destruktive oder risikoreiche Aktionen weiterhin als Proposals auf.
+Du **genehmigst** oder **lehnst ab**. Wenn du ablehnst, geht dein Feedback zurueck an Jarvis, damit er seinen Ansatz anpassen kann. Das haelt dich fest in der Kontrolle. selbst bei hohen Autonomie-Leveln tauchen destruktive oder risikoreiche Aktionen weiterhin als Proposals auf.
 
 ## Autonomie-Level
 
-Steuere, wie selbststaendig Jarvis arbeitet. Du kannst das Level jederzeit aendern — erhoehe es, wenn du der Aufgabe vertraust, senke es, wenn du naeher dran bleiben willst.
+Steuere, wie selbststaendig Jarvis arbeitet. Du kannst das Level jederzeit aendern. erhoehe es, wenn du der Aufgabe vertraust, senke es, wenn du naeher dran bleiben willst.
 
 | Level | Name | Was Jarvis tun kann |
 |-------|------|---------------------|
-| **L0** | Gesperrt | Kein Tool-Zugriff — nur Beobachtung |
+| **L0** | Gesperrt | Kein Tool-Zugriff. nur Beobachtung |
 | **L1** | Nur Lesen | Kann Dateien lesen und analysieren, aber nichts veraendern |
 | **L2** | Proposals | Schlaegt Aenderungen vor, jede Aktion braucht deine Genehmigung |
 | **L3** | Vertraut | Sichere Operationen (Lesen, Suchen) automatisch genehmigt. Schreiben braucht Genehmigung |
@@ -81,7 +81,7 @@ Jarvis startet **Background-Worker** fuer parallele Ausfuehrung. Wenn ein Task i
 
 - Jeder Worker bekommt eine eigene Session mit separatem Output-Stream
 - Worker berichten Fortschritt an den Jarvis-Hauptprozess zurueck
-- Du kannst alle Worker in Echtzeit ueberwachen — in den CLI-Tabs oder der Web App
+- Du kannst alle Worker in Echtzeit ueberwachen. in den CLI-Tabs oder der Web App
 - Wenn ein Worker scheitert, wiederholt Jarvis die Teilaufgabe oder eskaliert sie zur Ueberpruefung
 
 Das bedeutet: Jarvis kann drei Module gleichzeitig refactorn, Tests parallel ausfuehren oder verschiedene Teile deiner Codebase gleichzeitig analysieren.
@@ -91,14 +91,14 @@ Das bedeutet: Jarvis kann drei Module gleichzeitig refactorn, Tests parallel aus
 Starte Jarvis aus deinem interaktiven Terminal:
 
 ```bash
-/jarvis start                                    # Jarvis starten
+/jarvis                                          # Jarvis starten
 /jarvis add "Auth-Modul refactorn" --priority high   # Task hinzufuegen
 /jarvis pause                                    # Ausfuehrung pausieren
 /jarvis resume                                   # Fortsetzen
 /jarvis status                                   # Aktuelle Queue anzeigen
 ```
 
-Jarvis laeuft als **Background-Session** — du behaeltst dein interaktives Prompt und kannst weiter chatten oder arbeiten. Nutze **Ctrl+PageUp** und **Ctrl+PageDown**, um zwischen Session-Tabs zu wechseln und den Jarvis-Output zu sehen.
+Jarvis laeuft als **Background-Session**: du behaeltst dein interaktives Prompt und kannst weiter chatten oder arbeiten. Nutze **Ctrl+PageUp** und **Ctrl+PageDown**, um zwischen Session-Tabs zu wechseln und den Jarvis-Output zu sehen.
 
 Druecke **ESC ESC** (doppeltes Escape) fuer einen Emergency-Stop, der Jarvis und alle Worker sofort anhaelt.
 
@@ -106,11 +106,11 @@ Druecke **ESC ESC** (doppeltes Escape) fuer einen Emergency-Stop, der Jarvis und
 
 Oeffne den **Jarvis-Tab** in deinem Dashboard fuer ein visuelles Interface:
 
-- **Task-Queue** — Alle ausstehenden, aktiven und abgeschlossenen Tasks auf einen Blick
-- **Proposal-Queue** — Klicke auf Genehmigen oder Ablehnen mit vollstaendigem Kontext
-- **Autonomie-Slider** — Ziehe den Regler, um das Autonomie-Level ohne Kommandos anzupassen
-- **Live-Output** — Worker zeigen sich als Echtzeit-Output-Streams unter dem Task-Panel
-- **Bewusstseinsereignisse** — Beobachte Jarvis beim Denken in Echtzeit waehrend der Task-Verarbeitung
+- **Task-Queue**: Alle ausstehenden, aktiven und abgeschlossenen Tasks auf einen Blick
+- **Proposal-Queue**: Klicke auf Genehmigen oder Ablehnen mit vollstaendigem Kontext
+- **Autonomie-Slider**: Ziehe den Regler, um das Autonomie-Level ohne Kommandos anzupassen
+- **Live-Output**: Worker zeigen sich als Echtzeit-Output-Streams unter dem Task-Panel
+- **Bewusstseinsereignisse**: Beobachte Jarvis beim Denken in Echtzeit waehrend der Task-Verarbeitung
 
 Die Web App verbindet sich mit deiner laufenden CLI-Instanz. Du kannst Jarvis in der CLI starten und alles ueber den Browser verwalten, oder direkt vom Dashboard starten.
 
@@ -118,13 +118,13 @@ Die Web App verbindet sich mit deiner laufenden CLI-Instanz. Du kannst Jarvis in
 
 Alles, was Jarvis tut, spiegelt sich in der **3D-Brain-Visualisierung** wider:
 
-- **Denkphasen** erscheinen als animierte Neuron-Nodes — gelbe und gruene Orbit-Nodes pulsieren, waehrend Jarvis durch Probleme denkt
+- **Denkphasen** erscheinen als animierte Neuron-Nodes. gelbe und gruene Orbit-Nodes pulsieren, waehrend Jarvis durch Probleme denkt
 - **Genehmigte Proposals** erzeugen neue Task-Nodes im Helix
 - **Worker-Aktivitaet** generiert Bewusstseinsereignisse, die im Live-Feed des Brains sichtbar sind
-- **Alles Wissen**, das Jarvis aufnimmt, wird in Spiral Memory gespeichert — zukuenftige Sessions profitieren davon
+- **Alles Wissen**, das Jarvis aufnimmt, wird in Spiral Memory gespeichert. zukuenftige Sessions profitieren davon
 
 Oeffne das Brain (`/brain`) waehrend Jarvis laeuft, um den Wissensgraphen deines Projekts in Echtzeit wachsen zu sehen.
 
 ## Erfordert Login (Free+)
 
-> Jarvis erfordert einen kostenlosen HelixMind-Account. Fuehre `helixmind login` in der CLI aus, um ihn freizuschalten — fuer immer kostenlos, keine Kreditkarte noetig.
+> Jarvis erfordert einen kostenlosen HelixMind-Account. Fuehre `helixmind login` in der CLI aus, um ihn freizuschalten. fuer immer kostenlos, keine Kreditkarte noetig.

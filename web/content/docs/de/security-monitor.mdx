@@ -1,11 +1,11 @@
 ---
 title: "Security Monitor — Wächter"
-description: "Kontinuierliches Security-Monitoring mit drei Schutzstufen. Scannt nach Schwachstellen, blockiert Bedrohungen, rotiert Secrets — in der CLI oder im Web-Dashboard."
+description: "Kontinuierliches Security-Monitoring mit drei Schutzstufen. Scannt nach Schwachstellen, blockiert Bedrohungen, rotiert Secrets. in der CLI oder im Web-Dashboard."
 order: 8
 category: Drei Modi
 ---
 
-Der Security Monitor ist **Modus 3** von HelixMind. Ein autonomes Sicherheitssystem, das deine Codebase in Echtzeit ueberwacht — Schwachstellen, verdaechtige Aenderungen und potenzielle Bedrohungen. Waehrend du Code schreibst, laeuft der Waechter still im Hintergrund und prueft jede Dateiaenderung, jede neue Dependency, jedes Config-Update.
+Der Security Monitor ist **Modus 3** von HelixMind. Ein autonomes Sicherheitssystem, das deine Codebase in Echtzeit ueberwacht. Schwachstellen, verdaechtige Aenderungen und potenzielle Bedrohungen. Waehrend du Code schreibst, laeuft der Waechter still im Hintergrund und prueft jede Dateiaenderung, jede neue Dependency, jedes Config-Update.
 
 Waehl aus drei Schutzstufen: **Passive** (nur beobachten), **Defensive** (automatisch auf bekannte Bedrohungen reagieren) oder **Active** (volle autonome Verteidigung mit Genehmigungs-Queue). Jede Stufe bietet eine andere Balance zwischen Komfort und Kontrolle.
 
@@ -15,10 +15,10 @@ Verfuegbar in der **CLI** und im **Web-Dashboard**. Gleiche Engine, gleiche Erke
 
 | Interface | Wie starten | Was du bekommst |
 |-----------|------------|----------------|
-| **CLI Terminal** | `/security` fuer einmalige Audits, `/monitor` fuer kontinuierliches Monitoring | Laeuft als Background-Session — du codest weiter, waehrend er ueberwacht. Findings erscheinen im Session-Output und im Findings-Panel des Brains. |
+| **CLI Terminal** | `/security` fuer einmalige Audits, `/monitor` fuer kontinuierliches Monitoring | Laeuft als Background-Session. du codest weiter, waehrend er ueberwacht. Findings erscheinen im Session-Output und im Findings-Panel des Brains. |
 | **Web App** | Monitor-Tab im Dashboard | Echtzeit-Threat-Timeline, Defense-Aktionen mit Undo, Approval-Queue fuer Active Mode. Visuelle Severity-Indikatoren und historische Trend-Charts. |
 
-Beide Interfaces berichten an die **3D-Brain-Visualisierung**. Security-Nodes leuchten im Helix auf, sobald Bedrohungen entdeckt werden — eine sofortige visuelle Karte der Sicherheitslage deines Projekts.
+Beide Interfaces berichten an die **3D-Brain-Visualisierung**. Security-Nodes leuchten im Helix auf, sobald Bedrohungen entdeckt werden. eine sofortige visuelle Karte der Sicherheitslage deines Projekts.
 
 ## Drei Schutzstufen
 
@@ -38,7 +38,7 @@ Was er nicht tut: Dateien aendern, Verbindungen blockieren, Prozesse beenden ode
 
 ### Defensive Mode
 
-Erkennt Bedrohungen und reagiert automatisch mit vorab genehmigten Aktionen. Keine Bestaetigungsdialoge, kein Warten — der Waechter handelt bei bekannten Threats sofort.
+Erkennt Bedrohungen und reagiert automatisch mit vorab genehmigten Aktionen. Keine Bestaetigungsdialoge, kein Warten. der Waechter handelt bei bekannten Threats sofort.
 
 **Ideal fuer:** Hands-off-Schutz waehrend der aktiven Entwicklung. Du definierst die Regeln, der Waechter setzt sie durch.
 
@@ -52,12 +52,12 @@ Was er automatisch tut:
 
 ### Active Mode
 
-Volle autonome Verteidigung mit Human-in-the-Loop. Der maechtigste Modus — der Waechter erkennt Bedrohungen und schlaegt Verteidigungsaktionen vor, aber jede Aktion geht durch eine Genehmigungs-Queue.
+Volle autonome Verteidigung mit Human-in-the-Loop. Der maechtigste Modus. der Waechter erkennt Bedrohungen und schlaegt Verteidigungsaktionen vor, aber jede Aktion geht durch eine Genehmigungs-Queue.
 
 **Ideal fuer:** Produktionsumgebungen, Hochsicherheitsprojekte, Teams die einen Audit-Trail fuer jede Security-Entscheidung brauchen.
 
 So funktioniert es:
-- Bedrohung erkannt — Waechter erstellt einen Genehmigungs-Antrag mit vollem Kontext
+- Bedrohung erkannt. Waechter erstellt einen Genehmigungs-Antrag mit vollem Kontext
 - Du pruefst den Antrag im Web-Dashboard oder der CLI
 - Genehmige oder lehne jede Aktion einzeln ab
 - Genehmigte Aktionen werden sofort ausgefuehrt, abgelehnte werden mit deiner Begruendung geloggt
@@ -100,13 +100,13 @@ Wenn Bedrohungen erkannt werden, kann der Waechter handeln. Im **Passive Mode** 
 | **Isolate Service** | Isoliert einen kompromittierten Service vom Netzwerk, um laterale Bewegung zu verhindern. |
 | **Deploy Honeypot** | Erstellt einen Koeder-Service, um Angreifer-Verhalten zu beobachten und zu tracken. |
 
-Jede Aktion wird **geloggt**, ist **reversibel** und **im Brain sichtbar**. Der Waechter fuehrt einen vollstaendigen Audit-Trail — wer was genehmigt hat, wann es ausgefuehrt wurde und wie der Zustand vorher und nachher war.
+Jede Aktion wird **geloggt**, ist **reversibel** und **im Brain sichtbar**. Der Waechter fuehrt einen vollstaendigen Audit-Trail. wer was genehmigt hat, wann es ausgefuehrt wurde und wie der Zustand vorher und nachher war.
 
 ## Monitor in der CLI nutzen
 
 ### Einmaliger Security-Audit
 
-Fuehre `/security` aus fuer einen sofortigen, gruendlichen Scan deiner Codebase. Kein Hintergrundprozess, kein kontinuierliches Monitoring — nur ein Snapshot deiner aktuellen Sicherheitslage.
+Fuehre `/security` aus fuer einen sofortigen, gruendlichen Scan deiner Codebase. Kein Hintergrundprozess, kein kontinuierliches Monitoring. nur ein Snapshot deiner aktuellen Sicherheitslage.
 
 ```bash
 /security                    # Vollstaendiger Codebase-Audit
@@ -123,7 +123,7 @@ Findings werden nach Severity eingestuft und entsprechend behandelt:
 | **CRITICAL** | Sofortige Aufmerksamkeit mit detaillierten Behebungsschritten |
 | **HIGH** | Prominent hervorgehoben mit Fix-Empfehlungen |
 | **MEDIUM** | Gemeldet zur manuellen Pruefung, wenn es dir passt |
-| **LOW** | Informativ — geloggt zur Kenntnisnahme |
+| **LOW** | Informativ. geloggt zur Kenntnisnahme |
 
 Alle Findings erscheinen im **Findings-Panel** des Brains (die linke Seitenleiste in der 3D-Visualisierung). Sie bleiben ueber Sessions hinweg erhalten, sodass du deine Sicherheitslage ueber die Zeit verfolgen kannst.
 
@@ -137,7 +137,7 @@ Starte den Waechter als Hintergrundprozess, der in regelmaessigen Intervallen sc
 /monitor defensive 180       # Defensive Mode, 3 Minuten Intervall
 ```
 
-Der Monitor laeuft als **Background-Session**. Dein interaktiver Prompt bleibt verfuegbar — du codest, chattest oder fuehrst andere Befehle aus, waehrend der Waechter ueberwacht.
+Der Monitor laeuft als **Background-Session**. Dein interaktiver Prompt bleibt verfuegbar. du codest, chattest oder fuehrst andere Befehle aus, waehrend der Waechter ueberwacht.
 
 Mit `/sessions` siehst du den Status des Monitors. Mit `/stop` beendest du das Monitoring. Druecke **ESC ESC** (doppeltes Escape) fuer einen Notfall-Stopp, der den Monitor und alle anderen Background-Sessions sofort beendet.
 
@@ -145,14 +145,14 @@ Mit `/sessions` siehst du den Status des Monitors. Mit `/stop` beendest du das M
 
 Die Web App gibt dir eine visuelle Kommandozentrale fuer den Security Monitor:
 
-- **Threat-Timeline** — Eine chronologische Ansicht aller erkannten Bedrohungen, farbcodiert nach Severity. Scrolle durch die Historie, um Muster zu erkennen.
-- **Mode-Switcher** — Wechsle zwischen Passive, Defensive und Active Mode mit einem Klick. Keine CLI-Befehle noetig.
-- **Approval-Queue** (Active Mode) — Jede ausstehende Defense-Aktion zeigt vollen Kontext: was erkannt wurde, was der Waechter tun will und warum. Genehmige oder lehne ab mit einem Klick.
-- **Aktive Verteidigungen** — Sieh alle aktuell aktiven Defense-Aktionen. Jede hat einen Undo-Button fuer sofortiges Rueckgaengigmachen.
-- **System-Baseline** — Sieh den Baseline-Snapshot und erkenne genau, was sich seit dem letzten sauberen Scan veraendert hat.
-- **Trend-Charts** — Verfolge Finding-Zahlen ueber die Zeit nach Severity. Sieh ob sich deine Sicherheitslage verbessert oder verschlechtert.
+- **Threat-Timeline**: Eine chronologische Ansicht aller erkannten Bedrohungen, farbcodiert nach Severity. Scrolle durch die Historie, um Muster zu erkennen.
+- **Mode-Switcher**: Wechsle zwischen Passive, Defensive und Active Mode mit einem Klick. Keine CLI-Befehle noetig.
+- **Approval-Queue** (Active Mode). Jede ausstehende Defense-Aktion zeigt vollen Kontext: was erkannt wurde, was der Waechter tun will und warum. Genehmige oder lehne ab mit einem Klick.
+- **Aktive Verteidigungen**: Sieh alle aktuell aktiven Defense-Aktionen. Jede hat einen Undo-Button fuer sofortiges Rueckgaengigmachen.
+- **System-Baseline**: Sieh den Baseline-Snapshot und erkenne genau, was sich seit dem letzten sauberen Scan veraendert hat.
+- **Trend-Charts**: Verfolge Finding-Zahlen ueber die Zeit nach Severity. Sieh ob sich deine Sicherheitslage verbessert oder verschlechtert.
 
-Die Web App verbindet sich mit deiner laufenden CLI-Instanz. Starte den Monitor in der CLI und verwalte alles ueber den Browser — oder starte direkt aus dem Dashboard.
+Die Web App verbindet sich mit deiner laufenden CLI-Instanz. Starte den Monitor in der CLI und verwalte alles ueber den Browser. oder starte direkt aus dem Dashboard.
 
 ## Konfiguration
 
@@ -191,13 +191,13 @@ helixmind config set monitor.scanInterval 120
 
 Alles, was der Security Monitor tut, spiegelt sich in der **3D-Brain-Visualisierung** wider:
 
-- **Security-Findings** erscheinen als farbige Nodes im Helix — Rot fuer Critical, Orange fuer High, Gelb fuer Medium, Blau fuer Low
+- **Security-Findings** erscheinen als farbige Nodes im Helix. Rot fuer Critical, Orange fuer High, Gelb fuer Medium, Blau fuer Low
 - **Aktive Verteidigungen** zeigen sich als animierte Verbindungen zwischen Nodes, die pulsieren, solange die Verteidigung aktiv ist
-- **Bedrohungsmuster** werden visuell sichtbar — Cluster roter Nodes im selben Bereich des Helix deuten auf systematische Probleme hin
+- **Bedrohungsmuster** werden visuell sichtbar. Cluster roter Nodes im selben Bereich des Helix deuten auf systematische Probleme hin
 - **Historische Bedrohungen** werden in der Spiral-Memory gespeichert, sodass der Waechter aus vergangenen Vorfaellen lernen und wiederkehrende Muster erkennen kann
 
 Oeffne das Brain (`/brain` in der CLI oder den Brain-Tab in der Web App) waehrend der Monitor laeuft, um deine Sicherheitslandschaft in Echtzeit zu beobachten.
 
 ## Login erforderlich (Free+)
 
-> Der Security Monitor erfordert ein kostenloses HelixMind-Konto. Fuehre `helixmind login` in der CLI aus zum Freischalten — kostenlos fuer immer, keine Kreditkarte noetig.
+> Der Security Monitor erfordert ein kostenloses HelixMind-Konto. Fuehre `helixmind login` in der CLI aus zum Freischalten. kostenlos fuer immer, keine Kreditkarte noetig.
