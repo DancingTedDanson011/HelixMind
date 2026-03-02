@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Plus, Trash2, Pencil, MessageSquare, Check, X, XCircle,
-  Shield, Zap, Activity, Bot, Terminal,
+  Shield, Zap, Activity, Bot, Terminal, ChevronDown, Archive,
 } from 'lucide-react';
 import type { ChatSummary } from './AppShell';
 import type { InstanceMeta } from '@/lib/cli-types';
@@ -80,6 +80,7 @@ interface ChatSidebarProps {
   sessions?: SessionEntry[];
   jarvisName?: string;
   activeChatId: string | null;
+  isConnected?: boolean;
   onSelect: (id: string) => void;
   onSessionClick?: (sessionId: string) => void;
   onSessionDismiss?: (sessionId: string) => void;
@@ -95,6 +96,7 @@ export function ChatSidebar({
   sessions,
   jarvisName,
   activeChatId,
+  isConnected = false,
   onSelect,
   onSessionClick,
   onSessionDismiss,
@@ -108,6 +110,7 @@ export function ChatSidebar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [oldSessionsOpen, setOldSessionsOpen] = useState(false);
 
   const startRename = (chat: ChatSummary) => {
     setEditingId(chat.id);
@@ -126,9 +129,48 @@ export function ChatSidebar({
     setDeletingId(null);
   };
 
-  // Merge sessions into the unified timeline
+  // Split chats: active (current CLI chat) vs old (everything else)
+  const activeChats = isConnected ? chats.filter(c => c.id === activeChatId) : [];
+  const oldChats = isConnected ? chats.filter(c => c.id !== activeChatId) : chats;
+
+  // Merge sessions into the unified timeline (active section only)
   const visibleSessions = sessions?.filter(s => s.id !== 'main') ?? [];
-  const grouped = groupByDateWithSessions(chats, visibleSessions);
+  const grouped = groupByDateWithSessions(activeChats, visibleSessions);
+
+  // Old sessions grouped by date
+  const oldGrouped = groupByDateWithSessions(oldChats, []);
+
+  const renderChatItem = (item: SidebarItem, dimmed = false) =>
+    item.kind === 'session' ? (
+      <SessionItem
+        key={`session-${item.session.id}`}
+        session={item.session}
+        jarvisName={jarvisName}
+        onClick={() => onSessionClick?.(item.session.id)}
+        onDismiss={onSessionDismiss ? () => onSessionDismiss(item.session.id) : undefined}
+      />
+    ) : (
+      <ChatItem
+        key={`chat-${item.chat.id}`}
+        chat={item.chat}
+        isActive={activeChatId === item.chat.id}
+        dimmed={dimmed}
+        editingId={editingId}
+        editTitle={editTitle}
+        deletingId={deletingId}
+        onSelect={() => onSelect(item.chat.id)}
+        onStartRename={() => startRename(item.chat)}
+        onConfirmRename={confirmRename}
+        onCancelRename={() => setEditingId(null)}
+        onEditTitleChange={setEditTitle}
+        onStartDelete={() => setDeletingId(item.chat.id)}
+        onConfirmDelete={() => confirmDelete(item.chat.id)}
+        onCancelDelete={() => setDeletingId(null)}
+        t={t}
+        cliMeta={activeChatId === item.chat.id ? instanceMeta : undefined}
+        cliMode={instanceMode}
+      />
+    );
 
   return (
     <div className="flex flex-col h-full w-72">
@@ -145,50 +187,52 @@ export function ChatSidebar({
 
       {/* Unified list */}
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        {/* Active chats + sessions */}
         {grouped.map(({ label, items }) => (
           <div key={label}>
             <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-600">
               {label}
             </div>
             <div className="space-y-0.5">
-              {items.map((item) =>
-                item.kind === 'session' ? (
-                  <SessionItem
-                    key={`session-${item.session.id}`}
-                    session={item.session}
-                    jarvisName={jarvisName}
-                    onClick={() => onSessionClick?.(item.session.id)}
-                    onDismiss={onSessionDismiss ? () => onSessionDismiss(item.session.id) : undefined}
-                  />
-                ) : (
-                  <ChatItem
-                    key={`chat-${item.chat.id}`}
-                    chat={item.chat}
-                    isActive={activeChatId === item.chat.id}
-                    editingId={editingId}
-                    editTitle={editTitle}
-                    deletingId={deletingId}
-                    onSelect={() => onSelect(item.chat.id)}
-                    onStartRename={() => startRename(item.chat)}
-                    onConfirmRename={confirmRename}
-                    onCancelRename={() => setEditingId(null)}
-                    onEditTitleChange={setEditTitle}
-                    onStartDelete={() => setDeletingId(item.chat.id)}
-                    onConfirmDelete={() => confirmDelete(item.chat.id)}
-                    onCancelDelete={() => setDeletingId(null)}
-                    t={t}
-                    cliMeta={activeChatId === item.chat.id ? instanceMeta : undefined}
-                    cliMode={instanceMode}
-                  />
-                ),
-              )}
+              {items.map((item) => renderChatItem(item))}
             </div>
           </div>
         ))}
 
-        {chats.length === 0 && visibleSessions.length === 0 && (
+        {activeChats.length === 0 && visibleSessions.length === 0 && oldChats.length === 0 && (
           <div className="text-center text-gray-600 text-xs py-8">
             {t('noMessages')}
+          </div>
+        )}
+
+        {/* Old Sessions — collapsible */}
+        {oldChats.length > 0 && (
+          <div>
+            <button
+              onClick={() => setOldSessionsOpen(prev => !prev)}
+              className="flex items-center gap-1.5 w-full px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600 hover:text-gray-400 transition-colors"
+            >
+              <ChevronDown
+                size={10}
+                className={`transition-transform duration-200 ${oldSessionsOpen ? '' : '-rotate-90'}`}
+              />
+              <Archive size={10} />
+              <span>{t('oldSessions')} ({oldChats.length})</span>
+            </button>
+            {oldSessionsOpen && (
+              <div className="space-y-3 mt-1">
+                {oldGrouped.map(({ label, items }) => (
+                  <div key={`old-${label}`}>
+                    <div className="px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-700">
+                      {label}
+                    </div>
+                    <div className="space-y-0.5">
+                      {items.map((item) => renderChatItem(item, true))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -250,13 +294,14 @@ function SessionItem({ session, jarvisName, onClick, onDismiss }: { session: Ses
 /* ─── Chat item ──────────────────────────────── */
 
 function ChatItem({
-  chat, isActive, editingId, editTitle, deletingId,
+  chat, isActive, dimmed = false, editingId, editTitle, deletingId,
   onSelect, onStartRename, onConfirmRename, onCancelRename, onEditTitleChange,
   onStartDelete, onConfirmDelete, onCancelDelete, t,
   cliMeta, cliMode,
 }: {
   chat: ChatSummary;
   isActive: boolean;
+  dimmed?: boolean;
   editingId: string | null;
   editTitle: string;
   deletingId: string | null;
@@ -330,7 +375,7 @@ function ChatItem({
   const stripeColor = isPureChat ? 'border-l-amber-400' : modeBorderColor;
 
   return (
-    <div className="group relative">
+    <div className={`group relative ${dimmed ? 'opacity-50' : ''}`}>
       <button
         onClick={onSelect}
         className={`

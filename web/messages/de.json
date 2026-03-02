@@ -861,7 +861,15 @@
     "pureChat": "Chat",
     "consoleCompactHint": "Starte eine Session mit den Buttons unten",
     "monitorCompactHint": "Starte Monitoring mit den Buttons unten",
-    "jarvisCompactHint": "Starte Jarvis mit dem Button unten"
+    "jarvisCompactHint": "Starte Jarvis mit dem Button unten",
+    "bannerProvider": "Anbieter",
+    "bannerProject": "Projekt",
+    "bannerBrain": "Brain",
+    "bannerMode": "Modus",
+    "bannerVersion": "Version",
+    "bannerStartHint": "Schreib eine Nachricht um zu starten...",
+    "oldSessions": "Alte Sessions",
+    "noOldSessions": "Keine alten Sessions"
   },
   "ticket": {
     "createTitle": "Neues Ticket erstellen",

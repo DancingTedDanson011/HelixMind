@@ -993,6 +993,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               sessions={isConnected ? connection.sessions : undefined}
               jarvisName={connection.jarvisStatus?.jarvisName}
               activeChatId={activeChatId}
+              isConnected={isConnected}
               onSelect={handleChatSelect}
               onSessionClick={openSessionInTab}
               onSessionDismiss={connection.dismissSession}
@@ -1037,6 +1038,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               sessions={isConnected ? connection.sessions : undefined}
               jarvisName={connection.jarvisStatus?.jarvisName}
               activeChatId={activeChatId}
+              isConnected={isConnected}
               onSelect={(id) => { handleChatSelect(id); setActiveTab('chat'); }}
               onSessionClick={openSessionInTab}
               onSessionDismiss={connection.dismissSession}
@@ -1352,6 +1354,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 pendingPermissions={connection.pendingPermissions}
                 onApprovePermission={(id) => connection.respondPermission(id, true)}
                 onDenyPermission={(id) => connection.respondPermission(id, false)}
+                instanceMeta={connection.instanceMeta}
+                connectedPort={connectedPort}
+                cliOutputLines={cliOutput.lines}
               />
             </div>
           </div>
@@ -1761,8 +1766,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               </div>
             )}
 
-            {/* Jarvis action button — when no session active */}
-            {isConnected && !jarvisSessionIdForOutput && (
+            {/* Jarvis action button — when no session active and daemon not running */}
+            {isConnected && !jarvisSessionIdForOutput && connection.jarvisStatus?.daemonState !== 'running' && (
               <div className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 border-t border-white/5 bg-surface/30">
                 <button
                   onClick={() => connection.startJarvis().catch(() => {})}

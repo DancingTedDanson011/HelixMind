@@ -12,7 +12,7 @@ import { PermissionRequestCard } from './PermissionRequestCard';
 import { StreamingText } from './StreamingText';
 import type { ChatMessage } from './AppShell';
 import type { ActiveTool } from '@/hooks/use-cli-chat';
-import type { ToolPermissionRequest } from '@/lib/cli-types';
+import type { ToolPermissionRequest, InstanceMeta } from '@/lib/cli-types';
 
 /* ─── Tool display helpers ────────────────────── */
 
@@ -51,6 +51,9 @@ interface ChatViewProps {
   pendingPermissions?: ToolPermissionRequest[];
   onApprovePermission?: (requestId: string) => void;
   onDenyPermission?: (requestId: string) => void;
+  instanceMeta?: InstanceMeta | null;
+  connectedPort?: number | null;
+  cliOutputLines?: string[];
 }
 
 export function ChatView({
@@ -69,6 +72,9 @@ export function ChatView({
   pendingPermissions = [],
   onApprovePermission,
   onDenyPermission,
+  instanceMeta,
+  connectedPort,
+  cliOutputLines = [],
 }: ChatViewProps) {
   const t = useTranslations('app');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -198,17 +204,81 @@ export function ChatView({
     );
   }
 
-  // Empty chat — connected, no messages yet
+  // Empty chat — connected, no messages yet → Welcome Banner
   if (messages.length === 0 && !isAgentRunning) {
+    const meta = instanceMeta;
+    const modeLabel = meta?.permissionMode === 'yolo' ? 'YOLO'
+      : meta?.permissionMode === 'skip-permissions' ? 'skip permissions'
+      : 'safe permissions';
+    const provider = meta ? `${meta.provider} · ${meta.model}` : '—';
+    const project = meta?.projectPath.split(/[/\\]/).filter(Boolean).pop() || meta?.projectName || '—';
+    const brainUrl = connectedPort ? `ws://127.0.0.1:${connectedPort}` : '—';
+    const version = meta?.version || '—';
+    const outputPreview = cliOutputLines.slice(-10);
+
     return (
       <div className="flex flex-col h-full">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4 max-w-md px-6">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/10 flex items-center justify-center">
-              <Wifi size={28} className="text-emerald-400" />
+        <div className="flex-1 overflow-y-auto flex items-center justify-center py-8">
+          <div className="space-y-6 max-w-lg px-6 w-full">
+            {/* ASCII Art Banner */}
+            <pre
+              className="text-[10px] sm:text-xs leading-tight font-mono text-center select-none"
+              style={{
+                background: 'linear-gradient(135deg, #22d3ee 0%, #a855f7 50%, #22d3ee 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >{`  ██╗  ██╗███████╗██╗     ██╗██╗  ██╗
+  ██║  ██║██╔════╝██║     ██║╚██╗██╔╝
+  ███████║█████╗  ██║     ██║ ╚███╔╝
+  ██╔══██║██╔══╝  ██║     ██║ ██╔██╗
+  ██║  ██║███████╗███████╗██║██╔╝ ██╗
+  ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝╚═╝  ╚═╝`}</pre>
+            <div
+              className="text-center text-xs font-mono tracking-[0.3em] select-none"
+              style={{
+                background: 'linear-gradient(90deg, #22d3ee, #a855f7)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              ─── Mind ───
             </div>
-            <h3 className="text-lg font-medium text-gray-300">{t('cliConnected')}</h3>
-            <p className="text-sm text-gray-600">{t('chatTabHint')}</p>
+
+            {/* Info Grid */}
+            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 font-mono text-xs px-4">
+              <span className="text-gray-600">{t('bannerProvider')}</span>
+              <span className="text-gray-300 truncate">{provider}</span>
+              <span className="text-gray-600">{t('bannerProject')}</span>
+              <span className="text-cyan-400 truncate">{project}</span>
+              <span className="text-gray-600">{t('bannerBrain')}</span>
+              <span className="text-purple-400 truncate">{brainUrl}</span>
+              <span className="text-gray-600">{t('bannerMode')}</span>
+              <span className={`truncate ${
+                meta?.permissionMode === 'yolo' ? 'text-red-400' :
+                meta?.permissionMode === 'skip-permissions' ? 'text-amber-400' :
+                'text-emerald-400'
+              }`}>{modeLabel}</span>
+              <span className="text-gray-600">{t('bannerVersion')}</span>
+              <span className="text-gray-500">{version}</span>
+            </div>
+
+            {/* CLI Output Preview */}
+            {outputPreview.length > 0 && (
+              <div className="space-y-1.5 px-4">
+                <div className="text-[10px] font-mono text-gray-600 tracking-wider">── Recent Output ──</div>
+                <div className="bg-white/[0.02] border border-white/5 rounded-lg px-3 py-2 max-h-32 overflow-y-auto">
+                  {outputPreview.map((line, i) => (
+                    <div key={i} className="text-[10px] font-mono text-gray-500 truncate leading-relaxed">{line || '\u00A0'}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Start hint */}
+            <p className="text-center text-xs text-gray-600 animate-pulse">{t('bannerStartHint')}</p>
           </div>
         </div>
       </div>
