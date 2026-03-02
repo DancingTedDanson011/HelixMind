@@ -13,11 +13,25 @@ registerTool({
   },
 
   async execute(_input, ctx) {
+    // Quick check: is this a git repository?
     try {
-      const branch = execSync('git branch --show-current', { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
-      const status = execSync('git status --short', { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
-      const ahead = execSync('git rev-list --count @{upstream}..HEAD 2>/dev/null || echo 0', { cwd: ctx.projectRoot, encoding: 'utf-8', shell: 'bash' }).trim();
-      const behind = execSync('git rev-list --count HEAD..@{upstream} 2>/dev/null || echo 0', { cwd: ctx.projectRoot, encoding: 'utf-8', shell: 'bash' }).trim();
+      execSync('git rev-parse --is-inside-work-tree', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+    } catch {
+      return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git. Use \`git init\` to initialize one, or navigate to a project that uses git.`;
+    }
+
+    try {
+      const branch = execSync('git branch --show-current', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
+      const status = execSync('git status --short', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
+
+      let ahead = '0';
+      let behind = '0';
+      try {
+        ahead = execSync('git rev-list --count @{upstream}..HEAD', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
+        behind = execSync('git rev-list --count HEAD..@{upstream}', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
+      } catch {
+        // No upstream configured — skip ahead/behind
+      }
 
       let result = `Branch: ${branch}`;
       if (ahead !== '0') result += ` (${ahead} ahead)`;
@@ -32,7 +46,7 @@ registerTool({
 
       return result;
     } catch (err) {
-      return `Error: Not a git repository or git not available. ${err}`;
+      return `Git error: ${err instanceof Error ? err.message : String(err)}`;
     }
   },
 });

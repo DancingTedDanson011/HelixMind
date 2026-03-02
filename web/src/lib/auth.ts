@@ -26,12 +26,12 @@ const providers = [
       const parsed = loginSchema.safeParse(credentials);
       if (!parsed.success) return null;
 
-      // Dev-mode fallback: hardcoded users when DB is not available
-      const devUsers = [
-        { id: 'dev-admin', email: 'admin@helixmind.dev', password: 'HelixAdmin2024!', name: 'Admin', role: 'ADMIN' },
-        { id: 'dev-support', email: 'support@helixmind.dev', password: 'HelixSupport2024!', name: 'Support', role: 'SUPPORT' },
-        { id: 'dev-user', email: 'user@helixmind.dev', password: 'HelixUser2024!', name: 'Test User', role: 'USER' },
-      ];
+      // Dev-mode fallback: test users when DB is not available (passwords from env vars only)
+      const devUsers = process.env.NODE_ENV !== 'production' ? [
+        { id: 'dev-admin', email: process.env.DEV_ADMIN_EMAIL || 'admin@helixmind.dev', password: process.env.DEV_ADMIN_PASSWORD || '', name: 'Admin', role: 'ADMIN' },
+        { id: 'dev-support', email: process.env.DEV_SUPPORT_EMAIL || 'support@helixmind.dev', password: process.env.DEV_SUPPORT_PASSWORD || '', name: 'Support', role: 'SUPPORT' },
+        { id: 'dev-user', email: process.env.DEV_USER_EMAIL || 'user@helixmind.dev', password: process.env.DEV_USER_PASSWORD || '', name: 'Test User', role: 'USER' },
+      ] : [];
 
       // Try database first
       try {
@@ -93,8 +93,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
 
-        // Hardcoded admin promotions (takes effect immediately on login)
-        const adminEmails = ['xinicetm@gmail.com'];
+        // Admin auto-promotion from env var (takes effect immediately on login)
+        const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
         // Dev-mode role mapping
         const devRoles: Record<string, string> = {

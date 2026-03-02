@@ -15,7 +15,7 @@ registerTool({
 
   async execute(input, ctx) {
     if (!ctx.browserController) {
-      return 'Browser not available. puppeteer-core may not be installed. Run: npm install puppeteer-core';
+      return 'Browser controller not initialized. This is an internal error — please report it.';
     }
 
     const headless = input.headless === true;

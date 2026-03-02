@@ -8,7 +8,11 @@ async function main() {
 
   // ─── 1. Admin User ───────────────────────────
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@helixmind.dev';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'HelixAdmin2024!';
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    console.error('ERROR: ADMIN_PASSWORD env var is required for seeding.');
+    process.exit(1);
+  }
 
   const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
 
@@ -27,32 +31,38 @@ async function main() {
       },
     });
     console.log(`✅ Admin user created: ${admin.email}`);
-    console.log(`   Password: ${adminPassword}`);
+    console.log(`   Password: ******* (from ADMIN_PASSWORD env var)`);
     console.log(`   ⚠️  Change this password immediately!\n`);
   } else {
     console.log(`ℹ️  Admin user already exists: ${adminEmail}\n`);
   }
 
-  // ─── 1b. Promote ECLIPS FACTORY to ADMIN ────
-  const eclipsEmail = 'xinicetm@gmail.com';
-  const eclipsUser = await prisma.user.findUnique({ where: { email: eclipsEmail } });
-  if (eclipsUser) {
-    if (eclipsUser.role !== 'ADMIN') {
-      await prisma.user.update({
-        where: { email: eclipsEmail },
-        data: { role: 'ADMIN', name: eclipsUser.name || 'ECLIPS FACTORY' },
-      });
-      console.log(`✅ ${eclipsEmail} promoted to ADMIN`);
+  // ─── 1b. Promote admin emails from env var ────
+  const adminPromoteEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+  for (const promoteEmail of adminPromoteEmails) {
+    const promoteUser = await prisma.user.findUnique({ where: { email: promoteEmail } });
+    if (promoteUser) {
+      if (promoteUser.role !== 'ADMIN') {
+        await prisma.user.update({
+          where: { email: promoteEmail },
+          data: { role: 'ADMIN' },
+        });
+        console.log(`✅ ${promoteEmail} promoted to ADMIN`);
+      } else {
+        console.log(`ℹ️  ${promoteEmail} is already ADMIN`);
+      }
     } else {
-      console.log(`ℹ️  ${eclipsEmail} is already ADMIN`);
+      console.log(`ℹ️  ${promoteEmail} not yet registered — will be promoted on first login`);
     }
-  } else {
-    console.log(`ℹ️  ${eclipsEmail} not yet registered — will be promoted on first login\n`);
   }
 
   // ─── 2. Support User ─────────────────────────
   const supportEmail = process.env.SUPPORT_EMAIL || 'support@helixmind.dev';
-  const supportPassword = process.env.SUPPORT_PASSWORD || 'HelixSupport2024!';
+  const supportPassword = process.env.SUPPORT_PASSWORD;
+  if (!supportPassword) {
+    console.error('ERROR: SUPPORT_PASSWORD env var is required for seeding.');
+    process.exit(1);
+  }
 
   const existingSupport = await prisma.user.findUnique({ where: { email: supportEmail } });
 
@@ -71,7 +81,7 @@ async function main() {
       },
     });
     console.log(`✅ Support user created: ${supportEmail}`);
-    console.log(`   Password: ${supportPassword}\n`);
+    console.log(`   Password: ******* (from SUPPORT_PASSWORD env var)\n`);
   } else {
     console.log(`ℹ️  Support user already exists: ${supportEmail}\n`);
   }

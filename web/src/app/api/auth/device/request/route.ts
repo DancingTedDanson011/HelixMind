@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 import { z } from 'zod';
+import { checkRateLimit, DEVICE_CODE_RATE_LIMIT } from '@/lib/rate-limit';
 
 const SAFE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
 const CODE_LENGTH = 8;
@@ -22,6 +23,9 @@ function generateCode(): string {
 }
 
 export async function POST(req: Request) {
+  const limited = checkRateLimit(req, 'device-request', DEVICE_CODE_RATE_LIMIT);
+  if (limited) return limited;
+
   try {
     const body = await req.json();
     const parsed = requestSchema.safeParse(body);

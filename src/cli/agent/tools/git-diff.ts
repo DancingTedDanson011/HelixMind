@@ -17,6 +17,12 @@ registerTool({
 
   async execute(input, ctx) {
     try {
+      execSync('git rev-parse --is-inside-work-tree', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+    } catch {
+      return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git.`;
+    }
+
+    try {
       const staged = (input.staged as boolean) ? '--cached' : '';
       const filePath = input.path ? ` -- "${input.path}"` : '';
       const cmd = `git diff ${staged}${filePath}`.trim();
@@ -34,7 +40,7 @@ registerTool({
 
       return diff;
     } catch (err) {
-      return `Error: ${err}`;
+      return `Git error: ${err instanceof Error ? err.message : String(err)}`;
     }
   },
 });

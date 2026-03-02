@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { checkRateLimit, AUTH_RATE_LIMIT } from '@/lib/rate-limit';
 
 const PRICE_ID_MAP: Record<string, Record<string, string | undefined>> = {
   pro: {
@@ -21,6 +22,9 @@ const checkoutSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const limited = checkRateLimit(req, 'stripe-checkout', AUTH_RATE_LIMIT);
+  if (limited) return limited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

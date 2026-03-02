@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, DEVICE_POLL_RATE_LIMIT } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
+  const limited = checkRateLimit(req, 'device-poll', DEVICE_POLL_RATE_LIMIT);
+  if (limited) return limited;
+
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get('code')?.trim().toUpperCase();

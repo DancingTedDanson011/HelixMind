@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { decryptApiKey } from '@/lib/crypto';
 import Anthropic from '@anthropic-ai/sdk';
+import { checkRateLimit, AI_RATE_LIMIT } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -10,6 +11,12 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return new Response('Unauthorized', { status: 401 });
   }
+
+  const limited = checkRateLimit(req, 'brainstorm', {
+    ...AI_RATE_LIMIT,
+    identifier: () => session.user!.id,
+  });
+  if (limited) return limited;
 
   const body = await req.json();
   const { chatId, content } = body as { chatId: string; content: string };

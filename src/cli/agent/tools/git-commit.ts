@@ -21,6 +21,12 @@ registerTool({
 
   async execute(input, ctx) {
     try {
+      execSync('git rev-parse --is-inside-work-tree', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+    } catch {
+      return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git.`;
+    }
+
+    try {
       const message = input.message as string;
       const files = input.files as string[] | undefined;
 

@@ -405,8 +405,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   const resolveJarvisRoot = (scope: BrainScope) =>
     scope === 'project' ? process.cwd() : join(homedir(), '.spiral-context');
 
-  // Browser controller (lazy — instantiated on /browser or agent tool use)
-  let browserController: BrowserController | undefined;
+  // Browser controller (always instantiated — launch() is the expensive part)
+  let browserController: BrowserController | undefined = new BrowserController();
   let visionProcessor: VisionProcessor | undefined;
 
   // Bottom chrome (3 fixed rows at terminal bottom: separator, hints, statusbar)

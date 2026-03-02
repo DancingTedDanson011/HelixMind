@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 const createMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
@@ -53,6 +54,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const limited = checkRateLimit(req, 'chat-messages', GENERAL_RATE_LIMIT);
+  if (limited) return limited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

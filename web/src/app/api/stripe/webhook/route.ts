@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import type Stripe from 'stripe';
+import type { PrismaClient } from '@prisma/client';
+
+type Tx = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -24,83 +27,121 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
-        if (session.subscription && session.metadata?.userId) {
-          const sub = await stripe.subscriptions.retrieve(session.subscription as string);
-          const priceId = sub.items.data[0]?.price.id;
+  // Idempotency: skip already-processed events
+  const existing = await prisma.stripeWebhookEvent.findUnique({
+    where: { id: event.id },
+  });
+  if (existing) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
 
-          const plan = getPlanFromPriceId(priceId);
-          const period = sub.items.data[0]?.price.recurring?.interval === 'year' ? 'YEARLY' : 'MONTHLY';
-
-          await prisma.subscription.update({
-            where: { userId: session.metadata.userId },
-            data: {
-              stripeSubscriptionId: sub.id,
-              plan,
-              status: 'ACTIVE',
-              billingPeriod: period,
-              currentPeriodStart: new Date(sub.current_period_start * 1000),
-              currentPeriodEnd: new Date(sub.current_period_end * 1000),
-            },
-          });
-        }
-        break;
-      }
-
-      case 'customer.subscription.updated': {
-        const sub = event.data.object as Stripe.Subscription;
-        const customerId = sub.customer as string;
-        const priceId = sub.items.data[0]?.price.id;
-        const plan = getPlanFromPriceId(priceId);
-
-        await prisma.subscription.updateMany({
-          where: { stripeCustomerId: customerId },
-          data: {
-            plan,
-            status: mapStripeStatus(sub.status),
-            cancelAtPeriodEnd: sub.cancel_at_period_end,
-            currentPeriodStart: new Date(sub.current_period_start * 1000),
-            currentPeriodEnd: new Date(sub.current_period_end * 1000),
-          },
-        });
-        break;
-      }
-
-      case 'customer.subscription.deleted': {
-        const sub = event.data.object as Stripe.Subscription;
-        const customerId = sub.customer as string;
-
-        await prisma.subscription.updateMany({
-          where: { stripeCustomerId: customerId },
-          data: {
-            plan: 'FREE',
-            status: 'CANCELED',
-            stripeSubscriptionId: null,
-          },
-        });
-        break;
-      }
-
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice;
-        const customerId = invoice.customer as string;
-
-        await prisma.subscription.updateMany({
-          where: { stripeCustomerId: customerId },
-          data: { status: 'PAST_DUE' },
-        });
-        break;
-      }
+  // Phase 1: Stripe API calls (outside transaction)
+  let checkoutSub: Stripe.Subscription | null = null;
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session;
+    if (session.subscription && session.metadata?.userId) {
+      checkoutSub = await stripe.subscriptions.retrieve(session.subscription as string);
     }
+  }
+
+  // Phase 2: DB writes in transaction (idempotent)
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.stripeWebhookEvent.create({
+        data: { id: event.id, type: event.type },
+      });
+
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object as Stripe.Checkout.Session;
+          if (checkoutSub && session.metadata?.userId) {
+            const priceId = checkoutSub.items.data[0]?.price.id;
+            const plan = getPlanFromPriceId(priceId);
+            const period = checkoutSub.items.data[0]?.price.recurring?.interval === 'year' ? 'YEARLY' : 'MONTHLY';
+
+            await tx.subscription.update({
+              where: { userId: session.metadata.userId },
+              data: {
+                stripeSubscriptionId: checkoutSub.id,
+                plan,
+                status: 'ACTIVE',
+                billingPeriod: period,
+                currentPeriodStart: new Date(checkoutSub.current_period_start * 1000),
+                currentPeriodEnd: new Date(checkoutSub.current_period_end * 1000),
+              },
+            });
+          }
+          break;
+        }
+
+        case 'customer.subscription.updated': {
+          await handleSubscriptionUpdated(tx, event);
+          break;
+        }
+
+        case 'customer.subscription.deleted': {
+          await handleSubscriptionDeleted(tx, event);
+          break;
+        }
+
+        case 'invoice.payment_failed': {
+          await handlePaymentFailed(tx, event);
+          break;
+        }
+      }
+    });
 
     return NextResponse.json({ received: true });
-  } catch (error) {
+  } catch (error: any) {
+    // Race condition: another request already recorded this event
+    if (error?.code === 'P2002') {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
     console.error('Webhook processing error:', error);
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   }
+}
+
+async function handleSubscriptionUpdated(tx: Tx, event: Stripe.Event) {
+  const sub = event.data.object as Stripe.Subscription;
+  const customerId = sub.customer as string;
+  const priceId = sub.items.data[0]?.price.id;
+  const plan = getPlanFromPriceId(priceId);
+
+  await tx.subscription.updateMany({
+    where: { stripeCustomerId: customerId },
+    data: {
+      plan,
+      status: mapStripeStatus(sub.status),
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      currentPeriodStart: new Date(sub.current_period_start * 1000),
+      currentPeriodEnd: new Date(sub.current_period_end * 1000),
+    },
+  });
+}
+
+async function handleSubscriptionDeleted(tx: Tx, event: Stripe.Event) {
+  const sub = event.data.object as Stripe.Subscription;
+  const customerId = sub.customer as string;
+
+  await tx.subscription.updateMany({
+    where: { stripeCustomerId: customerId },
+    data: {
+      plan: 'FREE',
+      status: 'CANCELED',
+      stripeSubscriptionId: null,
+    },
+  });
+}
+
+async function handlePaymentFailed(tx: Tx, event: Stripe.Event) {
+  const invoice = event.data.object as Stripe.Invoice;
+  const customerId = invoice.customer as string;
+
+  await tx.subscription.updateMany({
+    where: { stripeCustomerId: customerId },
+    data: { status: 'PAST_DUE' },
+  });
 }
 
 function getPlanFromPriceId(priceId: string): 'FREE' | 'PRO' | 'TEAM' | 'ENTERPRISE' {
