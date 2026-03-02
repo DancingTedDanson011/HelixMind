@@ -18,8 +18,8 @@
     "badge": "Open Source AI Coding CLI",
     "title": "Deine KI denkt.",
     "titleHighlight": "Erinnert sich. Handelt.",
-    "subtitle": "Drei Modi — ein CLI. Jarvis AGI plant autonom, der Coding Agent baut mit 22 Tools, und der Sicherheits-Monitor schützt dein Projekt 24/7. Alles angetrieben von Spiral Memory, das nie vergisst.",
-    "modeJarvis": "Jarvis AGI",
+    "subtitle": "Drei Modi — ein CLI. Jarvis plant autonom, der Coding Agent baut mit 22 Tools, und der Sicherheits-Monitor schützt dein Projekt 24/7. Alles angetrieben von Spiral Memory, das nie vergisst.",
+    "modeJarvis": "Jarvis",
     "modeAgent": "Coding Agent",
     "modeMonitor": "Sicherheits-Monitor",
     "cta": "App installieren",
@@ -63,7 +63,7 @@
     "title": "Ein Tool. Drei Superkräfte.",
     "subtitle": "Wechsle zwischen Modi oder lass sie gleichzeitig laufen. Jeder Modus greift auf dasselbe Spiral Memory zu.",
     "jarvis": {
-      "tab": "Jarvis AGI",
+      "tab": "Jarvis",
       "title": "Autonome Intelligenz, die vorausdenkt",
       "desc": "Jarvis läuft im Hintergrund — plant, analysiert und bearbeitet Aufgaben aus deiner Queue. Mehrstufige Denkzyklen reichen von schnellen Checks bis zu tiefem Reasoning. Vorschläge brauchen deine Zustimmung vor kritischen Änderungen.",
       "demo1": "Quick Check — Projekt-Health: 72/100",
@@ -90,7 +90,15 @@
       "demo2": "SQL-Injection-Risiko im Search-Handler",
       "demo3": "Fehlendes CSRF-Token am Formular-Endpunkt",
       "demo4": "Dependency-Update verfügbar: lodash 4.17.21"
-    }
+    },
+    "learnMore": "Mehr erfahren"
+  },
+  "brainShowcase": {
+    "sectionLabel": "Live Brain",
+    "title": "Sieh das Wissen deiner KI — live",
+    "subtitle": "Jeder Knoten ist ein Wissenselement, das deine KI gelernt hat. Verbindungen zeigen, wie Ideen zusammenhängen. Interaktiv — zoomen, bewegen, drehen.",
+    "expand": "Vergrößern",
+    "collapse": "Verkleinern"
   },
   "webApp": {
     "sectionLabel": "Web-Plattform",
@@ -221,7 +229,7 @@
   },
   "pricing": {
     "title": "Einfache, transparente Preise",
-    "subtitle": "Starte kostenlos. Upgrade für Jarvis AGI, Cloud-Sync und Team-Features.",
+    "subtitle": "Starte kostenlos. Upgrade für Jarvis, Cloud-Sync und Team-Features.",
     "monthly": "Monatlich",
     "yearly": "Jährlich",
     "yearlyDiscount": "2 Monate sparen",
@@ -251,10 +259,10 @@
     "freePlus": {
       "name": "Free+",
       "price": "0",
-      "desc": "Login für Jarvis AGI + Brain Management.",
+      "desc": "Login für Jarvis + Brain Management.",
       "features": [
         "Alles aus Open Source",
-        "Jarvis AGI (1 Instanz)",
+        "Jarvis (1 Instanz)",
         "Basis Validation Matrix",
         "3 Brains (1 global + 2 lokal)",
         "3D Brain Management UI",
@@ -268,7 +276,7 @@
       "desc": "Power-User mit Cloud-Sync und Deep Thinking.",
       "features": [
         "Alles aus Free+",
-        "Jarvis AGI (3 Instanzen)",
+        "Jarvis (3 Instanzen)",
         "Jarvis Deep Thinking + Scheduling",
         "Volle Validation Matrix + Monitor",
         "15 Brains (5 global + 10 lokal)",
@@ -306,7 +314,7 @@
   },
   "cta": {
     "title": "Starte mit Intelligenz",
-    "subtitle": "Installiere HelixMind in 30 Sekunden. Jarvis AGI, Coding Agent und Sicherheits-Monitor — für immer kostenlos für Einzelnutzer.",
+    "subtitle": "Installiere HelixMind in 30 Sekunden. Jarvis, Coding Agent und Sicherheits-Monitor — für immer kostenlos für Einzelnutzer.",
     "button": "App installieren",
     "buttonUpdate": "App aktualisieren",
     "buttonOpen": "Dashboard \u00f6ffnen",
@@ -839,7 +847,7 @@
     "jarvisAutonomyL2": "Vorschläge — Änderungen vorschlagen",
     "jarvisAutonomyL3": "Vertraut — sichere Bearbeitungen",
     "jarvisAutonomyL4": "Autonom — die meisten Aktionen",
-    "jarvisAutonomyL5": "Volle AGI — alle Fähigkeiten",
+    "jarvisAutonomyL5": "Volle Autonomie — alle Fähigkeiten",
     "jarvisTraits": "Eigenschaften",
     "jarvisTrust": "Vertrauen",
     "jarvisApprovalRate": "Genehmigungsrate",
@@ -886,10 +894,10 @@
     "quickAutoReview": "Auto-Analyse",
     "quickSecurityAudit": "Sicherheitsaudit",
     "quickMonitor": "Datei-Monitor",
-    "quickJarvis": "Jarvis AGI",
+    "quickJarvis": "Jarvis",
     "consoleInfoDocs": "Konsole-Dokumentation",
     "monitorInfoDocs": "Monitor-Dokumentation",
-    "jarvisInfoTitle": "Jarvis AGI",
+    "jarvisInfoTitle": "Jarvis",
     "jarvisInfoDesc": "Autonomer KI-Assistent der deine Aufgaben-Warteschlange verwaltet. Jarvis plant, fuehrt aus und lernt von deinem Projekt — arbeitet im Hintergrund waehrend du dich auf das Wesentliche konzentrierst.",
     "jarvisInfoFeature1Title": "Aufgabenverwaltung",
     "jarvisInfoFeature1Desc": "Fuege Aufgaben mit Prioritaeten hinzu. Jarvis nimmt sie auf, plant die Ausfuehrung und arbeitet sie autonom ab.",

@@ -1,13 +1,13 @@
 ---
 title: Agent-Tools
-description: Die 14 Tools, die HelixMinds AI-Agent nutzt, um deine Codebase zu lesen, schreiben, suchen und verwalten.
+description: Die 22 Tools, die HelixMinds AI-Agent nutzt, um deine Codebase zu lesen, schreiben, suchen und verwalten.
 order: 5
 category: CLI-Nutzung
 ---
 
 # Agent-Tools
 
-HelixMinds AI-Agent hat Zugriff auf **14 Tools**. Jedes Tool hat ein Berechtigungslevel.
+HelixMinds AI-Agent hat Zugriff auf **22 Tools**. Jedes Tool hat ein Berechtigungslevel.
 
 ## Berechtigungslevel
 
@@ -56,8 +56,17 @@ Berechtigung variiert je nach Befehl:
 
 | Tool | Berechtigung | Beschreibung |
 |------|-------------|-------------|
-| `spiral_query` | Safe | Spiral-Memory semantisch durchsuchen |
+| `spiral_search` | Safe | Spiral-Memory semantisch durchsuchen |
 | `spiral_store` | Safe | Neuen Kontext im Spiral-Memory speichern |
+| `spiral_status` | Safe | Spiral-Memory-Statistiken anzeigen |
+| `spiral_compact` | Safe | Evolution auslösen: komprimieren, promoten, decay |
+
+## Bug-Tracking
+
+| Tool | Berechtigung | Beschreibung |
+|------|-------------|-------------|
+| `bug_report` | Safe | Bug im Bug-Journal melden |
+| `bug_list` | Safe | Alle getrackten Bugs auflisten |
 
 ## Web-Recherche
 
@@ -70,6 +79,16 @@ Sucht im Internet, fetcht Webseiten, extrahiert Wissen und speichert es in der S
 3. Extrahiert Code-Beispiele und Key-Points
 4. Speichert als L6 Web Knowledge Knoten
 5. Aktualisiert Brain-Visualisierung in Echtzeit
+
+## Browser-Steuerung
+
+| Tool | Berechtigung | Beschreibung |
+|------|-------------|-------------|
+| `browser_open` | Ask | URL in Headless/Headful Chrome öffnen |
+| `browser_screenshot` | Safe | Screenshot der aktuellen Seite |
+| `browser_click` | Ask | Element auf der Seite anklicken |
+| `browser_type` | Ask | Text in ein Eingabefeld eingeben |
+| `browser_close` | Safe | Browser schließen |
 
 ## Tool-Ausführungsablauf
 

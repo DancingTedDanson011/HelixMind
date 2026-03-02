@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Check } from 'lucide-react';
 
-const tierKeys = ['free', 'freePlus', 'pro', 'team', 'enterprise'] as const;
+const mainTierKeys = ['free', 'freePlus', 'pro', 'team'] as const;
 type PaidTier = 'pro' | 'team';
 
-const tierColors = ['#6c757d', '#00ff88', '#00d4ff', '#4169e1', '#8a2be2'];
+const tierColors = ['#6c757d', '#00ff88', '#00d4ff', '#4169e1'];
 
 // Monthly prices shown per-month when billed yearly
 const yearlyMonthlyRate: Record<PaidTier, number> = {
@@ -75,16 +75,15 @@ export default function PricingPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-5">
-          {tierKeys.map((key, i) => {
+        {/* 4 main tiers */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+          {mainTierKeys.map((key, i) => {
             const isPro = key === 'pro';
-            const isEnterprise = key === 'enterprise';
             const isPaid = key === 'pro' || key === 'team';
             const features = t.raw(`${key}.features`) as string[];
 
             const displayPrice = (() => {
               if (key === 'free' || key === 'freePlus') return '$0';
-              if (isEnterprise) return null;
               if (isPaid && yearly) return `$${yearlyMonthlyRate[key as PaidTier]}`;
               return `$${t(`${key}.price`)}`;
             })();
@@ -92,9 +91,7 @@ export default function PricingPage() {
             return (
               <GlassPanel
                 key={key}
-                className={`flex flex-col ${
-                  isPro ? 'border-primary/30 glow-primary' : ''
-                } ${isEnterprise ? 'col-span-2 md:col-span-1' : ''}`}
+                className={`flex flex-col ${isPro ? 'border-primary/30 glow-primary' : ''}`}
               >
                 {isPro && (
                   <Badge variant="primary" className="self-start mb-3">{t('mostPopular')}</Badge>
@@ -102,27 +99,19 @@ export default function PricingPage() {
 
                 <h3 className="text-lg md:text-xl font-semibold text-white mb-1">{t(`${key}.name`)}</h3>
 
-                <div className={`mb-2 ${isEnterprise ? 'text-center md:text-left' : ''}`}>
-                  {isEnterprise ? (
-                    <span className="text-2xl md:text-3xl font-bold text-white">{t('custom')}</span>
-                  ) : (
-                    <>
-                      <span className="text-2xl md:text-4xl font-bold text-white">{displayPrice}</span>
-                      <span className="text-gray-500 text-xs md:text-sm">
-                        {key === 'team' ? t('perUser') : isPaid ? t('perMonth') : ''}
-                      </span>
-                      {isPaid && yearly && (
-                        <p className="text-xs text-success mt-1">
-                          {t('yearlyBilled', { amount: yearlyTotal[key as PaidTier] })}
-                        </p>
-                      )}
-                    </>
+                <div className="mb-2">
+                  <span className="text-2xl md:text-4xl font-bold text-white">{displayPrice}</span>
+                  <span className="text-gray-500 text-xs md:text-sm">
+                    {key === 'team' ? t('perUser') : isPaid ? t('perMonth') : ''}
+                  </span>
+                  {isPaid && yearly && (
+                    <p className="text-xs text-success mt-1">
+                      {t('yearlyBilled', { amount: yearlyTotal[key as PaidTier] })}
+                    </p>
                   )}
                 </div>
 
-                <p className={`text-xs md:text-sm text-gray-500 mb-3 md:mb-6 ${
-                  isEnterprise ? 'text-center md:text-left' : ''
-                }`}>{t(`${key}.desc`)}</p>
+                <p className="text-xs md:text-sm text-gray-500 mb-3 md:mb-6">{t(`${key}.desc`)}</p>
 
                 {/* Features: hidden on mobile, visible from md up */}
                 <ul className="hidden md:block space-y-3 mb-8 flex-1">
@@ -150,10 +139,6 @@ export default function PricingPage() {
                       window.location.href = '/login';
                       return;
                     }
-                    if (isEnterprise) {
-                      window.location.href = 'mailto:contact@helix-mind.ai?subject=Enterprise%20Inquiry';
-                      return;
-                    }
                     handleCheckout(key as PaidTier);
                   }}
                 >
@@ -161,13 +146,41 @@ export default function PricingPage() {
                     ? t('getStarted')
                     : key === 'freePlus'
                       ? t('loginFree')
-                      : isEnterprise
-                        ? t('contactSales')
-                        : t('subscribe')}
+                      : t('subscribe')}
                 </Button>
               </GlassPanel>
             );
           })}
+        </div>
+
+        {/* Enterprise — full width below */}
+        <div className="mt-8 max-w-4xl mx-auto">
+          <GlassPanel className="flex flex-col md:flex-row items-center gap-6">
+            <div className="flex-1 text-center md:text-left">
+              <h3 className="text-xl font-semibold text-white mb-1">{t('enterprise.name')}</h3>
+              <div className="mb-2">
+                <span className="text-2xl font-bold text-white">{t('custom')}</span>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">{t('enterprise.desc')}</p>
+              <div className="hidden md:flex flex-wrap gap-x-5 gap-y-2">
+                {(t.raw('enterprise.features') as string[]).map((feature: string, fi: number) => (
+                  <span key={fi} className="flex items-center gap-2 text-sm text-gray-300">
+                    <Check size={14} className="flex-shrink-0" style={{ color: '#8a2be2' }} />
+                    {feature}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              className="shrink-0 text-sm md:text-base"
+              onClick={() => {
+                window.location.href = 'mailto:contact@helix-mind.ai?subject=Enterprise%20Inquiry';
+              }}
+            >
+              {t('contactSales')}
+            </Button>
+          </GlassPanel>
         </div>
       </div>
     </div>

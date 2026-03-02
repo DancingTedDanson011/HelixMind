@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Check } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 
-const tierKeys = ['free', 'pro', 'team', 'enterprise'] as const;
+const tierKeys = ['free', 'freePlus', 'pro', 'team'] as const;
 
-const tierAccents = ['#6c757d', '#00d4ff', '#4169e1', '#8a2be2'];
+const tierAccents = ['#6c757d', '#00ff88', '#00d4ff', '#4169e1'];
 
 export function PricingPreview() {
   const t = useTranslations('pricing');
@@ -54,6 +54,7 @@ export function PricingPreview() {
           </motion.p>
         </div>
 
+        {/* 4-card grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {tierKeys.map((key, i) => {
             const isPro = key === 'pro';
@@ -89,18 +90,12 @@ export function PricingPreview() {
                   </h3>
 
                   <div className="mb-4">
-                    {key === 'enterprise' ? (
-                      <span className="font-display text-2xl font-bold text-white">{t('custom')}</span>
-                    ) : (
-                      <>
-                        <span className="font-display text-3xl font-bold text-white">
-                          ${t(`${key}.price`)}
-                        </span>
-                        <span className="text-gray-500 text-sm ml-0.5">
-                          {key === 'free' ? '' : key === 'team' ? t('perUser') : t('perMonth')}
-                        </span>
-                      </>
-                    )}
+                    <span className="font-display text-3xl font-bold text-white">
+                      ${t(`${key}.price`)}
+                    </span>
+                    <span className="text-gray-500 text-sm ml-0.5">
+                      {key === 'free' || key === 'freePlus' ? '' : key === 'team' ? t('perUser') : t('perMonth')}
+                    </span>
                   </div>
 
                   <p className="text-xs text-gray-500 mb-6 leading-relaxed">{t(`${key}.desc`)}</p>
@@ -114,27 +109,15 @@ export function PricingPreview() {
                     ))}
                   </ul>
 
-                  {key === 'enterprise' ? (
-                    <a href="mailto:contact@helix-mind.ai?subject=Enterprise%20Inquiry">
-                      <Button
-                        variant="outline"
-                        className="w-full font-display font-semibold tracking-wide"
-                        size="sm"
-                      >
-                        {t('contactSales')}
-                      </Button>
-                    </a>
-                  ) : (
-                    <Link href="/pricing">
-                      <Button
-                        variant={isPro ? 'primary' : 'outline'}
-                        className="w-full font-display font-semibold tracking-wide"
-                        size="sm"
-                      >
-                        {key === 'free' ? t('getStarted') : t('subscribe')}
-                      </Button>
-                    </Link>
-                  )}
+                  <Link href="/pricing">
+                    <Button
+                      variant={isPro ? 'primary' : 'outline'}
+                      className="w-full font-display font-semibold tracking-wide"
+                      size="sm"
+                    >
+                      {key === 'free' ? t('getStarted') : key === 'freePlus' ? t('loginFree') : t('subscribe')}
+                    </Button>
+                  </Link>
 
                   {/* Top accent line */}
                   {isPro && (
@@ -148,6 +131,41 @@ export function PricingPreview() {
             );
           })}
         </div>
+
+        {/* Enterprise — full width below */}
+        <motion.div
+          className="mt-6 max-w-3xl mx-auto"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.4, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="rounded-xl p-6 border border-white/[0.06] bg-white/[0.02] flex flex-col sm:flex-row items-center gap-6">
+            <div className="flex-1 text-center sm:text-left">
+              <h3 className="font-display text-lg font-semibold text-white mb-1 tracking-tight">
+                {t('enterprise.name')}
+              </h3>
+              <p className="text-xs text-gray-500 mb-3">{t('enterprise.desc')}</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center sm:justify-start">
+                {(t.raw('enterprise.features') as string[]).map((feature: string, fi: number) => (
+                  <span key={fi} className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <Check size={11} className="flex-shrink-0" style={{ color: '#8a2be2' }} />
+                    {feature}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <a href="mailto:contact@helix-mind.ai?subject=Enterprise%20Inquiry" className="shrink-0">
+              <Button
+                variant="outline"
+                className="font-display font-semibold tracking-wide"
+                size="sm"
+              >
+                {t('contactSales')}
+              </Button>
+            </a>
+          </div>
+        </motion.div>
       </div>
     </section>
   );

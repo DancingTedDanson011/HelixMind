@@ -1,13 +1,13 @@
 ---
 title: Agent Tools
-description: The 14 tools HelixMind's AI agent uses to read, write, search, and manage your codebase.
+description: The 22 tools HelixMind's AI agent uses to read, write, search, and manage your codebase.
 order: 5
 category: CLI Usage
 ---
 
 # Agent Tools
 
-HelixMind's AI agent has access to **14 tools** for interacting with your codebase. Each tool has a permission level.
+HelixMind's AI agent has access to **22 tools** for interacting with your codebase. Each tool has a permission level.
 
 ## Permission Levels
 
@@ -19,7 +19,7 @@ HelixMind's AI agent has access to **14 tools** for interacting with your codeba
 
 In **YOLO mode** (`--yolo`), everything runs without asking. In **skip-permissions** (`-s`), safe + ask auto-approve, dangerous still prompts.
 
-## All 14 Tools
+## All 22 Tools
 
 ### File Operations
 
@@ -64,14 +64,33 @@ Command classification:
 
 | Tool | Permission | Description |
 |------|-----------|-------------|
-| `spiral_query` | Safe | Semantic search across all levels |
+| `spiral_search` | Safe | Semantic search across all levels |
 | `spiral_store` | Safe | Store new context (auto-generates embeddings) |
+| `spiral_status` | Safe | Show spiral memory statistics |
+| `spiral_compact` | Safe | Trigger evolution: compress, promote, decay nodes |
+
+### Bug Tracking
+
+| Tool | Permission | Description |
+|------|-----------|-------------|
+| `bug_report` | Safe | Report a bug to the bug journal |
+| `bug_list` | Safe | List all tracked bugs |
 
 ### Web Research
 
 | Tool | Permission | Description |
 |------|-----------|-------------|
 | `web_research` | Ask | Search web, fetch pages, extract knowledge → store in L6 |
+
+### Browser Control
+
+| Tool | Permission | Description |
+|------|-----------|-------------|
+| `browser_open` | Ask | Open a URL in headless/headful Chrome |
+| `browser_screenshot` | Safe | Take a screenshot of the current page |
+| `browser_click` | Ask | Click an element on the page |
+| `browser_type` | Ask | Type text into an input field |
+| `browser_close` | Safe | Close the browser |
 
 ## Tool Execution Flow
 
