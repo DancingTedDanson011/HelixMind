@@ -633,7 +633,7 @@ const nMat = new THREE.ShaderMaterial({
       float core=exp(-d*d*50.0);
       gl_FragColor=vec4(vC*(1.0+core*2.0),i*vA);
     }\`,
-  transparent:true, depthWrite:false, blending:THREE.NormalBlending
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
 });
 
 const eMat = new THREE.ShaderMaterial({
