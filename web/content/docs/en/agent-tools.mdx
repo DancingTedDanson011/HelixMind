@@ -1,104 +1,181 @@
 ---
-title: Agent Tools
-description: The 22 tools HelixMind's AI agent uses to read, write, search, and manage your codebase.
-order: 5
-category: CLI Usage
+title: "Coding Agent — 22 Tools"
+description: "Your AI coding partner with 22 built-in tools — in the terminal or the web console. Reads, writes, tests, and commits with persistent spiral memory."
+order: 7
+category: Three Modes
 ---
 
-# Agent Tools
+# Coding Agent — 22 Tools
 
-HelixMind's AI agent has access to **22 tools** for interacting with your codebase. Each tool has a permission level.
+The Coding Agent is **Mode 2** of HelixMind and the core experience. It is your AI pair programmer with 22 built-in tools for reading, writing, searching, testing, and managing code.
 
-## Permission Levels
+Unlike other AI tools that forget everything between sessions, HelixMind has **persistent spiral memory**. It remembers your codebase, your patterns, and your decisions across every session. Ask it to refactor a module today, and next week it still knows why you chose that architecture.
 
-| Level | Behavior | When |
-|-------|----------|------|
-| **Safe** | Runs without asking | Read-only operations |
-| **Ask** | Prompts for permission | File modifications, git commits |
-| **Dangerous** | Always requires approval | Destructive commands (`rm -rf`, `DROP TABLE`) |
+Use it in your terminal with `helixmind` or from the web console. Same power, your choice.
 
-In **YOLO mode** (`--yolo`), everything runs without asking. In **skip-permissions** (`-s`), safe + ask auto-approve, dangerous still prompts.
+## Where does the Agent run?
 
-## All 22 Tools
+| Environment | How to start | What you get |
+|-------------|-------------|--------------|
+| **CLI Terminal** | Install with `npm install -g helixmind`, then run `helixmind` or `helixmind chat` | Full interactive chat with all 22 tools. This is the primary experience. |
+| **Web Console** | Open the **Console** tab in your HelixMind dashboard | Same agent, same tools, streamed to your browser. Start sessions with `/auto` or `/security`, or use the interactive console. |
 
-### File Operations
+Both connect to the same spiral memory and project context. Work in the terminal at home, check progress from the web console on your phone. Everything stays in sync.
 
-| Tool | Permission | Description |
-|------|-----------|-------------|
-| `read_file` | Safe | Read file contents |
-| `write_file` | Ask | Create or overwrite a file |
-| `edit_file` | Ask | Edit specific lines in an existing file |
-| `list_directory` | Safe | List directory contents recursively |
+## The 22 Tools
 
-### Search & Find
+### File Operations (4 tools)
 
-| Tool | Permission | Description |
-|------|-----------|-------------|
-| `search_files` | Safe | Search file contents with regex |
-| `find_files` | Safe | Find files by name pattern (glob) |
+The foundation of every coding session. The agent reads your code, writes new files, and makes surgical edits without rewriting entire files.
 
-### Command Execution
+| Tool | What it does |
+|------|-------------|
+| `read_file` | Reads any file in your project. The agent uses this constantly to understand your code before making changes. |
+| `write_file` | Creates new files or overwrites existing ones. Used for new components, configs, tests. |
+| `edit_file` | Surgically edits specific lines in a file. No full rewrites needed — just the lines that matter. |
+| `list_directory` | Explores your project structure recursively. The agent maps out your codebase before diving into details. |
 
-| Tool | Permission | Description |
-|------|-----------|-------------|
-| `run_command` | Varies | Execute a shell command |
+### Search and Discovery (2 tools)
 
-Command classification:
+Finding the right code in a large project is half the battle. These tools make it instant.
 
-| Category | Examples |
-|----------|---------|
-| **Auto-approve** | `ls`, `cat`, `npm test`, `tsc`, `eslint`, `git status` |
-| **Ask** | `npm install`, `docker`, `make`, `python`, `mkdir`, `cp`, `mv` |
-| **Dangerous** | `rm -rf`, `dd`, `mkfs`, `chmod 777`, `DROP TABLE`, `curl \| sh` |
+| Tool | What it does |
+|------|-------------|
+| `search_files` | Searches file contents with regex. Finds patterns, function calls, imports, and references across your entire codebase. |
+| `find_files` | Finds files by name pattern (glob). Need all test files? All TypeScript configs? Located instantly. |
 
-### Git Operations
+### Command Execution (1 tool)
 
-| Tool | Permission | Description |
-|------|-----------|-------------|
-| `git_status` | Safe | Show staged, unstaged, untracked files |
-| `git_diff` | Safe | Show diffs (staged/unstaged) |
-| `git_commit` | Ask | Create a commit (can auto-stage files) |
-| `git_log` | Safe | Show recent commit history |
+| Tool | What it does |
+|------|-------------|
+| `run_command` | Runs any shell command: `npm test`, `tsc`, `eslint`, `python`, custom scripts, build pipelines. |
 
-### Spiral Memory
+Commands are automatically classified for safety. Running `ls` or `npm test` happens instantly. Running `npm install` asks for your OK. Running `rm -rf` always requires explicit approval. See the [Permission System](#permission-system) below for details.
 
-| Tool | Permission | Description |
-|------|-----------|-------------|
-| `spiral_search` | Safe | Semantic search across all levels |
-| `spiral_store` | Safe | Store new context (auto-generates embeddings) |
-| `spiral_status` | Safe | Show spiral memory statistics |
-| `spiral_compact` | Safe | Trigger evolution: compress, promote, decay nodes |
+### Git Operations (4 tools)
 
-### Bug Tracking
+The agent manages your version control so you can focus on the code. It checks status before committing, reviews diffs to understand what changed, and writes meaningful commit messages.
 
-| Tool | Permission | Description |
-|------|-----------|-------------|
-| `bug_report` | Safe | Report a bug to the bug journal |
-| `bug_list` | Safe | List all tracked bugs |
+| Tool | What it does |
+|------|-------------|
+| `git_status` | Shows staged, unstaged, and untracked files. The agent checks this before every commit. |
+| `git_diff` | Shows exactly what changed, line by line. Used to verify edits before committing. |
+| `git_commit` | Creates commits with meaningful messages. Can auto-stage relevant files. |
+| `git_log` | Reviews commit history. The agent uses this to understand recent changes and conventions. |
 
-### Web Research
+### Spiral Memory (4 tools)
 
-| Tool | Permission | Description |
-|------|-----------|-------------|
-| `web_research` | Ask | Search web, fetch pages, extract knowledge → store in L6 |
+This is what makes HelixMind fundamentally different. The agent can read and write to your project's persistent memory — a 6-level knowledge graph that evolves over time.
 
-### Browser Control
+| Tool | What it does |
+|------|-------------|
+| `spiral_search` | Semantic search across all memory levels. Finds concepts, not just keywords. Ask about "authentication flow" and it finds relevant nodes even if they use different words. |
+| `spiral_store` | Stores new knowledge with auto-generated vector embeddings. Decisions, patterns, architecture choices — all persisted. |
+| `spiral_status` | Shows memory statistics per level: how many nodes, total size, last activity. |
+| `spiral_compact` | Triggers memory evolution. Frequently accessed knowledge gets promoted. Unused nodes decay. Old context gets compressed into summaries. |
 
-| Tool | Permission | Description |
-|------|-----------|-------------|
-| `browser_open` | Ask | Open a URL in headless/headful Chrome |
-| `browser_screenshot` | Safe | Take a screenshot of the current page |
-| `browser_click` | Ask | Click an element on the page |
-| `browser_type` | Ask | Type text into an input field |
-| `browser_close` | Safe | Close the browser |
+### Bug Tracking (2 tools)
 
-## Tool Execution Flow
+The agent maintains a persistent bug journal across sessions. Bugs are never forgotten — even if you switch tasks and come back weeks later.
 
-1. **Agent decides** which tool to use
-2. **Permission check** — auto-approve or prompt
-3. **Sandbox validation** — commands classified for safety
-4. **Execution** — tool runs
-5. **Checkpoint** — snapshot auto-created for undo
-6. **Result** — output fed back to agent for next step
+| Tool | What it does |
+|------|-------------|
+| `bug_report` | Reports a bug to the persistent journal with description, context, and reproduction steps. |
+| `bug_list` | Lists all tracked bugs across sessions. Filter by status, priority, or search terms. |
 
-The agent can chain up to **25 tool calls** in a single response.
+### Web Research (1 tool)
+
+| Tool | What it does |
+|------|-------------|
+| `web_research` | Searches the web via DuckDuckGo, fetches pages, extracts code examples and key points, then stores everything in spiral memory as L6 Web Knowledge nodes. The agent learns from the internet in real-time. |
+
+When the agent encounters an unfamiliar API, framework, or error message, it can research it on the spot. The extracted knowledge persists in your spiral memory for future sessions.
+
+### Browser Automation (5 tools)
+
+The agent can open, see, and interact with web pages. Test your frontend, fill out forms, take screenshots for visual analysis, or automate repetitive browser tasks.
+
+| Tool | What it does |
+|------|-------------|
+| `browser_open` | Opens URLs in headless or headful Chrome. Headful mode lets you watch it work. |
+| `browser_screenshot` | Takes screenshots for visual analysis. The agent can see layout issues, broken UIs, and design problems. |
+| `browser_click` | Clicks elements on web pages by selector or coordinates. |
+| `browser_type` | Types into input fields, search boxes, forms. |
+| `browser_close` | Closes the browser session and releases resources. |
+
+## Permission System
+
+Every tool call goes through a permission check. Three levels protect you from unintended changes.
+
+| Level | Behavior | Example tools |
+|-------|----------|---------------|
+| **Safe** | Runs without asking | `read_file`, `search_files`, `git_status`, `spiral_search` |
+| **Ask** | Prompts for your approval | `write_file`, `edit_file`, `git_commit`, `run_command` |
+| **Dangerous** | Always requires explicit approval | Destructive commands like `rm -rf`, `DROP TABLE`, `chmod 777` |
+
+### Permission Modes
+
+Choose your comfort level:
+
+- **Normal mode** (default): Safe operations auto-run. Ask operations prompt you. Dangerous operations always prompt.
+- **Skip Permissions** (`helixmind chat -s`): Safe and Ask operations auto-run. Dangerous operations still prompt. Good for when you trust the agent but want a safety net.
+- **YOLO Mode** (`helixmind chat --yolo`): Everything auto-runs. No prompts. Full speed, full trust. Use this when you know what you are asking for and want zero interruptions.
+
+## How the Agent Works
+
+Here is what happens when you type a message:
+
+1. **You describe what you want** in natural language. "Add input validation to the signup form" or "Why is this test failing?"
+2. **The agent queries spiral memory** to understand your project's conventions, architecture, and history.
+3. **It reads relevant files** to get the current state of your code.
+4. **It decides which tools to use** based on what it learned.
+5. **Permission check** runs for each tool call (safe / ask / dangerous).
+6. **The tool executes** and a checkpoint is auto-created so you can undo.
+7. **The result feeds back** to the agent for the next step.
+8. **Repeat** up to 25 tool calls in a single turn.
+
+The agent does not just execute instructions blindly. It uses spiral memory to understand your project before making changes. It checks `git_status` before committing. It reads existing code before editing. It searches for patterns before adding new ones.
+
+## Quick Start
+
+```bash
+# Start interactive chat
+helixmind
+
+# Send a single instruction
+helixmind chat -m "Add input validation to the signup form"
+
+# Full autonomous mode — no permission prompts
+helixmind chat --yolo
+
+# Skip confirmation prompts (but not dangerous ops)
+helixmind chat -s
+```
+
+Once inside the chat, you can use slash commands like `/help`, `/undo`, `/diff`, `/brain`, `/sessions`, and many more. See the [Slash Commands](/docs/slash-commands) reference for the full list.
+
+## Using the Agent in the Web App
+
+The web console gives you the same agent experience in your browser:
+
+1. Open the **Console** tab in your HelixMind dashboard.
+2. Type commands or use the `/auto` and `/security` quick-start buttons.
+3. Watch the agent work in real-time with streaming output.
+4. All tool calls, decisions, and file changes are visible as they happen.
+5. The same spiral memory, same checkpoints, and same undo system are available.
+
+The web console is especially useful for monitoring long-running autonomous sessions. Start a `/security` scan or `/auto` fix session from the CLI, then check progress from anywhere in the web console.
+
+## What makes this different
+
+**Persistent memory.** The agent remembers everything across sessions. Your architecture decisions, code patterns, past bugs, and project conventions are all stored in spiral memory and available in every future conversation.
+
+**22 specialized tools.** This is not just code generation pasted into your editor. The agent reads files, runs tests, manages git, searches the web, controls a browser, and tracks bugs. It is a complete development workflow.
+
+**Checkpoint safety.** Every single tool call creates an undo point. Made a mistake? Press ESC ESC to open the checkpoint browser and revert to any previous state. Code changes, chat history, or both.
+
+**Browser vision.** The agent can open your web app, take screenshots, and analyze visual issues. It sees broken layouts, missing elements, and CSS problems that text-only tools miss entirely.
+
+**Web research.** When the agent encounters an unfamiliar API or error, it searches the web, extracts knowledge, and stores it in spiral memory. Next time it sees the same problem, it already knows the answer.
+
+**Bug journal.** The agent automatically detects bugs from your messages (in English and German) and tracks them in a persistent journal. Bugs survive across sessions and can be reviewed anytime with `/bugs`.

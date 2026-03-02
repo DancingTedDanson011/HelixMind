@@ -1,102 +1,181 @@
 ---
-title: Agent-Tools
-description: Die 22 Tools, die HelixMinds AI-Agent nutzt, um deine Codebase zu lesen, schreiben, suchen und verwalten.
-order: 5
-category: CLI-Nutzung
+title: "Coding Agent — 22 Tools"
+description: "Dein KI-Coding-Partner mit 22 eingebauten Tools — im Terminal oder in der Web-Konsole. Liest, schreibt, testet und committet mit persistentem Spiral Memory."
+order: 7
+category: Drei Modi
 ---
 
-# Agent-Tools
+# Coding Agent — 22 Tools
 
-HelixMinds AI-Agent hat Zugriff auf **22 Tools**. Jedes Tool hat ein Berechtigungslevel.
+Der Coding Agent ist **Modus 2** von HelixMind und das Herzstück der ganzen Erfahrung. Er ist dein KI-Pair-Programmer mit 22 eingebauten Tools zum Lesen, Schreiben, Suchen, Testen und Verwalten von Code.
 
-## Berechtigungslevel
+Anders als andere KI-Tools, die zwischen Sessions alles vergessen, hat HelixMind **persistenten Spiral Memory**. Es merkt sich deine Codebase, deine Patterns und deine Entscheidungen über jede Session hinweg. Refactore heute ein Modul, und nächste Woche weiß der Agent immer noch, warum du diese Architektur gewählt hast.
 
-| Level | Verhalten | Tools |
-|-------|-----------|-------|
-| **Safe** | Automatisch | read_file, search_files, git_status |
-| **Ask** | Fragt nach | edit_file, write_file, git_commit |
-| **Dangerous** | Immer fragen | run_command mit `rm`, `dd`, etc. |
+Nutze ihn im Terminal mit `helixmind` oder über die Web-Konsole. Gleiche Power, deine Wahl.
 
-## Datei-Operationen
+## Wo läuft der Agent?
 
-| Tool | Berechtigung | Beschreibung |
-|------|-------------|-------------|
-| `read_file` | Safe | Dateiinhalt lesen |
-| `write_file` | Ask | Datei erstellen oder überschreiben |
-| `edit_file` | Ask | Bestimmte Zeilen in einer Datei bearbeiten |
-| `list_directory` | Safe | Verzeichnisinhalt rekursiv auflisten |
+| Umgebung | So startest du | Was du bekommst |
+|----------|---------------|-----------------|
+| **CLI Terminal** | Installiere mit `npm install -g helixmind`, dann starte mit `helixmind` oder `helixmind chat` | Vollständiger interaktiver Chat mit allen 22 Tools. Das ist die primäre Erfahrung. |
+| **Web-Konsole** | Öffne den **Console**-Tab in deinem HelixMind Dashboard | Gleicher Agent, gleiche Tools, gestreamt in deinen Browser. Starte Sessions mit `/auto` oder `/security`, oder nutze die interaktive Konsole. |
 
-## Suche & Finden
+Beide verbinden sich mit dem gleichen Spiral Memory und Projekt-Kontext. Arbeite zu Hause im Terminal, prüfe den Fortschritt unterwegs über die Web-Konsole. Alles bleibt synchron.
 
-| Tool | Berechtigung | Beschreibung |
-|------|-------------|-------------|
-| `search_files` | Safe | Dateiinhalte mit Regex durchsuchen |
-| `find_files` | Safe | Dateien nach Namensmuster finden |
+## Die 22 Tools
 
-## Befehlsausführung
+### Datei-Operationen (4 Tools)
 
-### `run_command`
+Das Fundament jeder Coding-Session. Der Agent liest deinen Code, erstellt neue Dateien und macht chirurgische Edits, ohne ganze Dateien neu zu schreiben.
 
-Berechtigung variiert je nach Befehl:
+| Tool | Was es macht |
+|------|-------------|
+| `read_file` | Liest jede Datei in deinem Projekt. Der Agent nutzt das ständig, um deinen Code zu verstehen, bevor er Änderungen macht. |
+| `write_file` | Erstellt neue Dateien oder überschreibt bestehende. Für neue Komponenten, Configs, Tests. |
+| `edit_file` | Bearbeitet chirurgisch bestimmte Zeilen in einer Datei. Kein komplettes Neuschreiben nötig — nur die Zeilen, die sich ändern müssen. |
+| `list_directory` | Erkundet deine Projektstruktur rekursiv. Der Agent kartografiert deine Codebase, bevor er ins Detail geht. |
 
-- **Auto** — `ls`, `cat`, `npm test`, `tsc`, `eslint`
-- **Ask** — `npm install`, `docker`, `make`
-- **Dangerous** — `rm -rf`, `dd`, `format`, `DROP TABLE`
+### Suche und Erkennung (2 Tools)
 
-## Git-Operationen
+Den richtigen Code in einem großen Projekt zu finden ist die halbe Miete. Diese Tools machen es sofort.
 
-| Tool | Berechtigung | Beschreibung |
-|------|-------------|-------------|
-| `git_status` | Safe | Aktuellen Git-Status anzeigen |
-| `git_diff` | Safe | Diffs für staged/unstaged Änderungen |
-| `git_commit` | Ask | Git-Commit erstellen |
-| `git_log` | Safe | Commit-History anzeigen |
+| Tool | Was es macht |
+|------|-------------|
+| `search_files` | Durchsucht Dateiinhalte mit Regex. Findet Patterns, Funktionsaufrufe, Imports und Referenzen in deiner gesamten Codebase. |
+| `find_files` | Findet Dateien nach Namensmuster (Glob). Alle Testdateien? Alle TypeScript-Configs? Sofort gefunden. |
 
-## Spiral-Memory
+### Befehlsausführung (1 Tool)
 
-| Tool | Berechtigung | Beschreibung |
-|------|-------------|-------------|
-| `spiral_search` | Safe | Spiral-Memory semantisch durchsuchen |
-| `spiral_store` | Safe | Neuen Kontext im Spiral-Memory speichern |
-| `spiral_status` | Safe | Spiral-Memory-Statistiken anzeigen |
-| `spiral_compact` | Safe | Evolution auslösen: komprimieren, promoten, decay |
+| Tool | Was es macht |
+|------|-------------|
+| `run_command` | Führt jeden Shell-Befehl aus: `npm test`, `tsc`, `eslint`, `python`, eigene Skripte, Build-Pipelines. |
 
-## Bug-Tracking
+Befehle werden automatisch nach Sicherheit klassifiziert. `ls` oder `npm test` laufen sofort. `npm install` fragt nach deinem OK. `rm -rf` braucht immer explizite Freigabe. Siehe das [Berechtigungssystem](#berechtigungssystem) weiter unten.
 
-| Tool | Berechtigung | Beschreibung |
-|------|-------------|-------------|
-| `bug_report` | Safe | Bug im Bug-Journal melden |
-| `bug_list` | Safe | Alle getrackten Bugs auflisten |
+### Git-Operationen (4 Tools)
 
-## Web-Recherche
+Der Agent verwaltet deine Versionskontrolle, damit du dich auf den Code konzentrieren kannst. Er prüft den Status vor dem Commit, reviewed Diffs um zu verstehen was sich geändert hat, und schreibt aussagekräftige Commit-Messages.
 
-### `web_research` (Ask)
+| Tool | Was es macht |
+|------|-------------|
+| `git_status` | Zeigt staged, unstaged und untracked Dateien. Der Agent prüft das vor jedem Commit. |
+| `git_diff` | Zeigt genau was sich geändert hat, Zeile für Zeile. Wird genutzt um Edits vor dem Commit zu verifizieren. |
+| `git_commit` | Erstellt Commits mit sinnvollen Messages. Kann relevante Dateien automatisch stagen. |
+| `git_log` | Prüft die Commit-History. Der Agent nutzt das, um aktuelle Änderungen und Konventionen zu verstehen. |
 
-Sucht im Internet, fetcht Webseiten, extrahiert Wissen und speichert es in der Spiral.
+### Spiral Memory (4 Tools)
 
-1. Sucht bei DuckDuckGo
-2. Fetcht und parst die Top-Ergebnisse
-3. Extrahiert Code-Beispiele und Key-Points
-4. Speichert als L6 Web Knowledge Knoten
-5. Aktualisiert Brain-Visualisierung in Echtzeit
+Das ist es, was HelixMind fundamental anders macht. Der Agent kann den persistenten Speicher deines Projekts lesen und beschreiben — ein 6-stufiger Knowledge Graph, der sich über die Zeit weiterentwickelt.
 
-## Browser-Steuerung
+| Tool | Was es macht |
+|------|-------------|
+| `spiral_search` | Semantische Suche über alle Memory-Level. Findet Konzepte, nicht nur Keywords. Frag nach "Authentifizierungsablauf" und es findet relevante Knoten, selbst wenn sie andere Wörter verwenden. |
+| `spiral_store` | Speichert neues Wissen mit automatisch generierten Vektor-Embeddings. Entscheidungen, Patterns, Architektur-Choices — alles wird persistiert. |
+| `spiral_status` | Zeigt Memory-Statistiken pro Level: Anzahl Knoten, Gesamtgröße, letzte Aktivität. |
+| `spiral_compact` | Löst Memory-Evolution aus. Häufig genutztes Wissen wird promotet. Ungenutzte Knoten zerfallen. Alter Kontext wird zu Zusammenfassungen komprimiert. |
 
-| Tool | Berechtigung | Beschreibung |
-|------|-------------|-------------|
-| `browser_open` | Ask | URL in Headless/Headful Chrome öffnen |
-| `browser_screenshot` | Safe | Screenshot der aktuellen Seite |
-| `browser_click` | Ask | Element auf der Seite anklicken |
-| `browser_type` | Ask | Text in ein Eingabefeld eingeben |
-| `browser_close` | Safe | Browser schließen |
+### Bug-Tracking (2 Tools)
 
-## Tool-Ausführungsablauf
+Der Agent führt ein persistentes Bug-Journal über Sessions hinweg. Bugs werden nie vergessen — selbst wenn du die Aufgabe wechselst und Wochen später zurückkommst.
 
-1. **Agent entscheidet** welches Tool basierend auf dem Gespräch
-2. **Berechtigungsprüfung** — Safe läuft sofort, andere fragen nach
-3. **Sandbox-Validierung** — Befehle werden auf Sicherheit geprüft
-4. **Ausführung** — Tool läuft und produziert Output
-5. **Checkpoint** — Snapshot wird automatisch erstellt
-6. **Ergebnis** — Output wird an den Agenten zurückgegeben
+| Tool | Was es macht |
+|------|-------------|
+| `bug_report` | Meldet einen Bug im persistenten Journal mit Beschreibung, Kontext und Reproduktionsschritten. |
+| `bug_list` | Listet alle getrackten Bugs über Sessions hinweg. Filtere nach Status, Priorität oder Suchbegriffen. |
 
-Der Agent kann bis zu **25 Tool-Calls** in einer Antwort verketten.
+### Web-Recherche (1 Tool)
+
+| Tool | Was es macht |
+|------|-------------|
+| `web_research` | Sucht im Web über DuckDuckGo, fetcht Seiten, extrahiert Code-Beispiele und Key Points, speichert dann alles im Spiral Memory als L6 Web Knowledge Knoten. Der Agent lernt in Echtzeit aus dem Internet. |
+
+Wenn der Agent auf eine unbekannte API, ein Framework oder eine Fehlermeldung stößt, kann er sie sofort recherchieren. Das extrahierte Wissen bleibt in deinem Spiral Memory für zukünftige Sessions erhalten.
+
+### Browser-Automatisierung (5 Tools)
+
+Der Agent kann Webseiten öffnen, sehen und mit ihnen interagieren. Teste dein Frontend, fülle Formulare aus, mache Screenshots für visuelle Analyse, oder automatisiere repetitive Browser-Aufgaben.
+
+| Tool | Was es macht |
+|------|-------------|
+| `browser_open` | Öffnet URLs in Headless- oder Headful-Chrome. Im Headful-Modus kannst du ihm bei der Arbeit zusehen. |
+| `browser_screenshot` | Macht Screenshots für visuelle Analyse. Der Agent kann Layout-Probleme, kaputte UIs und Design-Fehler erkennen. |
+| `browser_click` | Klickt Elemente auf Webseiten per Selektor oder Koordinaten. |
+| `browser_type` | Tippt in Eingabefelder, Suchboxen, Formulare. |
+| `browser_close` | Schließt die Browser-Session und gibt Ressourcen frei. |
+
+## Berechtigungssystem
+
+Jeder Tool-Call durchläuft eine Berechtigungsprüfung. Drei Stufen schützen dich vor unbeabsichtigten Änderungen.
+
+| Stufe | Verhalten | Beispiel-Tools |
+|-------|-----------|----------------|
+| **Safe** | Läuft ohne Nachfrage | `read_file`, `search_files`, `git_status`, `spiral_search` |
+| **Ask** | Fragt nach deiner Freigabe | `write_file`, `edit_file`, `git_commit`, `run_command` |
+| **Dangerous** | Braucht immer explizite Freigabe | Destruktive Befehle wie `rm -rf`, `DROP TABLE`, `chmod 777` |
+
+### Berechtigungsmodi
+
+Wähle dein Komfortlevel:
+
+- **Normaler Modus** (Standard): Safe-Operationen laufen automatisch. Ask-Operationen fragen nach. Dangerous fragt immer.
+- **Skip Permissions** (`helixmind chat -s`): Safe und Ask laufen automatisch. Dangerous fragt weiterhin. Gut, wenn du dem Agenten vertraust, aber ein Sicherheitsnetz willst.
+- **YOLO-Modus** (`helixmind chat --yolo`): Alles läuft automatisch. Keine Nachfragen. Volle Geschwindigkeit, volles Vertrauen. Nutze das, wenn du genau weißt, was du verlangst und null Unterbrechungen willst.
+
+## Wie der Agent arbeitet
+
+Das passiert, wenn du eine Nachricht eingibst:
+
+1. **Du beschreibst, was du willst** in natürlicher Sprache. "Füge Input-Validierung zum Signup-Formular hinzu" oder "Warum schlägt dieser Test fehl?"
+2. **Der Agent durchsucht den Spiral Memory**, um die Konventionen, Architektur und Geschichte deines Projekts zu verstehen.
+3. **Er liest relevante Dateien**, um den aktuellen Stand deines Codes zu erfassen.
+4. **Er entscheidet, welche Tools er nutzt**, basierend auf dem, was er gelernt hat.
+5. **Die Berechtigungsprüfung** läuft für jeden Tool-Call (safe / ask / dangerous).
+6. **Das Tool wird ausgeführt** und ein Checkpoint wird automatisch erstellt, damit du rückgängig machen kannst.
+7. **Das Ergebnis wird zurückgegeben** an den Agenten für den nächsten Schritt.
+8. **Wiederholen** — bis zu 25 Tool-Calls in einem einzelnen Turn.
+
+Der Agent führt nicht einfach blind Anweisungen aus. Er nutzt den Spiral Memory, um dein Projekt zu verstehen, bevor er Änderungen macht. Er prüft `git_status` vor dem Commit. Er liest bestehenden Code vor dem Editieren. Er sucht nach Patterns, bevor er neue hinzufügt.
+
+## Schnellstart
+
+```bash
+# Interaktiven Chat starten
+helixmind
+
+# Einzelne Anweisung senden
+helixmind chat -m "Füge Input-Validierung zum Signup-Formular hinzu"
+
+# Voller autonomer Modus — keine Berechtigungsabfragen
+helixmind chat --yolo
+
+# Bestätigungsabfragen überspringen (aber nicht für gefährliche Ops)
+helixmind chat -s
+```
+
+Im Chat kannst du Slash-Commands wie `/help`, `/undo`, `/diff`, `/brain`, `/sessions` und viele mehr verwenden. Siehe die [Slash-Commands](/docs/slash-commands) Referenz für die vollständige Liste.
+
+## Den Agent in der Web App nutzen
+
+Die Web-Konsole bietet dir die gleiche Agent-Erfahrung im Browser:
+
+1. Öffne den **Console**-Tab in deinem HelixMind Dashboard.
+2. Tippe Befehle ein oder nutze die `/auto` und `/security` Schnellstart-Buttons.
+3. Schau dem Agenten in Echtzeit bei der Arbeit zu mit Streaming-Output.
+4. Alle Tool-Calls, Entscheidungen und Dateiänderungen sind sichtbar, während sie passieren.
+5. Der gleiche Spiral Memory, die gleichen Checkpoints und das gleiche Undo-System stehen zur Verfügung.
+
+Die Web-Konsole ist besonders nützlich für das Monitoring von lang laufenden autonomen Sessions. Starte einen `/security`-Scan oder eine `/auto`-Fix-Session über das CLI und prüfe den Fortschritt von überall über die Web-Konsole.
+
+## Was das Ganze besonders macht
+
+**Persistenter Speicher.** Der Agent merkt sich alles über Sessions hinweg. Deine Architekturentscheidungen, Code-Patterns, vergangene Bugs und Projektkonventionen sind im Spiral Memory gespeichert und in jeder zukünftigen Konversation verfügbar.
+
+**22 spezialisierte Tools.** Das ist nicht nur Code-Generierung, die in deinen Editor eingefügt wird. Der Agent liest Dateien, führt Tests aus, verwaltet Git, durchsucht das Web, steuert einen Browser und trackt Bugs. Ein kompletter Entwicklungs-Workflow.
+
+**Checkpoint-Sicherheit.** Jeder einzelne Tool-Call erstellt einen Undo-Punkt. Fehler gemacht? Drücke ESC ESC, um den Checkpoint-Browser zu öffnen und zu jedem vorherigen Zustand zurückzukehren. Code-Änderungen, Chat-Verlauf oder beides.
+
+**Browser-Vision.** Der Agent kann deine Web-App öffnen, Screenshots machen und visuelle Probleme analysieren. Er erkennt kaputte Layouts, fehlende Elemente und CSS-Probleme, die rein textbasierte Tools komplett übersehen.
+
+**Web-Recherche.** Wenn der Agent auf eine unbekannte API oder einen Fehler stößt, sucht er im Web, extrahiert Wissen und speichert es im Spiral Memory. Beim nächsten Mal, wenn er das gleiche Problem sieht, kennt er die Antwort bereits.
+
+**Bug-Journal.** Der Agent erkennt Bugs automatisch aus deinen Nachrichten (auf Deutsch und Englisch) und trackt sie in einem persistenten Journal. Bugs überleben über Sessions hinweg und können jederzeit mit `/bugs` eingesehen werden.

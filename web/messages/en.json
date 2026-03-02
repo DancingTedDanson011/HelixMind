@@ -74,8 +74,8 @@
     },
     "agent": {
       "tab": "Coding Agent",
-      "title": "22 tools. One conversation. Ship faster.",
-      "desc": "Tell it what to build or fix. The agent reads files, queries spiral memory, writes code, runs tests — all in a single flow. Persistent context means it already knows your patterns.",
+      "title": "22 tools. Terminal or browser. Ship faster.",
+      "desc": "Install the CLI and type `helixmind` — or use the web console. Same 22 tools, same spiral memory, same power. The agent reads files, writes code, runs tests, and commits changes. Whether you live in your terminal or prefer a browser dashboard — HelixMind meets you where you work.",
       "demo1": "Fix the auth middleware bug",
       "demo2": "read_file auth/middleware.ts",
       "demo3": "spiral_query \"auth middleware patterns\"",

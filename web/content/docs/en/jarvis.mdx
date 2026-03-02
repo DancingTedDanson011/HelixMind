@@ -1,82 +1,132 @@
 ---
-title: Jarvis
-description: Autonomous assistant with task management, proposals, and worker orchestration.
-order: 52
-category: Web App
+title: "Jarvis — Autonomous Assistant"
+description: "Jarvis thinks, plans, and acts on your behalf — in the CLI terminal or the web dashboard. Task queues, proposals, and multi-phase reasoning."
+order: 6
+category: Three Modes
 ---
 
-# Jarvis
+# Jarvis — Autonomous Assistant
 
-The **Jarvis** tab is the command center for HelixMind's autonomous assistant. Jarvis can plan, execute, and manage complex multi-step tasks using a worker-based architecture.
+Jarvis is **Mode 1** of HelixMind. It is an autonomous AI assistant that runs in the background — planning, analyzing, and executing tasks from a queue. Unlike a regular chatbot, Jarvis does not wait for you to tell it what to do next. It thinks ahead, creates proposals for your review, and executes approved work with multi-phase reasoning.
 
-## Core concepts
+You can run Jarvis from the **CLI terminal** or the **Web App dashboard**. Same engine, same intelligence, two interfaces.
 
-### Tasks
+## Where does Jarvis run?
 
-Jarvis works from a task queue. Add tasks with a title, description, and priority:
+| Interface | How to start | Where output appears |
+|-----------|-------------|---------------------|
+| **CLI** | `helixmind` terminal, then `/jarvis start` | Runs as a background session. Output in session tabs. |
+| **Web App** | Jarvis tab in the dashboard | Task panel, proposal queue, real-time output stream. |
 
-- **Critical** — Executed immediately
-- **High** — Next in queue
-- **Normal** — Standard priority
-- **Low** — Background work
+Both interfaces share the same task queue. Start Jarvis from the CLI, manage proposals from the Web App — or the other way around.
 
-### Proposals
+## How Jarvis thinks
 
-Before taking significant actions, Jarvis creates **proposals** for your review:
+Jarvis does not jump to solutions. It reasons in phases, promoting to deeper analysis when the problem demands it.
 
-- What it wants to do
-- Why it thinks this is the right approach
-- Expected impact and risk level
+### Quick Check
 
-You can **approve** or **deny** each proposal. Denied proposals include your feedback so Jarvis can adjust.
+A fast sweep that takes seconds. Jarvis assesses the current state of your project, checks for obvious issues, and flags anything that needs attention. Think of it as a first glance — enough to catch the low-hanging fruit.
 
-### Workers
+### Medium Analysis
 
-Jarvis spawns background **workers** to handle tasks in parallel. Each worker:
+When a quick check raises questions, Jarvis goes deeper. It investigates patterns, traces connections between files, and builds a more complete picture. This is where Jarvis starts forming hypotheses about what is happening and why.
 
-- Has its own session and output stream
-- Reports progress back to Jarvis
-- Can be monitored in real-time
+### Deep Think
 
-## Autonomy levels
+For complex problems, Jarvis enters an extended reasoning session with full chain-of-thought analysis. It considers multiple approaches, weighs trade-offs, and constructs a detailed plan of action. Deep Think is the most thorough phase — it takes longer, but produces significantly better results for hard problems.
 
-Control how independently Jarvis operates:
+Each phase can promote to the next automatically. Results from all phases feed into proposals that you review before anything happens.
 
-| Level | Behavior |
-|-------|----------|
-| **L0 — Locked** | No tool access |
-| **L1 — Read-only** | Observe only |
-| **L2 — Proposals** | Suggests changes, requires approval |
-| **L3 — Trusted** | Safe edits auto-approved |
-| **L4 — Autonomous** | Most actions auto-approved |
-| **L5 — Full Autonomy** | All actions auto-approved |
+## Tasks
 
-## Deep Think
+Jarvis works from a **task queue**. Each task has a title, a description, and a priority level:
 
-Trigger a **Deep Think** session to have Jarvis analyze a complex problem thoroughly before acting. This uses extended reasoning with chain-of-thought analysis.
+| Priority | Behavior |
+|----------|----------|
+| **Critical** | Executed immediately — jumps the queue |
+| **High** | Next in line after any critical tasks |
+| **Normal** | Standard queue order |
+| **Low** | Background work — handled when the queue is clear |
 
-## Consciousness events
+Tasks can come from two sources: **you** add them explicitly, or **Jarvis itself** creates them when it discovers issues during analysis. For example, a security scan might generate three new tasks that Jarvis queues up automatically.
 
-The Jarvis panel shows real-time consciousness events:
+## Proposals
 
-- Thinking phases (quick, medium, deep)
-- Decision points and reasoning
-- Task state transitions
-- Worker lifecycle events
+Before taking any significant action, Jarvis creates a **proposal** for your review. Each proposal contains:
 
-These events also appear as animated neurons in the Brain visualization.
+- **What** — The specific action Jarvis wants to take
+- **Why** — The rationale behind the decision
+- **Impact** — What will change and where
+- **Risk** — How likely the change is to cause problems
 
-## Starting Jarvis
+You **approve** or **deny** each proposal. When you deny one, your feedback goes back to Jarvis so it can adjust its approach. This keeps you firmly in control — even when Jarvis is running at high autonomy levels, destructive or high-risk actions still surface as proposals.
 
-Use the Jarvis tab controls or the CLI:
+## Autonomy Levels
+
+Control how independently Jarvis operates. You can change the level at any time — raise it when you trust the task, lower it when you want to stay close.
+
+| Level | Name | What Jarvis can do |
+|-------|------|-------------------|
+| **L0** | Locked | No tool access — observation only |
+| **L1** | Read-only | Can read files and analyze, but cannot modify anything |
+| **L2** | Proposals | Suggests changes, every action requires your approval |
+| **L3** | Trusted | Safe operations (reads, searches) auto-approved. Writes need approval |
+| **L4** | Autonomous | Most actions auto-approved. Only destructive operations need approval |
+| **L5** | Full Autonomy | Everything auto-approved. Jarvis runs completely independently |
+
+Starting at **L2** is recommended for most workflows. Move to L3 or L4 once you see Jarvis making good decisions. L5 is for when you fully trust the task and want to walk away.
+
+## Workers
+
+Jarvis spawns **background workers** for parallel execution. When a task can be broken into independent subtasks, Jarvis distributes the work:
+
+- Each worker gets its own session with a separate output stream
+- Workers report progress back to the main Jarvis process
+- You can monitor all workers in real-time from the CLI tabs or the Web App
+- If a worker fails, Jarvis retries the subtask or escalates it for your review
+
+This means Jarvis can refactor three modules simultaneously, run tests in parallel, or analyze different parts of your codebase at the same time.
+
+## Using Jarvis in the CLI
+
+Start Jarvis from your interactive terminal:
 
 ```bash
-/jarvis start
-/jarvis add "Refactor the auth module" --priority high
-/jarvis pause
-/jarvis resume
+/jarvis start                                    # Start Jarvis
+/jarvis add "Refactor auth module" --priority high   # Add a task
+/jarvis pause                                    # Pause execution
+/jarvis resume                                   # Resume
+/jarvis status                                   # Show current queue
 ```
 
-## Session output
+Jarvis runs as a **background session** — you keep your interactive prompt and can continue chatting or working. Use **Ctrl+PageUp** and **Ctrl+PageDown** to switch between session tabs and see Jarvis output.
 
-When Jarvis is running, the terminal output stream appears below the task panel, showing real-time agent activity and tool calls.
+Press **ESC ESC** (double Escape) for an emergency stop that halts Jarvis and all workers immediately.
+
+## Using Jarvis in the Web App
+
+Open the **Jarvis tab** in your dashboard for a visual interface:
+
+- **Task queue** — See all pending, active, and completed tasks in one list
+- **Proposal queue** — Click Approve or Deny on each proposal with full context
+- **Autonomy slider** — Drag to adjust the autonomy level without typing commands
+- **Live output** — Workers show as real-time output streams below the task panel
+- **Consciousness events** — Watch Jarvis think in real-time as it processes tasks
+
+The Web App connects to your running CLI instance. You can start Jarvis from the CLI and manage everything from the browser, or start it directly from the dashboard.
+
+## Brain Integration
+
+Everything Jarvis does is reflected in the **3D Brain visualization**:
+
+- **Thinking phases** appear as animated neuron nodes — yellow and green orbit nodes pulse as Jarvis reasons through problems
+- **Approved proposals** create new task nodes in the helix
+- **Worker activity** generates consciousness events visible in the Brain's live feed
+- **All knowledge** Jarvis acquires is stored in spiral memory, so future sessions benefit from what it learned
+
+Open the Brain (`/brain`) while Jarvis is running to watch your project's knowledge graph grow in real-time.
+
+## Requires Login (Free+)
+
+> Jarvis requires a free HelixMind account. Run `helixmind login` in the CLI to unlock it — free forever, no credit card required.

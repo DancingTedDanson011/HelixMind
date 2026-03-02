@@ -1,111 +1,164 @@
 ---
-title: Security Monitor & Audits
-description: Continuous security monitoring, threat detection, and automated defense system built into HelixMind.
-order: 18
-category: Core Concepts
+title: "Security Monitor — Guardian"
+description: "Continuous security monitoring with three protection modes. Scans for vulnerabilities, blocks threats, rotates secrets — in the CLI or the web dashboard."
+order: 8
+category: Three Modes
 ---
 
-# Security Monitor & Audits
+# Security Monitor — Your Codebase Guardian
 
-> **Requires Login (Free+):** The Security Monitor and `/security` audit require a free HelixMind account. Run `helixmind login` to unlock — it's free, no credit card needed.
+The Security Monitor is **Mode 3** of HelixMind. It is an autonomous security system that watches your codebase for vulnerabilities, suspicious changes, and potential threats — in real-time. While you write code, the Guardian runs silently in the background, scanning every file change, every new dependency, every configuration update.
 
-HelixMind includes a **real-time security monitoring system** that runs in the background while you code, detecting threats, performing security audits, and optionally taking automated defensive actions.
+Choose from three protection levels: **Passive** (observe only), **Defensive** (auto-respond to known threats), or **Active** (full autonomous protection with an approval queue). Each level gives you a different balance between convenience and control.
 
-## Overview
+Available in both the **CLI terminal** and the **Web App dashboard**. Same engine, same detection, two interfaces.
 
-The Security Monitor works in three modes:
+## Where does it run?
 
-| Mode | Description |
-|:-----|:------------|
-| **Passive** | Detects threats but takes no action (audit only) |
-| **Defensive** | Takes pre-approved defensive actions automatically |
-| **Active** | Requests approval for each defensive action via web dashboard |
+| Interface | How to start | What you get |
+|-----------|-------------|--------------|
+| **CLI Terminal** | `/security` for one-time audits, `/monitor` for continuous monitoring | Runs as a background session — you keep coding while it watches. Findings appear in the session output and the Brain's findings panel. |
+| **Web App** | Monitor tab in the dashboard | Real-time threat timeline, defense actions with undo, approval queue for Active mode. Visual severity indicators and historical trend charts. |
 
-## How It Works
+Both interfaces report findings to the **3D Brain visualization**. Security nodes light up in the helix as threats are discovered, giving you an instant visual map of your project's security posture.
 
-1. **Baseline Scan** — Creates a snapshot of your system (processes, ports, configs, packages, users, cron jobs)
-2. **Continuous Monitoring** — Periodically rescans and compares against baseline
-3. **Threat Detection** — Identifies anomalies, suspicious processes, open ports, config changes
-4. **Defense Actions** — Can block IPs, kill processes, close ports, rotate secrets, isolate services
-5. **Approval Flow** — Requests approval via web dashboard (in Active mode)
+## Three Protection Modes
 
-## Starting the Monitor
+### Passive Mode
 
-### CLI Command
+Observes and reports. Takes no action. This is the default.
 
-```
-/monitor [mode] [interval]
-```
+**Perfect for:** Getting a security overview, understanding your threat landscape before committing to automated defenses.
 
-| Parameter | Description | Default |
-|:----------|:------------|:--------|
-| `mode` | `passive`, `defensive`, or `active` | `passive` |
-| `interval` | Rescan interval in seconds | `300` (5 minutes) |
+What it does:
+- Scans source files for secrets, injection patterns, and insecure code
+- Checks dependencies against known vulnerability databases
+- Monitors file changes and flags suspicious modifications
+- Logs every finding with severity, location, and recommended fix
 
-Examples:
-```
-/monitor                    # Start in passive mode (5 min interval)
-/monitor active 60          # Start in active mode, rescan every 60 seconds
-/monitor defensive 180      # Start in defensive mode, 3 min interval
-```
+What it does not do: Modify files, block connections, kill processes, or change any configuration. Passive mode is read-only.
 
-### Security Audit (One-time)
+### Defensive Mode
 
-```
-/security [scope]
-```
+Detects threats and auto-responds with pre-approved actions. No confirmation dialogs, no waiting — the Guardian handles known threats the moment it finds them.
 
-Run a one-time security audit:
+**Perfect for:** Hands-off protection during active development. You define the rules, the Guardian enforces them.
 
-```
-/security                   # Full system audit
-/security ports             # Check open ports only
-/security processes         # Check running processes
-/security configs           # Check config file changes
-/security packages          # Check for vulnerable packages
-```
+What it does automatically:
+- Alerts on known CVEs in your dependency tree
+- Flags hardcoded secrets and API keys with exact file locations
+- Reports insecure code patterns (SQL injection, XSS, command injection)
+- Executes pre-configured defense actions from your `allowedDefenses` list
 
-## Web Dashboard Integration
+**Requires:** Pre-configured allowed defenses in your `.helixmind/config.json`. The Guardian will only execute actions you have explicitly approved in advance.
 
-Connect to the web dashboard at `http://localhost:3000/dashboard/monitor` to:
+### Active Mode
 
-- **View real-time threats** on threat timeline
-- **See active defenses** with undo capability
-- **Approve/deny actions** in approval queue
-- **Change monitor mode** (passive/defensive/active)
-- **View system baseline** and drift detection
+Full autonomous protection with human-in-the-loop. The most powerful mode — the Guardian detects threats and proposes defensive actions, but every action goes through an approval queue before execution.
 
-## Threat Categories
+**Perfect for:** Production environments, high-security projects, teams that need an audit trail for every security decision.
 
-The monitor detects:
+How it works:
+- Threat detected — Guardian creates an approval request with full context
+- You review the request in the Web App dashboard or the CLI
+- Approve or deny each action individually
+- Approved actions execute immediately, denied actions are logged with your reasoning
 
-| Category | What It Detects |
-|:---------|:----------------|
-| **Bruteforce** | Multiple failed login attempts |
-| **Portscan** | Unusual port scanning patterns |
-| **Exfiltration** | Large outbound data transfers |
-| **Malware** | Suspicious processes, known malware signatures |
-| **Config Change** | Unauthorized configuration file changes |
-| **Privilege Escalation** | Unexpected privilege changes |
-| **Secret Leak** | Potential secret exposure in files |
-| **Anomaly** | Statistical anomalies in system behavior |
+What Active mode can do (with your approval):
+- Block suspicious IPs via firewall rules
+- Kill malicious or suspicious processes
+- Close unexpectedly open network ports
+- Rotate exposed secrets and API keys
+- Isolate compromised services from the network
+- Deploy honeypot decoys to track attacker behavior
+
+## What it detects
+
+| Category | Examples |
+|----------|---------|
+| **Secrets Exposure** | API keys, tokens, passwords hardcoded in source files |
+| **Injection Risks** | SQL injection, command injection, XSS patterns in your code |
+| **Dependency Vulnerabilities** | Known CVEs in npm, pip, gem, and other package managers |
+| **Path Traversal** | Directory traversal attempts, symlink attacks |
+| **Auth Weaknesses** | Missing session management, weak password handling, insecure token storage |
+| **Config Drift** | Unauthorized or unexpected changes to configuration files |
+| **Privilege Escalation** | Unexpected permission changes, SUID bit modifications |
+| **Supply Chain Risks** | Suspicious new dependencies, typosquatting packages, compromised maintainers |
+| **Info Disclosure** | Stack traces in production, debug info exposed, verbose error details |
+| **Race Conditions** | TOCTOU bugs, concurrent access issues, unsafe file operations |
+
+The detection engine combines static analysis (pattern matching across your source code) with dynamic checks (process monitoring, port scanning, dependency resolution). Every finding includes a severity level, the exact file and line number, and a concrete recommendation for how to fix it.
 
 ## Defense Actions
 
-When a threat is detected, the monitor can:
+When threats are detected, the Guardian can take action. In **Passive mode**, it only reports. In **Defensive mode**, it executes pre-approved actions. In **Active mode**, it creates approval requests.
 
-| Action | Description |
-|:-------|:------------|
-| **Block IP** | Block suspicious IP via firewall |
-| **Kill Process** | Terminate malicious process |
-| **Close Port** | Close unexpected open port |
-| **Rotate Secret** | Automatically rotate exposed secret |
-| **Isolate Service** | Network-isolate compromised service |
-| **Deploy Honeypot** | Deploy decoy service to track attacker |
+| Action | What it does |
+|--------|-------------|
+| **Block IP** | Blocks a suspicious IP address via firewall rules. Reversible. |
+| **Kill Process** | Terminates a malicious or suspicious process immediately. |
+| **Close Port** | Closes an unexpectedly open network port. |
+| **Rotate Secret** | Automatically rotates an exposed secret or API key, updating references. |
+| **Isolate Service** | Network-isolates a compromised service to prevent lateral movement. |
+| **Deploy Honeypot** | Creates a decoy service to observe and track attacker behavior. |
+
+Every action is **logged**, **reversible**, and **visible in the Brain**. The Guardian keeps a full audit trail — who approved what, when it executed, and what the state was before and after.
+
+## Using the Monitor in the CLI
+
+### One-time Security Audit
+
+Run `/security` for an immediate, thorough scan of your codebase. No background process, no continuous monitoring — just a snapshot of your current security posture.
+
+```bash
+/security                    # Full codebase audit
+/security ports              # Check open ports
+/security processes          # Check running processes
+/security configs            # Check config file changes
+/security packages           # Check for vulnerable dependencies
+```
+
+Findings are ranked by severity and handled accordingly:
+
+| Severity | What happens |
+|----------|-------------|
+| **CRITICAL** | Flagged for immediate attention with detailed remediation steps |
+| **HIGH** | Highlighted prominently with fix recommendations |
+| **MEDIUM** | Reported for manual review at your convenience |
+| **LOW** | Informational — logged for awareness |
+
+All findings appear in the Brain's **findings panel** (the left sidebar in the 3D visualization). They persist across sessions, so you can track your security posture over time.
+
+### Continuous Monitoring
+
+Start the Guardian as a background process that scans at regular intervals:
+
+```bash
+/monitor                     # Passive mode, 5 minute interval
+/monitor active 60           # Active mode, rescan every 60 seconds
+/monitor defensive 180       # Defensive mode, 3 minute interval
+```
+
+The monitor runs as a **background session**. Your interactive prompt stays available — you keep coding, chatting, or running other commands while the Guardian watches.
+
+Use `/sessions` to see the monitor's status. Use `/stop` to end monitoring. Press **ESC ESC** (double Escape) for an emergency stop that halts the monitor and all other background sessions immediately.
+
+## Using the Monitor in the Web App
+
+The Web App gives you a visual command center for the Security Monitor:
+
+- **Threat Timeline** — A chronological view of every detected threat, color-coded by severity. Scroll back through history to spot patterns.
+- **Mode Switcher** — Toggle between Passive, Defensive, and Active mode with a single click. No CLI commands needed.
+- **Approval Queue** (Active mode) — Each pending defense action shows full context: what was detected, what the Guardian wants to do, and why. Approve or deny with one click.
+- **Active Defenses** — See every defense action currently in effect. Each one has an undo button to reverse it instantly.
+- **System Baseline** — View the baseline snapshot and see exactly what has drifted since the last clean scan.
+- **Trend Charts** — Track finding counts over time by severity. See whether your security posture is improving or degrading.
+
+The Web App connects to your running CLI instance. You can start the monitor from the CLI and manage everything from the browser — or start it directly from the dashboard.
 
 ## Configuration
 
-Enable/configure monitoring in `.helixmind/config.json`:
+Configure the Security Monitor in `.helixmind/config.json`:
 
 ```json
 {
@@ -120,14 +173,33 @@ Enable/configure monitoring in `.helixmind/config.json`:
 }
 ```
 
-## Permissions
+| Key | Description | Default |
+|-----|-------------|---------|
+| `enabled` | Whether the monitor is available | `true` |
+| `defaultMode` | Starting mode when you run `/monitor` | `"passive"` |
+| `scanInterval` | Seconds between scans | `300` (5 minutes) |
+| `maxThreatHistory` | Maximum threat entries to keep in history | `1000` |
+| `autoApproveLow` | Auto-approve defense actions for LOW severity threats | `false` |
+| `allowedDefenses` | Which defense actions Defensive mode can execute | `[]` |
 
-Monitor operations require explicit permissions:
+You can also set individual keys from the CLI:
 
-| Operation | Permission Level |
-|:----------|:----------------|
-| **Passive scanning** | `auto` (always allowed) |
-| **Defensive actions** | `ask` (requires approval in Active mode) |
-| **Active monitoring** | `ask` (requires approval to start) |
+```bash
+helixmind config set monitor.defaultMode defensive
+helixmind config set monitor.scanInterval 120
+```
 
-Use `/permissions` to view and adjust permission settings.
+## Brain Integration
+
+Everything the Security Monitor does is reflected in the **3D Brain visualization**:
+
+- **Security findings** appear as colored nodes in the helix — red for critical, orange for high, yellow for medium, blue for low
+- **Active defenses** show as animated connections between nodes, pulsing while the defense is in effect
+- **Threat patterns** emerge visually — clusters of red nodes in the same area of the helix point to systemic issues
+- **Historical threats** are preserved in spiral memory, allowing the Guardian to learn from past incidents and detect recurring patterns
+
+Open the Brain (`/brain` in the CLI, or the Brain tab in the Web App) while the monitor is running to watch your security landscape in real-time.
+
+## Requires Login (Free+)
+
+> The Security Monitor requires a free HelixMind account. Run `helixmind login` in the CLI to unlock it — free forever, no credit card needed.

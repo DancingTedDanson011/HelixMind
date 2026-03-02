@@ -39,7 +39,7 @@ const modes = [
     shadowColor: 'rgba(255,68,68,0.15)',
     glowColor: 'rgba(255,68,68,0.06)',
     borderColor: '#ff4444',
-    docsHref: '/docs/monitor',
+    docsHref: '/docs/security-monitor',
     flip: false,
   },
 ] as const;

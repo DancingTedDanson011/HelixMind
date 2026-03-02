@@ -74,8 +74,8 @@
     },
     "agent": {
       "tab": "Coding Agent",
-      "title": "22 Tools. Ein Gespräch. Schneller liefern.",
-      "desc": "Sag ihm was er bauen oder fixen soll. Der Agent liest Dateien, fragt Spiral Memory ab, schreibt Code, führt Tests aus — alles in einem Flow. Persistenter Kontext bedeutet: Er kennt deine Patterns bereits.",
+      "title": "22 Tools. Terminal oder Browser. Schneller liefern.",
+      "desc": "Installiere die CLI und tippe `helixmind` — oder nutze die Web-Konsole. Gleiche 22 Tools, gleiches Spiral Memory, gleiche Power. Der Agent liest Dateien, schreibt Code, führt Tests aus und committet. Ob du im Terminal lebst oder ein Browser-Dashboard bevorzugst — HelixMind trifft dich wo du arbeitest.",
       "demo1": "Fix den Auth-Middleware-Bug",
       "demo2": "read_file auth/middleware.ts",
       "demo3": "spiral_query \"auth middleware patterns\"",

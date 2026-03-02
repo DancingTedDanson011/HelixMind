@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Globe,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +42,15 @@ export const DOCS_NAVIGATION: DocCategory[] = [
     ],
   },
   {
+    label: 'Three Modes',
+    icon: <Zap size={16} />,
+    docs: [
+      { slug: 'jarvis', title: 'Jarvis — Autonomous Assistant' },
+      { slug: 'agent-tools', title: 'Coding Agent — 22 Tools' },
+      { slug: 'security-monitor', title: 'Security Monitor — Guardian' },
+    ],
+  },
+  {
     label: 'Core Concepts',
     icon: <Brain size={16} />,
     docs: [
@@ -50,13 +60,21 @@ export const DOCS_NAVIGATION: DocCategory[] = [
     ],
   },
   {
-    label: 'Agent & Tools',
+    label: 'CLI Usage',
     icon: <Wrench size={16} />,
     docs: [
-      { slug: 'agent-tools', title: 'Agent Tools' },
+      { slug: 'cli-reference', title: 'CLI Reference' },
       { slug: 'slash-commands', title: 'Slash Commands' },
       { slug: 'autonomous-modes', title: 'Autonomous Modes' },
       { slug: 'permission-system', title: 'Permission System' },
+    ],
+  },
+  {
+    label: 'Web App',
+    icon: <Globe size={16} />,
+    docs: [
+      { slug: 'console', title: 'Console' },
+      { slug: 'monitor', title: 'Monitor Dashboard' },
     ],
   },
   {
@@ -66,7 +84,6 @@ export const DOCS_NAVIGATION: DocCategory[] = [
       { slug: 'validation-matrix', title: 'Validation Matrix' },
       { slug: 'web-knowledge', title: 'Web Knowledge Enricher' },
       { slug: 'sessions', title: 'Sessions & Background Tasks' },
-      { slug: 'security-monitor', title: 'Security Monitor' },
       { slug: 'browser-automation', title: 'Browser Automation' },
       { slug: 'checkpoints', title: 'Checkpoints & Undo' },
       { slug: 'export-import', title: 'Export & Import' },
@@ -82,19 +99,9 @@ export const DOCS_NAVIGATION: DocCategory[] = [
     ],
   },
   {
-    label: 'Web App',
-    icon: <Globe size={16} />,
-    docs: [
-      { slug: 'console', title: 'Console' },
-      { slug: 'monitor', title: 'Monitor' },
-      { slug: 'jarvis', title: 'Jarvis' },
-    ],
-  },
-  {
     label: 'Reference',
     icon: <FileText size={16} />,
     docs: [
-      { slug: 'cli-reference', title: 'CLI Reference' },
       { slug: 'troubleshooting', title: 'Troubleshooting' },
       { slug: 'best-practices', title: 'Best Practices' },
     ],
