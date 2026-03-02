@@ -146,7 +146,7 @@ export function PricingPreview() {
                 {t('enterprise.name')}
               </h3>
               <p className="text-xs text-gray-500 mb-3">{t('enterprise.desc')}</p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center sm:justify-start">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
                 {(t.raw('enterprise.features') as string[]).map((feature: string, fi: number) => (
                   <span key={fi} className="flex items-center gap-1.5 text-xs text-gray-400">
                     <Check size={11} className="flex-shrink-0" style={{ color: '#8a2be2' }} />

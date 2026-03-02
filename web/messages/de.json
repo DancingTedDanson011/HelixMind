@@ -202,6 +202,27 @@
         "Genehmigungs-Workflow f\u00fcr sensible Aktionen"
       ],
       "docsLink": "/docs/security-monitor"
+    },
+    "pageTitle": "Alles unter der Haube",
+    "pageSubtitle": "22 Tools, persistenter Speicher, 3D-Visualisierung, Multi-Session Agents, Offline-Modus und mehr.",
+    "modesTitle": "Drei Modi. Ein CLI.",
+    "modesSubtitle": "HelixMind vereint drei KI-Modi in einem einzigen Tool.",
+    "moreTitle": "Und noch mehr",
+    "viewDocs": "Docs ansehen",
+    "viewPricing": "Preise ansehen",
+    "learnMore": "Mehr erfahren",
+    "more": {
+      "checkpoints": { "title": "Checkpoint-System", "desc": "Automatisch bei jedem Tool-Aufruf erstellt. Doppel-ESC zum Browsen und Zurücksetzen auf jeden vorherigen Zustand." },
+      "tools": { "title": "22 Agent-Tools", "desc": "Dateien lesen, schreiben, bearbeiten, suchen, Git, Befehle ausführen, Spiral Memory, Web-Recherche, Browser-Automatisierung." },
+      "mcp": { "title": "MCP Server", "desc": "Funktioniert mit Claude Code, Cursor, VS Code, Windsurf, Codex, JetBrains und mehr." },
+      "search": { "title": "Semantische Suche", "desc": "Embedding-basierte KNN-Suche über alle Spiral-Ebenen. Finde Konzepte, nicht nur Keywords." },
+      "cli": { "title": "Rich CLI", "desc": "Figlet-Banner, Syntax-Highlighting, animierte Statusleiste, Slash-Commands, Tab-basierte Sessions." },
+      "permissions": { "title": "Berechtigungssystem", "desc": "3 Stufen: auto, ask, dangerous. YOLO-Modus für Mutige. Volle Kontrolle über den Agenten." }
+    },
+    "modeCards": {
+      "jarvis": { "title": "Jarvis", "desc": "Autonomer Assistent. Plant, analysiert und bearbeitet Aufgaben aus einer Queue. Mehrstufiges Denken mit Genehmigungs-Workflow.", "link": "/docs/jarvis" },
+      "agent": { "title": "Coding Agent", "desc": "22 Tools zum Lesen, Schreiben, Testen und Committen von Code. Terminal oder Browser. Persistenter Spiral Memory.", "link": "/docs/agent-tools" },
+      "monitor": { "title": "Sicherheits-Monitor", "desc": "Autonomer Wächter. Scannt nach Schwachstellen, blockt Bedrohungen, rotiert Secrets. Passiv, defensiv oder aktiv.", "link": "/docs/security-monitor" }
     }
   },
   "comparison": {

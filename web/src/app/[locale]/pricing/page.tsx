@@ -162,7 +162,7 @@ export default function PricingPage() {
                 <span className="text-2xl font-bold text-white">{t('custom')}</span>
               </div>
               <p className="text-sm text-gray-500 mb-4">{t('enterprise.desc')}</p>
-              <div className="hidden md:flex flex-wrap gap-x-5 gap-y-2">
+              <div className="hidden md:grid grid-cols-2 gap-x-8 gap-y-2">
                 {(t.raw('enterprise.features') as string[]).map((feature: string, fi: number) => (
                   <span key={fi} className="flex items-center gap-2 text-sm text-gray-300">
                     <Check size={14} className="flex-shrink-0" style={{ color: '#8a2be2' }} />

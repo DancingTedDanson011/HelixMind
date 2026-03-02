@@ -387,51 +387,49 @@ export function FeatureModal({ feature, onClose }: FeatureModalProps) {
     };
   }, [feature, handleEscape]);
 
+  // Compute outside JSX so AnimatePresence children are clean
+  const config = feature ? featureConfig[feature] : null;
+  const Icon = config?.icon ?? Brain;
+  const Demo = feature ? demoComponents[feature] : null;
+  const capabilities: string[] = [];
+  if (feature) {
+    for (let i = 0; i < 4; i++) {
+      try {
+        capabilities.push(t(`${feature}.capabilities.${i}`));
+      } catch {
+        break;
+      }
+    }
+  }
+  const docsLink = feature ? t(`${feature}.docsLink`) : '/docs';
+
   return (
     <AnimatePresence>
-      {feature && (() => {
-        const config = featureConfig[feature];
-        const Icon = config.icon;
-        const Demo = demoComponents[feature];
-        const capabilities: string[] = [];
-        for (let i = 0; i < 4; i++) {
-          try {
-            capabilities.push(t(`${feature}.capabilities.${i}`));
-          } catch {
-            break;
-          }
-        }
-        const docsLink = t(`${feature}.docsLink`);
+      {feature && config && (
+        <motion.div
+          key="feature-overlay"
+          className="fixed inset-0 z-[9990]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={onClose}
+          />
 
-        return (
-          <>
-            {/* Backdrop */}
+          {/* Modal */}
+          <div className="absolute inset-0 z-[1] flex items-center justify-center p-4 sm:p-8">
             <motion.div
-              key="backdrop"
-              className="fixed inset-0 z-[9990] bg-black/70 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              onClick={onClose}
-            />
-
-            {/* Modal */}
-            <motion.div
-              key="modal"
-              className="fixed inset-0 z-[9991] flex items-center justify-center p-4 sm:p-8"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#0d0f14]/95 backdrop-blur-xl shadow-2xl shadow-black/60"
+              initial={{ scale: 0.8, y: 60, filter: 'blur(12px)' }}
+              animate={{ scale: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ scale: 0.9, y: 30, filter: 'blur(8px)' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <motion.div
-                className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#0d0f14]/95 backdrop-blur-xl shadow-2xl shadow-black/60"
-                initial={{ scale: 0.8, y: 60, opacity: 0, filter: 'blur(12px)' }}
-                animate={{ scale: 1, y: 0, opacity: 1, filter: 'blur(0px)' }}
-                exit={{ scale: 0.9, y: 30, opacity: 0, filter: 'blur(8px)' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                onClick={(e) => e.stopPropagation()}
-              >
                 {/* Close button */}
                 <button
                   onClick={onClose}
@@ -506,7 +504,7 @@ export function FeatureModal({ feature, onClose }: FeatureModalProps) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.35, duration: 0.5 }}
                   >
-                    <Demo />
+                    {Demo && <Demo />}
                   </motion.div>
 
                   {/* Capabilities */}
@@ -563,10 +561,9 @@ export function FeatureModal({ feature, onClose }: FeatureModalProps) {
                   </motion.div>
                 </div>
               </motion.div>
-            </motion.div>
-          </>
-        );
-      })()}
+            </div>
+          </motion.div>
+        )}
     </AnimatePresence>
   );
 }

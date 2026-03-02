@@ -202,6 +202,27 @@
         "Approval workflow for sensitive actions"
       ],
       "docsLink": "/docs/security-monitor"
+    },
+    "pageTitle": "Everything under the hood",
+    "pageSubtitle": "22 tools, persistent memory, 3D visualization, multi-session agents, offline mode, and more.",
+    "modesTitle": "Three modes. One CLI.",
+    "modesSubtitle": "HelixMind combines three distinct AI modes into a single tool.",
+    "moreTitle": "And even more",
+    "viewDocs": "View docs",
+    "viewPricing": "See Pricing",
+    "learnMore": "Learn more",
+    "more": {
+      "checkpoints": { "title": "Checkpoint System", "desc": "Auto-created at every tool call. Double-ESC to browse and revert to any previous state." },
+      "tools": { "title": "22 Agent Tools", "desc": "Read, write, edit files, search, git, run commands, spiral memory, web research, browser automation." },
+      "mcp": { "title": "MCP Server", "desc": "Works with Claude Code, Cursor, VS Code, Windsurf, Codex, JetBrains, and more." },
+      "search": { "title": "Semantic Search", "desc": "Embedding-based KNN search across all spiral levels. Find concepts, not just keywords." },
+      "cli": { "title": "Rich CLI", "desc": "Figlet banners, syntax highlighting, animated status bar, slash commands, tab-based sessions." },
+      "permissions": { "title": "Permission System", "desc": "3-tier: auto, ask, dangerous. YOLO mode for the brave. Full control over what the agent can do." }
+    },
+    "modeCards": {
+      "jarvis": { "title": "Jarvis", "desc": "Autonomous assistant. Plans, analyzes, and executes tasks from a queue. Multi-phase thinking with approval workflow.", "link": "/docs/jarvis" },
+      "agent": { "title": "Coding Agent", "desc": "22 tools for reading, writing, testing, and committing code. Terminal or browser. Persistent spiral memory.", "link": "/docs/agent-tools" },
+      "monitor": { "title": "Security Monitor", "desc": "Autonomous guardian. Scans for vulnerabilities, blocks threats, rotates secrets. Passive, defensive, or active.", "link": "/docs/security-monitor" }
     }
   },
   "comparison": {
