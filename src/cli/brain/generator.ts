@@ -36,8 +36,27 @@ export async function startLiveBrain(
   projectName: string = 'HelixMind Project',
   brainScope: BrainScope = 'global',
 ): Promise<string> {
-  const { exportBrainData } = await import('./exporter.js');
-  const initialData = exportBrainData(engine, projectName, brainScope);
+  // Build initial data — empty export if no spiral engine
+  const emptyExport: BrainExport = {
+    meta: {
+      projectName,
+      totalNodes: 0,
+      totalEdges: 0,
+      webKnowledgeCount: 0,
+      exportDate: new Date().toISOString(),
+      brainScope,
+    },
+    nodes: [],
+    edges: [],
+  };
+
+  let initialData = emptyExport;
+  if (engine) {
+    try {
+      const { exportBrainData } = await import('./exporter.js');
+      initialData = exportBrainData(engine, projectName, brainScope);
+    } catch { /* use empty */ }
+  }
 
   if (activeBrainServer) {
     // Server already running — just push fresh data
@@ -59,23 +78,26 @@ export async function startLiveBrain(
     activeBrainServer.onModelActivate(pendingModelActivateHandler);
   }
 
-  // Poll spiral engine for changes every 5 seconds
-  let lastNodeCount = initialData.meta.totalNodes;
-  let lastEdgeCount = initialData.meta.totalEdges;
+  // Poll spiral engine for changes every 5 seconds (only if engine exists)
+  if (engine) {
+    const exporterMod = await import('./exporter.js');
+    let lastNodeCount = initialData.meta.totalNodes;
+    let lastEdgeCount = initialData.meta.totalEdges;
 
-  updateInterval = setInterval(() => {
-    try {
-      const freshData = exportBrainData(engine, projectName, brainScope);
-      if (freshData.meta.totalNodes !== lastNodeCount ||
-          freshData.meta.totalEdges !== lastEdgeCount) {
-        lastNodeCount = freshData.meta.totalNodes;
-        lastEdgeCount = freshData.meta.totalEdges;
-        activeBrainServer?.pushUpdate(freshData);
+    updateInterval = setInterval(() => {
+      try {
+        const freshData = exporterMod.exportBrainData(engine, projectName, brainScope);
+        if (freshData.meta.totalNodes !== lastNodeCount ||
+            freshData.meta.totalEdges !== lastEdgeCount) {
+          lastNodeCount = freshData.meta.totalNodes;
+          lastEdgeCount = freshData.meta.totalEdges;
+          activeBrainServer?.pushUpdate(freshData);
+        }
+      } catch {
+        // Engine might be closed
       }
-    } catch {
-      // Engine might be closed
-    }
-  }, 5000);
+    }, 5000);
+  }
 
   return activeBrainServer.url;
 }

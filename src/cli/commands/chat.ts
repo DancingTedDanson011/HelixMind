@@ -856,19 +856,19 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   }
 
   // === Start Brain Server BEFORE prompt (no async output during typing) ===
+  // Always start — Web Dashboard needs the server for CLI↔Web communication
+  // (chat, sessions, jarvis, permissions), not just brain visualization.
   let brainUrl: string | null = null;
   let updateMetaFn: (() => void) | null = null;
-  if (spiralEngine && config.spiral.enabled) {
-    try {
+  try {
+    const { startLiveBrain } = await import('../brain/generator.js');
+    if (spiralEngine) {
       const { exportBrainData } = await import('../brain/exporter.js');
-      const { startLiveBrain } = await import('../brain/generator.js');
-      const data = exportBrainData(spiralEngine, project.name || 'HelixMind', brainScope);
-      if (data.meta.totalNodes > 0) {
-        brainUrl = await startLiveBrain(spiralEngine, project.name || 'HelixMind', brainScope);
-        renderInfo(`  \u{1F9E0} Brain: ${chalk.dim(brainUrl)}`);
-      }
-    } catch { /* brain server optional */ }
-  }
+      exportBrainData(spiralEngine, project.name || 'HelixMind', brainScope);
+    }
+    brainUrl = await startLiveBrain(spiralEngine, project.name || 'HelixMind', brainScope);
+    renderInfo(`  \u{1F9E0} Brain: ${chalk.dim(brainUrl)}`);
+  } catch { /* brain server optional */ }
 
   // === Register CLI ↔ Web control protocol ===
   if (brainUrl) {
