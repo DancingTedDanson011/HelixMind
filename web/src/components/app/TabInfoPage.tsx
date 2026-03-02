@@ -15,7 +15,7 @@ interface TabInfoPageProps {
   description: string;
   features: Feature[];
   actions?: ReactNode;
-  accentColor: 'cyan' | 'purple' | 'fuchsia' | 'amber';
+  accentColor: 'cyan' | 'blue' | 'red' | 'amber';
   /** Link to docs page for this feature */
   docsHref?: string;
   docsLabel?: string;
@@ -23,29 +23,29 @@ interface TabInfoPageProps {
 
 const gradients: Record<string, string> = {
   cyan: 'from-cyan-500/10 to-blue-500/10',
-  purple: 'from-purple-500/10 to-red-500/10',
-  fuchsia: 'from-fuchsia-500/10 to-purple-500/10',
+  blue: 'from-blue-500/10 to-indigo-500/10',
+  red: 'from-red-500/10 to-rose-500/10',
   amber: 'from-amber-500/10 to-orange-500/10',
 };
 
 const iconColors: Record<string, string> = {
   cyan: 'text-cyan-400/60',
-  purple: 'text-purple-400/60',
-  fuchsia: 'text-fuchsia-400/60',
+  blue: 'text-blue-400/60',
+  red: 'text-red-400/60',
   amber: 'text-amber-400/60',
 };
 
 const featureBorders: Record<string, string> = {
   cyan: 'hover:border-cyan-500/20',
-  purple: 'hover:border-purple-500/20',
-  fuchsia: 'hover:border-fuchsia-500/20',
+  blue: 'hover:border-blue-500/20',
+  red: 'hover:border-red-500/20',
   amber: 'hover:border-amber-500/20',
 };
 
 const linkColors: Record<string, string> = {
   cyan: 'text-cyan-400/60 hover:text-cyan-400',
-  purple: 'text-purple-400/60 hover:text-purple-400',
-  fuchsia: 'text-fuchsia-400/60 hover:text-fuchsia-400',
+  blue: 'text-blue-400/60 hover:text-blue-400',
+  red: 'text-red-400/60 hover:text-red-400',
   amber: 'text-amber-400/60 hover:text-amber-400',
 };
 

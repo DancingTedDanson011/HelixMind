@@ -850,7 +850,15 @@
     "jarvisInfoFeature2Desc": "Mehrphasige Denkzyklen — schnelle Checks, mittlere Analyse und tiefes Reasoning fuer komplexe Entscheidungen.",
     "jarvisInfoFeature3Title": "Multi-Worker-Ausfuehrung",
     "jarvisInfoFeature3Desc": "Parallele Aufgabenausfuehrung mit mehreren Workern. Vorschlaege erfordern deine Genehmigung vor kritischen Aenderungen.",
-    "jarvisInfoDocs": "Jarvis-Dokumentation"
+    "jarvisInfoDocs": "Jarvis-Dokumentation",
+    "giveToAgent": "An Agent übergeben",
+    "sendToConsole": "Console Agent",
+    "sendToMonitor": "Monitor Agent",
+    "sendToJarvis": "Jarvis Agent",
+    "switchToConsole": "Zu Console wechseln",
+    "switchToMonitor": "Zu Monitor wechseln",
+    "switchToJarvis": "Zu Jarvis wechseln",
+    "pureChat": "Chat"
   },
   "ticket": {
     "createTitle": "Neues Ticket erstellen",

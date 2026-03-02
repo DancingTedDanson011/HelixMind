@@ -21,7 +21,7 @@ const TRAIT_ICONS: Record<string, typeof Brain> = {
 const TRAIT_COLORS: Record<string, string> = {
   confidence: 'bg-amber-500',
   caution: 'bg-blue-500',
-  proactivity: 'bg-fuchsia-500',
+  proactivity: 'bg-red-500',
   verbosity: 'bg-cyan-500',
   creativity: 'bg-purple-500',
 };
@@ -32,7 +32,7 @@ const AUTONOMY_LABELS: Record<number, { label: string; color: string; desc: stri
   2: { label: 'L2', color: 'text-yellow-400', desc: 'Proposals — suggest changes' },
   3: { label: 'L3', color: 'text-emerald-400', desc: 'Trusted — safe edits' },
   4: { label: 'L4', color: 'text-cyan-400', desc: 'Autonomous — most actions' },
-  5: { label: 'L5', color: 'text-fuchsia-400', desc: 'Full AGI — all capabilities' },
+  5: { label: 'L5', color: 'text-red-400', desc: 'Full AGI — all capabilities' },
 };
 
 export function IdentityCard({ identity, autonomyLevel, onSetAutonomy }: IdentityCardProps) {
@@ -48,8 +48,8 @@ export function IdentityCard({ identity, autonomyLevel, onSetAutonomy }: Identit
         className="w-full flex items-center justify-between p-3 hover:bg-white/[0.02] transition-all rounded-xl"
       >
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center">
-            <Brain size={14} className="text-fuchsia-400" />
+          <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+            <Brain size={14} className="text-red-400" />
           </div>
           <div className="text-left">
             <p className="text-xs font-medium text-gray-300">Identity</p>
@@ -146,7 +146,7 @@ export function IdentityCard({ identity, autonomyLevel, onSetAutonomy }: Identit
               <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1.5">Recent Learnings</p>
               <div className="space-y-1">
                 {identity.recentLearnings.slice(-5).map((learning, i) => (
-                  <p key={i} className="text-[10px] text-gray-500 pl-2 border-l border-fuchsia-500/20">
+                  <p key={i} className="text-[10px] text-gray-500 pl-2 border-l border-red-500/20">
                     {learning}
                   </p>
                 ))}

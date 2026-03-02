@@ -35,12 +35,12 @@ function isJarvisSession(name: string, jarvisName?: string): boolean {
 
 function sessionModeColor(name: string, jarvisName?: string): { bg: string; text: string; border: string } {
   const lower = name.toLowerCase();
-  if (lower.includes('security') || lower.includes('audit') || lower.includes('auto'))
-    return { bg: 'bg-cyan-500/5', text: 'text-cyan-400', border: 'border-cyan-500/10' };
-  if (lower.includes('monitor'))
-    return { bg: 'bg-purple-500/5', text: 'text-purple-400', border: 'border-purple-500/10' };
+  if (lower.includes('security') || lower.includes('audit') || lower.includes('monitor'))
+    return { bg: 'bg-blue-500/5', text: 'text-blue-400', border: 'border-blue-500/10' };
+  if (lower.includes('auto'))
+    return { bg: 'bg-emerald-500/5', text: 'text-emerald-400', border: 'border-emerald-500/10' };
   if (isJarvisSession(name, jarvisName))
-    return { bg: 'bg-fuchsia-500/5', text: 'text-fuchsia-400', border: 'border-fuchsia-500/10' };
+    return { bg: 'bg-red-500/5', text: 'text-red-400', border: 'border-red-500/10' };
   return { bg: 'bg-white/[0.03]', text: 'text-gray-300', border: 'border-white/5' };
 }
 
@@ -51,6 +51,17 @@ function SessionIcon({ name, jarvisName, size = 12, className = '' }: { name: st
   if (lower.includes('monitor')) return <Activity size={size} className={className} />;
   if (isJarvisSession(name, jarvisName)) return <Bot size={size} className={className} />;
   return <MessageSquare size={size} className={className} />;
+}
+
+/** Returns the 2px left-stripe color class for a session by its tab category */
+function sessionStripeColor(name: string, jarvisName?: string): string {
+  const lower = name.toLowerCase();
+  if (lower.includes('security') || lower.includes('audit') || lower.includes('monitor'))
+    return 'border-l-blue-400';
+  if (isJarvisSession(name, jarvisName))
+    return 'border-l-red-400';
+  // auto + default console sessions → green
+  return 'border-l-emerald-400';
 }
 
 function formatElapsed(ms: number): string {
@@ -189,13 +200,14 @@ export function ChatSidebar({
 
 function SessionItem({ session, jarvisName, onClick, onDismiss }: { session: SessionEntry; jarvisName?: string; onClick: () => void; onDismiss?: () => void }) {
   const colors = sessionModeColor(session.name, jarvisName);
+  const stripe = sessionStripeColor(session.name, jarvisName);
   return (
     <div className="group relative">
       <button
         onClick={onClick}
         className={`
-          w-full text-left px-3 py-2 rounded-lg text-sm transition-all
-          ${colors.bg} ${colors.border} border hover:brightness-125
+          w-full text-left px-3 py-2 rounded-lg text-sm transition-all border-l-2
+          ${colors.bg} ${colors.border} border ${stripe} hover:brightness-125
         `}
       >
         <div className="flex items-center gap-2">
@@ -308,11 +320,14 @@ function ChatItem({
 
   // When active + CLI connected, merge folder info into this chat entry
   const showCli = isActive && !!cliMeta;
+  const isPureChat = !cliMeta;
   const folderName = cliMeta?.projectPath.split(/[/\\]/).filter(Boolean).pop() || cliMeta?.projectName;
-  const modeBorderColor = cliMode === 'yolo' ? 'border-red-500/60'
-    : cliMode === 'skip-permissions' ? 'border-amber-500/60'
-    : cliMode === 'safe' ? 'border-emerald-500/60'
-    : 'border-cyan-400';
+  const modeBorderColor = cliMode === 'yolo' ? 'border-l-red-500/60'
+    : cliMode === 'skip-permissions' ? 'border-l-amber-500/60'
+    : cliMode === 'safe' ? 'border-l-emerald-500/60'
+    : 'border-l-amber-400';
+  // Pure chats always get amber stripe
+  const stripeColor = isPureChat ? 'border-l-amber-400' : modeBorderColor;
 
   return (
     <div className="group relative">
@@ -321,8 +336,8 @@ function ChatItem({
         className={`
           w-full text-left px-3 py-2 rounded-lg text-sm transition-all border-l-2
           ${isActive
-            ? `bg-cyan-500/10 text-white ${showCli ? modeBorderColor : 'border-cyan-400'}`
-            : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border-transparent hover:border-cyan-400/30'
+            ? `bg-cyan-500/10 text-white ${stripeColor}`
+            : `text-gray-400 hover:bg-white/5 hover:text-gray-200 ${isPureChat ? 'border-l-amber-400/30 hover:border-l-amber-400/60' : 'border-l-transparent hover:border-l-cyan-400/30'}`
           }
         `}
       >
@@ -330,7 +345,7 @@ function ChatItem({
           {showCli ? (
             <Terminal size={14} className="mt-0.5 flex-shrink-0 text-emerald-400" />
           ) : (
-            <MessageSquare size={14} className={`mt-0.5 flex-shrink-0 ${isActive ? 'text-cyan-400' : 'opacity-40'}`} />
+            <MessageSquare size={14} className={`mt-0.5 flex-shrink-0 ${isActive ? 'text-amber-400' : 'text-amber-400/40'}`} />
           )}
           <div className="flex-1 min-w-0">
             {showCli ? (

@@ -62,7 +62,7 @@ const priorityColors = {
 
 const statusConfig = {
   pending: { icon: Clock, color: 'text-yellow-400', bg: 'bg-yellow-500/10', label: 'Pending' },
-  running: { icon: Loader2, color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10', label: 'Running' },
+  running: { icon: Loader2, color: 'text-red-400', bg: 'bg-red-500/10', label: 'Running' },
   completed: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Done' },
   failed: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10', label: 'Failed' },
   paused: { icon: Pause, color: 'text-gray-400', bg: 'bg-gray-500/10', label: 'Paused' },
@@ -72,7 +72,7 @@ const PHASE_BADGE: Record<string, { color: string; label: string }> = {
   idle: { color: 'text-gray-500 bg-gray-500/10', label: 'Idle' },
   quick: { color: 'text-cyan-400 bg-cyan-500/10', label: 'Quick' },
   medium: { color: 'text-amber-400 bg-amber-500/10', label: 'Medium' },
-  deep: { color: 'text-fuchsia-400 bg-fuchsia-500/10', label: 'Deep' },
+  deep: { color: 'text-red-400 bg-red-500/10', label: 'Deep' },
 };
 
 /* ─── Sub-sections ────────────────────────────── */
@@ -128,15 +128,15 @@ export function JarvisPanel({
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                   isRunning
-                    ? 'bg-fuchsia-500/10 border border-fuchsia-500/20'
+                    ? 'bg-red-500/10 border border-red-500/20'
                     : 'bg-gray-500/10 border border-gray-500/20'
                 }`}>
-                  <Bot size={18} className={isRunning ? 'text-fuchsia-400 animate-pulse' : 'text-gray-400'} />
+                  <Bot size={18} className={isRunning ? 'text-red-400 animate-pulse' : 'text-gray-400'} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-gray-200">
-                      {jarvisName}: <span className={isRunning ? 'text-fuchsia-400' : 'text-gray-400'}>
+                      {jarvisName}: <span className={isRunning ? 'text-red-400' : 'text-gray-400'}>
                         {isRunning ? t('jarvisRunning') : t('jarvisPaused')}
                       </span>
                     </p>
@@ -171,7 +171,7 @@ export function JarvisPanel({
                 {onTriggerDeepThink && isRunning && (
                   <button
                     onClick={onTriggerDeepThink}
-                    className="px-3 py-1.5 rounded-lg text-xs text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                    className="px-3 py-1.5 rounded-lg text-xs text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
                     title="Trigger deep thinking cycle"
                   >
                     <Sparkles size={12} className="inline mr-1" />
@@ -189,7 +189,7 @@ export function JarvisPanel({
                 ) : (
                   <button
                     onClick={onResumeJarvis}
-                    className="px-3 py-1.5 rounded-lg text-xs text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                    className="px-3 py-1.5 rounded-lg text-xs text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
                   >
                     <Play size={12} className="inline mr-1" />
                     {t('jarvisResume')}
@@ -214,7 +214,7 @@ export function JarvisPanel({
                 </p>
                 <div className="flex gap-2">
                   {workers.filter(w => w.status === 'running').map((w) => (
-                    <div key={w.workerId} className="text-[10px] px-2 py-1 rounded bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400">
+                    <div key={w.workerId} className="text-[10px] px-2 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-400">
                       W{w.workerId}: {w.taskTitle}
                     </div>
                   ))}
@@ -227,7 +227,7 @@ export function JarvisPanel({
             icon={<Bot size={28} />}
             title={t('jarvisInfoTitle')}
             description={t('jarvisInfoDesc')}
-            accentColor="fuchsia"
+            accentColor="red"
             docsHref="/docs/jarvis"
             docsLabel={t('jarvisInfoDocs')}
             features={[
@@ -239,7 +239,7 @@ export function JarvisPanel({
               isConnected ? (
                 <button
                   onClick={onStartJarvis}
-                  className="px-4 py-2 rounded-lg text-sm text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                  className="px-4 py-2 rounded-lg text-sm text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
                 >
                   <Play size={14} className="inline mr-1.5" />
                   {t('jarvisStart')}
@@ -278,7 +278,7 @@ export function JarvisPanel({
               {label}
               {count > 0 && (
                 <span className={`text-[9px] px-1 rounded-full ${
-                  section === key ? 'bg-fuchsia-500/20 text-fuchsia-400' : 'bg-white/5 text-gray-600'
+                  section === key ? 'bg-red-500/20 text-red-400' : 'bg-white/5 text-gray-600'
                 }`}>
                   {count}
                 </span>
@@ -292,7 +292,7 @@ export function JarvisPanel({
           <>
             {/* Add Task */}
             <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5 space-y-3">
-              <h3 className="text-xs font-medium text-fuchsia-400 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-xs font-medium text-red-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Plus size={12} />
                 {t('jarvisAddTask')}
               </h3>
@@ -302,14 +302,14 @@ export function JarvisPanel({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={t('jarvisTaskTitle')}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-gray-200 placeholder-gray-600 focus:border-fuchsia-500/30 focus:outline-none transition-all"
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-gray-200 placeholder-gray-600 focus:border-red-500/30 focus:outline-none transition-all"
               />
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t('jarvisTaskDescription')}
                 rows={2}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-gray-200 placeholder-gray-600 focus:border-fuchsia-500/30 focus:outline-none transition-all resize-none"
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-gray-200 placeholder-gray-600 focus:border-red-500/30 focus:outline-none transition-all resize-none"
               />
               <div className="flex items-center justify-between">
                 <div className="flex gap-1.5">
@@ -330,7 +330,7 @@ export function JarvisPanel({
                 <button
                   onClick={handleSubmit}
                   disabled={!title.trim() || !isConnected}
-                  className="px-3 py-1.5 rounded-lg text-xs text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 rounded-lg text-xs text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus size={12} className="inline mr-1" />
                   Add
@@ -341,7 +341,7 @@ export function JarvisPanel({
             {/* Running Tasks */}
             {runningTasks.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-xs font-medium text-fuchsia-400 uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="text-xs font-medium text-red-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Loader2 size={12} className="animate-spin" />
                   {t('jarvisTaskRunning')} ({runningTasks.length})
                 </h3>
@@ -436,7 +436,7 @@ export function JarvisPanel({
 
             {proposals.length === 0 && (
               <div className="text-center py-6">
-                <Sparkles size={16} className="mx-auto text-fuchsia-500/30 mb-2" />
+                <Sparkles size={16} className="mx-auto text-red-500/30 mb-2" />
                 <p className="text-xs text-gray-600">No proposals yet</p>
                 <p className="text-xs text-gray-700 mt-1">Jarvis will generate proposals during thinking cycles.</p>
               </div>
@@ -448,7 +448,7 @@ export function JarvisPanel({
         {section === 'consciousness' && (
           <div className="space-y-3">
             <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
-              <h3 className="text-xs font-medium text-fuchsia-400 uppercase tracking-wider flex items-center gap-1.5 mb-3">
+              <h3 className="text-xs font-medium text-red-400 uppercase tracking-wider flex items-center gap-1.5 mb-3">
                 <Eye size={12} />
                 Consciousness Stream
               </h3>

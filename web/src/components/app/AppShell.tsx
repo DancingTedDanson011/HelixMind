@@ -35,8 +35,8 @@ import { TabInfoPage } from './TabInfoPage';
 const TAB_COLORS = {
   chat:    { active: 'bg-cyan-500/15 text-cyan-400',    inactive: 'text-cyan-400/40 hover:text-cyan-400/70',    dot: 'bg-cyan-400' },
   console: { active: 'bg-emerald-500/15 text-emerald-400', inactive: 'text-emerald-400/40 hover:text-emerald-400/70', dot: 'bg-emerald-400' },
-  monitor: { active: 'bg-purple-500/15 text-purple-400',  inactive: 'text-purple-400/40 hover:text-purple-400/70',  dot: 'bg-purple-400' },
-  jarvis:  { active: 'bg-fuchsia-500/15 text-fuchsia-400', inactive: 'text-fuchsia-400/40 hover:text-fuchsia-400/70', dot: 'bg-fuchsia-400' },
+  monitor: { active: 'bg-blue-500/15 text-blue-400',  inactive: 'text-blue-400/40 hover:text-blue-400/70',  dot: 'bg-blue-400' },
+  jarvis:  { active: 'bg-red-500/15 text-red-400', inactive: 'text-red-400/40 hover:text-red-400/70', dot: 'bg-red-400' },
 } as const;
 
 /* ─── Types ───────────────────────────────────── */
@@ -73,14 +73,14 @@ export interface ChatFull {
 
 function getSessionTab(name: string, jarvisName?: string, daemonRunning?: boolean): 'console' | 'monitor' | 'jarvis' {
   const lower = name.toLowerCase();
-  if (lower.includes('monitor')) return 'monitor';
+  if (lower.includes('monitor') || lower.includes('security') || lower.includes('audit')) return 'monitor';
   // Jarvis sessions only count when daemon is actually running
   if (daemonRunning) {
     if (lower.includes('jarvis')) return 'jarvis';
     // Match custom Jarvis name (e.g. "🤖 Olaf" contains "olaf")
     if (jarvisName && lower.includes(jarvisName.toLowerCase())) return 'jarvis';
   }
-  return 'console'; // auto, security, everything else → Console
+  return 'console'; // auto, everything else → Console
 }
 
 /* ─── Session icon helper ────────────────────── */
@@ -1014,7 +1014,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               emptyLabel={isConnected ? t('monitorIdle') : t('cliDisconnected')}
               emptyHint={isConnected ? t('monitorTabHint') : t('setupDesc')}
               actions={isConnected ? [
-                { label: t('monitorStartPassive'), icon: Eye, onClick: () => handleStartMonitor('passive'), color: 'text-gray-400', hoverColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+                { label: t('monitorStartPassive'), icon: Eye, onClick: () => handleStartMonitor('passive'), color: 'text-gray-400', hoverColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
                 { label: t('monitorStartDefensive'), icon: Shield, onClick: () => handleStartMonitor('defensive'), color: 'text-gray-400', hoverColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
                 { label: t('monitorStartActive'), icon: ShieldAlert, onClick: () => handleStartMonitor('active'), color: 'text-gray-400', hoverColor: 'bg-red-500/10 text-red-400 border-red-500/20' },
               ] : []}
@@ -1257,22 +1257,22 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 }}
                 className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] border flex-shrink-0 transition-all ${
                   activeTab === 'jarvis'
-                    ? 'bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-400'
-                    : 'bg-fuchsia-500/5 border-fuchsia-500/15 text-fuchsia-400/80 hover:bg-fuchsia-500/10'
+                    ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                    : 'bg-red-500/5 border-red-500/15 text-red-400/80 hover:bg-red-500/10'
                 }`}
               >
-                <Bot size={10} className="text-fuchsia-400" />
+                <Bot size={10} className="text-red-400" />
                 <span className="font-medium">Jarvis</span>
                 <span className={`text-[9px] px-1 rounded-full ${
-                  connection.jarvisStatus.thinkingPhase === 'deep' ? 'bg-fuchsia-500/20' :
+                  connection.jarvisStatus.thinkingPhase === 'deep' ? 'bg-red-500/20' :
                   connection.jarvisStatus.thinkingPhase === 'medium' ? 'bg-amber-500/20 text-amber-400' :
                   'bg-cyan-500/20 text-cyan-400'
                 }`}>
                   {connection.jarvisStatus.thinkingPhase ?? 'idle'}
                 </span>
-                <Activity size={8} className="text-fuchsia-400 animate-pulse" />
+                <Activity size={8} className="text-red-400 animate-pulse" />
                 {connection.jarvisStatus.pendingCount > 0 && (
-                  <span className="text-fuchsia-400/60">{connection.jarvisStatus.pendingCount} tasks</span>
+                  <span className="text-red-400/60">{connection.jarvisStatus.pendingCount} tasks</span>
                 )}
               </button>
             )}
@@ -1434,7 +1434,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                     icon={<Eye size={28} />}
                     title={t('monitorInfoTitle')}
                     description={t('monitorInfoDesc')}
-                    accentColor="purple"
+                    accentColor="blue"
                     docsHref="/docs/monitor"
                     docsLabel={t('monitorInfoDocs')}
                     features={[
@@ -1444,7 +1444,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                     ]}
                     actions={isConnected ? (
                       <>
-                        <button onClick={() => handleStartMonitor('passive')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-400 transition-all">
+                        <button onClick={() => handleStartMonitor('passive')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-400 transition-all">
                           <Eye size={12} className="inline mr-1.5" />{t('monitorStartPassive')}
                         </button>
                         <button onClick={() => handleStartMonitor('defensive')} className="px-3 py-2 rounded-lg text-xs text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all">
@@ -1576,15 +1576,15 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 idle: { color: 'text-gray-500 bg-gray-500/10', label: 'Idle' },
                 quick: { color: 'text-cyan-400 bg-cyan-500/10', label: 'Quick' },
                 medium: { color: 'text-amber-400 bg-amber-500/10', label: 'Medium' },
-                deep: { color: 'text-fuchsia-400 bg-fuchsia-500/10', label: 'Deep' },
+                deep: { color: 'text-red-400 bg-red-500/10', label: 'Deep' },
               };
               const pb = PB[jPhase] ?? PB.idle;
               return (
                 <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-white/[0.02] flex-wrap">
-                  <Bot size={14} className={jRunning ? 'text-fuchsia-400 animate-pulse' : 'text-gray-400'} />
+                  <Bot size={14} className={jRunning ? 'text-red-400 animate-pulse' : 'text-gray-400'} />
                   <span className="text-xs font-medium text-gray-300">
                     {jStatus.jarvisName || 'Jarvis'}:
-                    <span className={jRunning ? ' text-fuchsia-400' : ' text-gray-500'}>
+                    <span className={jRunning ? ' text-red-400' : ' text-gray-500'}>
                       {' '}{jRunning ? 'Running' : jPaused ? 'Paused' : jStatus.daemonState}
                     </span>
                   </span>
@@ -1595,7 +1595,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                     </span>
                   )}
                   {jStatus.autonomyLevel !== undefined && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full text-fuchsia-400/60 bg-fuchsia-500/10">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full text-red-400/60 bg-red-500/10">
                       L{jStatus.autonomyLevel}
                     </span>
                   )}
@@ -1610,7 +1610,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                     {jRunning && (
                       <button
                         onClick={() => connection.triggerDeepThink().catch(() => {})}
-                        className="px-2 py-1 rounded-md text-[10px] text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                        className="px-2 py-1 rounded-md text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
                       >
                         <Sparkles size={10} className="inline mr-0.5" />
                         Think
@@ -1627,7 +1627,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                     ) : jPaused ? (
                       <button
                         onClick={() => connection.resumeJarvis().catch(() => {})}
-                        className="px-2 py-1 rounded-md text-[10px] text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                        className="px-2 py-1 rounded-md text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
                       >
                         <Play size={10} className="inline mr-0.5" />
                         Resume
@@ -1679,7 +1679,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   icon={<Bot size={28} />}
                   title={t('jarvisInfoTitle')}
                   description={t('jarvisInfoDesc')}
-                  accentColor="fuchsia"
+                  accentColor="red"
                   docsHref="/docs/jarvis"
                   docsLabel={t('jarvisInfoDocs')}
                   features={[
@@ -1691,7 +1691,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                     isConnected ? (
                       <button
                         onClick={() => connection.startJarvis().catch(() => {})}
-                        className="px-4 py-2 rounded-lg text-sm text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                        className="px-4 py-2 rounded-lg text-sm text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
                       >
                         <Play size={14} className="inline mr-1.5" />
                         {t('jarvisStart')}
@@ -1727,7 +1727,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   onClick={() => setShowJarvisPanel(prev => !prev)}
                   className={`absolute -top-8 right-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
                     showJarvisPanel
-                      ? 'bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400'
+                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
                       : connection.proposals.filter(p => p.status === 'pending').length > 0
                         ? 'bg-amber-500/5 border-amber-500/10 text-amber-400 hover:bg-amber-500/10'
                         : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'

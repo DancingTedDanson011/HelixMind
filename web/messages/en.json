@@ -850,7 +850,15 @@
     "jarvisInfoFeature2Desc": "Multi-phase thinking cycles — quick checks, medium analysis, and deep reasoning for complex decisions.",
     "jarvisInfoFeature3Title": "Multi-Worker Execution",
     "jarvisInfoFeature3Desc": "Parallel task execution with multiple workers. Proposals require your approval before critical changes.",
-    "jarvisInfoDocs": "Jarvis Documentation"
+    "jarvisInfoDocs": "Jarvis Documentation",
+    "giveToAgent": "Give to Agent",
+    "sendToConsole": "Console Agent",
+    "sendToMonitor": "Monitor Agent",
+    "sendToJarvis": "Jarvis Agent",
+    "switchToConsole": "Switch to Console",
+    "switchToMonitor": "Switch to Monitor",
+    "switchToJarvis": "Switch to Jarvis",
+    "pureChat": "Chat"
   },
   "ticket": {
     "createTitle": "Create New Ticket",

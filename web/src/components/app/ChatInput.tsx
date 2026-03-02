@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Send, Square, ChevronDown, Shield, ShieldOff,
-  Zap, Eye, ShieldAlert, Key,
+  Zap, Eye, ShieldAlert, Key, ArrowRight, Terminal, Bot,
 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 
@@ -22,6 +22,10 @@ interface ChatInputProps {
   isConnected?: boolean;
   /** Current active tab — controls which quick actions are shown */
   activeTab?: 'chat' | 'console' | 'monitor' | 'jarvis';
+  /** Whether this is a pure chat (no CLI session attached) */
+  isPureChat?: boolean;
+  /** Callback to hand off a pure chat to an agent tab */
+  onGiveToAgent?: (target: 'console' | 'monitor' | 'jarvis') => void;
 }
 
 export function ChatInput({
@@ -35,13 +39,17 @@ export function ChatInput({
   hasChat = false,
   isConnected = false,
   activeTab = 'chat',
+  isPureChat = false,
+  onGiveToAgent,
 }: ChatInputProps) {
   const t = useTranslations('app');
   const [value, setValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [giveMenuOpen, setGiveMenuOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modeRef = useRef<HTMLDivElement>(null);
+  const giveRef = useRef<HTMLDivElement>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -51,11 +59,14 @@ export function ChatInput({
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   }, [value]);
 
-  // Close mode menu on outside click
+  // Close menus on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (modeRef.current && !modeRef.current.contains(e.target as Node)) {
         setModeMenuOpen(false);
+      }
+      if (giveRef.current && !giveRef.current.contains(e.target as Node)) {
+        setGiveMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -111,12 +122,53 @@ export function ChatInput({
               <button
                 onClick={() => onSend('Start monitoring the project for file changes and potential issues. Watch for errors, test failures, and code quality problems.')}
                 disabled={!isConnected}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-purple-400/60 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-blue-400/60 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/20"
               >
                 <Eye size={10} />
                 {t('quickMonitor')}
               </button>
             )}
+          </div>
+        )}
+
+        {/* "Give to Agent" button for pure chats */}
+        {isPureChat && hasChat && isConnected && onGiveToAgent && !isAgentRunning && (
+          <div className="flex items-center gap-1.5 mb-2 px-1" ref={giveRef}>
+            <div className="relative">
+              <button
+                onClick={() => setGiveMenuOpen(!giveMenuOpen)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-amber-500/5 border border-amber-500/15 text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 transition-all"
+              >
+                <ArrowRight size={10} />
+                {t('giveToAgent')}
+                <ChevronDown size={8} />
+              </button>
+              {giveMenuOpen && (
+                <div className="absolute bottom-full left-0 mb-1 w-44 rounded-xl border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl py-1 z-50">
+                  <button
+                    onClick={() => { onGiveToAgent('console'); setGiveMenuOpen(false); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/5 transition-colors"
+                  >
+                    <Terminal size={12} className="text-emerald-400" />
+                    {t('sendToConsole')}
+                  </button>
+                  <button
+                    onClick={() => { onGiveToAgent('monitor'); setGiveMenuOpen(false); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-400 hover:text-blue-400 hover:bg-blue-500/5 transition-colors"
+                  >
+                    <Eye size={12} className="text-blue-400" />
+                    {t('sendToMonitor')}
+                  </button>
+                  <button
+                    onClick={() => { onGiveToAgent('jarvis'); setGiveMenuOpen(false); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-400 hover:text-red-400 hover:bg-red-500/5 transition-colors"
+                  >
+                    <Bot size={12} className="text-red-400" />
+                    {t('sendToJarvis')}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

@@ -42,7 +42,7 @@ export function JarvisBottomPanel({
           onClick={() => setExpanded(!expanded)}
           className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-white/[0.02] transition-colors"
         >
-          <Sparkles size={11} className="text-fuchsia-400 flex-shrink-0" />
+          <Sparkles size={11} className="text-red-400 flex-shrink-0" />
           <span className="text-gray-300 font-medium">Jarvis Intelligence</span>
           {pendingProposals.length > 0 && (
             <span className="text-amber-400 text-[10px]">
@@ -50,7 +50,7 @@ export function JarvisBottomPanel({
             </span>
           )}
           {consciousnessCount > 0 && (
-            <span className="text-fuchsia-400 text-[10px]">
+            <span className="text-red-400 text-[10px]">
               <Eye size={8} className="inline mr-0.5" />
               active
             </span>

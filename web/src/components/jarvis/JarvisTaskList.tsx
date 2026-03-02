@@ -21,7 +21,7 @@ const priorityColors = {
 
 const statusConfig = {
   pending: { icon: Clock, color: 'text-yellow-400', spin: false },
-  running: { icon: Loader2, color: 'text-fuchsia-400', spin: true },
+  running: { icon: Loader2, color: 'text-red-400', spin: true },
   completed: { icon: CheckCircle2, color: 'text-emerald-400', spin: false },
   failed: { icon: XCircle, color: 'text-red-400', spin: false },
   paused: { icon: Pause, color: 'text-gray-400', spin: false },
@@ -69,10 +69,10 @@ export function JarvisTaskList({ tasks, isConnected, onAddTask }: JarvisTaskList
         onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-white/[0.02] transition-colors"
       >
-        <Loader2 size={11} className={`text-fuchsia-400 flex-shrink-0 ${running.length > 0 ? 'animate-spin' : ''}`} />
+        <Loader2 size={11} className={`text-red-400 flex-shrink-0 ${running.length > 0 ? 'animate-spin' : ''}`} />
         <span className="text-gray-300 font-medium">Tasks ({tasks.length})</span>
         {running.length > 0 && (
-          <span className="text-fuchsia-400 text-[10px]">({running.length} running)</span>
+          <span className="text-red-400 text-[10px]">({running.length} running)</span>
         )}
         {pending.length > 0 && (
           <span className="text-yellow-400 text-[10px]">({pending.length} pending)</span>
@@ -115,7 +115,7 @@ export function JarvisTaskList({ tasks, isConnected, onAddTask }: JarvisTaskList
           {isConnected && !showForm && (
             <button
               onClick={(e) => { e.stopPropagation(); setShowForm(true); }}
-              className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[10px] text-fuchsia-400/60 hover:text-fuchsia-400 hover:bg-fuchsia-500/5 transition-colors"
+              className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[10px] text-red-400/60 hover:text-red-400 hover:bg-red-500/5 transition-colors"
             >
               <Plus size={10} />
               Add Task
@@ -130,7 +130,7 @@ export function JarvisTaskList({ tasks, isConnected, onAddTask }: JarvisTaskList
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Task title..."
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                className="flex-1 px-2 py-1 rounded-md bg-white/5 border border-white/10 text-xs text-gray-200 placeholder-gray-600 focus:border-fuchsia-500/30 focus:outline-none"
+                className="flex-1 px-2 py-1 rounded-md bg-white/5 border border-white/10 text-xs text-gray-200 placeholder-gray-600 focus:border-red-500/30 focus:outline-none"
                 autoFocus
               />
               <select
@@ -145,7 +145,7 @@ export function JarvisTaskList({ tasks, isConnected, onAddTask }: JarvisTaskList
               <button
                 onClick={handleSubmit}
                 disabled={!title.trim()}
-                className="px-2 py-1 rounded-md text-[10px] text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all disabled:opacity-40"
+                className="px-2 py-1 rounded-md text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-40"
               >
                 <Plus size={10} />
               </button>
