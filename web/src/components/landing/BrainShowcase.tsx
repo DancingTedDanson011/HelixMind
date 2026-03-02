@@ -1,15 +1,9 @@
 'use client';
 
-import { Suspense, lazy, useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Maximize2, Minimize2 } from 'lucide-react';
-import { BrainHUD } from '../brain/BrainHUD';
-import { demoNodes, demoEdges } from '../brain/brain-demo-data';
-
-const InteractiveBrainCanvas = lazy(() =>
-  import('./InteractiveBrainCanvas').then((m) => ({ default: m.InteractiveBrainCanvas }))
-);
 
 function BrainFallback() {
   return (
@@ -19,23 +13,10 @@ function BrainFallback() {
   );
 }
 
-// Pre-compute HUD stats from demo data
-const nodeCount = demoNodes.length;
-const edgeCount = demoEdges.length;
-
 export function BrainShowcase() {
   const t = useTranslations('brainShowcase');
   const [isExpanded, setIsExpanded] = useState(false);
-
-  const { levelCounts, webKnowledgeCount } = useMemo(() => {
-    const counts: Record<number, number> = {};
-    let webCount = 0;
-    for (const node of demoNodes) {
-      counts[node.level] = (counts[node.level] || 0) + 1;
-      if (node.level === 6) webCount++;
-    }
-    return { levelCounts: counts, webKnowledgeCount: webCount };
-  }, []);
+  const [loaded, setLoaded] = useState(false);
 
   return (
     <section className="py-24 sm:py-32 px-4 relative overflow-hidden">
@@ -100,26 +81,21 @@ export function BrainShowcase() {
             </button>
           </div>
 
-          {/* Canvas container with smooth height transition */}
+          {/* Brain iframe — real CLI brain template with full data */}
           <div
             className={`w-full relative transition-[height] duration-500 ease-in-out ${
               isExpanded ? 'h-[75vh]' : 'h-[400px] sm:h-[500px]'
             }`}
           >
-            <Suspense fallback={<BrainFallback />}>
-              <InteractiveBrainCanvas />
-            </Suspense>
-
-            {/* HUD overlay — visible when expanded (matches CLI brain view) */}
-            {isExpanded && (
-              <BrainHUD
-                nodeCount={nodeCount}
-                edgeCount={edgeCount}
-                levelCounts={levelCounts}
-                webKnowledgeCount={webKnowledgeCount}
-                projectName="HelixMind"
-              />
-            )}
+            {!loaded && <BrainFallback />}
+            <iframe
+              src="/brain.html"
+              className="w-full h-full border-none block"
+              style={{ background: '#050510' }}
+              onLoad={() => setLoaded(true)}
+              title="HelixMind Brain Visualization"
+              allow="accelerometer; autoplay"
+            />
           </div>
         </motion.div>
 
