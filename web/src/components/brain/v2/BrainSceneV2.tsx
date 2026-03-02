@@ -6,7 +6,7 @@ import { NebulaNodes } from './NebulaNodes';
 import { NebulaEdges } from './NebulaEdges';
 import { NebulaStars } from './NebulaStars';
 import { GoldenCore } from './GoldenCore';
-import { JarvisOrbits } from './JarvisOrbits';
+import { JarvisOrbits, type OrbitNodeData } from './JarvisOrbits';
 import { JarvisNeurons } from './JarvisNeurons';
 import { demoNodes, demoEdges } from '../brain-demo-data';
 
@@ -17,12 +17,18 @@ interface BrainSceneV2Props {
   neuronFireCount?: number;
   /** Color for fired neurons */
   neuronFireColor?: string;
+  /** Active Jarvis tasks — shown as nodes on the green orbit */
+  jarvisTasks?: OrbitNodeData[];
+  /** Active Jarvis proposals — shown as nodes on the gold orbit */
+  jarvisProposals?: OrbitNodeData[];
 }
 
 export function BrainSceneV2({
   thinkingPhase = 'idle',
   neuronFireCount = 0,
   neuronFireColor = 'green',
+  jarvisTasks = [],
+  jarvisProposals = [],
 }: BrainSceneV2Props) {
   return (
     <Canvas
@@ -41,7 +47,7 @@ export function BrainSceneV2({
 
       {/* Jarvis AGI visualization */}
       <GoldenCore radius={25} thinkingPhase={thinkingPhase} />
-      <JarvisOrbits radius={80} thinkingPhase={thinkingPhase} />
+      <JarvisOrbits radius={80} thinkingPhase={thinkingPhase} tasks={jarvisTasks} proposals={jarvisProposals} />
       <JarvisNeurons
         orbitRadius={80}
         fireCount={neuronFireCount}

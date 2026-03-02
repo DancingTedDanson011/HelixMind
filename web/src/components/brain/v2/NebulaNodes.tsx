@@ -178,7 +178,38 @@ export function NebulaNodes({ nodes, edges }: NebulaNodesProps) {
   const geoRef = useRef<THREE.BufferGeometry>(null!);
   const materialRef = useRef<THREE.ShaderMaterial>(null!);
 
-  const positions = useMemo(() => computeNebulaPositions(nodes, edges), [nodes, edges]);
+  // Cache positions by node ID to prevent jumps on data updates
+  const positionCacheRef = useRef<Map<string, THREE.Vector3>>(new Map());
+  const targetPositionsRef = useRef<Map<string, THREE.Vector3>>(new Map());
+  const lerpProgressRef = useRef(1); // 0 = start lerp, 1 = done
+
+  const positions = useMemo(() => {
+    const fresh = computeNebulaPositions(nodes, edges);
+    const cache = positionCacheRef.current;
+    const targets = targetPositionsRef.current;
+
+    // If cache is empty (first render), use positions directly
+    if (cache.size === 0) {
+      for (let i = 0; i < nodes.length; i++) {
+        cache.set(nodes[i].id, fresh[i].clone());
+        targets.set(nodes[i].id, fresh[i].clone());
+      }
+      return fresh;
+    }
+
+    // Set new targets and start lerp
+    for (let i = 0; i < nodes.length; i++) {
+      targets.set(nodes[i].id, fresh[i].clone());
+      // New nodes get their position immediately
+      if (!cache.has(nodes[i].id)) {
+        cache.set(nodes[i].id, fresh[i].clone());
+      }
+    }
+    lerpProgressRef.current = 0;
+
+    // Return current cached positions (will be lerped in useFrame)
+    return nodes.map((n) => cache.get(n.id) ?? new THREE.Vector3());
+  }, [nodes, edges]);
 
   // Track births for smooth appearance of new nodes
   const birthTimesRef = useRef<Map<string, number>>(new Map());
@@ -243,6 +274,36 @@ export function NebulaNodes({ nodes, edges }: NebulaNodesProps) {
     clockRef.current = state.clock.elapsedTime;
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+    }
+
+    // Smooth lerp positions toward targets (prevents jumps on data updates)
+    if (lerpProgressRef.current < 1) {
+      lerpProgressRef.current = Math.min(lerpProgressRef.current + state.clock.getDelta() * 2, 1);
+      const t = lerpProgressRef.current;
+      const cache = positionCacheRef.current;
+      const targets = targetPositionsRef.current;
+      const geo = geoRef.current;
+      if (geo) {
+        const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+        if (posAttr) {
+          const arr = posAttr.array as Float32Array;
+          let i = 0;
+          for (const [id, target] of targets) {
+            const cached = cache.get(id);
+            if (cached && i < nodes.length) {
+              cached.lerp(target, Math.min(t * 1.5, 1));
+              const idx = nodes.findIndex(n => n.id === id);
+              if (idx >= 0) {
+                arr[idx * 3] = cached.x;
+                arr[idx * 3 + 1] = cached.y;
+                arr[idx * 3 + 2] = cached.z;
+              }
+            }
+            i++;
+          }
+          posAttr.needsUpdate = true;
+        }
+      }
     }
   });
 

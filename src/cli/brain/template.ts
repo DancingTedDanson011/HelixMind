@@ -986,6 +986,7 @@ function updateSignals(dt){
 }
 
 // ===== MAIN BUILD (prepares data, launches worker) =====
+let hasInitialCamera=false;
 function buildScene(){
   nodes=BRAIN_DATA.nodes; nC=nodes.length;
   byLvl={};
@@ -1019,8 +1020,12 @@ function buildScene(){
   layoutWorker=new Worker(workerURL);
   layoutWorker.onmessage=function(ev){
     buildGeometry(ev.data.positions);
-    cam.position.set(0,curSpread*0.3,curSpread*1.8);
-    ctrl.target.set(0,0,0);
+    // Only set camera on first build — subsequent updates preserve current view
+    if(!hasInitialCamera){
+      cam.position.set(0,curSpread*0.3,curSpread*1.8);
+      ctrl.target.set(0,0,0);
+      hasInitialCamera=true;
+    }
     layoutWorker.terminate();layoutWorker=null;
   };
   const lvlCounts={};for(let i=0;i<nC;i++){const lv=levels[i];lvlCounts[lv]=(lvlCounts[lv]||0)+1;}
@@ -1239,6 +1244,9 @@ for(let i=0;i<ORB_COUNT;i++){
   const tc=new THREE.Color().setHSL(h,0.75+srand(i*73)*0.25,isJ?0.55+srand(i*91)*0.15:0.42+srand(i*91)*0.18);
   orb1Col[i*3]=tc.r;orb1Col[i*3+1]=tc.g;orb1Col[i*3+2]=tc.b;
 }
+// Backup original sizes/colors for Jarvis orbit node overlay
+const orb1SzBase=new Float32Array(orb1Sz);
+const orb1ColBase=new Float32Array(orb1Col);
 const orb1Geo=new THREE.BufferGeometry();
 orb1Geo.setAttribute('position',new THREE.BufferAttribute(orb1Pos,3));
 orb1Geo.setAttribute('aColor',new THREE.BufferAttribute(orb1Col,3));
@@ -1264,6 +1272,8 @@ for(let i=0;i<ORB_COUNT;i++){
   const tc=new THREE.Color().setHSL(h,0.8+srand(i*79)*0.2,isJ?0.55+srand(i*97)*0.1:0.45+srand(i*97)*0.15);
   orb2Col[i*3]=tc.r;orb2Col[i*3+1]=tc.g;orb2Col[i*3+2]=tc.b;
 }
+const orb2SzBase=new Float32Array(orb2Sz);
+const orb2ColBase=new Float32Array(orb2Col);
 const orb2Geo=new THREE.BufferGeometry();
 orb2Geo.setAttribute('position',new THREE.BufferAttribute(orb2Pos,3));
 orb2Geo.setAttribute('aColor',new THREE.BufferAttribute(orb2Col,3));
@@ -1422,6 +1432,110 @@ function updateJarvisThinking(phase){
   }
 }
 
+// ===== JARVIS TASK/PROPOSAL ORBIT NODES =====
+// Green orbit → active tasks (pending/in_progress)
+// Gold orbit → proposals (pending approval)
+let jarvisActiveTasks=[];
+let jarvisActiveProposals=[];
+const TASK_PARTICLE_SPACING=25; // every Nth orbit1 particle becomes a task node
+const PROPOSAL_PARTICLE_SPACING=25; // every Nth orbit2 particle becomes a proposal node
+
+function updateJarvisTask(task){
+  const idx=jarvisActiveTasks.findIndex(t=>t.id===task.id);
+  if(task.status==='completed'||task.status==='cancelled'){
+    if(idx>=0){
+      fireNeuron(0x00FF66,'task_complete');
+      jarvisActiveTasks.splice(idx,1);
+    }
+    return;
+  }
+  if(idx>=0) jarvisActiveTasks[idx]=task;
+  else jarvisActiveTasks.push(task);
+}
+
+function updateJarvisProposal(proposal){
+  const idx=jarvisActiveProposals.findIndex(p=>p.id===proposal.id);
+  if(proposal.status==='approved'){
+    if(idx>=0){
+      fireNeuron(0xFFDD00,'proposal_approved');
+      jarvisActiveProposals.splice(idx,1);
+    }
+    return;
+  }
+  if(proposal.status==='denied'){
+    if(idx>=0){
+      fireNeuron(0xFF4444,'proposal_denied');
+      jarvisActiveProposals.splice(idx,1);
+    }
+    return;
+  }
+  if(idx>=0) jarvisActiveProposals[idx]=proposal;
+  else jarvisActiveProposals.push(proposal);
+}
+
+// Apply task/proposal sizes to orbit particles each frame
+function applyJarvisOrbitNodes(){
+  if(jarvisActiveTasks.length===0&&jarvisActiveProposals.length===0) return;
+  // Green orbit: enlarge particles that represent active tasks
+  const o1SzAttr=orb1Geo.attributes.aSize;
+  if(o1SzAttr){
+    const arr=o1SzAttr.array;
+    // Reset all to base size from backup
+    for(let i=0;i<ORB_COUNT;i++) arr[i]=orb1SzBase[i];
+    // Assign tasks to evenly-spaced particle slots
+    const taskCount=Math.min(jarvisActiveTasks.length,Math.floor(ORB_COUNT/TASK_PARTICLE_SPACING));
+    for(let ti=0;ti<taskCount;ti++){
+      const pi=ti*TASK_PARTICLE_SPACING;
+      const task=jarvisActiveTasks[ti];
+      const isActive=task.status==='in_progress';
+      arr[pi]=isActive?22:16; // much larger than normal (4-8)
+    }
+    o1SzAttr.needsUpdate=true;
+  }
+  // Also brighten task particle colors
+  const o1ColAttr=orb1Geo.attributes.aColor;
+  if(o1ColAttr){
+    const arr=o1ColAttr.array;
+    // Reset from backup
+    for(let i=0;i<ORB_COUNT*3;i++) arr[i]=orb1ColBase[i];
+    const taskCount=Math.min(jarvisActiveTasks.length,Math.floor(ORB_COUNT/TASK_PARTICLE_SPACING));
+    for(let ti=0;ti<taskCount;ti++){
+      const pi=ti*TASK_PARTICLE_SPACING;
+      const task=jarvisActiveTasks[ti];
+      const isActive=task.status==='in_progress';
+      // Bright green for active, softer for pending
+      arr[pi*3]=isActive?0.2:0.1;
+      arr[pi*3+1]=isActive?1.0:0.7;
+      arr[pi*3+2]=isActive?0.5:0.3;
+    }
+    o1ColAttr.needsUpdate=true;
+  }
+  // Gold orbit: enlarge particles for proposals
+  const o2SzAttr=orb2Geo.attributes.aSize;
+  if(o2SzAttr){
+    const arr=o2SzAttr.array;
+    for(let i=0;i<ORB_COUNT;i++) arr[i]=orb2SzBase[i];
+    const propCount=Math.min(jarvisActiveProposals.length,Math.floor(ORB_COUNT/PROPOSAL_PARTICLE_SPACING));
+    for(let pi=0;pi<propCount;pi++){
+      const idx=pi*PROPOSAL_PARTICLE_SPACING;
+      arr[idx]=18; // larger for proposals
+    }
+    o2SzAttr.needsUpdate=true;
+  }
+  const o2ColAttr=orb2Geo.attributes.aColor;
+  if(o2ColAttr){
+    const arr=o2ColAttr.array;
+    for(let i=0;i<ORB_COUNT*3;i++) arr[i]=orb2ColBase[i];
+    const propCount=Math.min(jarvisActiveProposals.length,Math.floor(ORB_COUNT/PROPOSAL_PARTICLE_SPACING));
+    for(let pi=0;pi<propCount;pi++){
+      const idx=pi*PROPOSAL_PARTICLE_SPACING;
+      // Bright gold for proposals
+      arr[idx*3]=1.0;arr[idx*3+1]=0.85;arr[idx*3+2]=0.2;
+    }
+    o2ColAttr.needsUpdate=true;
+  }
+}
+
 // ===== ANIMATE (cinematic: bloom + core pulse + edge breathing) =====
 let fpsF=0, lastFT=performance.now();
 const clock=new THREE.Clock();
@@ -1460,8 +1574,9 @@ function animate(){
   // Core light position
   coreLight.position.set(orbCx,orbCy,orbCz);
 
-  // Update Jarvis neurons
+  // Update Jarvis neurons + orbit task/proposal nodes
   updateNeurons(dt);
+  applyJarvisOrbitNodes();
 
   // Orbit particle streams — cloud-like bands with per-particle radius
   const oSp=t*0.0003*jOrbitSpeed;
@@ -1591,8 +1706,10 @@ let ws=null;
         if(m.type==='brain_switched') selectBrainCard(m.brainId);
         if(m.type==='brain_created') requestBrainList();
         if(m.type==='brain_limit_reached') showLimitToast(m.limitType,m.current,m.max);
-        // Jarvis task updates for plan view
-        if(m.type==='jarvis_task_created'||m.type==='jarvis_task_updated') updatePlanView(m.task);
+        // Jarvis task updates for plan view + orbit nodes
+        if(m.type==='jarvis_task_created'||m.type==='jarvis_task_updated'){ updatePlanView(m.task); updateJarvisTask(m.task); }
+        // Jarvis proposal updates for orbit nodes
+        if(m.type==='proposal_created'||m.type==='proposal_updated'){ if(m.proposal) updateJarvisProposal(m.proposal); }
         if(m.type==='model_activated'){
           document.querySelectorAll('[data-activate]').forEach(b=>{b.disabled=false;b.textContent='\\u26A1 Activate';});
           const n=document.createElement('div');
