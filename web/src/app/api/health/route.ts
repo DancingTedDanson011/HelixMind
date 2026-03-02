@@ -3,17 +3,22 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Basic DB check
     await prisma.$queryRaw`SELECT 1`;
 
     return NextResponse.json({
-      status: 'healthy',
+      status: 'ok',
       timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
       version: process.env.npm_package_version || '0.1.0',
     });
   } catch (error) {
     return NextResponse.json(
-      { status: 'unhealthy', error: 'Database connection failed' },
+      {
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Database connection failed',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+      },
       { status: 503 },
     );
   }

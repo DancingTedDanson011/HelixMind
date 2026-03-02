@@ -1,0 +1,6 @@
+apiVersion: v2
+name: helixmind
+description: HelixMind Web Platform - AI Coding CLI with Spiral Memory
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

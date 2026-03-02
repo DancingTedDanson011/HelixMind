@@ -292,6 +292,22 @@ export interface WorkerCompletedEvent extends WSMessage { type: 'worker_complete
 export interface TTSAudioEvent extends WSMessage { type: 'tts_audio'; audioBase64: string; text: string; duration: number }
 export interface NotificationSentEvent extends WSMessage { type: 'notification_sent'; channel: string; title: string }
 
+// --- Brain Sync (CLI ↔ Web) ---
+export interface BrainSyncPushRequest extends WSMessage { type: 'brain_sync_push'; brainId: string; version: number; nodesJson: string; metadata: Record<string, unknown> }
+export interface BrainSyncPullRequest extends WSMessage { type: 'brain_sync_pull'; brainId: string }
+export interface BrainSyncDataResponse extends WSMessage { type: 'brain_sync_data'; brainId: string; version: number; nodesJson: string }
+export interface BrainSyncStatusEvent extends WSMessage { type: 'brain_sync_status'; brainId: string; synced: boolean; version: number; lastSyncedAt: number }
+
+// --- Brain Node Events (CLI → Browser, Enterprise) ---
+export interface BrainNodeCreatedEvent extends WSMessage { type: 'brain_node_created'; brainId: string; node: { id: string; content: string; level: number } }
+export interface BrainNodeUpdatedEvent extends WSMessage { type: 'brain_node_updated'; brainId: string; node: { id: string; content: string; level: number } }
+export interface BrainNodeDeletedEvent extends WSMessage { type: 'brain_node_deleted'; brainId: string; nodeId: string }
+export interface BrainStatsUpdateEvent extends WSMessage { type: 'brain_stats_update'; brainId: string; nodeCount: number; levelCounts: Record<number, number> }
+
+// --- License (CLI ↔ Web) ---
+export interface LicenseValidateRequest extends WSMessage { type: 'license_validate'; licenseKey: string }
+export interface LicenseStatusResponse extends WSMessage { type: 'license_status'; valid: boolean; plan: string; features: string[]; expiresAt: string }
+
 // --- Status Bar (CLI → Browser) ---
 export interface StatusBarInfo {
   spiral: { l1: number; l2: number; l3: number; l4: number; l5: number; l6: number };
@@ -420,7 +436,10 @@ export type ControlRequest =
   | ToolPermissionResponseRequest
   | GetStatusBarRequest
   | ListCheckpointsRequest
-  | RevertToCheckpointRequest;
+  | RevertToCheckpointRequest
+  | BrainSyncPushRequest
+  | BrainSyncPullRequest
+  | LicenseValidateRequest;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts

@@ -1,0 +1,81 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/helixmind/web
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+  hosts:
+    - host: helixmind.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: helixmind-tls
+      hosts:
+        - helixmind.example.com
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+postgresql:
+  enabled: true
+  auth:
+    database: helixmind
+    username: helixmind
+    existingSecret: helixmind-postgres-secret
+    secretKeys:
+      passwordKey: postgres-password
+  persistence:
+    size: 10Gi
+    storageClass: ""
+
+env:
+  NODE_ENV: production
+  NEXT_PUBLIC_APP_URL: https://helixmind.example.com
+  NEXTAUTH_URL: https://helixmind.example.com
+  NEXTAUTH_SECRET: ""
+  DATABASE_URL: ""
+  STRIPE_SECRET_KEY: ""
+  STRIPE_WEBHOOK_SECRET: ""
+  GITHUB_CLIENT_ID: ""
+  GITHUB_CLIENT_SECRET: ""
+  RESEND_API_KEY: ""
+  AUTH_SECRET: ""
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

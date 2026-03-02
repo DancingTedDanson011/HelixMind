@@ -16,13 +16,24 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Invalid or expired API key' }, { status: 401 });
     }
 
-    // For now, return empty array — brain data lives in CLI registry
-    // Server-side brain sync will be implemented with cloud_sync feature
-    return NextResponse.json({
-      brains: [],
-      synced: false,
-      message: 'Brain list is managed locally. Enable cloud sync for server-side brain management.',
+    const brains = await prisma.brainInstance.findMany({
+      where: { userId: result.userId },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        nodeCount: true,
+        active: true,
+        syncEnabled: true,
+        lastSyncedAt: true,
+        syncVersion: true,
+        projectPath: true,
+        createdAt: true,
+      },
+      orderBy: { lastAccessedAt: 'desc' },
     });
+
+    return NextResponse.json({ brains, synced: true });
   } catch (error) {
     console.error('Brain list error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

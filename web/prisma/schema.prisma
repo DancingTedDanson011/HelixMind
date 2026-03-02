@@ -34,6 +34,19 @@ enum BillingPeriod {
   YEARLY
 }
 
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum BrainPermission {
+  READ
+  WRITE
+  ADMIN
+}
+
 enum TicketStatus {
   OPEN
   IN_PROGRESS
@@ -82,6 +95,8 @@ model User {
   brainInstances BrainInstance[]
   jarvisInstances JarvisInstance[]
   deviceCodes   DeviceCode[]
+  ownedTeams    Team[]         @relation("TeamOwner")
+  teamMembers   TeamMember[]
 }
 
 model Account {
@@ -326,13 +341,163 @@ model BrainInstance {
   projectPath     String?
   nodeCount       Int      @default(0)
   active          Boolean  @default(false)
+  syncEnabled     Boolean  @default(false)
+  lastSyncedAt    DateTime?
+  syncVersion     Int      @default(0)
   lastAccessedAt  DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshots  BrainSnapshot[]
+  teamShares TeamBrainShare[]
 
   @@index([userId])
+}
+
+// ─── Teams ─────────────────────────────────
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  plan        Plan     @default(TEAM)
+  ownerId     String
+  owner       User     @relation("TeamOwner", fields: [ownerId], references: [id])
+  members     TeamMember[]
+  invites     TeamInvite[]
+  brainShares TeamBrainShare[]
+  samlConfig  SamlConfig?
+  licenses    License[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      TeamRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+model TeamInvite {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  email     String
+  role      TeamRole @default(MEMBER)
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, email])
+}
+
+model TeamBrainShare {
+  id          String          @id @default(cuid())
+  teamId      String
+  team        Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  brainId     String
+  brain       BrainInstance   @relation(fields: [brainId], references: [id], onDelete: Cascade)
+  sharedById  String
+  permission  BrainPermission @default(READ)
+  createdAt   DateTime        @default(now())
+
+  @@unique([teamId, brainId])
+  @@index([brainId])
+}
+
+// ─── Brain Snapshots (Cloud Sync) ──────────
+
+model BrainSnapshot {
+  id          String   @id @default(cuid())
+  brainId     String
+  brain       BrainInstance @relation(fields: [brainId], references: [id], onDelete: Cascade)
+  version     Int
+  nodesJson   Bytes
+  edgesJson   Bytes?
+  metadata    Json?
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  @@unique([brainId, version])
+  @@index([brainId, createdAt])
+}
+
+// ─── SAML Configuration ───────────────────
+
+model SamlConfig {
+  id                 String  @id @default(cuid())
+  teamId             String  @unique
+  team               Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  entityId           String
+  ssoUrl             String
+  certificate        String  @db.Text
+  signatureAlgorithm String  @default("sha256")
+  emailAttribute     String  @default("email")
+  nameAttribute      String  @default("displayName")
+  roleAttribute      String?
+  allowIdpInitiated  Boolean @default(false)
+  enforceForTeam     Boolean @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ─── Licenses (Enterprise) ────────────────
+
+model License {
+  id              String    @id @default(cuid())
+  key             String    @unique
+  keyHash         String    @unique
+  teamId          String?
+  team            Team?     @relation(fields: [teamId], references: [id])
+  plan            Plan      @default(ENTERPRISE)
+  seats           Int       @default(10)
+  features        String[]
+  expiresAt       DateTime
+  activatedAt     DateTime?
+  activations     Int       @default(0)
+  maxActivations  Int       @default(1)
+  createdAt       DateTime  @default(now())
+
+  @@index([keyHash])
+}
+
+// ─── SLA Monitoring ───────────────────────
+
+model UptimeCheck {
+  id          String   @id @default(cuid())
+  endpoint    String
+  status      Int
+  responseMs  Int
+  healthy     Boolean
+  errorMsg    String?
+  checkedAt   DateTime @default(now())
+
+  @@index([endpoint, checkedAt])
+}
+
+model SlaReport {
+  id            String   @id @default(cuid())
+  period        String
+  uptimePercent Float
+  avgResponseMs Float
+  p95ResponseMs Float
+  p99ResponseMs Float
+  totalChecks   Int
+  failedChecks  Int
+  incidentCount Int
+  createdAt     DateTime @default(now())
+
+  @@unique([period])
 }
 
 // ─── Jarvis Instances ───────────────────────

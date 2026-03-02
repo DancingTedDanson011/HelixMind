@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import { validateApiKey } from '@/lib/relay-auth';
 
 export async function POST(req: Request) {
@@ -22,14 +23,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing brainId or newName' }, { status: 400 });
     }
 
-    // Brain rename is handled locally via WS (brain registry lives on CLI side)
-    // This endpoint exists for cloud-synced brains (PRO+)
-    return NextResponse.json({
-      success: true,
-      brainId,
-      newName,
-      message: 'Brain rename handled via CLI relay. Cloud sync coming with PRO plan.',
+    // Verify brain belongs to user
+    const brain = await prisma.brainInstance.findFirst({
+      where: { id: brainId, userId: result.userId },
+      select: { id: true },
     });
+
+    if (!brain) {
+      return NextResponse.json({ error: 'Brain not found' }, { status: 404 });
+    }
+
+    const updated = await prisma.brainInstance.update({
+      where: { id: brainId },
+      data: { name: newName },
+      select: { id: true, name: true },
+    });
+
+    return NextResponse.json({ success: true, brain: updated });
   } catch (error) {
     console.error('Brain rename error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

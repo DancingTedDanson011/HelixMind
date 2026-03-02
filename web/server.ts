@@ -13,6 +13,8 @@ import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import { validateApiKey, validateSessionCookie } from './src/lib/relay-auth';
+import { startUptimeChecker } from './src/lib/sla/uptime-checker.js';
+import { startReportGenerator } from './src/lib/sla/report-generator.js';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -279,5 +281,9 @@ app.prepare().then(() => {
   server.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);
     console.log(`> WebSocket relay: ws://${hostname}:${port}/api/relay/{cli,web}`);
+
+    // Start SLA monitoring
+    startUptimeChecker(60_000);
+    startReportGenerator();
   });
 });

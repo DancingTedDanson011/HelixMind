@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "helixmind.fullname" . }}-config
+  labels:
+    {{- include "helixmind.labels" . | nindent 4 }}
+data:
+  NODE_ENV: {{ .Values.env.NODE_ENV | quote }}
+  NEXT_PUBLIC_APP_URL: {{ .Values.env.NEXT_PUBLIC_APP_URL | quote }}
+  NEXTAUTH_URL: {{ .Values.env.NEXTAUTH_URL | quote }}

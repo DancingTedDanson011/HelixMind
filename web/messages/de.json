@@ -316,7 +316,7 @@
         "Geteilter Team-Brain-Pool",
         "Unbegrenzte Brains",
         "Team-Analytics-Dashboard",
-        "Rollenbasierter Zugang"
+        "Team-Rollen (Owner/Admin/Member/Viewer)"
       ]
     },
     "enterprise": {
@@ -324,12 +324,12 @@
       "desc": "Volle API, Self-Hosted, alles inklusive.",
       "features": [
         "Alles aus Team",
-        "Volle Brain API (REST + WS + GraphQL)",
+        "Volle Brain API (REST + WebSocket)",
         "Self-Hosted Deployment (Docker + Helm)",
         "On-Premise Jarvis (lizenziert)",
-        "SSO / SAML",
+        "SSO / SAML 2.0",
         "Benchmark Suite",
-        "SLA-Garantie"
+        "SLA-Garantie + Status-Seite"
       ]
     }
   },
@@ -358,6 +358,77 @@
     "github": "Auf GitHub staren",
     "readyToInstall": "Bereit zur Installation",
     "copied": "Kopiert!"
+  },
+  "team": {
+    "title": "Team-Verwaltung",
+    "create": "Team erstellen",
+    "settings": "Team-Einstellungen",
+    "members": "Mitglieder",
+    "invites": "Einladungen",
+    "brains": "Geteilte Brains",
+    "analytics": "Analytics",
+    "name": "Teamname",
+    "slug": "Team-Slug",
+    "slugHint": "URL-freundlicher Bezeichner (z.B. acme-corp)",
+    "plan": "Team-Plan",
+    "createdAt": "Erstellt",
+    "memberCount": "{count} Mitglieder",
+    "role": "Rolle",
+    "roles": {
+      "OWNER": "Eigentümer",
+      "ADMIN": "Admin",
+      "MEMBER": "Mitglied",
+      "VIEWER": "Betrachter"
+    },
+    "changeRole": "Rolle ändern",
+    "removeMember": "Mitglied entfernen",
+    "removeMemberConfirm": "{name} aus dem Team entfernen?",
+    "inviteMember": "Mitglied einladen",
+    "inviteEmail": "E-Mail-Adresse",
+    "inviteRole": "Rolle für neues Mitglied",
+    "inviteSend": "Einladung senden",
+    "inviteSent": "Einladung an {email} gesendet",
+    "invitePending": "Ausstehend",
+    "inviteExpires": "Läuft ab {date}",
+    "inviteRevoke": "Zurückziehen",
+    "inviteAccepted": "Du bist dem Team {name} beigetreten!",
+    "inviteInvalid": "Ungültige oder abgelaufene Einladung",
+    "shareBrain": "Brain teilen",
+    "shareBrainWith": "Mit Team teilen",
+    "permission": "Berechtigung",
+    "permissions": {
+      "READ": "Nur lesen",
+      "WRITE": "Lesen & Schreiben",
+      "ADMIN": "Vollzugriff"
+    },
+    "unshare": "Freigabe aufheben",
+    "noSharedBrains": "Noch keine Brains mit diesem Team geteilt.",
+    "analyticsTitle": "Team-Analytics",
+    "analyticsPeriod": "Zeitraum",
+    "analyticsApiCalls": "API-Aufrufe",
+    "analyticsTokens": "Verbrauchte Tokens",
+    "analyticsJarvisTasks": "Jarvis-Aufgaben",
+    "analyticsBrains": "Aktive Brains",
+    "analyticsLastActive": "Zuletzt aktiv",
+    "analyticsTotals": "Gesamt",
+    "deleteTeam": "Team löschen",
+    "deleteTeamConfirm": "Bist du sicher? Alle Mitglieder und geteilten Brains werden entfernt.",
+    "deleteTeamWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+    "requiresTeamPlan": "Team-Features erfordern einen Team- oder Enterprise-Plan.",
+    "noTeams": "Du hast noch keine Teams.",
+    "saml": "SSO / SAML 2.0",
+    "samlConfig": "SAML-Konfiguration",
+    "samlEntityId": "IdP Entity ID",
+    "samlSsoUrl": "IdP SSO URL",
+    "samlCertificate": "IdP-Zertifikat (PEM)",
+    "samlEmailAttr": "E-Mail-Attribut",
+    "samlNameAttr": "Name-Attribut",
+    "samlRoleAttr": "Rollen-Attribut (optional)",
+    "samlEnforce": "SSO für alle Teammitglieder erzwingen",
+    "samlAllowIdp": "IdP-initiiertes Login erlauben",
+    "samlTest": "Verbindung testen",
+    "samlMetadataUrl": "SP-Metadaten-URL",
+    "samlSaved": "SAML-Konfiguration gespeichert"
   },
   "footer": {
     "product": "Produkt",
