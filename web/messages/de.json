@@ -333,6 +333,22 @@
       ]
     }
   },
+  "openSource": {
+    "label": "Open Source",
+    "title": "Offen gebaut. Für immer kostenlos.",
+    "subtitle": "HelixMind ist vollständig Open Source unter der AGPL-3.0 Lizenz. Keine Blackboxen, kein Vendor Lock-in, keine versteckten Kosten für Einzelnutzer.",
+    "license": "AGPL-3.0 Lizenz",
+    "licenseDesc": "Vollständiger Quellcode verfügbar. Prüfen, forken, beitragen.",
+    "noLockIn": "Kein Vendor Lock-in",
+    "noLockInDesc": "Eigener API-Key. LLM-Anbieter jederzeit wechselbar.",
+    "community": "Community Driven",
+    "communityDesc": "Issues, PRs und Diskussionen willkommen auf GitHub.",
+    "selfHost": "Self-Hostable",
+    "selfHostDesc": "Alles auf eigener Infrastruktur betreiben. Deine Daten bleiben deine.",
+    "starOnGithub": "Auf GitHub staren",
+    "viewSource": "Quellcode ansehen",
+    "npmInstall": "npm install -g helixmind"
+  },
   "cta": {
     "title": "Starte mit Intelligenz",
     "subtitle": "Installiere HelixMind in 30 Sekunden. Jarvis, Coding Agent und Sicherheits-Monitor. Für immer kostenlos für Einzelnutzer.",
