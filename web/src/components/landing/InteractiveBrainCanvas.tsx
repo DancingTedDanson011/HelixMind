@@ -10,7 +10,7 @@ import { demoNodes, demoEdges } from '../brain/brain-demo-data';
 export function InteractiveBrainCanvas() {
   return (
     <Canvas
-      camera={{ position: [900, 300, 1200], fov: 50, near: 1, far: 15000 }}
+      camera={{ position: [2500, 800, 3500], fov: 50, near: 1, far: 30000 }}
       gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
       dpr={1}
       style={{ background: 'transparent' }}
@@ -29,8 +29,8 @@ export function InteractiveBrainCanvas() {
         autoRotateSpeed={0.2}
         minPolarAngle={Math.PI / 4}
         maxPolarAngle={(3 * Math.PI) / 4}
-        minDistance={300}
-        maxDistance={3000}
+        minDistance={500}
+        maxDistance={8000}
       />
     </Canvas>
   );

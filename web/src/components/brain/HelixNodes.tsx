@@ -132,8 +132,11 @@ export function HelixNodes({ nodes }: HelixNodesProps) {
         baseScale = 3.5;
         pulse = 1 + Math.sin(time * 0.3 + i) * 0.05;
       } else {
-        baseScale = node.level === 6 ? 5 : 6 - node.level * 0.6;
-        pulse = 1 + Math.sin(time * (0.8 + node.level * 0.2) + i) * 0.1;
+        // Scale nodes based on total count — smaller for massive brains
+        const isLargeBrain = n > 500;
+        const scaleFactor = isLargeBrain ? 0.65 : 1.0;
+        baseScale = (node.level === 6 ? 5 : 6 - node.level * 0.6) * scaleFactor;
+        pulse = 1 + Math.sin(time * (0.8 + node.level * 0.2) + i) * 0.08;
       }
 
       // Smooth fade-in: scale from 0 → target over FADE_DURATION
