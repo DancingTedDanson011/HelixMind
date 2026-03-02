@@ -1,19 +1,42 @@
 /**
  * InputWindow — Dedicated input area like Claude Code
  * 
- * Features:
+ * Enterprise Features:
  * 1. Always visible input window at the bottom
  * 2. Clear separation between output (scrollable) and input (fixed)
  * 3. Cursor stays in input window
  * 4. Visual frame around input area
+ * 5. Typing detection — pauses agent while user is typing
+ * 6. Input buffering — prevents premature message sending
+ * 7. Debounce — waits for user to finish typing before allowing send
  */
 
 import chalk from 'chalk';
+import { EventEmitter } from 'node:events';
 
 const INPUT_WINDOW_HEIGHT = 4; // 1 top border, 1 input line, 1 hint line, 1 bottom border
 const MIN_TERMINAL_HEIGHT = 12;
 
-export class InputWindow {
+/** Enterprise: Typing detection thresholds */
+const TYPING_IDLE_MS = 500;        // Consider typing stopped after 500ms idle
+const TYPING_DEBOUNCE_MS = 300;    // Debounce period for input changes
+const MAX_INPUT_BUFFER = 10000;    // Maximum input buffer size
+
+export interface InputState {
+  isTyping: boolean;
+  lastKeyTime: number;
+  inputLength: number;
+  cursorPosition: number;
+}
+
+export interface InputWindowEvents {
+  'typing-start': (state: InputState) => void;
+  'typing-stop': (state: InputState) => void;
+  'input-ready': (content: string) => void;
+  'buffer-change': (content: string) => void;
+}
+
+export class InputWindow extends EventEmitter {
   private _active = false;
   private _inlineMode = false;
   private _originalWrite: ((...args: any[]) => boolean) | null = null;
@@ -21,6 +44,13 @@ export class InputWindow {
   private _hintContent = '';
   private _statusContent = '';
   private _cursorPosition = 0;
+
+  // Enterprise: Typing detection
+  private _isTyping = false;
+  private _lastKeyTime = 0;
+  private _typingTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _inputBuffer = '';
+  private _bufferLocked = false;
 
   /** Whether the input window is currently active */
   get isActive(): boolean {
@@ -35,6 +65,26 @@ export class InputWindow {
   /** Current input content */
   get inputContent(): string {
     return this._inputContent;
+  }
+
+  /** Enterprise: Whether user is currently typing */
+  get isTyping(): boolean {
+    return this._isTyping;
+  }
+
+  /** Enterprise: Current input state */
+  get inputState(): InputState {
+    return {
+      isTyping: this._isTyping,
+      lastKeyTime: this._lastKeyTime,
+      inputLength: this._inputContent.length,
+      cursorPosition: this._cursorPosition,
+    };
+  }
+
+  /** Enterprise: Whether input buffer is locked (prevents sending) */
+  get isBufferLocked(): boolean {
+    return this._bufferLocked;
   }
 
   // ---------------------------------------------------------------------------
@@ -71,20 +121,31 @@ export class InputWindow {
     if (!this._active) return;
     this._active = false;
 
+    this._clearTypingTimeout();
     this._clearInputWindow();
     this._resetScrollRegion();
     this._unhookStdout();
     this._inputContent = '';
     this._hintContent = '';
     this._statusContent = '';
+    this._inputBuffer = '';
+    this._isTyping = false;
   }
 
   /**
    * Update input content and redraw
+   * Enterprise: Triggers typing detection
    */
   setInput(content: string, cursorPos: number = content.length): void {
+    const previousContent = this._inputContent;
     this._inputContent = content;
     this._cursorPosition = cursorPos;
+
+    // Enterprise: Typing detection
+    if (content !== previousContent) {
+      this._handleTypingChange(content);
+    }
+
     if (!this._active || this._inlineMode) return;
     this._drawInputLine();
   }
@@ -108,6 +169,33 @@ export class InputWindow {
   }
 
   /**
+   * Enterprise: Lock/unlock input buffer
+   * When locked, input cannot be sent
+   */
+  setBufferLocked(locked: boolean): void {
+    this._bufferLocked = locked;
+    this._drawStatusLine();
+  }
+
+  /**
+   * Enterprise: Get buffered input
+   * Returns the current input buffer and clears it
+   */
+  flushBuffer(): string {
+    const content = this._inputBuffer;
+    this._inputBuffer = '';
+    return content;
+  }
+
+  /**
+   * Enterprise: Check if input is ready to be sent
+   * Returns true if user has stopped typing and buffer is not locked
+   */
+  isInputReady(): boolean {
+    return !this._isTyping && !this._bufferLocked;
+  }
+
+  /**
    * Position cursor in the input window for readline
    */
   positionCursorForInput(): void {
@@ -119,6 +207,76 @@ export class InputWindow {
     
     process.stdout.write(`\x1b[${inputRow};${col}H`);
   }
+
+  // ---------------------------------------------------------------------------
+  // Enterprise: Typing Detection
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Handle typing change events
+   */
+  private _handleTypingChange(content: string): void {
+    const now = Date.now();
+    this._lastKeyTime = now;
+
+    // Update buffer
+    this._inputBuffer = content.slice(0, MAX_INPUT_BUFFER);
+    this.emit('buffer-change', content);
+
+    // Start typing if not already
+    if (!this._isTyping) {
+      this._isTyping = true;
+      this.emit('typing-start', this.inputState);
+      this._updateTypingHint();
+    }
+
+    // Clear existing timeout
+    this._clearTypingTimeout();
+
+    // Set new timeout for typing stop
+    this._typingTimeout = setTimeout(() => {
+      if (this._isTyping) {
+        this._isTyping = false;
+        this.emit('typing-stop', this.inputState);
+        this._updateIdleHint();
+      }
+    }, TYPING_IDLE_MS);
+  }
+
+  /**
+   * Clear typing timeout
+   */
+  private _clearTypingTimeout(): void {
+    if (this._typingTimeout) {
+      clearTimeout(this._typingTimeout);
+      this._typingTimeout = null;
+    }
+  }
+
+  /**
+   * Update hint to show typing status
+   */
+  private _updateTypingHint(): void {
+    if (!this._active || this._inlineMode) return;
+    
+    const dots = this._isTyping ? '...' : '';
+    this._hintContent = chalk.dim('⌨️ Typing') + dots;
+    this._drawHintLine();
+  }
+
+  /**
+   * Update hint to show idle status
+   */
+  private _updateIdleHint(): void {
+    if (!this._active || this._inlineMode) return;
+    
+    this._hintContent = chalk.dim('Press Enter to send • Esc to cancel');
+    this._drawHintLine();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private Drawing Methods
+  // ---------------------------------------------------------------------------
 
   /**
    * Clear the entire input window
@@ -154,21 +312,22 @@ export class InputWindow {
     // Save cursor
     process.stdout.write('\x1b7');
     
-    // Top border
+    // Top border with enterprise styling
     process.stdout.write(`\x1b[${startRow};0H`);
-    process.stdout.write(chalk.hex('#00d4ff').dim('┌' + '─'.repeat(cols - 2) + '┐'));
+    const borderColor = this._bufferLocked ? chalk.red : chalk.hex('#00d4ff');
+    process.stdout.write(borderColor.dim('┌' + '─'.repeat(cols - 2) + '┐'));
     
     // Input line (with prompt)
     process.stdout.write(`\x1b[${startRow + 1};0H`);
-    process.stdout.write(chalk.hex('#00d4ff').dim('│') + ' ❯ ');
+    process.stdout.write(borderColor.dim('│') + ' ❯ ');
     
     // Hint line
     process.stdout.write(`\x1b[${startRow + 2};0H`);
-    process.stdout.write(chalk.hex('#00d4ff').dim('│'));
+    process.stdout.write(borderColor.dim('│'));
     
     // Bottom border with status
     process.stdout.write(`\x1b[${startRow + 3};0H`);
-    process.stdout.write(chalk.hex('#00d4ff').dim('└' + '─'.repeat(cols - 2) + '┘'));
+    process.stdout.write(borderColor.dim('└' + '─'.repeat(cols - 2) + '┘'));
     
     // Restore cursor
     process.stdout.write('\x1b8');
@@ -194,7 +353,12 @@ export class InputWindow {
     
     // Clear and write input line
     process.stdout.write(`\x1b[${inputRow};0H\x1b[2K`);
-    process.stdout.write(chalk.hex('#00d4ff').dim('│') + ' ❯ ' + this._inputContent);
+    
+    // Enterprise: Show typing indicator
+    const borderColor = this._bufferLocked ? chalk.red : chalk.hex('#00d4ff');
+    const typingIndicator = this._isTyping ? chalk.dim('⌨ ') : '';
+    
+    process.stdout.write(borderColor.dim('│') + ' ❯ ' + typingIndicator + this._inputContent);
     
     // Restore cursor
     process.stdout.write('\x1b8');
@@ -215,7 +379,9 @@ export class InputWindow {
     
     // Clear and write hint line
     process.stdout.write(`\x1b[${hintRow};0H\x1b[2K`);
-    process.stdout.write(chalk.hex('#00d4ff').dim('│ ') + this._hintContent);
+    
+    const borderColor = this._bufferLocked ? chalk.red : chalk.hex('#00d4ff');
+    process.stdout.write(borderColor.dim('│ ') + this._hintContent);
     
     // Restore cursor
     process.stdout.write('\x1b8');
@@ -238,10 +404,14 @@ export class InputWindow {
     process.stdout.write(`\x1b[${statusRow};0H\x1b[2K`);
     
     // Draw border with status
-    const border = chalk.hex('#00d4ff').dim('└');
-    const status = ' ' + this._statusContent;
+    const borderColor = this._bufferLocked ? chalk.red : chalk.hex('#00d4ff');
+    const border = borderColor.dim('└');
+    
+    // Enterprise: Show buffer lock status
+    const lockStatus = this._bufferLocked ? chalk.red(' 🔒 LOCKED') : '';
+    const status = lockStatus + ' ' + this._statusContent;
     const remaining = cols - 2 - visibleLength(status);
-    const bottomBorder = border + status + chalk.hex('#00d4ff').dim('─'.repeat(Math.max(0, remaining)) + '┘');
+    const bottomBorder = border + status + borderColor.dim('─'.repeat(Math.max(0, remaining)) + '┘');
     
     process.stdout.write(bottomBorder);
     

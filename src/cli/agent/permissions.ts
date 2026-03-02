@@ -2,6 +2,8 @@ import * as readline from 'node:readline';
 import { randomUUID } from 'node:crypto';
 import { classifyCommand } from './sandbox.js';
 import type { ToolPermissionRequest } from '../brain/control-protocol.js';
+import { selectMenu, type MenuItem } from '../ui/select-menu.js';
+import chalk from 'chalk';
 
 export type PermissionLevel = 'auto' | 'ask' | 'dangerous';
 
@@ -55,6 +57,12 @@ interface RemoteHandlerOpts {
   onResolved: (requestId: string, approved: boolean, deniedBy?: 'user' | 'system_timeout') => void;
 }
 
+/** Permission choice result */
+interface PermissionChoice {
+  approved: boolean;
+  mode?: 'once' | 'session' | 'yolo';
+}
+
 export class PermissionManager {
   private yoloMode = false;
   private skipPermissionsMode = false;
@@ -64,6 +72,9 @@ export class PermissionManager {
   // Remote approval
   private pendingRemote = new Map<string, PendingRemoteEntry>();
   private remoteHandler: RemoteHandlerOpts | null = null;
+
+  // Enterprise: Use select menu instead of text input
+  private useSelectMenu = true;
 
   setReadline(rl: readline.Interface): void {
     this.rl = rl;
@@ -88,6 +99,11 @@ export class PermissionManager {
 
   isSkipPermissions(): boolean {
     return this.skipPermissionsMode;
+  }
+
+  /** Enable/disable select menu mode (Enterprise feature) */
+  setSelectMenuMode(enabled: boolean): void {
+    this.useSelectMenu = enabled;
   }
 
   /** Get the current mode label for display */
@@ -186,18 +202,16 @@ export class PermissionManager {
 
     // Build detailed context about what the tool wants to do
     const detail = this.formatToolDetail(toolName, input);
-    const levelTag = level === 'dangerous' ? '\x1b[31m\u26A0 DANGEROUS\x1b[0m' : '\x1b[33m\u270F\uFE0F  WRITE\x1b[0m';
+    const levelTag = level === 'dangerous' 
+      ? chalk.red.bold('⚠ DANGEROUS') 
+      : chalk.yellow.bold('✏️ WRITE');
 
+    // Enterprise: Display header
     process.stdout.write('\n');
-    process.stdout.write(`  \x1b[2m\u250C\u2500 ${levelTag} \x1b[2m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\x1b[0m\n`);
-    process.stdout.write(`  \x1b[2m\u2502\x1b[0m ${detail}\n`);
-    process.stdout.write(`  \x1b[2m\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\x1b[0m\n`);
-
-    // Show options
-    const yKey = defaultYes ? 'Y' : 'y';
-    const nKey = defaultYes ? 'n' : 'N';
-    process.stdout.write(`  [${yKey}] Allow  [${nKey}] Deny  \x1b[2m[s] Skip once  [a] Always skip\x1b[0m\n`);
-    process.stdout.write(`  \x1b[2m[!s] --skip-permissions  [!y] --yolo mode\x1b[0m\n`);
+    process.stdout.write(chalk.dim('  ┌─────────────────────────────────────────────────────────────\n'));
+    process.stdout.write(`  │ ${levelTag} ${chalk.dim('────────────────────────────────────────────')}\n`);
+    process.stdout.write(`  │ ${detail}\n`);
+    process.stdout.write(chalk.dim('  └─────────────────────────────────────────────────────────────\n'));
 
     // Create remote permission promise (if remote handler is set)
     let remotePromise: Promise<{ approved: boolean; deniedBy?: 'user' | 'system_timeout' }> | null = null;
@@ -238,18 +252,25 @@ export class PermissionManager {
       this.remoteHandler.onRequest(req);
 
       if (this.remoteHandler) {
-        process.stdout.write(`  \x1b[2m\u{1F4F1} Also sent to remote channels (Web/Telegram)\x1b[0m\n`);
+        process.stdout.write(chalk.dim('  📱 Also sent to remote channels (Web/Telegram)\n'));
       }
     }
 
-    // Race: local readline vs remote response
-    const localPromise = this.askLocal(defaultYes);
+    // Enterprise: Use select menu instead of text input
+    const localPromise = this.useSelectMenu 
+      ? this.promptWithSelectMenu(level, defaultYes)
+      : this.askLocal(defaultYes);
 
     if (remotePromise && requestId) {
       const rid = requestId;
       const result = await Promise.race([
-        localPromise.then(approved => ({ approved, deniedBy: 'user' as const, source: 'local' as const })),
-        remotePromise.then(r => ({ ...r, source: 'remote' as const })),
+        localPromise.then(choice => ({ 
+          approved: choice.approved, 
+          deniedBy: 'user' as const, 
+          source: 'local' as const,
+          mode: choice.mode 
+        })),
+        remotePromise.then(r => ({ ...r, source: 'remote' as const, mode: undefined })),
       ]);
 
       // Clean up the losing side
@@ -266,7 +287,9 @@ export class PermissionManager {
       // If remote won, readline is still waiting but that's okay — it'll just be ignored
 
       if (result.source === 'remote') {
-        const label = result.approved ? '\x1b[32m\u2705 Approved remotely\x1b[0m' : '\x1b[31m\u274C Denied remotely\x1b[0m';
+        const label = result.approved 
+          ? chalk.green.bold('✅ Approved remotely') 
+          : chalk.red.bold('❌ Denied remotely');
         process.stdout.write(`\n  ${label}\n`);
       }
 
@@ -274,51 +297,123 @@ export class PermissionManager {
     }
 
     // No remote handler — just use local
-    return localPromise;
+    const choice = await localPromise;
+    return choice.approved;
+  }
+
+  /**
+   * Enterprise: Show permission prompt as select menu
+   * This is the main improvement - no text input required!
+   */
+  private async promptWithSelectMenu(
+    level: PermissionLevel,
+    defaultYes: boolean,
+  ): Promise<PermissionChoice> {
+    const items: MenuItem[] = [
+      {
+        label: defaultYes ? '✓ Allow' : 'Allow',
+        description: 'Allow this operation',
+        key: 'y',
+        marker: defaultYes ? '◀ default' : undefined,
+      },
+      {
+        label: '✗ Deny',
+        description: 'Block this operation',
+        key: 'n',
+        marker: !defaultYes ? '◀ default' : undefined,
+      },
+      {
+        label: '→ Skip once',
+        description: 'Allow just this one time',
+        key: 's',
+      },
+      {
+        label: '⚡ Always allow (session)',
+        description: 'Skip permissions for this session',
+        key: 'a',
+      },
+    ];
+
+    // Add YOLO option for dangerous operations
+    if (level === 'dangerous') {
+      items.push({
+        label: '🔥 YOLO mode',
+        description: 'Disable ALL confirmations (dangerous!)',
+        key: '!',
+      });
+    }
+
+    process.stdout.write('\n');
+    const idx = await selectMenu(items, {
+      title: 'Permission Required',
+      cancelLabel: 'Deny',
+    });
+
+    // Handle selection
+    switch (idx) {
+      case 0: // Allow
+        return { approved: true, mode: 'once' };
+      case 1: // Deny
+        return { approved: false };
+      case 2: // Skip once
+        return { approved: true, mode: 'once' };
+      case 3: // Always allow (session)
+        this.skipPermissionsMode = true;
+        process.stdout.write(chalk.yellow('\n  ⚡ Skip-permissions enabled for this session\n'));
+        return { approved: true, mode: 'session' };
+      case 4: // YOLO mode (only for dangerous)
+        this.yoloMode = true;
+        process.stdout.write(chalk.red('\n  🔥 YOLO mode enabled — no more confirmations\n'));
+        return { approved: true, mode: 'yolo' };
+      case -1: // Cancelled (ESC)
+        return { approved: false };
+      default:
+        return { approved: defaultYes, mode: 'once' };
+    }
   }
 
   /** Handle local readline input and return approval boolean */
-  private async askLocal(defaultYes: boolean): Promise<boolean> {
+  private async askLocal(defaultYes: boolean): Promise<PermissionChoice> {
     const answer = await this.ask('  > ');
     const trimmed = answer.trim().toLowerCase();
 
     switch (trimmed) {
       case '':
-        return defaultYes;
+        return { approved: defaultYes, mode: 'once' };
       case 'y': case 'yes':
-        return true;
+        return { approved: true, mode: 'once' };
       case 'n': case 'no':
-        return false;
+        return { approved: false };
       case 's':
         // Skip once — allow just this one
-        return true;
+        return { approved: true, mode: 'once' };
       case 'a':
         // Always skip — enable skip-permissions for this session
         this.skipPermissionsMode = true;
-        process.stdout.write('  \x1b[33m\u26A1 Skip-permissions enabled for this session\x1b[0m\n');
-        return true;
+        process.stdout.write(chalk.yellow('  ⚡ Skip-permissions enabled for this session\n'));
+        return { approved: true, mode: 'session' };
       case '!s': {
         // Double confirmation for skip-permissions mode
-        const confirm = await this.ask('  \x1b[33m\u26A0 Enable --skip-permissions? (y/N)\x1b[0m > ');
+        const confirm = await this.ask(chalk.yellow('  ⚠ Enable --skip-permissions? (y/N)') + ' > ');
         if (confirm.trim().toLowerCase() === 'y') {
           this.skipPermissionsMode = true;
-          process.stdout.write('  \x1b[33m\u26A1 --skip-permissions mode enabled\x1b[0m\n');
-          return true;
+          process.stdout.write(chalk.yellow('  ⚡ --skip-permissions mode enabled\n'));
+          return { approved: true, mode: 'session' };
         }
-        return false;
+        return { approved: false };
       }
       case '!y': {
         // Double confirmation for YOLO mode
-        const confirm = await this.ask('  \x1b[31m\u26A0 Enable --yolo (ALL permissions skipped)? (y/N)\x1b[0m > ');
+        const confirm = await this.ask(chalk.red('  ⚠ Enable --yolo (ALL permissions skipped)? (y/N)') + ' > ');
         if (confirm.trim().toLowerCase() === 'y') {
           this.yoloMode = true;
-          process.stdout.write('  \x1b[31m\u{1F525} YOLO mode enabled \u2014 no more confirmations\x1b[0m\n');
-          return true;
+          process.stdout.write(chalk.red('  🔥 YOLO mode enabled — no more confirmations\n'));
+          return { approved: true, mode: 'yolo' };
         }
-        return false;
+        return { approved: false };
       }
       default:
-        return defaultYes;
+        return { approved: defaultYes, mode: 'once' };
     }
   }
 
@@ -338,34 +433,34 @@ export class PermissionManager {
     const extPath = input.__externalPath as string | undefined;
     if (extPath) {
       const action = name === 'read_file' ? 'Read' : name === 'write_file' ? 'Write' : name === 'edit_file' ? 'Edit' : name === 'list_directory' ? 'List' : 'Access';
-      return `\x1b[31m\uD83D\uDD13 EXTERNAL ACCESS\x1b[0m \u2014 ${action} \x1b[36m${extPath}\x1b[0m\n  \x1b[2m\u2502\x1b[0m  \x1b[33mThis path is outside the current project directory\x1b[0m`;
+      return `${chalk.red.bold('🔓 EXTERNAL ACCESS')} — ${action} ${chalk.cyan(extPath)}\n  │   ${chalk.yellow('This path is outside the current project directory')}`;
     }
     switch (name) {
       case 'write_file': {
         const path = String(input.path || '');
         const content = String(input.content || '');
         const lines = content.split('\n').length;
-        return `\x1b[1mWrite file\x1b[0m \x1b[36m${path}\x1b[0m \x1b[2m(${lines} lines)\x1b[0m`;
+        return `${chalk.bold('Write file')} ${chalk.cyan(path)} ${chalk.dim(`(${lines} lines)`)}`;
       }
       case 'edit_file': {
         const path = String(input.path || '');
         const oldStr = String(input.old_string || '').slice(0, 60).replace(/\n/g, '\\n');
         const newStr = String(input.new_string || '').slice(0, 60).replace(/\n/g, '\\n');
-        return `\x1b[1mEdit file\x1b[0m \x1b[36m${path}\x1b[0m\n  \x1b[2m\u2502\x1b[0m  \x1b[31m- ${oldStr}${String(input.old_string || '').length > 60 ? '\u2026' : ''}\x1b[0m\n  \x1b[2m\u2502\x1b[0m  \x1b[32m+ ${newStr}${String(input.new_string || '').length > 60 ? '\u2026' : ''}\x1b[0m`;
+        return `${chalk.bold('Edit file')} ${chalk.cyan(path)}\n  │   ${chalk.red(`- ${oldStr}${String(input.old_string || '').length > 60 ? '…' : ''}`)}\n  │   ${chalk.green(`+ ${newStr}${String(input.new_string || '').length > 60 ? '…' : ''}`)}`;
       }
       case 'run_command': {
         const cmd = String(input.command || '');
-        return `\x1b[1mRun command\x1b[0m \x1b[33m$ ${cmd}\x1b[0m`;
+        return `${chalk.bold('Run command')} ${chalk.yellow(`$ ${cmd}`)}`;
       }
       case 'git_commit': {
         const msg = String(input.message || '');
-        return `\x1b[1mGit commit\x1b[0m \x1b[36m"${msg}"\x1b[0m`;
+        return `${chalk.bold('Git commit')} ${chalk.cyan(`"${msg}"`)}`;
       }
       default: {
         const summary = Object.entries(input)
           .map(([k, v]) => `${k}: ${String(v).slice(0, 50)}`)
           .join(', ');
-        return `\x1b[1m${name}\x1b[0m \x1b[2m${summary.slice(0, 100)}\x1b[0m`;
+        return `${chalk.bold(name)} ${chalk.dim(summary.slice(0, 100))}`;
       }
     }
   }
@@ -375,7 +470,7 @@ export class PermissionManager {
     const extPath = input.__externalPath as string | undefined;
     if (extPath) {
       const action = name === 'read_file' ? 'Read' : name === 'write_file' ? 'Write' : name === 'edit_file' ? 'Edit' : name === 'list_directory' ? 'List' : 'Access';
-      return `\uD83D\uDD13 EXTERNAL ACCESS \u2014 ${action} ${extPath} (outside project directory)`;
+      return `🔓 EXTERNAL ACCESS — ${action} ${extPath} (outside project directory)`;
     }
     switch (name) {
       case 'write_file': {
@@ -388,7 +483,7 @@ export class PermissionManager {
         const path = String(input.path || '');
         const oldStr = String(input.old_string || '').slice(0, 60).replace(/\n/g, '\\n');
         const newStr = String(input.new_string || '').slice(0, 60).replace(/\n/g, '\\n');
-        return `Edit file ${path}\n- ${oldStr}${String(input.old_string || '').length > 60 ? '\u2026' : ''}\n+ ${newStr}${String(input.new_string || '').length > 60 ? '\u2026' : ''}`;
+        return `Edit file ${path}\n- ${oldStr}${String(input.old_string || '').length > 60 ? '…' : ''}\n+ ${newStr}${String(input.new_string || '').length > 60 ? '…' : ''}`;
       }
       case 'run_command': {
         const cmd = String(input.command || '');

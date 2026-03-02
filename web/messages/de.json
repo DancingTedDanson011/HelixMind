@@ -503,6 +503,12 @@
       "profile": "Profil",
       "billing": "Abrechnung",
       "apiKeys": "API-Schlüssel",
+      "cli": "CLI Verbinden",
+      "team": "Team",
+      "analytics": "Analytik",
+      "brainApi": "Brain API",
+      "saml": "SSO / SAML",
+      "status": "Systemstatus",
       "support": "Support"
     }
   },

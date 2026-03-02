@@ -16,6 +16,12 @@ import {
   Menu,
   X,
   ChevronRight,
+  Users,
+  BarChart3,
+  Brain,
+  Shield,
+  Activity,
+  Terminal,
 } from 'lucide-react';
 
 /* ─── Types ───────────────────────────────────── */
@@ -25,6 +31,14 @@ interface NavItem {
   label: string;
   href: string;
   icon: typeof LayoutDashboard;
+}
+
+interface NavItemDef {
+  key: string;
+  labelKey: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  plans?: string[]; // Only show for these plans. Omit = show for all.
 }
 
 interface DashboardLayoutProps {
@@ -38,11 +52,20 @@ interface DashboardLayoutProps {
 
 /* ─── Navigation ──────────────────────────────── */
 
-const navItemDefs: { key: string; labelKey: string; href: string; icon: typeof LayoutDashboard }[] = [
+const navItemDefs: NavItemDef[] = [
   { key: 'home', labelKey: 'nav.home', href: '/dashboard', icon: LayoutDashboard },
   { key: 'profile', labelKey: 'nav.profile', href: '/dashboard/profile', icon: User },
   { key: 'billing', labelKey: 'nav.billing', href: '/dashboard/billing', icon: CreditCard },
   { key: 'api-keys', labelKey: 'nav.apiKeys', href: '/dashboard/api-keys', icon: Key },
+  { key: 'cli', labelKey: 'nav.cli', href: '/dashboard/cli', icon: Terminal },
+  // Team+ features
+  { key: 'team', labelKey: 'nav.team', href: '/dashboard/team', icon: Users, plans: ['TEAM', 'ENTERPRISE'] },
+  { key: 'analytics', labelKey: 'nav.analytics', href: '/dashboard/team/analytics', icon: BarChart3, plans: ['TEAM', 'ENTERPRISE'] },
+  // Enterprise features
+  { key: 'brain-api', labelKey: 'nav.brainApi', href: '/docs/api', icon: Brain, plans: ['ENTERPRISE'] },
+  { key: 'saml', labelKey: 'nav.saml', href: '/dashboard/team?tab=saml', icon: Shield, plans: ['ENTERPRISE'] },
+  { key: 'status', labelKey: 'nav.status', href: '/status', icon: Activity, plans: ['ENTERPRISE'] },
+  // Always visible
   { key: 'support', labelKey: 'nav.support', href: '/support/tickets', icon: LifeBuoy },
 ];
 
@@ -63,12 +86,16 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
   const t = useTranslations('dashboard');
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const navItems: NavItem[] = navItemDefs.map((item) => ({
-    key: item.key,
-    label: t(item.labelKey),
-    href: item.href,
-    icon: item.icon,
-  }));
+  const plan = user?.plan || 'FREE';
+
+  const navItems: NavItem[] = navItemDefs
+    .filter((item) => !item.plans || item.plans.includes(plan))
+    .map((item) => ({
+      key: item.key,
+      label: t(item.labelKey),
+      href: item.href,
+      icon: item.icon,
+    }));
 
   // Strip locale prefix for matching (e.g., /en/dashboard -> /dashboard)
   const normalizedPath = pathname.replace(/^\/[a-z]{2}(?=\/)/, '');
@@ -78,7 +105,6 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
     return normalizedPath.startsWith(href);
   };
 
-  const plan = user?.plan || 'FREE';
   const initials = (user?.name || user?.email || '?')
     .split(' ')
     .map((w) => w[0])
