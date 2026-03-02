@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { registerTool } from './registry.js';
-import { validatePath } from '../sandbox.js';
+import { validatePathEx } from '../sandbox.js';
 
 registerTool({
   definition: {
@@ -19,7 +19,7 @@ registerTool({
   },
 
   async execute(input, ctx) {
-    const dirPath = validatePath((input.path as string) || '.', ctx.projectRoot);
+    const { resolved: dirPath } = validatePathEx((input.path as string) || '.', ctx.projectRoot);
     const recursive = (input.recursive as boolean) ?? false;
     const maxDepth = (input.max_depth as number) ?? 2;
 

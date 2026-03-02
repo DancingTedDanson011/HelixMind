@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 import { registerTool } from './registry.js';
-import { validatePath } from '../sandbox.js';
+import { validatePathEx } from '../sandbox.js';
 
 registerTool({
   definition: {
@@ -18,7 +18,7 @@ registerTool({
   },
 
   async execute(input, ctx) {
-    const filePath = validatePath(input.path as string, ctx.projectRoot);
+    const { resolved: filePath } = validatePathEx(input.path as string, ctx.projectRoot);
     const stat = statSync(filePath);
 
     if (stat.isDirectory()) {

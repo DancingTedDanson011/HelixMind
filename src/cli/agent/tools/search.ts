@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
 import { registerTool } from './registry.js';
-import { validatePath } from '../sandbox.js';
+import { validatePathEx } from '../sandbox.js';
 
 const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '__pycache__', '.venv', 'target', 'coverage']);
 const TEXT_EXTENSIONS = new Set([
@@ -31,7 +31,7 @@ registerTool({
   },
 
   async execute(input, ctx) {
-    const searchDir = validatePath((input.path as string) || '.', ctx.projectRoot);
+    const { resolved: searchDir } = validatePathEx((input.path as string) || '.', ctx.projectRoot);
     const maxResults = (input.max_results as number) ?? 20;
     const includePattern = input.include as string | undefined;
 

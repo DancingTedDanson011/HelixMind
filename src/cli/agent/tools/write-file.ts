@@ -2,7 +2,7 @@ import { writeFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'node
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { registerTool } from './registry.js';
-import { validatePath, SecurityError } from '../sandbox.js';
+import { validatePathEx, SecurityError } from '../sandbox.js';
 import { UndoStack } from '../undo.js';
 
 /** Maximum file size in bytes (10MB) */
@@ -26,7 +26,7 @@ registerTool({
   },
 
   async execute(input, ctx) {
-    const filePath = validatePath(input.path as string, ctx.projectRoot);
+    const { resolved: filePath } = validatePathEx(input.path as string, ctx.projectRoot);
     const content = input.content as string;
 
     // Validate content length

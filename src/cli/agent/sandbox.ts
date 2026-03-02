@@ -40,6 +40,63 @@ export class SecurityError extends Error {
   }
 }
 
+export interface PathValidation {
+  resolved: string;    // Resolved absolute path
+  external: boolean;   // true if outside projectRoot
+}
+
+/**
+ * Validate a path, allowing external paths (outside project root).
+ * External paths need separate permission approval via the agent loop.
+ * Still blocks: sensitive files, symlinks.
+ */
+export function validatePathEx(requestedPath: string, projectRoot: string): PathValidation {
+  const normalizedPath = normalize(requestedPath);
+  const resolved = resolve(projectRoot, normalizedPath);
+  const normalizedRoot = normalize(projectRoot);
+
+  const external = !resolved.startsWith(normalizedRoot);
+
+  // Sensitive files ALWAYS blocked (internal and external)
+  const lower = resolved.toLowerCase().replace(/\\/g, '/');
+  for (const blocked of BLOCKED_FILES) {
+    if (lower.endsWith('/' + blocked) || lower.endsWith('\\' + blocked) || lower === blocked) {
+      throw new SecurityError(`Access denied: ${requestedPath} is a sensitive file`);
+    }
+  }
+
+  // Symlinks ALWAYS blocked
+  try {
+    const stats = statSync(resolved);
+    if (stats.isSymbolicLink()) {
+      throw new SecurityError(`Access denied: Symlinks are not allowed`);
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      if (err instanceof SecurityError) throw err;
+      throw new SecurityError(`Access denied: Invalid path: ${requestedPath}`);
+    }
+  }
+
+  // Internal paths: depth limit + root check (same as validatePath)
+  if (!external) {
+    if (normalizedPath.split(sep).length > 10) {
+      throw new SecurityError(`Access denied: Path too deep: ${requestedPath}`);
+    }
+    try {
+      const dirStats = statSync(normalizedRoot);
+      if (!dirStats.isDirectory()) {
+        throw new SecurityError(`Access denied: Project root is not a directory`);
+      }
+    } catch (err) {
+      if (err instanceof SecurityError) throw err;
+      throw new SecurityError(`Access denied: Project root not accessible: ${projectRoot}`);
+    }
+  }
+
+  return { resolved, external };
+}
+
 /**
  * Validate that a requested path is within the project root
  * and not a sensitive file. Returns the resolved absolute path.

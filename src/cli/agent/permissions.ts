@@ -124,6 +124,26 @@ export class PermissionManager {
   }
 
   /**
+   * Check permission for external path access.
+   * Always treated as 'dangerous' level — user MUST confirm.
+   * Only YOLO mode auto-allows; skip-permissions still prompts.
+   */
+  async checkExternalAccess(
+    toolName: string,
+    externalPath: string,
+    input: Record<string, unknown>,
+    displayFn: (msg: string) => void,
+  ): Promise<boolean> {
+    if (this.yoloMode) return true;
+
+    // External access is always dangerous-level — skip-permissions does NOT auto-allow
+    return this.promptUser(toolName, {
+      ...input,
+      __externalPath: externalPath,
+    }, 'dangerous', displayFn);
+  }
+
+  /**
    * Check if a tool call is allowed.
    * Returns true if allowed, false if denied.
    */
@@ -315,6 +335,11 @@ export class PermissionManager {
 
   /** Format a human-readable description of what a tool call does (with ANSI colors) */
   private formatToolDetail(name: string, input: Record<string, unknown>): string {
+    const extPath = input.__externalPath as string | undefined;
+    if (extPath) {
+      const action = name === 'read_file' ? 'Read' : name === 'write_file' ? 'Write' : name === 'edit_file' ? 'Edit' : name === 'list_directory' ? 'List' : 'Access';
+      return `\x1b[31m\uD83D\uDD13 EXTERNAL ACCESS\x1b[0m \u2014 ${action} \x1b[36m${extPath}\x1b[0m\n  \x1b[2m\u2502\x1b[0m  \x1b[33mThis path is outside the current project directory\x1b[0m`;
+    }
     switch (name) {
       case 'write_file': {
         const path = String(input.path || '');
@@ -347,6 +372,11 @@ export class PermissionManager {
 
   /** Format a plain-text description (no ANSI) for remote channels (Telegram, Web) */
   formatToolDetailPlain(name: string, input: Record<string, unknown>): string {
+    const extPath = input.__externalPath as string | undefined;
+    if (extPath) {
+      const action = name === 'read_file' ? 'Read' : name === 'write_file' ? 'Write' : name === 'edit_file' ? 'Edit' : name === 'list_directory' ? 'List' : 'Access';
+      return `\uD83D\uDD13 EXTERNAL ACCESS \u2014 ${action} ${extPath} (outside project directory)`;
+    }
     switch (name) {
       case 'write_file': {
         const path = String(input.path || '');

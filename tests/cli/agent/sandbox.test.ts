@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { validatePath, classifyCommand, isBlockedCommand, SecurityError } from '../../../src/cli/agent/sandbox.js';
+import { validatePath, validatePathEx, classifyCommand, isBlockedCommand, SecurityError } from '../../../src/cli/agent/sandbox.js';
 import { join, resolve } from 'node:path';
 import { mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -39,6 +39,47 @@ describe('Path Validation', () => {
 
   it('should allow .env.example', () => {
     expect(validatePath('.env.example', root)).toBe(join(root, '.env.example'));
+  });
+});
+
+describe('validatePathEx (Cross-Directory Access)', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = join(tmpdir(), `sandbox-ext-test-${randomUUID()}`);
+    mkdirSync(root, { recursive: true });
+  });
+
+  afterEach(() => {
+    try { rmSync(root, { recursive: true, force: true }); } catch { /* EBUSY */ }
+  });
+
+  it('should mark internal paths as external: false', () => {
+    const result = validatePathEx('src/app.ts', root);
+    expect(result.resolved).toBe(join(root, 'src/app.ts'));
+    expect(result.external).toBe(false);
+  });
+
+  it('should mark external paths as external: true (not throw)', () => {
+    const result = validatePathEx('../../some/other/project/file.ts', root);
+    expect(result.external).toBe(true);
+    expect(result.resolved).toBeTruthy();
+  });
+
+  it('should still block sensitive files even when external', () => {
+    expect(() => validatePathEx('../../.env', root)).toThrow(SecurityError);
+    expect(() => validatePathEx('/home/user/.ssh/id_rsa', root)).toThrow(SecurityError);
+  });
+
+  it('should block sensitive files internally', () => {
+    expect(() => validatePathEx('.env', root)).toThrow(SecurityError);
+    expect(() => validatePathEx('.env.local', root)).toThrow(SecurityError);
+  });
+
+  it('should allow .env.example', () => {
+    const result = validatePathEx('.env.example', root);
+    expect(result.external).toBe(false);
+    expect(result.resolved).toBe(join(root, '.env.example'));
   });
 });
 

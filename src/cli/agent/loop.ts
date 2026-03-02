@@ -5,8 +5,10 @@ import type {
   ContentBlock,
   ToolUseBlock,
 } from '../providers/types.js';
+import { resolve } from 'node:path';
 import { getTool, getAllToolDefinitions, type ToolContext } from './tools/registry.js';
 import { PermissionManager } from './permissions.js';
+import { validatePathEx } from './sandbox.js';
 import { renderToolCall, renderToolResult, renderToolDenied, resetToolCounter, renderToolBlockStart, renderToolBlockEnd } from '../ui/tool-output.js';
 import { renderAssistantEnd } from '../ui/chat-view.js';
 import type { CheckpointStore } from '../checkpoints/store.js';
@@ -256,6 +258,37 @@ export async function runAgentLoop(
         );
 
         if (allowed) {
+          // Check for external path access (outside project root)
+          const pathInput = (block.input.path as string | undefined);
+          if (pathInput && FILE_DIR_TOOLS.has(block.name)) {
+            try {
+              const { external } = validatePathEx(pathInput, toolContext.projectRoot);
+              if (external) {
+                const absPath = resolve(toolContext.projectRoot, pathInput);
+                const extAllowed = await permissions.checkExternalAccess(
+                  block.name,
+                  absPath,
+                  block.input,
+                  (msg) => process.stdout.write(msg),
+                );
+                if (!extAllowed) {
+                  renderToolDenied(block.name);
+                  steps.push({ num: stepNum, tool: block.name, label: stepLabel, status: 'error', error: 'external access denied' });
+                  onStepEnd?.(stepNum, block.name, 'error', 'external access denied by user');
+                  toolResults.push({
+                    type: 'tool_result',
+                    tool_use_id: block.id,
+                    content: 'Access denied: External path access was denied by the user.',
+                    is_error: true,
+                  });
+                  continue;
+                }
+              }
+            } catch {
+              // SecurityError from validatePathEx (sensitive files, symlinks) — let the tool handle it
+            }
+          }
+
           const snapshots = checkpointStore
             ? captureFileSnapshots(block.name, block.input, toolContext.projectRoot)
             : undefined;
@@ -375,6 +408,11 @@ export async function runAgentLoop(
     updatedHistory: messages,
   };
 }
+
+/** Tools that operate on file/directory paths and need external access checks */
+const FILE_DIR_TOOLS = new Set([
+  'read_file', 'write_file', 'edit_file', 'list_directory', 'search_files', 'find_files',
+]);
 
 /** Summarize a tool call for the step display */
 function summarizeToolForStep(name: string, input: Record<string, unknown>): string {

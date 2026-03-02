@@ -84,9 +84,12 @@ describe('read_file', () => {
     expect(result).toContain('Showing lines 2-4');
   });
 
-  it('should reject paths outside project', async () => {
+  it('should allow external paths through tool (permission check in agent loop)', async () => {
+    // validatePathEx no longer throws for external paths — it returns { external: true }.
+    // The actual permission gate lives in the agent loop, not the tool.
+    // The tool will fail with ENOENT since the external file doesn't exist.
     const tool = getTool('read_file')!;
-    await expect(tool.execute({ path: '../../etc/passwd' }, ctx)).rejects.toThrow('outside');
+    await expect(tool.execute({ path: '../../etc/passwd' }, ctx)).rejects.toThrow();
   });
 });
 
