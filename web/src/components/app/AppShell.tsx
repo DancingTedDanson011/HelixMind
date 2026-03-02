@@ -241,6 +241,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // ── Per-instance chat mapping (port → chatId) ──
+  const instanceChatMapRef = useRef<Map<number, string>>(new Map());
+
   // ── Auto-create or select chat on CLI connect ─────────
   const autoCreatedForPortRef = useRef<number | null>(null);
   useEffect(() => {
@@ -248,14 +251,22 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     // Already have active chat — nothing to do
     if (activeChatId) return;
 
-    // Select most recent existing chat
-    if (chats.length > 0) {
+    const port = connectedPort;
+
+    // Check if we have a saved chat for this CLI instance (from a previous switch)
+    if (port && instanceChatMapRef.current.has(port)) {
+      const savedChatId = instanceChatMapRef.current.get(port)!;
+      loadChat(savedChatId);
+      return;
+    }
+
+    // Select most recent existing chat (only when no multi-instance mapping exists)
+    if (chats.length > 0 && instanceChatMapRef.current.size === 0) {
       loadChat(chats[0].id);
       return;
     }
 
-    // No chats at all — auto-create one for this CLI instance
-    const port = connectedPort;
+    // Auto-create one for this CLI instance
     if (!port || autoCreatedForPortRef.current === port) return;
     autoCreatedForPortRef.current = port;
 
@@ -269,13 +280,14 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         });
         if (res.ok) {
           const chat = await res.json();
+          if (port) instanceChatMapRef.current.set(port, chat.id);
           await fetchChats();
           await loadChat(chat.id);
         }
       } catch { /* silent */ }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, chats.length, activeChatId]);
+  }, [isConnected, chats.length, activeChatId, connectedPort]);
 
   // ── Auto-detect mode on CLI connect ──────────
   const hasAutoDetectedRef = useRef(false);
@@ -596,6 +608,21 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     setActiveChat(prev => prev ? { ...prev, messages: [...prev.messages, sysMsg] } : null);
   }, [activeChat]);
 
+  // ── Switch between CLI instances (preserves per-instance chat) ──
+  const handleInstanceSwitch = useCallback((inst: DiscoveredInstance) => {
+    // Save current chat mapping before switching
+    if (connectedPort && activeChatId) {
+      instanceChatMapRef.current.set(connectedPort, activeChatId);
+    }
+
+    // Clear current state so auto-create useEffect picks up the new instance
+    setActiveChatId(null);
+    setActiveChat(null);
+
+    // Connect to new instance
+    connectTo(inst);
+  }, [connectedPort, activeChatId, connectTo]);
+
   // ── Send message (with slash command support) ──
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -674,7 +701,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             addSystemMessage(t('alreadyConnected'));
           } else if (instances.length > 0) {
             addSystemMessage(t('connectingTo', { name: instances[0].meta.projectName }));
-            connectTo(instances[0]);
+            handleInstanceSwitch(instances[0]);
           } else {
             rescan();
             addSystemMessage(t('noCliFound'));
@@ -748,7 +775,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     }
   }, [activeChatId, brainstormChat, mode, hasLLMKey, isConnected, cliChat, fetchChats, loadChat, activeTab,
       handleStartAuto, handleStartSecurity, handleStartMonitor, handleAbortSession,
-      handleBrainClick, activeSessions, disconnectCli, addSystemMessage, instances, connectTo, rescan, t]);
+      handleBrainClick, activeSessions, disconnectCli, addSystemMessage, instances, handleInstanceSwitch, rescan, t]);
 
   // ── Send message with file attachments ──
   const handleSendWithFiles = useCallback(async (content: string, files: FileInfo[]) => {
@@ -1197,8 +1224,32 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               )}
             </div>
 
-            {/* CLI Connection badge */}
-            {isConnected && connection.instanceMeta ? (
+            {/* CLI Connection — instance tabs (multi) or single badge */}
+            {instances.length > 1 ? (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {instances.map(inst => {
+                  const isActive = isConnected && inst.port === connectedPort;
+                  return (
+                    <button
+                      key={inst.port}
+                      onClick={() => {
+                        if (!isActive) handleInstanceSwitch(inst);
+                      }}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] border transition-all ${
+                        isActive
+                          ? 'bg-emerald-500/5 border-emerald-500/10 text-emerald-400'
+                          : 'bg-white/[0.02] border-white/5 text-gray-500 hover:text-gray-300 hover:border-white/10 cursor-pointer'
+                      }`}
+                    >
+                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
+                      <Terminal size={10} />
+                      <span className="max-w-[80px] truncate hidden sm:inline">{inst.meta.projectName}</span>
+                      <span className="text-gray-600">:{inst.port}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : isConnected && connection.instanceMeta ? (
                 <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] bg-emerald-500/5 border border-emerald-500/10 flex-shrink-0">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
                   <Wifi size={11} className="text-emerald-400 hidden sm:block" />
@@ -1228,7 +1279,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                       {instances.map(inst => (
                         <button
                           key={inst.port}
-                          onClick={() => { connectTo(inst); setShowConnectPopover(false); }}
+                          onClick={() => { handleInstanceSwitch(inst); setShowConnectPopover(false); }}
                           className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/20 text-left transition-all"
                         >
                           <Terminal size={12} className="text-gray-500" />
@@ -2045,7 +2096,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           rescan();
         }}
         instances={instances}
-        onConnect={(inst) => { connectTo(inst); setShowSpawnDialog(false); }}
+        onConnect={(inst) => { handleInstanceSwitch(inst); setShowSpawnDialog(false); }}
       />
 
       {/* Brain 3D Overlay — portal to body, supports full / minimized / hidden */}
