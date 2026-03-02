@@ -826,11 +826,26 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   // ── Mobile: close sidebar on chat select ────
   const handleChatSelect = useCallback((chatId: string) => {
     loadChat(chatId);
-    setActiveTab('chat');
+    // If this is the active CLI chat, switch to the tab with the active CLI mode
+    if (isConnected && chatId === activeChatId) {
+      const jName = connection.jarvisStatus?.jarvisName;
+      const jRunning = connection.jarvisStatus?.daemonState === 'running';
+      const sessions = connection.sessions.filter(s => s.id !== 'main' && s.status === 'running');
+      const hasConsole = sessions.some(s => getSessionTab(s.name, jName, jRunning) === 'console');
+      const hasMonitor = sessions.some(s => getSessionTab(s.name, jName, jRunning) === 'monitor');
+      const hasJarvis = jRunning;
+      // Priority: console > monitor > jarvis > chat
+      if (hasConsole) setActiveTab('console');
+      else if (hasMonitor) setActiveTab('monitor');
+      else if (hasJarvis) setActiveTab('jarvis');
+      else setActiveTab('chat');
+    } else {
+      setActiveTab('chat');
+    }
     if (window.innerWidth < 768) {
       setSidebarOpen(false);
     }
-  }, [loadChat]);
+  }, [loadChat, isConnected, activeChatId, connection]);
 
   // ── Stop handler ─────────────────────────────
   const handleStop = useCallback(() => {
@@ -1209,9 +1224,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 >
                   <MessageSquare size={11} />
                   Chat
-                  {isConnected && connection.sessions.find(s => s.id === 'main')?.status === 'running' && (
-                    <span className={`w-1.5 h-1.5 rounded-full ${TAB_COLORS.chat.dot} animate-pulse`} />
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('console')}
@@ -1904,6 +1916,12 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               hasChat={!!activeChat}
               isConnected={isConnected}
               activeTab={activeTab}
+              onSwitchTab={(tab) => setActiveTab(tab)}
+              activeCliModes={{
+                console: consoleSessions.some(s => s.status === 'running'),
+                monitor: monitorSessions.some(s => s.status === 'running'),
+                jarvis: connection.jarvisStatus?.daemonState === 'running',
+              }}
             />
           </div>
         )}

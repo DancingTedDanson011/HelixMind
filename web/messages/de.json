@@ -869,7 +869,13 @@
     "bannerVersion": "Version",
     "bannerStartHint": "Schreib eine Nachricht um zu starten...",
     "oldSessions": "Alte Sessions",
-    "noOldSessions": "Keine alten Sessions"
+    "noOldSessions": "Keine alten Sessions",
+    "quickAutoReviewDesc": "KI-gestützte Code-Review über dein Projekt — findet Bugs, Code-Smells und Verbesserungen",
+    "quickSecurityAuditDesc": "Prüft auf Schwachstellen, offene Geheimnisse, unsichere Abhängigkeiten und Best Practices",
+    "quickMonitorDesc": "Überwacht dein Projekt in Echtzeit auf Dateiänderungen, Fehler, Test-Failures und Code-Qualität",
+    "switchToConsoleDesc": "Konsole öffnen — Terminal-Ausgabe von Hintergrund-Agent-Sessions anzeigen",
+    "switchToMonitorDesc": "Monitor öffnen — Echtzeit-Sicherheitsüberwachung und Bedrohungserkennung",
+    "switchToJarvisDesc": "Jarvis öffnen — autonome Aufgabenverwaltung und KI-gesteuerte Ausführung"
   },
   "ticket": {
     "createTitle": "Neues Ticket erstellen",

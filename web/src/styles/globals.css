@@ -292,13 +292,15 @@ body {
 /* ─── Helix Thinking Animation ────────────── */
 
 @keyframes helix-strand-a {
-  0%, 100% { transform: scaleY(0.3); opacity: 0.3; }
+  0% { transform: scaleY(0.3); opacity: 0.3; }
   50% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(0.3); opacity: 0.3; }
 }
 
 @keyframes helix-strand-b {
-  0%, 100% { transform: scaleY(1); opacity: 1; }
+  0% { transform: scaleY(1); opacity: 1; }
   50% { transform: scaleY(0.3); opacity: 0.3; }
+  100% { transform: scaleY(1); opacity: 1; }
 }
 
 @keyframes helix-glow {

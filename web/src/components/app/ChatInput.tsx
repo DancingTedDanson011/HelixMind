@@ -26,6 +26,10 @@ interface ChatInputProps {
   isPureChat?: boolean;
   /** Callback to hand off a pure chat to an agent tab */
   onGiveToAgent?: (target: 'console' | 'monitor' | 'jarvis') => void;
+  /** Switch to a different tab */
+  onSwitchTab?: (tab: 'console' | 'monitor' | 'jarvis') => void;
+  /** Which CLI modes are currently active (have running sessions) */
+  activeCliModes?: { console: boolean; monitor: boolean; jarvis: boolean };
 }
 
 export function ChatInput({
@@ -41,6 +45,8 @@ export function ChatInput({
   activeTab = 'chat',
   isPureChat = false,
   onGiveToAgent,
+  onSwitchTab,
+  activeCliModes = { console: false, monitor: false, jarvis: false },
 }: ChatInputProps) {
   const t = useTranslations('app');
   const [value, setValue] = useState('');
@@ -103,6 +109,7 @@ export function ChatInput({
                 onClick={() => onSend('Run an automatic code review and improvement analysis on the current project. Look for bugs, code smells, and potential improvements.')}
                 disabled={!isConnected}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-cyan-400/60 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20"
+                title={t('quickAutoReviewDesc')}
               >
                 <Zap size={10} />
                 {t('quickAutoReview')}
@@ -113,6 +120,7 @@ export function ChatInput({
                 onClick={() => onSend('Perform a comprehensive security audit on the current project. Check for vulnerabilities, exposed secrets, unsafe dependencies, and security best practices.')}
                 disabled={!isConnected}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-amber-400/60 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20"
+                title={t('quickSecurityAuditDesc')}
               >
                 <ShieldAlert size={10} />
                 {t('quickSecurityAudit')}
@@ -123,10 +131,47 @@ export function ChatInput({
                 onClick={() => onSend('Start monitoring the project for file changes and potential issues. Watch for errors, test failures, and code quality problems.')}
                 disabled={!isConnected}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-blue-400/60 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/20"
+                title={t('quickMonitorDesc')}
               >
                 <Eye size={10} />
                 {t('quickMonitor')}
               </button>
+            )}
+
+            {/* Mode-switch buttons — show inactive modes in chat tab */}
+            {activeTab === 'chat' && isConnected && onSwitchTab && (
+              <>
+                {!activeCliModes.console && (
+                  <button
+                    onClick={() => onSwitchTab('console')}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 text-emerald-400/50 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20"
+                    title={t('switchToConsoleDesc')}
+                  >
+                    <Terminal size={10} />
+                    {t('switchToConsole')}
+                  </button>
+                )}
+                {!activeCliModes.monitor && (
+                  <button
+                    onClick={() => onSwitchTab('monitor')}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 text-blue-400/50 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/20"
+                    title={t('switchToMonitorDesc')}
+                  >
+                    <Eye size={10} />
+                    {t('switchToMonitor')}
+                  </button>
+                )}
+                {!activeCliModes.jarvis && (
+                  <button
+                    onClick={() => onSwitchTab('jarvis')}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 text-red-400/50 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20"
+                    title={t('switchToJarvisDesc')}
+                  >
+                    <Bot size={10} />
+                    {t('switchToJarvis')}
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}

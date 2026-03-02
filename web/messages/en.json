@@ -869,7 +869,13 @@
     "bannerVersion": "Version",
     "bannerStartHint": "Type a message to start...",
     "oldSessions": "Old Sessions",
-    "noOldSessions": "No old sessions"
+    "noOldSessions": "No old sessions",
+    "quickAutoReviewDesc": "Runs an AI-powered code review across your project — finds bugs, code smells, and suggests improvements",
+    "quickSecurityAuditDesc": "Scans for vulnerabilities, exposed secrets, unsafe dependencies, and security best practices",
+    "quickMonitorDesc": "Watches your project for file changes, errors, test failures, and code quality issues in real-time",
+    "switchToConsoleDesc": "Open Console tab — view terminal output from background agent sessions",
+    "switchToMonitorDesc": "Open Monitor tab — real-time security monitoring and threat detection",
+    "switchToJarvisDesc": "Open Jarvis tab — autonomous task management and AI-driven execution"
   },
   "ticket": {
     "createTitle": "Create New Ticket",

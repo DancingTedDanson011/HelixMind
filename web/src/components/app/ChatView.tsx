@@ -94,38 +94,30 @@ export function ChatView({
     }
   }, []);
 
-  // Auto-scroll on new messages — instant during streaming to avoid jank
-  const isStreamingRef = useRef(false);
-  isStreamingRef.current = isAgentRunning && !!streamingContent;
+  // Track when agent starts responding — scroll to answer start, not bottom
+  const prevAgentRunningRef = useRef(false);
+  const answerStartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (autoScrollRef.current) {
-      // Use instant scroll during streaming (smooth scroll stacks & stutters)
+    // When agent just started (new response), scroll to where the answer begins
+    if (isAgentRunning && !prevAgentRunningRef.current) {
+      // Small delay to let the streaming indicator render
+      requestAnimationFrame(() => {
+        answerStartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      autoScrollRef.current = false; // Don't auto-scroll to bottom during this response
+    }
+    prevAgentRunningRef.current = isAgentRunning;
+  }, [isAgentRunning]);
+
+  // Auto-scroll on new user messages only (not during agent streaming)
+  useEffect(() => {
+    if (autoScrollRef.current && !isAgentRunning) {
       scrollToBottom(false);
     }
-  }, [messages.length, activeTools.length, scrollToBottom]);
+  }, [messages.length, scrollToBottom, isAgentRunning]);
 
-  // Throttled scroll during streaming — 60fps via rAF
-  const streamRafRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!isAgentRunning || !streamingContent) {
-      if (streamRafRef.current) cancelAnimationFrame(streamRafRef.current);
-      return;
-    }
-
-    function tick() {
-      if (autoScrollRef.current) {
-        const el = containerRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
-      }
-      streamRafRef.current = requestAnimationFrame(tick);
-    }
-    streamRafRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (streamRafRef.current) cancelAnimationFrame(streamRafRef.current);
-    };
-  }, [isAgentRunning, !!streamingContent]); // eslint-disable-line react-hooks/exhaustive-deps
+  // No rAF auto-scroll during streaming — keep user at answer start
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
@@ -356,7 +348,7 @@ export function ChatView({
 
           {/* Streaming indicator */}
           {isAgentRunning && (
-            <div className="flex gap-3">
+            <div ref={answerStartRef} className="flex gap-3">
               <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
                 <Bot size={14} className="text-cyan-400" />
               </div>
@@ -376,16 +368,18 @@ export function ChatView({
                             className="w-[3px] rounded-full bg-cyan-400"
                             style={{
                               height: '14px',
-                              animation: `helix-strand-a 1.8s ease-in-out ${i * 0.12}s infinite`,
+                              animation: `helix-strand-a 1.4s linear ${i * 0.1}s infinite`,
                               transformOrigin: 'bottom',
+                              willChange: 'transform, opacity',
                             }}
                           />
                           <span
                             className="w-[3px] rounded-full bg-purple-400"
                             style={{
                               height: '14px',
-                              animation: `helix-strand-b 1.8s ease-in-out ${i * 0.12}s infinite`,
+                              animation: `helix-strand-b 1.4s linear ${i * 0.1}s infinite`,
                               transformOrigin: 'top',
+                              willChange: 'transform, opacity',
                             }}
                           />
                         </div>
