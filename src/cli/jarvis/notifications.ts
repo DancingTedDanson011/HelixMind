@@ -4,6 +4,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { homedir } from 'node:os';
 import type { NotificationConfig, NotificationChannel, NotificationTarget, NotificationUrgency } from './types.js';
 
 const URGENCY_ORDER: Record<NotificationUrgency, number> = {
@@ -27,13 +28,25 @@ export class NotificationManager {
   }
 
   private load(): NotificationConfig {
+    // 1. Try project-local config
     try {
       if (existsSync(this.filePath)) {
         const raw = readFileSync(this.filePath, 'utf-8');
         const parsed = JSON.parse(raw) as NotificationConfig;
-        if (Array.isArray(parsed.targets)) return parsed;
+        if (Array.isArray(parsed.targets) && parsed.targets.length > 0) return parsed;
       }
     } catch { /* corrupted */ }
+
+    // 2. Fallback: global config from ~/.helixmind/jarvis/notifications.json
+    try {
+      const globalPath = join(homedir(), '.helixmind', 'jarvis', 'notifications.json');
+      if (globalPath !== this.filePath && existsSync(globalPath)) {
+        const raw = readFileSync(globalPath, 'utf-8');
+        const parsed = JSON.parse(raw) as NotificationConfig;
+        if (Array.isArray(parsed.targets) && parsed.targets.length > 0) return parsed;
+      }
+    } catch { /* corrupted */ }
+
     return { ...DEFAULT_CONFIG, targets: [] };
   }
 
