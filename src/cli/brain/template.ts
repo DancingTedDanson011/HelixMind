@@ -113,10 +113,12 @@ canvas { display: block; }
 #controls {
   position: fixed; top: 16px; right: 16px; z-index: 20;
   display: flex; flex-direction: column; gap: 6px;
+  pointer-events: none;
 }
 .control-group {
-  background: rgba(5,5,16,0.9); border: 1px solid rgba(0,212,255,0.1);
-  border-radius: 8px; padding: 8px 12px; backdrop-filter: blur(16px);
+  background: rgba(5,5,16,0.65); border: 1px solid rgba(0,212,255,0.1);
+  border-radius: 8px; padding: 8px 12px; backdrop-filter: blur(12px);
+  pointer-events: auto;
 }
 .control-group label { font-size: 10px; color: #556; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
 
@@ -162,12 +164,14 @@ canvas { display: block; }
 #sidebar .meta-row { font-size: 11px; color: #556; margin: 4px 0; }
 
 #findings-panel {
-  position: fixed; left: -320px; top: 0; bottom: 0; width: 320px; z-index: 25;
-  background: rgba(5,5,16,0.97); border-right: 1px solid rgba(0,212,255,0.1);
-  backdrop-filter: blur(24px); padding: 16px; overflow-y: auto;
-  transition: left 0.35s cubic-bezier(0.4,0,0.2,1);
+  position: fixed; inset: 0; z-index: 25;
+  background: rgba(5,5,16,0.95); backdrop-filter: blur(24px);
+  display: none; overflow-y: auto; padding: 40px;
 }
-#findings-panel.open { left: 0; }
+#findings-panel.open { display: flex; flex-direction: column; align-items: center; }
+#findings-panel .f-inner { width: 100%; max-width: 800px; }
+#findings-panel .f-close { position: fixed; top: 16px; right: 16px; cursor: pointer; color: #556; font-size: 22px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(5,5,16,0.8); border: 1px solid rgba(0,212,255,0.15); transition: all 0.2s; z-index: 2; }
+#findings-panel .f-close:hover { color: #fff; background: rgba(255,60,60,0.2); }
 #findings-panel h2 { color: #00d4ff; font-size: 13px; margin-bottom: 12px; letter-spacing: 0.5px; }
 #findings-panel .finding-item {
   padding: 10px 12px; margin-bottom: 6px; border-radius: 8px; cursor: pointer;
@@ -211,15 +215,15 @@ canvas { display: block; }
 #models-toggle .status-dot.offline { background: #ff4444; box-shadow: 0 0 4px #ff4444; animation: livePulse 1.5s ease infinite; }
 
 #models-panel {
-  position: fixed; left: -400px; top: 0; bottom: 0; width: 400px; z-index: 28;
-  background: rgba(5,5,16,0.97); border-right: 1px solid rgba(0,212,255,0.1);
-  backdrop-filter: blur(24px); padding: 20px; overflow-y: auto;
-  transition: left 0.35s cubic-bezier(0.4,0,0.2,1);
+  position: fixed; inset: 0; z-index: 28;
+  background: rgba(5,5,16,0.95); backdrop-filter: blur(24px);
+  display: none; overflow-y: auto; padding: 40px;
 }
-#models-panel.open { left: 0; }
+#models-panel.open { display: flex; flex-direction: column; align-items: center; }
+#models-panel > *:not(.mp-close) { width: 100%; max-width: 800px; }
 #models-panel h2 { color: #00d4ff; font-size: 14px; margin-bottom: 6px; letter-spacing: 0.5px; }
 #models-panel .mp-subtitle { color: #556; font-size: 11px; margin-bottom: 14px; }
-#models-panel .mp-close { position: absolute; top: 14px; right: 14px; cursor: pointer; color: #556; font-size: 18px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(5,5,16,0.8); transition: all 0.2s; z-index: 2; }
+#models-panel .mp-close { position: fixed; top: 16px; right: 16px; cursor: pointer; color: #556; font-size: 22px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(5,5,16,0.8); border: 1px solid rgba(0,212,255,0.15); transition: all 0.2s; z-index: 2; }
 #models-panel .mp-close:hover { color: #fff; background: rgba(255,60,60,0.2); }
 #models-panel .mp-section { margin-bottom: 16px; }
 #models-panel .mp-section-title { font-size: 10px; color: #556; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(0,212,255,0.06); }
@@ -465,9 +469,12 @@ canvas { display: block; }
 <div id="web-knowledge-container"></div>
 
 <div id="findings-panel">
+  <span class="f-close" id="findings-close">\u2715</span>
+  <div class="f-inner">
   <h2>\u{1F50D} Agent Findings</h2>
   <div class="f-count" id="findings-count"></div>
   <div id="findings-list"><div class="f-empty">No findings yet.<br>Start /security or /auto to see live results.</div></div>
+  </div>
 </div>
 <button id="findings-toggle" title="Toggle findings panel">\u{1F50D} Findings <span class="badge" id="findings-badge" style="display:none">0</span></button>
 <button id="models-toggle" title="Local LLM Models"><span class="status-dot offline" id="ollama-dot"></span>\u{1F9E0} Models</button>
@@ -514,7 +521,7 @@ canvas { display: block; }
   <button id="voice-btn" title="Voice Input">\u{1F3A4}</button>
   <div id="voice-waveform"></div>
   <div id="voice-transcript" class="placeholder">Click mic to speak...</div>
-  <select id="voice-lang" title="Language" aria-label="Voice language"><option value="de-DE">DE</option><option value="en-US">EN</option></select>
+  <select id="voice-lang" title="Language" aria-label="Voice language"><option value="en-US">EN</option><option value="de-DE">DE</option></select>
   <span id="voice-status"></span>
   <button id="voice-send">\u{2191} Send</button>
 </div>
@@ -1107,12 +1114,14 @@ function updateHL(){
   ha.needsUpdate=true;
 
   const aET=getActiveET();
+  const allActive=aET===null;
   const aS=Math.min(1.0,2500/eC);
+  const glowMul=allActive?2.5:1.0;
   for(let i=0;i<eC;i++){
     const{si,ti,w,t,cross}=vEdges[i];
     const sLv=nodes[si].level, tLv=nodes[ti].level;
     if(lvlToggles[sLv]===false||lvlToggles[tLv]===false){ ea.array[i*2]=0; ea.array[i*2+1]=0; continue; }
-    let a=(cross?(0.08+w*0.2):(0.04+w*0.1))*aS;
+    let a=(cross?(0.08+w*0.2):(0.04+w*0.1))*aS*glowMul;
     if(aET!==null&&!aET.has(t)) a=0;
     if(hasF){ a=(si===selIdx||ti===selIdx)?0.4+w*0.3:0.01; }
     if(hovIdx>=0){ if(si===hovIdx||ti===hovIdx) a=Math.max(a,0.35+w*0.3); }
@@ -1754,6 +1763,7 @@ let fData=[];
 const fPanel=document.getElementById('findings-panel'), fList=document.getElementById('findings-list');
 const fCount=document.getElementById('findings-count'), fToggle=document.getElementById('findings-toggle'), fBadge=document.getElementById('findings-badge');
 fToggle.addEventListener('click',()=>fPanel.classList.toggle('open'));
+document.getElementById('findings-close').addEventListener('click',()=>fPanel.classList.remove('open'));
 function addFinding(sn,f,sev,file){
   fData.push({sn,f,sev,file,t:Date.now()});
   fBadge.style.display='inline'; fBadge.textContent=fData.length;

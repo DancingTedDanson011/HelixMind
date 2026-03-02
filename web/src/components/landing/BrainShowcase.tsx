@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, X } from 'lucide-react';
 
 function BrainFallback() {
   return (
@@ -19,97 +19,115 @@ export function BrainShowcase() {
   const [loaded, setLoaded] = useState(false);
 
   return (
-    <section className="py-24 sm:py-32 px-4 relative overflow-hidden">
-      {/* Ambient glow */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full bg-primary/[0.03] blur-[150px]" />
-      </div>
+    <>
+      {/* Fullscreen overlay when expanded */}
+      {isExpanded && (
+        <div className="fixed inset-0 z-50 bg-[#050510]">
+          <iframe
+            src="/brain.html"
+            className="w-full h-full border-none block"
+            style={{ background: '#050510' }}
+            title="HelixMind Brain Visualization"
+            allow="accelerometer; autoplay"
+          />
+          <button
+            onClick={() => setIsExpanded(false)}
+            className="fixed top-4 right-4 z-[60] flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white bg-[rgba(5,5,16,0.9)] hover:bg-[rgba(5,5,16,1)] border border-white/[0.1] hover:border-white/[0.2] transition-all duration-200 backdrop-blur-md"
+          >
+            <X size={14} />
+            <span>ESC</span>
+          </button>
+        </div>
+      )}
 
-      <div className="mx-auto max-w-6xl relative">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <motion.p
-            className="font-display text-sm font-semibold tracking-[0.2em] uppercase text-primary/60 mb-3"
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            {t('sectionLabel')}
-          </motion.p>
-          <motion.h2
-            className="heading-lg text-3xl sm:text-4xl text-white mb-4"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.05 }}
-          >
-            {t('title')}
-          </motion.h2>
+      <section className="py-24 sm:py-32 px-4 relative overflow-hidden">
+        {/* Ambient glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full bg-primary/[0.03] blur-[150px]" />
         </div>
 
-        {/* Browser Chrome Frame */}
-        <motion.div
-          className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden"
-          initial={{ opacity: 0, y: 24, filter: 'blur(4px)' }}
-          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        >
-          {/* Title bar */}
-          <div className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border-b border-white/[0.06]">
-            <div className="flex items-center gap-3">
-              {/* Traffic lights */}
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-                <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
-                <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+        <div className="mx-auto max-w-6xl relative">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <motion.p
+              className="font-display text-sm font-semibold tracking-[0.2em] uppercase text-primary/60 mb-3"
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              {t('sectionLabel')}
+            </motion.p>
+            <motion.h2
+              className="heading-lg text-3xl sm:text-4xl text-white mb-4"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.05 }}
+            >
+              {t('title')}
+            </motion.h2>
+          </div>
+
+          {/* Browser Chrome Frame */}
+          <motion.div
+            className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden"
+            initial={{ opacity: 0, y: 24, filter: 'blur(4px)' }}
+            whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {/* Title bar */}
+            <div className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                {/* Traffic lights */}
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+                  <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+                  <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+                </div>
+                {/* URL bar */}
+                <div className="hidden sm:flex items-center px-3 py-1 rounded-md bg-black/30 text-xs text-gray-500 font-mono">
+                  brain.helixmind.dev
+                </div>
               </div>
-              {/* URL bar */}
-              <div className="hidden sm:flex items-center px-3 py-1 rounded-md bg-black/30 text-xs text-gray-500 font-mono">
-                brain.helixmind.dev
-              </div>
+
+              {/* Expand button */}
+              <button
+                onClick={() => setIsExpanded(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-gray-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all duration-200"
+              >
+                <Maximize2 size={13} />
+                <span>{t('expand')}</span>
+              </button>
             </div>
 
-            {/* Expand/Collapse button */}
-            <button
-              onClick={() => setIsExpanded((prev) => !prev)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-gray-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all duration-200"
-            >
-              {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-              <span>{isExpanded ? t('collapse') : t('expand')}</span>
-            </button>
-          </div>
+            {/* Brain iframe — real CLI brain template */}
+            <div className="w-full relative h-[400px] sm:h-[500px]">
+              {!loaded && <BrainFallback />}
+              <iframe
+                src="/brain.html"
+                className="w-full h-full border-none block"
+                style={{ background: '#050510' }}
+                onLoad={() => setLoaded(true)}
+                title="HelixMind Brain Visualization"
+                allow="accelerometer; autoplay"
+              />
+            </div>
+          </motion.div>
 
-          {/* Brain iframe — real CLI brain template with full data */}
-          <div
-            className={`w-full relative transition-[height] duration-500 ease-in-out ${
-              isExpanded ? 'h-[75vh]' : 'h-[400px] sm:h-[500px]'
-            }`}
+          {/* Subtitle below frame */}
+          <motion.p
+            className="text-gray-400 text-sm sm:text-base text-center max-w-2xl mx-auto mt-6 font-light leading-relaxed"
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
           >
-            {!loaded && <BrainFallback />}
-            <iframe
-              src="/brain.html"
-              className="w-full h-full border-none block"
-              style={{ background: '#050510' }}
-              onLoad={() => setLoaded(true)}
-              title="HelixMind Brain Visualization"
-              allow="accelerometer; autoplay"
-            />
-          </div>
-        </motion.div>
-
-        {/* Subtitle below frame */}
-        <motion.p
-          className="text-gray-400 text-sm sm:text-base text-center max-w-2xl mx-auto mt-6 font-light leading-relaxed"
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          {t('subtitle')}
-        </motion.p>
-      </div>
-    </section>
+            {t('subtitle')}
+          </motion.p>
+        </div>
+      </section>
+    </>
   );
 }
