@@ -705,7 +705,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Callback handler (inline buttons)
       (data, chatId, queryId) => {
         jarvisTelegramBot?.answerCallback(queryId);
-        if (data.startsWith('approve_')) {
+        if (data.startsWith('perm_approve:')) {
+          const requestId = data.slice('perm_approve:'.length);
+          permissions.resolveRemote(requestId, true, 'user');
+          jarvisTelegramBot?.answerCallback(queryId, '\u2705 Approved');
+        } else if (data.startsWith('perm_deny:')) {
+          const requestId = data.slice('perm_deny:'.length);
+          permissions.resolveRemote(requestId, false, 'user');
+          jarvisTelegramBot?.answerCallback(queryId, '\u274C Denied');
+        } else if (data.startsWith('approve_')) {
           const id = parseInt(data.slice(8), 10);
           const proposal = jarvisProposals.approve(id);
           if (proposal) {
@@ -877,6 +885,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         pushJarvisTaskCreated,
         pushJarvisTaskUpdated,
         pushJarvisStatusChanged,
+        pushToolPermissionRequest,
+        pushToolPermissionReminder,
+        pushToolPermissionResolved,
       } = await import('../brain/generator.js');
       const { serializeSession, buildInstanceMeta, resetInstanceStartTime, serializeJarvisTask } = await import('../brain/control-protocol.js');
 
@@ -1205,6 +1216,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           }).catch(() => {});
         },
 
+        handleToolPermissionResponse: (requestId, approved) => {
+          permissions.resolveRemote(requestId, approved, 'user');
+        },
+
         getFindings: () => [...collectedFindings],
 
         getBugs: () => bugJournal.getAllBugs().map(b => ({
@@ -1496,6 +1511,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           stopMonitor: () => false,
           handleMonitorCommand: () => {},
           handleApprovalResponse: () => {},
+          handleToolPermissionResponse: (requestId: string, approved: boolean) => {
+            permissions.resolveRemote(requestId, approved, 'user');
+          },
           getFindings: () => [...collectedFindings],
           getBugs: () => bugJournal.getAllBugs().map(b => ({
             id: b.id, description: b.description, file: b.file, line: b.line,
@@ -1743,6 +1761,73 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   permissions.setReadline(rl);
   permissions.setPromptCallback((active) => { isAtPrompt = active; });
+
+  // Set up remote permission approval (Brain Server + Telegram + Notifications)
+  if (brainUrl) {
+    permissions.setRemoteHandler({
+      onRequest: (req) => {
+        // 1. Push to brain server (WebSocket → Web Dashboard)
+        import('../brain/generator.js').then(({ pushToolPermissionRequest: push }) => {
+          push(req);
+        }).catch(() => {});
+
+        // 2. Send via Telegram with Inline-Buttons (if bot is active)
+        const tBot = jarvisTelegramBot;
+        if (tBot?.isRunning) {
+          const levelEmoji = req.permissionLevel === 'dangerous' ? '\u{1F6A8}' : '\u26A0\uFE0F';
+          const expiresMin = Math.round((req.expiresAt - Date.now()) / 60000);
+          tBot.send(
+            `${levelEmoji} *Permission Request*\n\n${req.detail}\n\n_Expires in ${expiresMin} min_`,
+            {
+              buttons: [[
+                { text: '\u2705 Approve', callback_data: `perm_approve:${req.id}` },
+                { text: '\u274C Deny', callback_data: `perm_deny:${req.id}` },
+              ]],
+            },
+          );
+        }
+
+        // 3. Send via notification manager (if available)
+        jarvisNotifications?.notify(
+          `${req.permissionLevel === 'dangerous' ? '\u{1F6A8}' : '\u26A0\uFE0F'} Permission: ${req.toolName}`,
+          req.detail,
+          req.permissionLevel === 'dangerous' ? 'critical' : 'important',
+        );
+      },
+      onReminder: (req) => {
+        // Reminder via Telegram
+        const tBot = jarvisTelegramBot;
+        if (tBot?.isRunning) {
+          const expiresMin = Math.round((req.expiresAt - Date.now()) / 60000);
+          tBot.send(
+            `\u23F0 *Reminder*: Permission still waiting\n\n${req.detail}\n\n_Expires in ${expiresMin} min_`,
+            {
+              buttons: [[
+                { text: '\u2705 Approve', callback_data: `perm_approve:${req.id}` },
+                { text: '\u274C Deny', callback_data: `perm_deny:${req.id}` },
+              ]],
+            },
+          );
+        }
+        // Reminder via brain server
+        import('../brain/generator.js').then(({ pushToolPermissionReminder: push }) => {
+          push(req);
+        }).catch(() => {});
+      },
+      onResolved: (requestId, approved, deniedBy) => {
+        // Push resolved event to web clients
+        import('../brain/generator.js').then(({ pushToolPermissionResolved: push }) => {
+          push(requestId, approved, deniedBy);
+        }).catch(() => {});
+        // Notify via Telegram
+        const tBot = jarvisTelegramBot;
+        if (tBot?.isRunning) {
+          const label = approved ? '\u2705 Approved' : (deniedBy === 'system_timeout' ? '\u23F0 Timed out' : '\u274C Denied');
+          tBot.send(`${label} (permission ${requestId.slice(0, 8)})`);
+        }
+      },
+    });
+  }
 
   // Mute readline echo during LLM streaming (animation running) to prevent typed
   // chars from mixing with agent output. Unmute during tool execution so the user

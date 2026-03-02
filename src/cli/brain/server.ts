@@ -557,6 +557,15 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             // This is handled by the relay client, not the local server
             break;
           }
+
+          // --- Tool Permission Approval ---
+          case 'tool_permission_response': {
+            controlHandlers.handleToolPermissionResponse(
+              (msg as any).requestId,
+              (msg as any).approved,
+            );
+            break;
+          }
         }
       }
 
@@ -738,5 +747,7 @@ function isControlRequest(type: string): boolean {
     'get_brain_list', 'rename_brain', 'switch_brain', 'create_brain',
     // Remote tool execution
     'remote_tool_result',
+    // Tool permission approval
+    'tool_permission_response',
   ].includes(type);
 }

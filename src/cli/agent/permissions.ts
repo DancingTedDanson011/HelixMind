@@ -1,7 +1,13 @@
 import * as readline from 'node:readline';
+import { randomUUID } from 'node:crypto';
 import { classifyCommand } from './sandbox.js';
+import type { ToolPermissionRequest } from '../brain/control-protocol.js';
 
 export type PermissionLevel = 'auto' | 'ask' | 'dangerous';
+
+/** Timeout durations in milliseconds */
+const TIMEOUT_ASK_MS = 10 * 60_000;     // 10 minutes for ask-level
+const TIMEOUT_DANGER_MS = 15 * 60_000;  // 15 minutes for dangerous-level
 
 /** Map tools to their default permission level */
 const TOOL_PERMISSIONS: Record<string, PermissionLevel> = {
@@ -37,11 +43,27 @@ const TOOL_PERMISSIONS: Record<string, PermissionLevel> = {
   run_command: 'ask', // Upgraded to 'dangerous' based on command content
 };
 
+interface PendingRemoteEntry {
+  resolve: (result: { approved: boolean; deniedBy?: 'user' | 'system_timeout' }) => void;
+  timer: ReturnType<typeof setTimeout>;
+  reminderTimer: ReturnType<typeof setTimeout>;
+}
+
+interface RemoteHandlerOpts {
+  onRequest: (req: ToolPermissionRequest) => void;
+  onReminder: (req: ToolPermissionRequest) => void;
+  onResolved: (requestId: string, approved: boolean, deniedBy?: 'user' | 'system_timeout') => void;
+}
+
 export class PermissionManager {
   private yoloMode = false;
   private skipPermissionsMode = false;
   private rl: readline.Interface | null = null;
   private onPromptActive?: (active: boolean) => void;
+
+  // Remote approval
+  private pendingRemote = new Map<string, PendingRemoteEntry>();
+  private remoteHandler: RemoteHandlerOpts | null = null;
 
   setReadline(rl: readline.Interface): void {
     this.rl = rl;
@@ -73,6 +95,32 @@ export class PermissionManager {
     if (this.yoloMode) return 'yolo';
     if (this.skipPermissionsMode) return 'skip';
     return 'safe';
+  }
+
+  /** Register remote approval handler (Brain server, Telegram, etc.) */
+  setRemoteHandler(opts: RemoteHandlerOpts): void {
+    this.remoteHandler = opts;
+  }
+
+  /** Resolve a pending remote permission request (called from WebSocket/Telegram handler) */
+  resolveRemote(requestId: string, approved: boolean, deniedBy: 'user' | 'system_timeout' = 'user'): void {
+    const entry = this.pendingRemote.get(requestId);
+    if (!entry) return;
+
+    clearTimeout(entry.timer);
+    clearTimeout(entry.reminderTimer);
+    this.pendingRemote.delete(requestId);
+    entry.resolve({ approved, deniedBy });
+  }
+
+  /** Clean up all pending remote requests (e.g. on session end) */
+  clearPending(): void {
+    for (const [id, entry] of this.pendingRemote) {
+      clearTimeout(entry.timer);
+      clearTimeout(entry.reminderTimer);
+      this.pendingRemote.delete(id);
+      entry.resolve({ approved: false, deniedBy: 'system_timeout' });
+    }
   }
 
   /**
@@ -131,6 +179,86 @@ export class PermissionManager {
     process.stdout.write(`  [${yKey}] Allow  [${nKey}] Deny  \x1b[2m[s] Skip once  [a] Always skip\x1b[0m\n`);
     process.stdout.write(`  \x1b[2m[!s] --skip-permissions  [!y] --yolo mode\x1b[0m\n`);
 
+    // Create remote permission promise (if remote handler is set)
+    let remotePromise: Promise<{ approved: boolean; deniedBy?: 'user' | 'system_timeout' }> | null = null;
+    let requestId: string | null = null;
+
+    if (this.remoteHandler) {
+      const timeoutMs = level === 'dangerous' ? TIMEOUT_DANGER_MS : TIMEOUT_ASK_MS;
+      const now = Date.now();
+      requestId = randomUUID();
+
+      const req: ToolPermissionRequest = {
+        id: requestId,
+        toolName,
+        toolInput: input,
+        permissionLevel: level as 'ask' | 'dangerous',
+        detail: this.formatToolDetailPlain(toolName, input),
+        sessionId: 'main',
+        timestamp: now,
+        expiresAt: now + timeoutMs,
+        reminderAt: now + Math.floor(timeoutMs / 2),
+      };
+
+      remotePromise = new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          this.pendingRemote.delete(requestId!);
+          resolve({ approved: false, deniedBy: 'system_timeout' });
+          this.remoteHandler?.onResolved(requestId!, false, 'system_timeout');
+        }, timeoutMs);
+
+        const reminderTimer = setTimeout(() => {
+          this.remoteHandler?.onReminder(req);
+        }, Math.floor(timeoutMs / 2));
+
+        this.pendingRemote.set(requestId!, { resolve, timer, reminderTimer });
+      });
+
+      // Push request to all channels
+      this.remoteHandler.onRequest(req);
+
+      if (this.remoteHandler) {
+        process.stdout.write(`  \x1b[2m\u{1F4F1} Also sent to remote channels (Web/Telegram)\x1b[0m\n`);
+      }
+    }
+
+    // Race: local readline vs remote response
+    const localPromise = this.askLocal(defaultYes);
+
+    if (remotePromise && requestId) {
+      const rid = requestId;
+      const result = await Promise.race([
+        localPromise.then(approved => ({ approved, deniedBy: 'user' as const, source: 'local' as const })),
+        remotePromise.then(r => ({ ...r, source: 'remote' as const })),
+      ]);
+
+      // Clean up the losing side
+      if (result.source === 'local') {
+        // Local won — clean up remote
+        const entry = this.pendingRemote.get(rid);
+        if (entry) {
+          clearTimeout(entry.timer);
+          clearTimeout(entry.reminderTimer);
+          this.pendingRemote.delete(rid);
+        }
+        this.remoteHandler?.onResolved(rid, result.approved, 'user');
+      }
+      // If remote won, readline is still waiting but that's okay — it'll just be ignored
+
+      if (result.source === 'remote') {
+        const label = result.approved ? '\x1b[32m\u2705 Approved remotely\x1b[0m' : '\x1b[31m\u274C Denied remotely\x1b[0m';
+        process.stdout.write(`\n  ${label}\n`);
+      }
+
+      return result.approved;
+    }
+
+    // No remote handler — just use local
+    return localPromise;
+  }
+
+  /** Handle local readline input and return approval boolean */
+  private async askLocal(defaultYes: boolean): Promise<boolean> {
     const answer = await this.ask('  > ');
     const trimmed = answer.trim().toLowerCase();
 
@@ -185,7 +313,7 @@ export class PermissionManager {
     });
   }
 
-  /** Format a human-readable description of what a tool call does */
+  /** Format a human-readable description of what a tool call does (with ANSI colors) */
   private formatToolDetail(name: string, input: Record<string, unknown>): string {
     switch (name) {
       case 'write_file': {
@@ -213,6 +341,38 @@ export class PermissionManager {
           .map(([k, v]) => `${k}: ${String(v).slice(0, 50)}`)
           .join(', ');
         return `\x1b[1m${name}\x1b[0m \x1b[2m${summary.slice(0, 100)}\x1b[0m`;
+      }
+    }
+  }
+
+  /** Format a plain-text description (no ANSI) for remote channels (Telegram, Web) */
+  formatToolDetailPlain(name: string, input: Record<string, unknown>): string {
+    switch (name) {
+      case 'write_file': {
+        const path = String(input.path || '');
+        const content = String(input.content || '');
+        const lines = content.split('\n').length;
+        return `Write file ${path} (${lines} lines)`;
+      }
+      case 'edit_file': {
+        const path = String(input.path || '');
+        const oldStr = String(input.old_string || '').slice(0, 60).replace(/\n/g, '\\n');
+        const newStr = String(input.new_string || '').slice(0, 60).replace(/\n/g, '\\n');
+        return `Edit file ${path}\n- ${oldStr}${String(input.old_string || '').length > 60 ? '\u2026' : ''}\n+ ${newStr}${String(input.new_string || '').length > 60 ? '\u2026' : ''}`;
+      }
+      case 'run_command': {
+        const cmd = String(input.command || '');
+        return `Run command: $ ${cmd}`;
+      }
+      case 'git_commit': {
+        const msg = String(input.message || '');
+        return `Git commit "${msg}"`;
+      }
+      default: {
+        const summary = Object.entries(input)
+          .map(([k, v]) => `${k}: ${String(v).slice(0, 50)}`)
+          .join(', ');
+        return `${name} ${summary.slice(0, 100)}`;
       }
     }
   }

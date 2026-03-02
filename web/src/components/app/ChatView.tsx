@@ -8,8 +8,10 @@ import {
 } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
+import { PermissionRequestCard } from './PermissionRequestCard';
 import type { ChatMessage } from './AppShell';
 import type { ActiveTool } from '@/hooks/use-cli-chat';
+import type { ToolPermissionRequest } from '@/lib/cli-types';
 
 /* ─── Tool display helpers ────────────────────── */
 
@@ -45,6 +47,9 @@ interface ChatViewProps {
   onExecutePrompt?: (prompt: string) => void;
   isConnected?: boolean;
   isExecuting?: boolean;
+  pendingPermissions?: ToolPermissionRequest[];
+  onApprovePermission?: (requestId: string) => void;
+  onDenyPermission?: (requestId: string) => void;
 }
 
 export function ChatView({
@@ -60,6 +65,9 @@ export function ChatView({
   onExecutePrompt,
   isConnected = false,
   isExecuting = false,
+  pendingPermissions = [],
+  onApprovePermission,
+  onDenyPermission,
 }: ChatViewProps) {
   const t = useTranslations('app');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -202,6 +210,20 @@ export function ChatView({
               isConnected={isConnected}
               isExecuting={isExecuting}
             />
+          )}
+
+          {/* Pending permission requests */}
+          {pendingPermissions.length > 0 && (
+            <div className="space-y-2">
+              {pendingPermissions.map((perm) => (
+                <PermissionRequestCard
+                  key={perm.id}
+                  request={perm}
+                  onApprove={() => onApprovePermission?.(perm.id)}
+                  onDeny={() => onDenyPermission?.(perm.id)}
+                />
+              ))}
+            </div>
           )}
 
           {/* Active tool calls */}

@@ -22,6 +22,7 @@ import type {
   WorkerInfo,
   ThinkingUpdate,
   ConsciousnessEvent,
+  ToolPermissionRequest,
 } from '@/lib/cli-types';
 import { registerConnectionWs, unregisterConnectionWs } from '@/lib/cli-ws-registry';
 
@@ -132,6 +133,10 @@ export interface UseCliConnectionReturn {
   configSynced: boolean;
   /** Switch CLI model/provider remotely */
   switchModel: (provider: string, model: string) => Promise<boolean>;
+
+  // Tool Permission Approval
+  pendingPermissions: ToolPermissionRequest[];
+  respondPermission: (requestId: string, approved: boolean) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +177,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [consciousnessEvents, setConsciousnessEvents] = useState<ConsciousnessEvent[]>([]);
   const [autonomyLevel, setAutonomyLevelState] = useState(2);
   const [configSynced, setConfigSynced] = useState(false);
+  const [pendingPermissions, setPendingPermissions] = useState<ToolPermissionRequest[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const connectionStateRef = useRef<ConnectionState>('disconnected');
@@ -507,6 +513,28 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
       if (mountedRef.current) {
         setWorkers((prev) => prev.map((w) => (w.workerId === worker.workerId ? worker : w)));
       }
+      return;
+    }
+
+    // Tool Permission events
+    if (msg.type === 'tool_permission_request') {
+      const request = msg.request as ToolPermissionRequest;
+      if (mountedRef.current) {
+        setPendingPermissions((prev) => [...prev, request]);
+      }
+      return;
+    }
+
+    if (msg.type === 'tool_permission_resolved') {
+      const requestId = msg.requestId as string;
+      if (mountedRef.current) {
+        setPendingPermissions((prev) => prev.filter((p) => p.id !== requestId));
+      }
+      return;
+    }
+
+    if (msg.type === 'tool_permission_reminder') {
+      // Could add toast notification here — for now just keep the card visible
       return;
     }
 
@@ -885,6 +913,19 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   }, [sendRequest]);
 
   // ---------------------------------------------------------------------------
+  // Tool Permission Approval
+  // ---------------------------------------------------------------------------
+  const respondPermission = useCallback(
+    async (requestId: string, approved: boolean): Promise<void> => {
+      await sendRequest('tool_permission_response', { requestId, approved });
+      if (mountedRef.current) {
+        setPendingPermissions((prev) => prev.filter((p) => p.id !== requestId));
+      }
+    },
+    [sendRequest],
+  );
+
+  // ---------------------------------------------------------------------------
   // Cleanup on unmount
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -968,5 +1009,9 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     fetchConfig,
     configSynced,
     switchModel,
+
+    // Tool Permission Approval
+    pendingPermissions,
+    respondPermission,
   };
 }

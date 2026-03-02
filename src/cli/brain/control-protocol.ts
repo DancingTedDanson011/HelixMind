@@ -304,6 +304,24 @@ export interface RemoteToolCallRequest extends WSMessage { type: 'remote_tool_ca
 export interface RemoteToolCallResult extends WSMessage { type: 'remote_tool_result'; callId: string; jarvisSessionId: string; success: boolean; result?: string; error?: string }
 export interface JarvisResultEvent extends WSMessage { type: 'jarvis_result'; taskId: number; result: string; steps: number }
 
+// --- Tool Permission Approval (CLI ↔ Browser/Telegram) ---
+export interface ToolPermissionRequest {
+  id: string;
+  toolName: string;
+  toolInput: Record<string, unknown>;
+  permissionLevel: 'ask' | 'dangerous';
+  detail: string;
+  sessionId: string;
+  timestamp: number;
+  expiresAt: number;
+  reminderAt: number;
+}
+
+export interface ToolPermissionResponseRequest extends WSMessage { type: 'tool_permission_response'; requestId: string; approved: boolean }
+export interface ToolPermissionRequestEvent extends WSMessage { type: 'tool_permission_request'; request: ToolPermissionRequest }
+export interface ToolPermissionReminderEvent extends WSMessage { type: 'tool_permission_reminder'; request: ToolPermissionRequest }
+export interface ToolPermissionResolvedEvent extends WSMessage { type: 'tool_permission_resolved'; requestId: string; approved: boolean; deniedBy?: 'user' | 'system_timeout' }
+
 // --- Web Chat Events (CLI → Browser, streamed) ---
 export interface ChatStartedEvent extends WSMessage { type: 'chat_started'; chatId: string }
 export interface ChatTextChunkEvent extends WSMessage { type: 'chat_text_chunk'; chatId: string; text: string }
@@ -357,7 +375,8 @@ export type ControlRequest =
   | CreateBrainRequest
   | GetConfigRequest
   | SwitchModelRequest
-  | RemoteToolCallResult;
+  | RemoteToolCallResult
+  | ToolPermissionResponseRequest;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts
@@ -408,6 +427,8 @@ export interface ControlHandlers {
   // Config sharing (local connections only)
   getConfig(): { provider: string; apiKey: string; model: string };
   switchModel(provider: string, model: string): boolean;
+  // Tool Permission Approval (remote)
+  handleToolPermissionResponse(requestId: string, approved: boolean): void;
 }
 
 // ---------------------------------------------------------------------------

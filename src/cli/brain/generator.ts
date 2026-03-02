@@ -5,7 +5,7 @@ import type { BrainExport } from './exporter.js';
 import type { BrainScope } from '../../utils/config.js';
 import { generateBrainHTML } from './template.js';
 import { startBrainServer, type BrainServer } from './server.js';
-import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo, TriggerInfo, WorkerInfo } from './control-protocol.js';
+import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo, TriggerInfo, WorkerInfo, ToolPermissionRequest } from './control-protocol.js';
 
 /** Generate a static HTML file (fallback / export) */
 export function generateBrainFile(data: BrainExport): string {
@@ -474,6 +474,42 @@ export function pushTTSAudio(audioBase64: string, text: string, duration: number
 export function pushNotificationSent(channel: string, title: string): void {
   if (!activeBrainServer) return;
   activeBrainServer.pushControlEvent({ type: 'notification_sent', channel, title, timestamp: Date.now() });
+}
+
+// ---------------------------------------------------------------------------
+// Tool Permission Approval — Push Functions
+// ---------------------------------------------------------------------------
+
+/** Push a tool permission request to all control clients */
+export function pushToolPermissionRequest(req: ToolPermissionRequest): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'tool_permission_request',
+    request: req,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a tool permission reminder to all control clients */
+export function pushToolPermissionReminder(req: ToolPermissionRequest): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'tool_permission_reminder',
+    request: req,
+    timestamp: Date.now(),
+  });
+}
+
+/** Push a tool permission resolved event to all control clients */
+export function pushToolPermissionResolved(requestId: string, approved: boolean, deniedBy?: 'user' | 'system_timeout'): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'tool_permission_resolved',
+    requestId,
+    approved,
+    deniedBy,
+    timestamp: Date.now(),
+  });
 }
 
 /**

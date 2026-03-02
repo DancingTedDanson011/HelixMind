@@ -1337,6 +1337,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 onExecutePrompt={handleExecutePrompt}
                 isConnected={isConnected}
                 isExecuting={cliExecuting}
+                pendingPermissions={connection.pendingPermissions}
+                onApprovePermission={(id) => connection.respondPermission(id, true)}
+                onDenyPermission={(id) => connection.respondPermission(id, false)}
               />
             </div>
           </div>

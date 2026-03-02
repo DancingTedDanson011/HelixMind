@@ -320,6 +320,21 @@ export interface ConsciousnessEvent {
 // Connection
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Tool Permission Approval
+// ---------------------------------------------------------------------------
+
+export interface ToolPermissionRequest {
+  id: string;
+  toolName: string;
+  toolInput: Record<string, unknown>;
+  permissionLevel: 'ask' | 'dangerous';
+  detail: string;
+  sessionId: string;
+  timestamp: number;
+  expiresAt: number;
+}
+
 export type ConnectionState =
   | 'disconnected'
   | 'connecting'
