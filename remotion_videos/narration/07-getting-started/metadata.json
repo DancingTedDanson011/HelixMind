@@ -1,0 +1,41 @@
+{
+  "video": "07-getting-started",
+  "language": "English",
+  "segments": [
+    {
+      "index": 0,
+      "text": "Getting started with HelixMind. From zero to AI coding agent in sixty seconds.",
+      "file": "segment_00.wav"
+    },
+    {
+      "index": 1,
+      "text": "Step one. Install globally with npm.",
+      "file": "segment_01.wav"
+    },
+    {
+      "index": 2,
+      "text": "Step two. Initialize your project. HelixMind analyzes your entire codebase.",
+      "file": "segment_02.wav"
+    },
+    {
+      "index": 3,
+      "text": "Step three. Start chatting. Ask anything about your code.",
+      "file": "segment_03.wav"
+    },
+    {
+      "index": 4,
+      "text": "Spiral memory stores context across sessions. It never forgets.",
+      "file": "segment_04.wav"
+    },
+    {
+      "index": 5,
+      "text": "Step four. Open the brain visualization. Watch your knowledge graph grow.",
+      "file": "segment_05.wav"
+    },
+    {
+      "index": 6,
+      "text": "You're ready. Spiral memory, twenty-two tools, 3D brain, and Jarvis AGI. All yours.",
+      "file": "segment_06.wav"
+    }
+  ]
+}

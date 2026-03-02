@@ -333,7 +333,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   }
 
   // ─── Process exit cleanup: release Jarvis slot ─────────────
-  process.on('exit', () => { releaseJarvisSlot(); });
+  process.on('exit', () => { 
+    releaseJarvisSlot();
+    // Restore terminal to normal mode
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(false);
+    }
+  });
 
   // First-time setup: prompt for LLM API key if none configured
   if (!store.hasApiKey()) {
@@ -1886,6 +1892,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Ensure keypress events are emitted on stdin (required for ESC detection)
   if (process.stdin.isTTY) {
     readline.emitKeypressEvents(process.stdin);
+    // Enable raw mode for immediate ESC key detection
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
   }
 
   const rl = readline.createInterface({

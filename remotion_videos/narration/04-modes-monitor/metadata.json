@@ -1,0 +1,31 @@
+{
+  "video": "04-modes-monitor",
+  "language": "English",
+  "segments": [
+    {
+      "index": 0,
+      "text": "Security Monitor. Always watching your codebase.",
+      "file": "segment_00.wav"
+    },
+    {
+      "index": 1,
+      "text": "Continuous scanning detects threats in real time.",
+      "file": "segment_01.wav"
+    },
+    {
+      "index": 2,
+      "text": "Critical vulnerabilities flagged instantly.",
+      "file": "segment_02.wav"
+    },
+    {
+      "index": 3,
+      "text": "Automatic fixes applied where possible.",
+      "file": "segment_03.wav"
+    },
+    {
+      "index": 4,
+      "text": "Two hundred forty-seven files scanned. Four threats found. Three auto-fixed.",
+      "file": "segment_04.wav"
+    }
+  ]
+}

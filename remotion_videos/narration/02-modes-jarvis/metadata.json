@@ -1,0 +1,31 @@
+{
+  "video": "02-modes-jarvis",
+  "language": "English",
+  "segments": [
+    {
+      "index": 0,
+      "text": "Jarvis AGI mode. Autonomous intelligence at your command.",
+      "file": "segment_00.wav"
+    },
+    {
+      "index": 1,
+      "text": "Jarvis analyzes your entire project structure automatically.",
+      "file": "segment_01.wav"
+    },
+    {
+      "index": 2,
+      "text": "It finds security vulnerabilities, proposes fixes, and waits for your approval.",
+      "file": "segment_02.wav"
+    },
+    {
+      "index": 3,
+      "text": "One click to approve. Three files patched. All tests passing.",
+      "file": "segment_03.wav"
+    },
+    {
+      "index": 4,
+      "text": "Autonomous coding. Human oversight. Perfect balance.",
+      "file": "segment_04.wav"
+    }
+  ]
+}

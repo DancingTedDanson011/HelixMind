@@ -1,0 +1,36 @@
+{
+  "video": "01-hero-intro",
+  "language": "English",
+  "segments": [
+    {
+      "index": 0,
+      "text": "HelixMind. The AI coding agent that remembers everything.",
+      "file": "segment_00.wav"
+    },
+    {
+      "index": 1,
+      "text": "Install it globally with npm. One command, and you're ready.",
+      "file": "segment_01.wav"
+    },
+    {
+      "index": 2,
+      "text": "Spiral memory initializes with six intelligence levels.",
+      "file": "segment_02.wav"
+    },
+    {
+      "index": 3,
+      "text": "Your brain visualization connects instantly.",
+      "file": "segment_03.wav"
+    },
+    {
+      "index": 4,
+      "text": "Jarvis, your autonomous AI daemon, stands by.",
+      "file": "segment_04.wav"
+    },
+    {
+      "index": 5,
+      "text": "HelixMind. Built for developers who think ahead.",
+      "file": "segment_05.wav"
+    }
+  ]
+}

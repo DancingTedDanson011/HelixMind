@@ -77,7 +77,7 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
   }
 
   // [Essential] Tokens
-  essentialParts.push(`\u26A1 ${formatTokens(data.tokens.thisMessage)} tok`);
+  essentialParts.push(`\u26A1 ${formatTokens(data.tokens.thisMessage)} msg`);
 
   // [Optional] Tools (only show if > 0)
   if (data.tools.callsThisRound > 0) {
@@ -234,7 +234,7 @@ function renderTokenBar(tokens: number, compact: boolean = false): string {
     : chalk.hex('#FF6600');
 
   const bar = barColor(FILLED.repeat(filled)) + chalk.dim(EMPTY.repeat(empty));
-  const label = formatTokens(tokens) + '/' + formatTokens(scale) + ' tk';
+  const label = formatTokens(tokens) + '/' + formatTokens(scale) + ' ctx';
 
   return bar + ' ' + barColor(label);
 }

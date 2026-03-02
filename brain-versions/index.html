@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>HelixMind Brain — ALLE 34 Versionen</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a1a;color:#ccc;font-family:'Segoe UI',sans-serif;height:100vh;display:flex;flex-direction:column}
+  .toolbar{display:flex;gap:6px;padding:10px 16px;background:#111128;border-bottom:1px solid #222;flex-wrap:wrap;align-items:center}
+  .toolbar h1{color:#00ffff;font-size:14px;margin-right:12px;white-space:nowrap;width:100%}
+  .btn{padding:5px 10px;border:1px solid #333;background:#1a1a2e;color:#aaa;border-radius:5px;cursor:pointer;font-size:11px;transition:all 0.2s}
+  .btn:hover{border-color:#00ffff;color:#fff}
+  .btn.active{border-color:#00ffff;color:#00ffff;background:rgba(0,255,255,0.08)}
+  .info{color:#888;font-size:12px;padding:6px 16px;background:#0d0d20;border-bottom:1px solid #1a1a2e}
+  iframe{flex:1;border:none;width:100%}
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <h1>Alle Brain Versionen — 2452 Nodes / 29952 Edges</h1>
+    <button class="btn active" onclick="load('brain-npm-0-1-0.html',this,'v0.1.0')">v0.1.0</button>
+    <button class="btn" onclick="load('brain-npm-0-1-1.html',this,'v0.1.1')">v0.1.1</button>
+    <button class="btn" onclick="load('brain-npm-0-1-2.html',this,'v0.1.2')">v0.1.2</button>
+    <button class="btn" onclick="load('brain-npm-0-2-0.html',this,'v0.2.0')">v0.2.0</button>
+    <button class="btn" onclick="load('brain-npm-0-2-1.html',this,'v0.2.1')">v0.2.1</button>
+    <button class="btn" onclick="load('brain-npm-0-2-2.html',this,'v0.2.2')">v0.2.2</button>
+    <button class="btn" onclick="load('brain-npm-0-2-3.html',this,'v0.2.3')">v0.2.3</button>
+    <button class="btn" onclick="load('brain-npm-0-2-4.html',this,'v0.2.4')">v0.2.4</button>
+    <button class="btn" onclick="load('brain-npm-0-2-5.html',this,'v0.2.5')">v0.2.5</button>
+    <button class="btn" onclick="load('brain-npm-0-2-6.html',this,'v0.2.6')">v0.2.6</button>
+    <button class="btn" onclick="load('brain-npm-0-2-7.html',this,'v0.2.7')">v0.2.7</button>
+    <button class="btn" onclick="load('brain-npm-0-2-8.html',this,'v0.2.8')">v0.2.8</button>
+    <button class="btn" onclick="load('brain-npm-0-2-9.html',this,'v0.2.9')">v0.2.9</button>
+    <button class="btn" onclick="load('brain-npm-0-2-10.html',this,'v0.2.10')">v0.2.10</button>
+    <button class="btn" onclick="load('brain-npm-0-2-11.html',this,'v0.2.11')">v0.2.11</button>
+    <button class="btn" onclick="load('brain-npm-0-2-12.html',this,'v0.2.12')">v0.2.12</button>
+    <button class="btn" onclick="load('brain-npm-0-2-13.html',this,'v0.2.13')">v0.2.13</button>
+    <button class="btn" onclick="load('brain-npm-0-2-14.html',this,'v0.2.14')">v0.2.14</button>
+    <button class="btn" onclick="load('brain-npm-0-2-15.html',this,'v0.2.15')">v0.2.15</button>
+    <button class="btn" onclick="load('brain-npm-0-2-16.html',this,'v0.2.16')">v0.2.16</button>
+    <button class="btn" onclick="load('brain-npm-0-2-17.html',this,'v0.2.17')">v0.2.17</button>
+    <button class="btn" onclick="load('brain-npm-0-2-18.html',this,'v0.2.18')">v0.2.18</button>
+    <button class="btn" onclick="load('brain-npm-0-2-19.html',this,'v0.2.19')">v0.2.19</button>
+    <button class="btn" onclick="load('brain-npm-0-2-20.html',this,'v0.2.20')">v0.2.20</button>
+    <button class="btn" onclick="load('brain-npm-0-2-21.html',this,'v0.2.21')">v0.2.21</button>
+    <button class="btn" onclick="load('brain-npm-0-2-22.html',this,'v0.2.22')">v0.2.22</button>
+    <button class="btn" onclick="load('brain-npm-0-2-23.html',this,'v0.2.23')">v0.2.23</button>
+    <button class="btn" onclick="load('brain-npm-0-2-24.html',this,'v0.2.24')">v0.2.24</button>
+    <button class="btn" onclick="load('brain-npm-0-2-25.html',this,'v0.2.25')">v0.2.25</button>
+    <button class="btn" onclick="load('brain-npm-0-2-26.html',this,'v0.2.26')">v0.2.26</button>
+    <button class="btn" onclick="load('brain-npm-0-2-27.html',this,'v0.2.27')">v0.2.27</button>
+    <button class="btn" onclick="load('brain-npm-0-2-28.html',this,'v0.2.28')">v0.2.28</button>
+    <button class="btn" onclick="load('brain-npm-0-2-29.html',this,'v0.2.29')">v0.2.29</button>
+    <button class="btn" onclick="load('brain-npm-0-2-30.html',this,'v0.2.30')">v0.2.30</button>
+  </div>
+  <div class="info" id="info">v0.1.0</div>
+  <iframe id="viewer" src="brain-npm-0-1-0.html"></iframe>
+  <script>
+    function load(file,btn,label){
+      document.getElementById('viewer').src=file;
+      document.getElementById('info').textContent=label;
+      document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

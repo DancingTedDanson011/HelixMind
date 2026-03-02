@@ -1,0 +1,31 @@
+{
+  "video": "03-modes-agent",
+  "language": "English",
+  "segments": [
+    {
+      "index": 0,
+      "text": "Agent mode. Twenty-two tools working toward one goal.",
+      "file": "segment_00.wav"
+    },
+    {
+      "index": 1,
+      "text": "Tell it what to fix. Watch it read, search, edit, test, and commit.",
+      "file": "segment_01.wav"
+    },
+    {
+      "index": 2,
+      "text": "Spiral memory recalls patterns from past sessions.",
+      "file": "segment_02.wav"
+    },
+    {
+      "index": 3,
+      "text": "The entire tool chain executes in seconds.",
+      "file": "segment_03.wav"
+    },
+    {
+      "index": 4,
+      "text": "From bug report to committed fix. Fully automated.",
+      "file": "segment_04.wav"
+    }
+  ]
+}

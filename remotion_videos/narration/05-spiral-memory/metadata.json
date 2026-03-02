@@ -1,0 +1,36 @@
+{
+  "video": "05-spiral-memory",
+  "language": "English",
+  "segments": [
+    {
+      "index": 0,
+      "text": "Spiral Context Memory. Six levels of intelligence.",
+      "file": "segment_00.wav"
+    },
+    {
+      "index": 1,
+      "text": "Level one: Focus. Your current conversation context.",
+      "file": "segment_01.wav"
+    },
+    {
+      "index": 2,
+      "text": "Level two: Active. Recently used knowledge ready for recall.",
+      "file": "segment_02.wav"
+    },
+    {
+      "index": 3,
+      "text": "Level three through five: Reference, archive, and deep storage.",
+      "file": "segment_03.wav"
+    },
+    {
+      "index": 4,
+      "text": "Level six: Web knowledge. Intelligence enriched from the internet.",
+      "file": "segment_04.wav"
+    },
+    {
+      "index": 5,
+      "text": "Nodes promote with frequent use. Decay when unused. Context that never dies.",
+      "file": "segment_05.wav"
+    }
+  ]
+}

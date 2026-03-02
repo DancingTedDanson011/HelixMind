@@ -1,0 +1,31 @@
+{
+  "video": "06-brain-3d",
+  "language": "English",
+  "segments": [
+    {
+      "index": 0,
+      "text": "Your live neural map. Every node is a piece of knowledge.",
+      "file": "segment_00.wav"
+    },
+    {
+      "index": 1,
+      "text": "Watch connections form between related concepts.",
+      "file": "segment_01.wav"
+    },
+    {
+      "index": 2,
+      "text": "Color-coded by level. Cyan for focus, green for active, violet for archive.",
+      "file": "segment_02.wav"
+    },
+    {
+      "index": 3,
+      "text": "Web knowledge populates automatically during work.",
+      "file": "segment_03.wav"
+    },
+    {
+      "index": 4,
+      "text": "This is your brain, visualized in three dimensions.",
+      "file": "segment_04.wav"
+    }
+  ]
+}

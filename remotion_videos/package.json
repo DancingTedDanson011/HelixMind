@@ -1,0 +1,22 @@
+{
+  "name": "helixmind-videos",
+  "version": "1.0.0",
+  "description": "HelixMind promotional videos — Remotion 4K",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render",
+    "render:all": "node scripts/render-all.mjs",
+    "render:4k": "node scripts/render-all.mjs --scale=4k"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "AGPL-3.0",
+  "dependencies": {
+    "@remotion/bundler": "4.0.296",
+    "@remotion/cli": "4.0.296",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.296",
+    "typescript": "5.8.3"
+  }
+}

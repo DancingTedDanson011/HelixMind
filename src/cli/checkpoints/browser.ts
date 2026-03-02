@@ -294,7 +294,7 @@ function parseKey(str: string): { name?: string; sequence?: string; ctrl?: boole
   if (str === '\x1b[A') return { name: 'up' };
   if (str === '\x1b[B') return { name: 'down' };
   if (str === '\r' || str === '\n') return { name: 'return' };
-  if (str.length === 1 && str >= '1' && str <= '2') return { sequence: str };
+  if (str.length === 1 && str >= '1' && str <= '9') return { sequence: str };
   if (str.charCodeAt(0) === 3) return { name: 'c', ctrl: true };
   return { sequence: str };
 }

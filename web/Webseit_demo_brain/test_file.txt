@@ -1,0 +1,4 @@
+Test file created by HelixMind
+This is a test of the write_file tool.
+Line 3 - edited successfully.
+Line 4 for editing later.

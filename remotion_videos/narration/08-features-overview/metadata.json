@@ -1,0 +1,41 @@
+{
+  "video": "08-features-overview",
+  "language": "English",
+  "segments": [
+    {
+      "index": 0,
+      "text": "Built different. Five features that set HelixMind apart.",
+      "file": "segment_00.wav"
+    },
+    {
+      "index": 1,
+      "text": "Spiral memory with 384-dimensional embeddings and semantic search.",
+      "file": "segment_01.wav"
+    },
+    {
+      "index": 2,
+      "text": "A live 3D brain visualization connected via WebSocket.",
+      "file": "segment_02.wav"
+    },
+    {
+      "index": 3,
+      "text": "Three-phase validation: static checks, mini-LLM review, spiral knowledge.",
+      "file": "segment_03.wav"
+    },
+    {
+      "index": 4,
+      "text": "Web knowledge enrichment. Automatic internet intelligence.",
+      "file": "segment_04.wav"
+    },
+    {
+      "index": 5,
+      "text": "Fully offline with Ollama. No cloud dependency. Zero latency.",
+      "file": "segment_05.wav"
+    },
+    {
+      "index": 6,
+      "text": "Open source. AGPL-3.0. Free forever. Community driven.",
+      "file": "segment_06.wav"
+    }
+  ]
+}
