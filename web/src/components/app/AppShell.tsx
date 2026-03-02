@@ -997,12 +997,12 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onSelect={(id) => setConsoleSessionId(id)}
               onAbort={handleAbortSession}
               onDismiss={connection.dismissSession}
-              emptyLabel={t('consoleNoSessions')}
-              emptyHint={t('consoleTabHint')}
-              actions={[
+              emptyLabel={isConnected ? t('consoleNoSessions') : t('cliDisconnected')}
+              emptyHint={isConnected ? t('consoleTabHint') : t('setupDesc')}
+              actions={isConnected ? [
                 { label: 'Start Auto', icon: Zap, onClick: () => handleStartAuto(), color: 'text-gray-400', hoverColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
                 { label: 'Start Security', icon: Shield, onClick: handleStartSecurity, color: 'text-gray-400', hoverColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-              ]}
+              ] : []}
             />
           ) : activeTab === 'monitor' ? (
             <SessionSidebar
@@ -1011,13 +1011,13 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onSelect={(id) => setMonitorSessionId(id)}
               onAbort={handleAbortSession}
               onDismiss={connection.dismissSession}
-              emptyLabel={t('monitorIdle')}
-              emptyHint={t('monitorTabHint')}
-              actions={[
+              emptyLabel={isConnected ? t('monitorIdle') : t('cliDisconnected')}
+              emptyHint={isConnected ? t('monitorTabHint') : t('setupDesc')}
+              actions={isConnected ? [
                 { label: t('monitorStartPassive'), icon: Eye, onClick: () => handleStartMonitor('passive'), color: 'text-gray-400', hoverColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
                 { label: t('monitorStartDefensive'), icon: Shield, onClick: () => handleStartMonitor('defensive'), color: 'text-gray-400', hoverColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
                 { label: t('monitorStartActive'), icon: ShieldAlert, onClick: () => handleStartMonitor('active'), color: 'text-gray-400', hoverColor: 'bg-red-500/10 text-red-400 border-red-500/20' },
-              ]}
+              ] : []}
             />
           ) : activeTab === 'jarvis' ? (
             <ChatSidebar
