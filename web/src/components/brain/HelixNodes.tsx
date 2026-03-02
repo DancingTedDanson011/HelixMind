@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import type { DemoNode } from './brain-demo-data';
 import { LEVEL_SIZES } from '@/lib/constants';
@@ -59,8 +59,10 @@ export function HelixNodes({ positions, nodes, nodeColors }: HelixNodesProps) {
     fragmentShader: nodeFragmentShader,
     transparent: true,
     depthWrite: false,
-    blending: THREE.NormalBlending,
+    blending: THREE.AdditiveBlending,
   }), []);
+
+  useEffect(() => () => { material.dispose(); }, [material]);
 
   return (
     <points material={material}>

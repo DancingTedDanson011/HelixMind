@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import type { DemoNode, DemoEdge } from './brain-demo-data';
 import { FORCE_LAYOUT } from '@/lib/constants';
@@ -47,6 +47,8 @@ export function HelixEdges({ nodes, edges, positions, nodeColors }: HelixEdgesPr
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   }), []);
+
+  useEffect(() => () => { material.dispose(); }, [material]);
 
   const { linePositions, lineColors, lineAlphas } = useMemo(() => {
     const { MAX_E } = FORCE_LAYOUT;

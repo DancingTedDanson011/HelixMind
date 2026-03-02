@@ -64,8 +64,9 @@ export const LEVEL_SIZES = {
 
 export const LEVEL_GLOW = {
   1: 1.2, 2: 0.9, 3: 0.6, 4: 0.4, 5: 0.2, 6: 1.5,
-  7: 2.0, 8: 1.0, 9: 0.8,  // Monitor nodes
-  10: 2.5,                   // Jarvis consciousness — strong glow
+  7: 2.0,                    // Jarvis
+  8: 1.0, 9: 0.8,            // Monitor nodes
+  10: 0.6,                   // Monitor Baseline
 } as const;
 
 export const LEVEL_NAMES = {
@@ -75,10 +76,10 @@ export const LEVEL_NAMES = {
   4: 'Archive',
   5: 'Deep Archive',
   6: 'Web Knowledge',
-  7: 'Security Threat',
-  8: 'Defense Action',
-  9: 'Monitor Baseline',
-  10: 'Jarvis Consciousness',
+  7: 'Jarvis',
+  8: 'Security Threat',
+  9: 'Defense Action',
+  10: 'Monitor Baseline',
 } as const;
 
 // ─── Jarvis AGI Brain Colors ───────────────────────────────
