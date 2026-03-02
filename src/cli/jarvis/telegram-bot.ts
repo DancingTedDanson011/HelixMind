@@ -210,10 +210,6 @@ export class JarvisTelegramBot {
     if (update.message?.text) {
       const chatId = String(update.message.chat.id);
       const chatType = update.message.chat.type || 'private';
-
-      // Security: only accept messages from allowed chat
-      if (chatId !== this.allowedChatId) return;
-
       const text = update.message.text;
       const entities = update.message.entities || [];
       const username = update.message.from?.username || update.message.from?.first_name || update.message.chat.first_name;
@@ -225,7 +221,6 @@ export class JarvisTelegramBot {
 
         if (!isBotMentioned && !isBotCommand) return;
 
-        // Strip the @botname from the message text so the handler gets clean input
         const cleanText = this.stripBotMention(text, entities);
         this.onMessage?.(cleanText, chatId, username);
         return;
@@ -238,12 +233,9 @@ export class JarvisTelegramBot {
     // Handle channel posts
     if (update.channel_post?.text) {
       const chatId = String(update.channel_post.chat.id);
-      if (chatId !== this.allowedChatId) return;
-
       const text = update.channel_post.text;
       const entities = update.channel_post.entities || [];
 
-      // Only react if bot is mentioned or it's a command
       const isBotMentioned = this.isMentionedInMessage(text, entities);
       const isBotCommand = this.isCommandForBot(text, entities);
       if (!isBotMentioned && !isBotCommand) return;
@@ -255,7 +247,6 @@ export class JarvisTelegramBot {
     // Handle callback queries (inline button presses)
     if (update.callback_query?.data) {
       const chatId = String(update.callback_query.message?.chat.id || '');
-      if (chatId !== this.allowedChatId) return;
 
       this.onCallback?.(
         update.callback_query.data,

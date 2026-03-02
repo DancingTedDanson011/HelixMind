@@ -623,14 +623,17 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     jarvisTelegramBot = new JarvisTelegramBot(teleConfig.config.botToken, teleConfig.config.chatId);
 
     jarvisTelegramBot.start(
-      // Message handler
+      // Message handler — chatId is dynamic (DM, group, supergroup, channel)
       (text, chatId, username) => {
         const { command, args } = parseTelegramCommand(text);
+        // Helper: reply to the chat where the message came from
+        const reply = (msg: string, opts?: { buttons?: import('../jarvis/telegram-bot.js').InlineButton[][] }) =>
+          jarvisTelegramBot?.send(msg, { chatId, ...opts });
 
         if (command === 'status') {
           const status = jarvisQueue.getStatus();
           const skillCount = jarvisSkills.getActiveSkills().length;
-          jarvisTelegramBot?.send(
+          reply(
             `*${jn} Status*\n` +
             `Daemon: ${status.daemonState}\n` +
             `Tasks: ${status.pendingCount} pending, ${status.completedCount} done, ${status.failedCount} failed\n` +
@@ -640,10 +643,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         } else if (command === 'tasks') {
           const tasks = jarvisQueue.getAllTasks().filter(t => t.status !== 'completed');
           if (tasks.length === 0) {
-            jarvisTelegramBot?.send(`${jn}: No pending tasks.`);
+            reply(`${jn}: No pending tasks.`);
           } else {
             const lines = tasks.map(t => `#${t.id} [${t.status}] ${t.title}`);
-            jarvisTelegramBot?.send(`*Tasks:*\n${lines.join('\n')}`);
+            reply(`*Tasks:*\n${lines.join('\n')}`);
           }
         } else if (command === 'task' && args) {
           const task = jarvisQueue.addTask(
@@ -651,7 +654,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             args,
             { priority: 'medium', tags: ['telegram'] },
           );
-          jarvisTelegramBot?.send(`\u{1F9E0} Received \u2014 Task #${task.id} queued: "${task.title}"`);
+          reply(`\u{1F9E0} Received \u2014 Task #${task.id} queued: "${task.title}"`);
         } else if (command === 'approve' && args) {
           const id = parseInt(args, 10);
           if (!isNaN(id)) {
@@ -662,9 +665,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 priority: proposal.impact === 'high' ? 'high' : 'medium',
               });
               proposal.convertedTaskId = task.id;
-              jarvisTelegramBot?.send(`\u{1F7E2} Proposal #${id} approved \u2192 Task #${task.id} queued`);
+              reply(`\u{1F7E2} Proposal #${id} approved \u2192 Task #${task.id} queued`);
             } else {
-              jarvisTelegramBot?.send(`Proposal #${id} not found or already resolved.`);
+              reply(`Proposal #${id} not found or already resolved.`);
             }
           }
         } else if (command === 'deny' && args) {
@@ -675,13 +678,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             const proposal = jarvisProposals.deny(id, reason);
             if (proposal) {
               jarvisIdentity.recordEvent({ type: 'proposal_denied', proposalId: id, reason });
-              jarvisTelegramBot?.send(`\u274C Proposal #${id} denied: ${reason}`);
+              reply(`\u274C Proposal #${id} denied: ${reason}`);
             } else {
-              jarvisTelegramBot?.send(`Proposal #${id} not found or already resolved.`);
+              reply(`Proposal #${id} not found or already resolved.`);
             }
           }
         } else if (command === 'help') {
-          jarvisTelegramBot?.send(
+          reply(
             `*${jn} Commands:*\n` +
             `/status — Show daemon status\n` +
             `/tasks — List pending tasks\n` +
@@ -698,11 +701,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               text,
               { priority: 'medium', tags: ['telegram', 'user_message'] },
             );
-            jarvisTelegramBot?.send(`\u{1F9E0} Received \u2014 Task #${task.id} queued`);
+            reply(`\u{1F9E0} Received \u2014 Task #${task.id} queued`);
           }
         }
       },
-      // Callback handler (inline buttons)
+      // Callback handler (inline buttons) — reply to the chat where the button was pressed
       (data, chatId, queryId) => {
         jarvisTelegramBot?.answerCallback(queryId);
         if (data.startsWith('perm_approve:')) {
@@ -720,14 +723,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             jarvisIdentity.recordEvent({ type: 'proposal_approved', proposalId: id });
             const task = jarvisQueue.addTask(proposal.title, proposal.description, { priority: 'medium' });
             proposal.convertedTaskId = task.id;
-            jarvisTelegramBot?.send(`\u2705 Approved #${id} \u2192 Task #${task.id}`);
+            jarvisTelegramBot?.send(`\u2705 Approved #${id} \u2192 Task #${task.id}`, { chatId });
           }
         } else if (data.startsWith('deny_')) {
           const id = parseInt(data.slice(5), 10);
           const proposal = jarvisProposals.deny(id, 'denied via telegram button');
           if (proposal) {
             jarvisIdentity.recordEvent({ type: 'proposal_denied', proposalId: id, reason: 'denied via telegram' });
-            jarvisTelegramBot?.send(`\u274C Denied #${id}`);
+            jarvisTelegramBot?.send(`\u274C Denied #${id}`, { chatId });
           }
         }
       },
