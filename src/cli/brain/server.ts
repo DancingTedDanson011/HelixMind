@@ -586,6 +586,8 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
               (msg as any).requestId,
               (msg as any).approved,
             );
+            // ACK back to the sender
+            sendTo(ws, { type: 'tool_permission_response_ack', requestId: (msg as any).requestId, timestamp: Date.now() });
             break;
           }
         }
@@ -767,6 +769,10 @@ function isControlRequest(type: string): boolean {
     'list_projects', 'register_project', 'get_workers',
     // Brain management
     'get_brain_list', 'rename_brain', 'switch_brain', 'create_brain',
+    // Config & model
+    'get_config', 'switch_model',
+    // Status bar & checkpoints
+    'get_status_bar', 'list_checkpoints', 'revert_to_checkpoint',
     // Remote tool execution
     'remote_tool_result',
     // Tool permission approval

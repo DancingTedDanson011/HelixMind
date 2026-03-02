@@ -2,12 +2,38 @@
 
 import { Command } from 'commander';
 
+
+
+// Graceful shutdown handling
+process.on('SIGINT', () => {
+  console.log('\n🔶 Received SIGINT, shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n🔶 Received SIGTERM, shutting down gracefully...');
+  process.exit(0);
+});
+
+// Handle uncaught exceptions and rejections
+process.on('uncaughtException', (error) => {
+  console.error('\n⚠️  Uncaught exception:', error.message);
+  if (process.env.DEBUG) console.error(error.stack);
+  process.exitCode = 1;
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('\n⚠️  Unhandled promise rejection:', reason);
+  process.exitCode = 1;
+});
 const program = new Command();
 
 program
   .name('helixmind')
   .description('HelixMind \u2013 AI Coding CLI with Spiral Context Memory')
-  .version('0.1.0');
+  .version('0.1.0')
+  .helpOption('-h, --help', 'Display help for command')
+  .addHelpCommand('help [command]', 'Display help for specific command');
 
 // ─── Helper: auth guard wrapper ────────────────────────────────
 // Wraps a command action so it requires login first.
@@ -227,4 +253,62 @@ benchCmd
     await benchListCommand();
   }));
 
-program.parse();
+// Parse arguments with error handling
+try {
+  program.parseAsync();
+} catch (error) {
+  const err = error as Error;
+  
+  // Set exit code based on error type
+  let exitCode = 1;
+  let userMessage = `❌ Error: ${err.message}`;
+  let suggestion = '';
+  
+  // Classify errors and provide helpful messages
+  if (err.message.includes('unknown command')) {
+    exitCode = 2;
+    userMessage = `❌ Unknown command: "${err.message.split("'")[1] || 'unknown'}"`;
+    suggestion = '💡 Try: helixmind --help to see all available commands';
+  } else if (err.message.includes('missing required argument')) {
+    exitCode = 3;
+    userMessage = `❌ Missing required argument`;
+    suggestion = '💡 Check: helixmind <command> --help for correct usage';
+  } else if (err.message.includes('Invalid configuration')) {
+    exitCode = 4;
+    userMessage = `❌ Configuration error: ${err.message}`;
+    suggestion = '💡 Run: helixmind config list to check current configuration';
+  } else if (err.message.includes('Authentication')) {
+    exitCode = 5;
+    userMessage = `❌ Authentication error: ${err.message}`;
+    suggestion = '💡 Run: helixmind login to authenticate';
+  } else if (err.message.includes('ENOENT') || err.message.includes('file not found')) {
+    exitCode = 6;
+    userMessage = `❌ File not found: ${err.message}`;
+    suggestion = '💡 Check the file path and permissions';
+  } else if (err.message.includes('EACCES') || err.message.includes('permission denied')) {
+    exitCode = 7;
+    userMessage = `❌ Permission denied: ${err.message}`;
+    suggestion = '💡 Check file permissions or run with appropriate privileges';
+  } else if (err.message.includes('network') || err.message.includes('ECONNREFUSED')) {
+    exitCode = 8;
+    userMessage = `❌ Network error: ${err.message}`;
+    suggestion = '💡 Check your internet connection and API endpoint';
+  }
+  
+  // Output error information
+  console.error(userMessage);
+  
+  // Show suggestion if available
+  if (suggestion) {
+    console.log(suggestion);
+  }
+  
+  // Show stack trace in debug mode
+  if (process.env.DEBUG || process.env.NODE_ENV === 'development') {
+    console.error('\n🔍 Debug stack trace:');
+    console.error(err.stack || 'No stack trace available');
+  }
+  
+  // Graceful exit with code
+  process.exitCode = exitCode;
+}

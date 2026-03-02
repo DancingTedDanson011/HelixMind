@@ -952,12 +952,16 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   // ---------------------------------------------------------------------------
   const respondPermission = useCallback(
     async (requestId: string, approved: boolean): Promise<void> => {
-      await sendRequest('tool_permission_response', { requestId, approved });
+      // Optimistic UI update — remove card immediately
       if (mountedRef.current) {
         setPendingPermissions((prev) => prev.filter((p) => p.id !== requestId));
       }
+      // Use sendRaw (fire-and-forget) instead of sendRequest because:
+      // 1. The server doesn't send a response for permission approvals
+      // 2. sendRequest would generate its own requestId that gets overwritten by payload.requestId
+      sendRaw({ type: 'tool_permission_response', requestId, approved, timestamp: Date.now() });
     },
-    [sendRequest],
+    [sendRaw],
   );
 
   // ---------------------------------------------------------------------------
