@@ -1883,6 +1883,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     };
   }
 
+  // Ensure keypress events are emitted on stdin (required for ESC detection)
+  if (process.stdin.isTTY) {
+    readline.emitKeypressEvents(process.stdin);
+  }
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -2192,12 +2197,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       }
 
       // === ESC detection ===
-      // Single ESC stops running agents immediately.
+      // Single ESC stops ALL running processes (agents, sessions, Jarvis, autonomous).
       // Double ESC opens the checkpoint Rewind browser.
       // IMPORTANT: Don't return after STOP — fall through so processKeypress
       // always sees the ESC for double-ESC detection.
       if (key.name === 'escape') {
-        if (agentRunning || sessionMgr.hasBackgroundTasks || autonomousMode) {
+        const jarvisRunning = jarvisDaemonSession && jarvisDaemonSession.status === 'running';
+        const anythingRunning = agentRunning || sessionMgr.hasBackgroundTasks || autonomousMode || jarvisRunning;
+
+        if (anythingRunning) {
           // Clear any suggestions
           if (lastSuggestionCount > 0) {
             clearSuggestions(lastSuggestionCount);
@@ -2211,8 +2219,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           autonomousMode = false;
 
           // Stop Jarvis daemon if running
-          if (jarvisDaemonSession && jarvisDaemonSession.status === 'running') {
-            jarvisDaemonSession.abort();
+          if (jarvisRunning) {
+            jarvisDaemonSession!.abort();
             jarvisDaemonSession = null;
             jarvisQueue.setDaemonState('stopped');
             jarvisPaused = false;
@@ -2936,6 +2944,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       if (handled === 'drain') {
         // Sub-menu used its own readline — ignore line events for 500ms
         drainUntil = Date.now() + 500;
+        // Restore state after sub-menu (statusbar, chrome decoration)
+        isAtPrompt = false;
+        chrome.activate();
       }
       // If handleSlashCommand returns a prompt string (e.g. from /bugfix),
       // feed it through as if the user typed it — sends to agent loop.
