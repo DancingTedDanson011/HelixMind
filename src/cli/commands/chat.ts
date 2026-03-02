@@ -651,7 +651,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             args,
             { priority: 'medium', tags: ['telegram'] },
           );
-          jarvisTelegramBot?.send(`\u2705 Task #${task.id} created: "${task.title}"`);
+          jarvisTelegramBot?.send(`\u{1F9E0} Received \u2014 Task #${task.id} queued: "${task.title}"`);
         } else if (command === 'approve' && args) {
           const id = parseInt(args, 10);
           if (!isNaN(id)) {
@@ -662,7 +662,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 priority: proposal.impact === 'high' ? 'high' : 'medium',
               });
               proposal.convertedTaskId = task.id;
-              jarvisTelegramBot?.send(`\u2705 Proposal #${id} approved \u2192 Task #${task.id}`);
+              jarvisTelegramBot?.send(`\u{1F7E2} Proposal #${id} approved \u2192 Task #${task.id} queued`);
             } else {
               jarvisTelegramBot?.send(`Proposal #${id} not found or already resolved.`);
             }
@@ -698,7 +698,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               text,
               { priority: 'medium', tags: ['telegram', 'user_message'] },
             );
-            jarvisTelegramBot?.send(`\u2705 Task #${task.id} created`);
+            jarvisTelegramBot?.send(`\u{1F9E0} Received \u2014 Task #${task.id} queued`);
           }
         }
       },
