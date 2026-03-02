@@ -1184,8 +1184,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           </button>
         </div>
 
-          {/* Row 2: Tab switcher — own row, scrollable on mobile */}
-          {isConnected && (
+          {/* Row 2: Tab switcher — always visible so users can see in-tab explanations */}
             <div className="flex gap-0.5 px-4 py-1.5 overflow-x-auto scrollbar-none flex-nowrap">
               <div className="flex gap-0.5 bg-white/5 rounded-lg p-0.5">
                 <button
@@ -1227,8 +1226,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 <button
                   onClick={() => {
                     setActiveTab('jarvis');
-                    connection.listJarvisTasks().catch(() => {});
-                    connection.getJarvisStatus().catch(() => {});
+                    if (isConnected) {
+                      connection.listJarvisTasks().catch(() => {});
+                      connection.getJarvisStatus().catch(() => {});
+                    }
                   }}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${
                     activeTab === 'jarvis' ? TAB_COLORS.jarvis.active : TAB_COLORS.jarvis.inactive
@@ -1242,7 +1243,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 </button>
               </div>
             </div>
-          )}
         </div>
 
         {/* Active sessions strip + Jarvis tile */}
