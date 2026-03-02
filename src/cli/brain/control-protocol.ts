@@ -180,7 +180,13 @@ export interface StartSecurityRequest extends WSMessage { type: 'start_security'
 export interface AbortSessionRequest extends WSMessage { type: 'abort_session'; sessionId: string }
 export interface SubscribeOutputRequest extends WSMessage { type: 'subscribe_output'; sessionId: string }
 export interface UnsubscribeOutputRequest extends WSMessage { type: 'unsubscribe_output'; sessionId: string }
-export interface SendChatRequest extends WSMessage { type: 'send_chat'; text: string; chatId?: string; mode?: 'normal' | 'skip-permissions' }
+export interface ChatFileAttachment {
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataBase64: string;
+}
+export interface SendChatRequest extends WSMessage { type: 'send_chat'; text: string; chatId?: string; mode?: 'normal' | 'skip-permissions'; files?: ChatFileAttachment[] }
 export interface GetFindingsRequest extends WSMessage { type: 'get_findings' }
 export interface GetBugsRequest extends WSMessage { type: 'get_bugs' }
 export interface PingRequest extends WSMessage { type: 'ping' }
@@ -286,6 +292,40 @@ export interface WorkerCompletedEvent extends WSMessage { type: 'worker_complete
 export interface TTSAudioEvent extends WSMessage { type: 'tts_audio'; audioBase64: string; text: string; duration: number }
 export interface NotificationSentEvent extends WSMessage { type: 'notification_sent'; channel: string; title: string }
 
+// --- Status Bar (CLI → Browser) ---
+export interface StatusBarInfo {
+  spiral: { l1: number; l2: number; l3: number; l4: number; l5: number; l6: number };
+  tokens: { thisMessage: number; thisSession: number; sessionTotal: number };
+  tools: { callsThisRound: number };
+  model: string;
+  git: { branch: string; uncommitted: number };
+  checkpoints: number;
+  permissionMode: 'safe' | 'skip' | 'yolo';
+  autonomous: boolean;
+  paused: boolean;
+}
+
+export interface GetStatusBarRequest extends WSMessage { type: 'get_status_bar' }
+export interface StatusBarUpdateEvent extends WSMessage { type: 'status_bar_update'; data: StatusBarInfo }
+
+// --- Checkpoints (CLI ↔ Browser) ---
+export interface CheckpointInfo {
+  id: number;
+  timestamp: number;
+  type: string;
+  label: string;
+  messageIndex: number;
+  hasFileSnapshots: boolean;
+  fileCount: number;
+  toolName?: string;
+}
+
+export interface ListCheckpointsRequest extends WSMessage { type: 'list_checkpoints' }
+export interface CheckpointsListResponse extends WSMessage { type: 'checkpoints_list'; checkpoints: CheckpointInfo[] }
+export interface RevertToCheckpointRequest extends WSMessage { type: 'revert_to_checkpoint'; checkpointId: number; mode: 'chat' | 'code' | 'both' }
+export interface CheckpointRevertedResponse extends WSMessage { type: 'checkpoint_reverted'; checkpointId: number; mode: string; filesReverted: number; messagesRemoved: number }
+export interface CheckpointCreatedEvent extends WSMessage { type: 'checkpoint_created'; checkpoint: CheckpointInfo }
+
 // --- Brain Management Requests (Browser → CLI) ---
 export interface GetBrainListRequest extends WSMessage { type: 'get_brain_list' }
 export interface RenameBrainRequest extends WSMessage { type: 'rename_brain'; brainId: string; newName: string }
@@ -329,6 +369,7 @@ export interface ChatToolStartEvent extends WSMessage { type: 'chat_tool_start';
 export interface ChatToolEndEvent extends WSMessage { type: 'chat_tool_end'; chatId: string; stepNum: number; toolName: string; status: 'done' | 'error'; result?: string }
 export interface ChatCompleteEvent extends WSMessage { type: 'chat_complete'; chatId: string; text: string; steps: number; tokensUsed: { input: number; output: number } }
 export interface ChatErrorEvent extends WSMessage { type: 'chat_error'; chatId: string; error: string }
+export interface ChatFileEvent extends WSMessage { type: 'chat_file'; chatId: string; file: { name: string; mimeType: string; sizeBytes: number; dataBase64: string } }
 
 // Union of all control request types
 export type ControlRequest =
@@ -376,7 +417,10 @@ export type ControlRequest =
   | GetConfigRequest
   | SwitchModelRequest
   | RemoteToolCallResult
-  | ToolPermissionResponseRequest;
+  | ToolPermissionResponseRequest
+  | GetStatusBarRequest
+  | ListCheckpointsRequest
+  | RevertToCheckpointRequest;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts
@@ -391,7 +435,7 @@ export interface ControlHandlers {
   handleMonitorCommand(command: string, params?: Record<string, string>): void;
   handleApprovalResponse(requestId: string, approved: boolean): void;
   abortSession(sessionId: string): boolean;
-  sendChat(text: string, chatId?: string, mode?: 'normal' | 'skip-permissions'): void;
+  sendChat(text: string, chatId?: string, mode?: 'normal' | 'skip-permissions', files?: ChatFileAttachment[]): void;
   getFindings(): Finding[];
   getBugs(): BugInfo[];
   // Jarvis
@@ -429,6 +473,11 @@ export interface ControlHandlers {
   switchModel(provider: string, model: string): boolean;
   // Tool Permission Approval (remote)
   handleToolPermissionResponse(requestId: string, approved: boolean): void;
+  // Status Bar
+  getStatusBar(): StatusBarInfo;
+  // Checkpoints
+  listCheckpoints(): CheckpointInfo[];
+  revertToCheckpoint(id: number, mode: 'chat' | 'code' | 'both'): { filesReverted: number; messagesRemoved: number };
 }
 
 // ---------------------------------------------------------------------------

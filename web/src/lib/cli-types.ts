@@ -335,6 +335,42 @@ export interface ToolPermissionRequest {
   expiresAt: number;
 }
 
+// --- Status Bar ---
+export interface StatusBarInfo {
+  spiral: { l1: number; l2: number; l3: number; l4: number; l5: number; l6: number };
+  tokens: { thisMessage: number; thisSession: number; sessionTotal: number };
+  tools: { callsThisRound: number };
+  model: string;
+  git: { branch: string; uncommitted: number };
+  checkpoints: number;
+  permissionMode: 'safe' | 'skip' | 'yolo';
+  autonomous: boolean;
+  paused: boolean;
+}
+
+// --- Checkpoints ---
+export interface CheckpointInfo {
+  id: number;
+  timestamp: number;
+  type: string;
+  label: string;
+  messageIndex: number;
+  hasFileSnapshots: boolean;
+  fileCount: number;
+  toolName?: string;
+}
+
+// ---------------------------------------------------------------------------
+// File Attachments
+// ---------------------------------------------------------------------------
+
+export interface ChatFileAttachment {
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataBase64: string;
+}
+
 export type ConnectionState =
   | 'disconnected'
   | 'connecting'

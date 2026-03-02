@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ExternalLink, Brain, Eye, Shield, Globe, Wifi, Layers, Radar } from 'lucide-react';
+import { X, ExternalLink, Brain, Eye, Shield, Globe, Wifi } from 'lucide-react';
 import { useEffect, useCallback, useState, Suspense, lazy } from 'react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
@@ -13,7 +13,7 @@ const BrainScene = lazy(() =>
 
 // ─── Types ───────────────────────────────────────────────────
 
-type FeatureKey = 'memory' | 'brain' | 'validation' | 'web' | 'offline' | 'sessions' | 'monitor';
+type FeatureKey = 'memory' | 'brain' | 'validation' | 'web' | 'offline';
 
 interface FeatureModalProps {
   feature: FeatureKey | null;
@@ -32,8 +32,6 @@ const featureConfig: Record<FeatureKey, {
   validation: { icon: Shield, color: '#4169e1', gradient: 'from-[#4169e1] to-[#8a2be2]' },
   web:        { icon: Globe,  color: '#ffaa00', gradient: 'from-[#ffaa00] to-[#ff6b6b]' },
   offline:    { icon: Wifi,   color: '#8a2be2', gradient: 'from-[#8a2be2] to-[#00d4ff]' },
-  sessions:   { icon: Layers, color: '#ff6b6b', gradient: 'from-[#ff6b6b] to-[#ffaa00]' },
-  monitor:    { icon: Radar,  color: '#ff4444', gradient: 'from-[#ff4444] to-[#8a2be2]' },
 };
 
 // ─── Feature Demos ───────────────────────────────────────────
@@ -364,8 +362,6 @@ const demoComponents: Record<FeatureKey, () => React.ReactElement> = {
   validation: ValidationDemo,
   web: WebKnowledgeDemo,
   offline: OfflineDemo,
-  sessions: SessionsDemo,
-  monitor: MonitorDemo,
 };
 
 // ─── Modal Component ─────────────────────────────────────────

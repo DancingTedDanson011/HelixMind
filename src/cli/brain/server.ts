@@ -324,7 +324,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'send_chat': {
-            controlHandlers.sendChat(msg.text, msg.chatId, msg.mode);
+            controlHandlers.sendChat(msg.text, msg.chatId, msg.mode, msg.files as any);
             sendTo(ws, { type: 'chat_received', requestId, timestamp: Date.now() });
             break;
           }
@@ -498,6 +498,28 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           case 'switch_model': {
             const success = controlHandlers.switchModel((msg as any).provider, (msg as any).model);
             sendTo(ws, { type: 'model_switched', success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          // --- Status Bar & Checkpoints ---
+          case 'get_status_bar': {
+            const data = controlHandlers.getStatusBar();
+            sendTo(ws, { type: 'status_bar_update', data, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'list_checkpoints': {
+            const checkpoints = controlHandlers.listCheckpoints();
+            sendTo(ws, { type: 'checkpoints_list', checkpoints, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'revert_to_checkpoint': {
+            const result = controlHandlers.revertToCheckpoint(
+              (msg as any).checkpointId,
+              (msg as any).mode || 'both',
+            );
+            sendTo(ws, { type: 'checkpoint_reverted', checkpointId: (msg as any).checkpointId, mode: (msg as any).mode || 'both', ...result, requestId, timestamp: Date.now() });
             break;
           }
 

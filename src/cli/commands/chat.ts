@@ -2,6 +2,7 @@ import * as readline from 'node:readline';
 import { Writable } from 'node:stream';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { ConfigStore } from '../config/store.js';
 import { createProvider } from '../providers/registry.js';
 import type { LLMProvider, ChatMessage, ToolMessage } from '../providers/types.js';
@@ -1059,11 +1060,31 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           return true;
         },
 
-        sendChat: (text, chatId, mode) => {
+        sendChat: (text, chatId, mode, files) => {
           const effectiveChatId = chatId || `web-${Date.now()}`;
+
+          // Write uploaded files to .helixmind/uploads/ and append references to text
+          let enrichedText = text;
+          if (files && files.length > 0) {
+            const uploadsDir = join(process.cwd(), '.helixmind', 'uploads');
+            try { mkdirSync(uploadsDir, { recursive: true }); } catch { /* exists */ }
+            const filePaths: string[] = [];
+            for (const f of files.slice(0, 3)) { // max 3 files
+              if (f.sizeBytes > 5 * 1024 * 1024) continue; // skip > 5MB
+              try {
+                const dest = join(uploadsDir, `${Date.now()}-${f.name}`);
+                writeFileSync(dest, Buffer.from(f.dataBase64, 'base64'));
+                filePaths.push(dest);
+              } catch { /* skip */ }
+            }
+            if (filePaths.length > 0) {
+              enrichedText += '\n\nAttached files:\n' + filePaths.map(p => `- ${p}`).join('\n');
+            }
+          }
+
           // Import web chat handler and run asynchronously
           import('../brain/web-chat-handler.js').then(({ handleWebChat }) => {
-            handleWebChat(text, effectiveChatId, {
+            handleWebChat(enrichedText, effectiveChatId, {
               provider,
               spiralEngine,
               project,
@@ -1405,6 +1426,63 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           if (!brainManager.activate(brain.id)) return null;
           return brain;
         },
+        // Status Bar
+        getStatusBar: () => {
+          const data = getStatusBarData();
+          return {
+            spiral: data.spiral,
+            tokens: { thisMessage: data.tokens.thisMessage, thisSession: data.tokens.thisSession, sessionTotal: data.sessionTokens },
+            tools: data.tools,
+            model: data.model,
+            git: data.git,
+            checkpoints: data.checkpoints ?? 0,
+            permissionMode: data.permissionMode === 'yolo' ? 'yolo' as const
+              : data.permissionMode === 'skip' ? 'skip' as const : 'safe' as const,
+            autonomous: data.autonomous ?? false,
+            paused: data.paused ?? false,
+          };
+        },
+        // Checkpoints
+        listCheckpoints: () => {
+          return checkpointStore.getAll().map(cp => ({
+            id: cp.id,
+            timestamp: cp.timestamp.getTime(),
+            type: cp.type,
+            label: cp.label,
+            messageIndex: cp.messageIndex,
+            hasFileSnapshots: (cp.fileSnapshots?.length ?? 0) > 0,
+            fileCount: cp.fileSnapshots?.length ?? 0,
+            toolName: cp.toolName,
+          }));
+        },
+        revertToCheckpoint: (id: number, mode: 'chat' | 'code' | 'both') => {
+          const cp = checkpointStore.get(id);
+          if (!cp) return { filesReverted: 0, messagesRemoved: 0 };
+          let filesReverted = 0;
+          let messagesRemoved = 0;
+          if (mode === 'code' || mode === 'both') {
+            // Revert file snapshots
+            for (const snap of cp.fileSnapshots ?? []) {
+              if (snap.contentBefore === null) continue; // file didn't exist before
+              try {
+                const { writeFileSync, mkdirSync } = require('fs');
+                const { dirname } = require('path');
+                mkdirSync(dirname(snap.path), { recursive: true });
+                writeFileSync(snap.path, snap.contentBefore, 'utf-8');
+                filesReverted++;
+              } catch { /* skip unwritable files */ }
+            }
+          }
+          if (mode === 'chat' || mode === 'both') {
+            // Truncate agent history to checkpoint message index
+            const beforeLen = agentHistory.length;
+            agentHistory.splice(cp.messageIndex);
+            messagesRemoved = beforeLen - agentHistory.length;
+          }
+          // Remove checkpoints after this one
+          checkpointStore.truncateAfter(id);
+          return { filesReverted, messagesRemoved };
+        },
       });
 
       // Wire bug journal change events to brain server
@@ -1493,10 +1571,28 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           startAuto: (goal?) => { /* relay delegates to local handlers — already registered */ return ''; },
           startSecurity: () => '',
           abortSession: (id) => { sessionMgr.abort(id); return true; },
-          sendChat: (text, chatId, mode) => {
+          sendChat: (text, chatId, mode, files) => {
             const effectiveChatId = chatId || `relay-${Date.now()}`;
+            // Write uploaded files
+            let enrichedText = text;
+            if (files && files.length > 0) {
+              const uploadsDir = join(process.cwd(), '.helixmind', 'uploads');
+              try { mkdirSync(uploadsDir, { recursive: true }); } catch { /* exists */ }
+              const filePaths: string[] = [];
+              for (const f of files.slice(0, 3)) {
+                if (f.sizeBytes > 5 * 1024 * 1024) continue;
+                try {
+                  const dest = join(uploadsDir, `${Date.now()}-${f.name}`);
+                  writeFileSync(dest, Buffer.from(f.dataBase64, 'base64'));
+                  filePaths.push(dest);
+                } catch { /* skip */ }
+              }
+              if (filePaths.length > 0) {
+                enrichedText += '\n\nAttached files:\n' + filePaths.map(p => `- ${p}`).join('\n');
+              }
+            }
             import('../brain/web-chat-handler.js').then(({ handleWebChat }) => {
-              handleWebChat(text, effectiveChatId, {
+              handleWebChat(enrichedText, effectiveChatId, {
                 provider, spiralEngine, project, config, checkpointStore, bugJournal,
               }, {
                 onStarted: (cid) => { pushControlEvent({ type: 'chat_started', chatId: cid, timestamp: Date.now() }); },
@@ -1575,6 +1671,58 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           const brain = brainManager.register({ name, type: brainType, path: brainPath, projectPath });
           if (!brainManager.activate(brain.id)) return null;
           return brain;
+        },
+        getStatusBar: () => {
+          const data = getStatusBarData();
+          return {
+            spiral: data.spiral,
+            tokens: { thisMessage: data.tokens.thisMessage, thisSession: data.tokens.thisSession, sessionTotal: data.sessionTokens },
+            tools: data.tools,
+            model: data.model,
+            git: data.git,
+            checkpoints: data.checkpoints ?? 0,
+            permissionMode: data.permissionMode === 'yolo' ? 'yolo' as const
+              : data.permissionMode === 'skip' ? 'skip' as const : 'safe' as const,
+            autonomous: data.autonomous ?? false,
+            paused: data.paused ?? false,
+          };
+        },
+        listCheckpoints: () => {
+          return checkpointStore.getAll().map(cp => ({
+            id: cp.id,
+            timestamp: cp.timestamp.getTime(),
+            type: cp.type,
+            label: cp.label,
+            messageIndex: cp.messageIndex,
+            hasFileSnapshots: (cp.fileSnapshots?.length ?? 0) > 0,
+            fileCount: cp.fileSnapshots?.length ?? 0,
+            toolName: cp.toolName,
+          }));
+        },
+        revertToCheckpoint: (id: number, mode: 'chat' | 'code' | 'both') => {
+          const cp = checkpointStore.get(id);
+          if (!cp) return { filesReverted: 0, messagesRemoved: 0 };
+          let filesReverted = 0;
+          let messagesRemoved = 0;
+          if (mode === 'code' || mode === 'both') {
+            for (const snap of cp.fileSnapshots ?? []) {
+              if (snap.contentBefore === null) continue;
+              try {
+                const { writeFileSync, mkdirSync } = require('fs');
+                const { dirname } = require('path');
+                mkdirSync(dirname(snap.path), { recursive: true });
+                writeFileSync(snap.path, snap.contentBefore, 'utf-8');
+                filesReverted++;
+              } catch { /* skip */ }
+            }
+          }
+          if (mode === 'chat' || mode === 'both') {
+            const beforeLen = agentHistory.length;
+            agentHistory.splice(cp.messageIndex);
+            messagesRemoved = beforeLen - agentHistory.length;
+          }
+          checkpointStore.truncateAfter(id);
+          return { filesReverted, messagesRemoved };
         },
         }, updateMeta).catch(() => {});
       }

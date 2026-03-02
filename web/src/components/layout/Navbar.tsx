@@ -27,6 +27,7 @@ export function Navbar() {
   }, [mobileOpen]);
 
   const navLinks = [
+    { href: '/#modes' as const, label: t('modes') },
     { href: '/features' as const, label: t('features') },
     { href: '/pricing' as const, label: t('pricing') },
     { href: '/docs' as const, label: t('docs') },

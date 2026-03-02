@@ -4,9 +4,12 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Send, Square, ChevronDown, Shield, ShieldOff,
-  Zap, Eye, ShieldAlert, Key, ArrowRight, Terminal, Bot,
+  Zap, Eye, ShieldAlert, Key, ArrowRight, Terminal, Bot, Paperclip,
 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
+import { SlashCommandMenu } from './SlashCommandMenu';
+import { FileAttachmentPill } from './FileAttachment';
+import type { FileInfo } from './FileAttachment';
 
 interface ChatInputProps {
   onSend: (content: string) => void;
@@ -30,6 +33,10 @@ interface ChatInputProps {
   onSwitchTab?: (tab: 'console' | 'monitor' | 'jarvis') => void;
   /** Which CLI modes are currently active (have running sessions) */
   activeCliModes?: { console: boolean; monitor: boolean; jarvis: boolean };
+  /** Active tab color for accent theming */
+  tabColor?: 'chat' | 'console' | 'monitor' | 'jarvis';
+  /** Callback for sending with file attachments */
+  onSendWithFiles?: (content: string, files: FileInfo[]) => void;
 }
 
 export function ChatInput({
@@ -47,13 +54,19 @@ export function ChatInput({
   onGiveToAgent,
   onSwitchTab,
   activeCliModes = { console: false, monitor: false, jarvis: false },
+  tabColor = 'chat',
+  onSendWithFiles,
 }: ChatInputProps) {
   const t = useTranslations('app');
   const [value, setValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [giveMenuOpen, setGiveMenuOpen] = useState(false);
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<FileInfo[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const modeRef = useRef<HTMLDivElement>(null);
   const giveRef = useRef<HTMLDivElement>(null);
 
@@ -79,22 +92,94 @@ export function ChatInput({
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // File handling
+  const addFiles = useCallback((fileList: FileList | File[]) => {
+    const files = Array.from(fileList).slice(0, 3 - attachedFiles.length); // max 3 total
+    files.forEach((file) => {
+      if (file.size > 5 * 1024 * 1024) return; // skip > 5MB
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        setAttachedFiles((prev) => {
+          if (prev.length >= 3) return prev;
+          return [...prev, {
+            name: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            sizeBytes: file.size,
+            dataBase64: base64,
+          }];
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }, [attachedFiles.length]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.files.length > 0) {
+      addFiles(e.dataTransfer.files);
+    }
+  }, [addFiles]);
+
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      addFiles(e.target.files);
+    }
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  }, [addFiles]);
+
   const handleSend = useCallback(() => {
     if (!value.trim() || disabled || isAgentRunning) return;
-    onSend(value);
+    if (attachedFiles.length > 0 && onSendWithFiles) {
+      onSendWithFiles(value, attachedFiles);
+    } else {
+      onSend(value);
+    }
     setValue('');
+    setAttachedFiles([]);
     // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [value, disabled, isAgentRunning, onSend]);
+  }, [value, disabled, isAgentRunning, onSend, onSendWithFiles, attachedFiles]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Let SlashCommandMenu handle navigation keys when open
+    if (slashMenuOpen && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Tab' || e.key === 'Escape')) {
+      return; // SlashCommandMenu's global handler will catch this
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
+      if (slashMenuOpen) return; // Let menu handle Enter
       e.preventDefault();
       handleSend();
     }
-  }, [handleSend]);
+  }, [handleSend, slashMenuOpen]);
+
+  // Slash command detection
+  const isSlashQuery = value.startsWith('/') && !value.includes('\n');
+  const slashQuery = isSlashQuery ? value.slice(1).split(/\s/)[0] : '';
+  const showSlashMenu = isSlashQuery && slashQuery === value.slice(1).trim() && !isAgentRunning;
+
+  useEffect(() => {
+    setSlashMenuOpen(showSlashMenu);
+  }, [showSlashMenu]);
+
+  const handleSlashSelect = useCallback((command: string) => {
+    setValue('/' + command + ' ');
+    setSlashMenuOpen(false);
+    textareaRef.current?.focus();
+  }, []);
 
   const showQuickActions = hasChat && !isAgentRunning;
 
@@ -217,15 +302,64 @@ export function ChatInput({
           </div>
         )}
 
-        {/* Outer glow wrapper — symmetrical on all sides */}
-        <div className={`relative rounded-2xl transition-all duration-300 ${
-          isFocused
-            ? 'shadow-[0_0_25px_rgba(0,212,255,0.12),0_0_60px_rgba(0,212,255,0.04)]'
-            : 'shadow-[0_0_8px_rgba(0,212,255,0.03)]'
-        }`}>
+        {/* Slash command autocomplete menu */}
+        {slashMenuOpen && (
+          <div className="relative">
+            <SlashCommandMenu
+              query={slashQuery}
+              onSelect={handleSlashSelect}
+              onClose={() => setSlashMenuOpen(false)}
+            />
+          </div>
+        )}
+
+        {/* Attached files pills */}
+        {attachedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2 px-1">
+            {attachedFiles.map((file, i) => (
+              <FileAttachmentPill
+                key={`${file.name}-${i}`}
+                file={file}
+                onRemove={() => setAttachedFiles((prev) => prev.filter((_, j) => j !== i))}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={handleFileInput}
+        />
+
+        {/* Outer glow wrapper — symmetrical on all sides, colored by tab */}
+        <div
+          className={`relative rounded-2xl transition-all duration-300 ${
+            isDragOver ? 'ring-2 ring-cyan-500/30 bg-cyan-500/5' : ''
+          } ${
+            isFocused
+              ? tabColor === 'console' ? 'shadow-[0_0_25px_rgba(16,185,129,0.12),0_0_60px_rgba(16,185,129,0.04)]'
+                : tabColor === 'monitor' ? 'shadow-[0_0_25px_rgba(96,165,250,0.12),0_0_60px_rgba(96,165,250,0.04)]'
+                : tabColor === 'jarvis' ? 'shadow-[0_0_25px_rgba(248,113,113,0.12),0_0_60px_rgba(248,113,113,0.04)]'
+                : 'shadow-[0_0_25px_rgba(0,212,255,0.12),0_0_60px_rgba(0,212,255,0.04)]'
+              : tabColor === 'console' ? 'shadow-[0_0_8px_rgba(16,185,129,0.03)]'
+                : tabColor === 'monitor' ? 'shadow-[0_0_8px_rgba(96,165,250,0.03)]'
+                : tabColor === 'jarvis' ? 'shadow-[0_0_8px_rgba(248,113,113,0.03)]'
+                : 'shadow-[0_0_8px_rgba(0,212,255,0.03)]'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <div className={`relative flex items-end rounded-2xl border transition-all duration-300 ${
             isFocused
-              ? 'border-cyan-500/30 bg-white/[0.04]'
+              ? tabColor === 'console' ? 'border-emerald-500/30 bg-white/[0.04]'
+                : tabColor === 'monitor' ? 'border-blue-500/30 bg-white/[0.04]'
+                : tabColor === 'jarvis' ? 'border-red-500/30 bg-white/[0.04]'
+                : 'border-cyan-500/30 bg-white/[0.04]'
               : 'border-white/[0.07] bg-white/[0.02]'
           }`}>
             {/* Mode selector — left side with border separator */}
@@ -234,7 +368,12 @@ export function ChatInput({
                 onClick={() => setModeMenuOpen(!modeMenuOpen)}
                 className={`
                   flex items-center gap-1 px-3 h-full border-r transition-all rounded-l-2xl text-xs font-medium
-                  ${isFocused ? 'border-cyan-500/15' : 'border-white/[0.07]'}
+                  ${isFocused
+                    ? tabColor === 'console' ? 'border-emerald-500/15'
+                      : tabColor === 'monitor' ? 'border-blue-500/15'
+                      : tabColor === 'jarvis' ? 'border-red-500/15'
+                      : 'border-cyan-500/15'
+                    : 'border-white/[0.07]'}
                   ${mode === 'skip-permissions'
                     ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/5'
                     : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
@@ -269,6 +408,18 @@ export function ChatInput({
               )}
             </div>
 
+            {/* Attach file button */}
+            {isConnected && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={attachedFiles.length >= 3 || isAgentRunning}
+                className="flex-shrink-0 self-center px-1.5 text-gray-600 hover:text-gray-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title={t('attachFile')}
+              >
+                <Paperclip size={15} />
+              </button>
+            )}
+
             {/* Textarea */}
             <textarea
               ref={textareaRef}
@@ -299,7 +450,10 @@ export function ChatInput({
                   disabled={!value.trim() || disabled}
                   className={`w-9 h-9 rounded-full transition-all duration-200 flex items-center justify-center ${
                     value.trim() && !disabled
-                      ? 'bg-cyan-500/20 text-cyan-300 shadow-[0_0_12px_rgba(0,212,255,0.3)] hover:bg-cyan-500/30 hover:shadow-[0_0_16px_rgba(0,212,255,0.4)]'
+                      ? tabColor === 'console' ? 'bg-emerald-500/20 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)] hover:bg-emerald-500/30 hover:shadow-[0_0_16px_rgba(16,185,129,0.4)]'
+                        : tabColor === 'monitor' ? 'bg-blue-500/20 text-blue-300 shadow-[0_0_12px_rgba(96,165,250,0.3)] hover:bg-blue-500/30 hover:shadow-[0_0_16px_rgba(96,165,250,0.4)]'
+                        : tabColor === 'jarvis' ? 'bg-red-500/20 text-red-300 shadow-[0_0_12px_rgba(248,113,113,0.3)] hover:bg-red-500/30 hover:shadow-[0_0_16px_rgba(248,113,113,0.4)]'
+                        : 'bg-cyan-500/20 text-cyan-300 shadow-[0_0_12px_rgba(0,212,255,0.3)] hover:bg-cyan-500/30 hover:shadow-[0_0_16px_rgba(0,212,255,0.4)]'
                       : 'bg-white/[0.03] text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed'
                   }`}
                 >

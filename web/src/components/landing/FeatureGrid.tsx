@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import { Brain, Eye, Shield, Globe, Wifi, Layers, Radar } from 'lucide-react';
+import { Brain, Eye, Shield, Globe, Wifi } from 'lucide-react';
 import { useState } from 'react';
 import { FeatureModal } from './FeatureModal';
 
@@ -12,15 +12,13 @@ const featureIcons = {
   validation: Shield,
   web: Globe,
   offline: Wifi,
-  sessions: Layers,
-  monitor: Radar,
 };
 
 const featureColors = [
-  '#00d4ff', '#00ff88', '#4169e1', '#ffaa00', '#8a2be2', '#ff6b6b', '#ff4444',
+  '#00d4ff', '#00ff88', '#4169e1', '#ffaa00', '#8a2be2',
 ];
 
-const featureKeys = ['memory', 'brain', 'validation', 'web', 'offline', 'sessions', 'monitor'] as const;
+const featureKeys = ['memory', 'brain', 'validation', 'web', 'offline'] as const;
 
 type FeatureKey = (typeof featureKeys)[number];
 
@@ -29,7 +27,7 @@ export function FeatureGrid() {
   const [activeFeature, setActiveFeature] = useState<FeatureKey | null>(null);
 
   return (
-    <section className="py-24 sm:py-32 px-4 relative">
+    <section id="features" className="py-24 sm:py-32 px-4 relative">
       {/* Dual ambient glow */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[500px] h-[300px] rounded-full bg-primary/[0.03] blur-[120px]" />

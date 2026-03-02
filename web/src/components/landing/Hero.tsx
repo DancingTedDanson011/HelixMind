@@ -3,7 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
-import { Terminal, Copy, Check, ChevronDown, Download, ExternalLink } from 'lucide-react';
+import { BrainCanvas } from '@/components/brain/BrainCanvas';
+import { Terminal, Copy, Check, ChevronDown, Download, ExternalLink, Sparkles, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { usePwaInstall } from '@/hooks/use-pwa-install';
 import { useRouter } from 'next/navigation';
@@ -69,16 +70,15 @@ export function Hero() {
 
   return (
     <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
-      {/* Gradient background (no 3D — brain opens in popup) */}
+      {/* 3D Brain background */}
       <div className="absolute inset-0 z-[0] pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,212,255,0.06)_0%,transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_80%_-30%,rgba(138,43,226,0.04),transparent)]" />
+        <BrainCanvas />
       </div>
 
-      {/* Multi-layer gradient overlay */}
+      {/* Multi-layer gradient overlay for text readability */}
       <div className="absolute inset-0 z-[1] pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(0,212,255,0.08),transparent)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(0,212,255,0.06),transparent)]" />
       </div>
 
       {/* Dot grid pattern */}
@@ -112,10 +112,26 @@ export function Hero() {
         {/* Subtitle */}
         <motion.p
           variants={stagger.item}
-          className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed font-light"
+          className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-8 leading-relaxed font-light"
         >
           {t('subtitle')}
         </motion.p>
+
+        {/* Mode Pills */}
+        <motion.div variants={stagger.item} className="flex justify-center gap-2 sm:gap-3 mb-10 flex-wrap">
+          <a href="#modes" className="inline-flex items-center gap-1.5 rounded-full border border-[#ff00ff]/30 bg-[#ff00ff]/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#ff00ff] hover:bg-[#ff00ff]/[0.12] hover:shadow-[0_0_16px_rgba(255,0,255,0.15)] transition-all duration-300">
+            <Sparkles size={12} />
+            {t('modeJarvis')}
+          </a>
+          <a href="#modes" className="inline-flex items-center gap-1.5 rounded-full border border-[#00d4ff]/30 bg-[#00d4ff]/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#00d4ff] hover:bg-[#00d4ff]/[0.12] hover:shadow-[0_0_16px_rgba(0,212,255,0.15)] transition-all duration-300">
+            <Terminal size={12} />
+            {t('modeAgent')}
+          </a>
+          <a href="#modes" className="inline-flex items-center gap-1.5 rounded-full border border-[#ff4444]/30 bg-[#ff4444]/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#ff4444] hover:bg-[#ff4444]/[0.12] hover:shadow-[0_0_16px_rgba(255,68,68,0.15)] transition-all duration-300">
+            <Shield size={12} />
+            {t('modeMonitor')}
+          </a>
+        </motion.div>
 
         {/* Actions */}
         <motion.div

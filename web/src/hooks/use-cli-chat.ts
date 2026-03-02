@@ -8,6 +8,7 @@ import type {
   ChatToolEndEvent,
   ChatCompleteEvent,
   ChatErrorEvent,
+  ChatFileAttachment,
 } from '@/lib/cli-types';
 
 // ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ export interface CliChatState {
 
 export interface UseCliChatReturn {
   state: CliChatState;
-  sendMessage: (text: string, chatId: string, mode?: 'normal' | 'skip-permissions') => void;
+  sendMessage: (text: string, chatId: string, mode?: 'normal' | 'skip-permissions', files?: ChatFileAttachment[]) => void;
   abort: () => void;
   reset: () => void;
 }
@@ -76,7 +77,7 @@ export function useCliChat(
   }, []);
 
   // Send a chat message
-  const sendMessage = useCallback((text: string, chatId: string, mode: 'normal' | 'skip-permissions' = 'normal') => {
+  const sendMessage = useCallback((text: string, chatId: string, mode: 'normal' | 'skip-permissions' = 'normal', files?: ChatFileAttachment[]) => {
     const ws = getConnectionWs(connectionId);
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
@@ -88,13 +89,18 @@ export function useCliChat(
       error: null,
     });
 
-    ws.send(JSON.stringify({
+    const payload: Record<string, unknown> = {
       type: 'send_chat',
       text,
       chatId,
       mode,
       timestamp: Date.now(),
-    }));
+    };
+    if (files && files.length > 0) {
+      payload.files = files;
+    }
+
+    ws.send(JSON.stringify(payload));
   }, [connectionId]);
 
   // Abort (send abort request)

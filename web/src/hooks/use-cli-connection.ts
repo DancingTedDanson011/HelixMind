@@ -23,6 +23,8 @@ import type {
   ThinkingUpdate,
   ConsciousnessEvent,
   ToolPermissionRequest,
+  StatusBarInfo,
+  CheckpointInfo,
 } from '@/lib/cli-types';
 import { registerConnectionWs, unregisterConnectionWs } from '@/lib/cli-ws-registry';
 
@@ -137,6 +139,15 @@ export interface UseCliConnectionReturn {
   // Tool Permission Approval
   pendingPermissions: ToolPermissionRequest[];
   respondPermission: (requestId: string, approved: boolean) => Promise<void>;
+
+  // Status Bar
+  statusBar: StatusBarInfo | null;
+  getStatusBar: () => Promise<StatusBarInfo>;
+
+  // Checkpoints
+  checkpoints: CheckpointInfo[];
+  listCheckpoints: () => Promise<CheckpointInfo[]>;
+  revertToCheckpoint: (id: number, mode: 'chat' | 'code' | 'both') => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +189,8 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [autonomyLevel, setAutonomyLevelState] = useState(2);
   const [configSynced, setConfigSynced] = useState(false);
   const [pendingPermissions, setPendingPermissions] = useState<ToolPermissionRequest[]>([]);
+  const [statusBar, setStatusBar] = useState<StatusBarInfo | null>(null);
+  const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const connectionStateRef = useRef<ConnectionState>('disconnected');
@@ -540,6 +553,28 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
 
     if (msg.type === 'schedule_fired' || msg.type === 'trigger_fired') {
       // Just log — the proposal_created event will handle the UI update
+      return;
+    }
+
+    // Status Bar events
+    if (msg.type === 'status_bar_update') {
+      if (mountedRef.current && msg.data) {
+        setStatusBar(msg.data as StatusBarInfo);
+      }
+      return;
+    }
+
+    // Checkpoint events
+    if (msg.type === 'checkpoint_created') {
+      const cp = msg.checkpoint as CheckpointInfo;
+      if (mountedRef.current && cp) {
+        setCheckpoints((prev) => [...prev, cp]);
+      }
+      return;
+    }
+
+    if (msg.type === 'checkpoint_reverted') {
+      // Re-fetch checkpoints after revert
       return;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -926,6 +961,32 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   );
 
   // ---------------------------------------------------------------------------
+  // Status Bar
+  // ---------------------------------------------------------------------------
+  const getStatusBar = useCallback(async (): Promise<StatusBarInfo> => {
+    const res = (await sendRequest('get_status_bar')) as { data: StatusBarInfo };
+    const info = res.data ?? (res as unknown as StatusBarInfo);
+    if (mountedRef.current) setStatusBar(info);
+    return info;
+  }, [sendRequest]);
+
+  // ---------------------------------------------------------------------------
+  // Checkpoints
+  // ---------------------------------------------------------------------------
+  const listCheckpoints = useCallback(async (): Promise<CheckpointInfo[]> => {
+    const res = (await sendRequest('list_checkpoints')) as { checkpoints: CheckpointInfo[] };
+    const list = res.checkpoints ?? [];
+    if (mountedRef.current) setCheckpoints(list);
+    return list;
+  }, [sendRequest]);
+
+  const revertToCheckpoint = useCallback(async (id: number, revertMode: 'chat' | 'code' | 'both'): Promise<void> => {
+    await sendRequest('revert_to_checkpoint', { checkpointId: id, mode: revertMode });
+    // Re-fetch after revert
+    listCheckpoints().catch(() => {});
+  }, [sendRequest, listCheckpoints]);
+
+  // ---------------------------------------------------------------------------
   // Cleanup on unmount
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -1013,5 +1074,14 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     // Tool Permission Approval
     pendingPermissions,
     respondPermission,
+
+    // Status Bar
+    statusBar,
+    getStatusBar,
+
+    // Checkpoints
+    checkpoints,
+    listCheckpoints,
+    revertToCheckpoint,
   };
 }

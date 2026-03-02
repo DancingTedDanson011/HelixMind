@@ -4,6 +4,7 @@
     "description": "The only AI coding tool that remembers everything. Persistent spiral memory, 3D brain visualization, and intelligent context that grows with your project."
   },
   "nav": {
+    "modes": "Modes",
     "features": "Features",
     "pricing": "Pricing",
     "docs": "Docs",
@@ -15,9 +16,12 @@
   },
   "hero": {
     "badge": "Open Source AI Coding CLI",
-    "title": "Your AI finally",
-    "titleHighlight": "remembers.",
-    "subtitle": "The only AI coding tool with persistent spiral memory. Every pattern, every decision, every context — preserved and evolved across sessions.",
+    "title": "Your AI thinks.",
+    "titleHighlight": "Remembers. Acts.",
+    "subtitle": "Three modes — one CLI. Jarvis AGI plans autonomously, the Coding Agent builds with 22 tools, and the Security Monitor guards your project 24/7. All powered by spiral memory that never forgets.",
+    "modeJarvis": "Jarvis AGI",
+    "modeAgent": "Coding Agent",
+    "modeMonitor": "Security Monitor",
     "cta": "Install App",
     "ctaUpdate": "Update App",
     "ctaInstall": "Install App",
@@ -53,6 +57,49 @@
       "l5": { "name": "Deep Archive", "desc": "Compressed summaries of old knowledge" },
       "l6": { "name": "Web Knowledge", "desc": "Auto-fetched documentation and web insights, always up to date" }
     }
+  },
+  "modes": {
+    "sectionLabel": "Three Superpowers",
+    "title": "One tool. Three superpowers.",
+    "subtitle": "Switch between modes or let them run simultaneously. Each mode taps into the same spiral memory.",
+    "jarvis": {
+      "tab": "Jarvis AGI",
+      "title": "Autonomous intelligence that thinks ahead",
+      "desc": "Jarvis runs in the background — planning, analyzing, and executing tasks from your queue. Multi-phase thinking cycles go from quick checks to deep reasoning. Proposals require your approval before any critical change.",
+      "demo1": "Quick Check — project health: 72/100",
+      "demo2": "Medium Analysis — 3 observations pending...",
+      "demo3": "PROPOSAL: refactor | auth/login.ts needs error handling",
+      "demo4": "Rationale: 3 uncaught promise rejections in last session",
+      "demo5": "Proposal #12 approved → Task #8 created"
+    },
+    "agent": {
+      "tab": "Coding Agent",
+      "title": "22 tools. One conversation. Ship faster.",
+      "desc": "Tell it what to build or fix. The agent reads files, queries spiral memory, writes code, runs tests — all in a single flow. Persistent context means it already knows your patterns.",
+      "demo1": "Fix the auth middleware bug",
+      "demo2": "read_file auth/middleware.ts",
+      "demo3": "spiral_query \"auth middleware patterns\"",
+      "demo4": "edit_file auth/middleware.ts (lines 42-58)",
+      "demo5": "Fixed: Added missing token validation"
+    },
+    "monitor": {
+      "tab": "Security Monitor",
+      "title": "Autonomous guardian for your codebase",
+      "desc": "Passive, defensive, or active — choose your protection level. The monitor scans for vulnerabilities, blocks threats, rotates exposed secrets, and alerts you with severity-ranked findings.",
+      "demo1": "Hardcoded API key in config.ts:14",
+      "demo2": "SQL injection risk in search handler",
+      "demo3": "Missing CSRF token on form endpoint",
+      "demo4": "Dependency update available: lodash 4.17.21"
+    }
+  },
+  "webApp": {
+    "sectionLabel": "Web Platform",
+    "title": "Control everything from your browser",
+    "subtitle": "Connect to your running CLI instances, manage brain visualizations, and monitor agents — all in a sleek web dashboard.",
+    "urlBar": "app.helixmind.dev/dashboard",
+    "pill1": "CLI Connection",
+    "pill2": "Brain Viz",
+    "pill3": "Sessions"
   },
   "features": {
     "title": "Built for developers who ship",
@@ -258,8 +305,8 @@
     }
   },
   "cta": {
-    "title": "Start building with memory",
-    "subtitle": "Install HelixMind in 30 seconds. Free forever for individual use.",
+    "title": "Start building with intelligence",
+    "subtitle": "Install HelixMind in 30 seconds. Jarvis AGI, Coding Agent, and Security Monitor — free forever for individual use.",
     "button": "Install App",
     "buttonUpdate": "Update App",
     "buttonOpen": "Open Dashboard",
@@ -875,7 +922,21 @@
     "quickMonitorDesc": "Watches your project for file changes, errors, test failures, and code quality issues in real-time",
     "switchToConsoleDesc": "Open Console tab — view terminal output from background agent sessions",
     "switchToMonitorDesc": "Open Monitor tab — real-time security monitoring and threat detection",
-    "switchToJarvisDesc": "Open Jarvis tab — autonomous task management and AI-driven execution"
+    "switchToJarvisDesc": "Open Jarvis tab — autonomous task management and AI-driven execution",
+    "statusBarSpiral": "Spiral memory levels",
+    "statusBarTokens": "Token usage",
+    "statusBarTools": "Tool calls this round",
+    "statusBarGit": "Git branch",
+    "statusBarCheckpoints": "Checkpoints",
+    "checkpointTitle": "Checkpoints",
+    "checkpointEmpty": "No checkpoints yet",
+    "checkpointConfirm": "Revert to this checkpoint?",
+    "checkpointRevert": "Revert",
+    "checkpointRevertTo": "Revert to this point",
+    "checkpointModeBoth": "Both (chat + code)",
+    "checkpointModeCode": "Code only",
+    "checkpointModeChat": "Chat only",
+    "attachFile": "Attach file"
   },
   "ticket": {
     "createTitle": "Create New Ticket",

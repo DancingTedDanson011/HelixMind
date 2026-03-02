@@ -14,7 +14,8 @@ import { useBrainstormChat } from '@/hooks/use-brainstorm-chat';
 import { TerminalViewer } from '@/components/cli/TerminalViewer';
 import { SessionSidebar } from './SessionSidebar';
 // BugJournal tab removed — bugs now shown inline in ChatView
-import type { DiscoveredInstance } from '@/lib/cli-types';
+import type { DiscoveredInstance, ChatFileAttachment } from '@/lib/cli-types';
+import type { FileInfo } from './FileAttachment';
 import {
   Brain, PanelLeftClose, PanelLeft, Menu, ChevronDown,
   Wifi, WifiOff, RefreshCw, Terminal, Plus,
@@ -22,7 +23,7 @@ import {
   AlertTriangle, Activity, X, MessageSquare, Square,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
   Bug, Bot, Search, ListChecks, ShieldCheck,
-  Play, Pause, Sparkles, Users,
+  Play, Pause, Sparkles, Users, Minimize2,
 } from 'lucide-react';
 import { JarvisPanel } from '@/components/jarvis/JarvisPanel';
 import { JarvisTaskList } from '@/components/jarvis/JarvisTaskList';
@@ -30,6 +31,8 @@ import { JarvisBottomPanel } from '@/components/jarvis/JarvisBottomPanel';
 import { InlineBugPanel } from './InlineBugPanel';
 import { TabInfoPage } from './TabInfoPage';
 import { PermissionRequestCard } from './PermissionRequestCard';
+import { CliStatusBar } from './CliStatusBar';
+import { CheckpointBrowser } from './CheckpointBrowser';
 
 /* ─── Tab color scheme ──────────────────────── */
 
@@ -394,11 +397,14 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     connection.abortSession(sessionId).catch(() => {});
   }, [connection]);
 
-  // ── Brain: in-app iframe overlay ───────────────
-  const [showBrainOverlay, setShowBrainOverlay] = useState(false);
+  // ── Checkpoints panel ──
+  const [showCheckpoints, setShowCheckpoints] = useState(false);
+
+  // ── Brain: in-app iframe overlay (hidden / minimized / full) ──
+  const [brainOverlayState, setBrainOverlayState] = useState<'hidden' | 'minimized' | 'full'>('hidden');
   const handleBrainClick = useCallback(() => {
     if (connectedPort) {
-      setShowBrainOverlay(true);
+      setBrainOverlayState('full');
     }
   }, [connectedPort]);
 
@@ -545,6 +551,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   useEffect(() => {
     if (isConnected) {
       connection.getBugs().catch(() => {});
+      connection.getStatusBar().catch(() => {});
+      connection.listCheckpoints().catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]);
@@ -741,6 +749,69 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   }, [activeChatId, brainstormChat, mode, hasLLMKey, isConnected, cliChat, fetchChats, loadChat, activeTab,
       handleStartAuto, handleStartSecurity, handleStartMonitor, handleAbortSession,
       handleBrainClick, activeSessions, disconnectCli, addSystemMessage, instances, connectTo, rescan, t]);
+
+  // ── Send message with file attachments ──
+  const handleSendWithFiles = useCallback(async (content: string, files: FileInfo[]) => {
+    if (!isConnected || files.length === 0) {
+      // Fallback to regular send
+      sendMessage(content);
+      return;
+    }
+
+    const trimmed = content.trim();
+
+    // Auto-create chat if none selected
+    let chatId = activeChatId;
+    if (!chatId) {
+      try {
+        const res = await fetch('/api/chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode }),
+        });
+        if (res.ok) {
+          const newChat = await res.json();
+          chatId = newChat.id;
+          await fetchChats();
+          await loadChat(chatId!);
+        }
+      } catch { return; }
+    }
+    if (!chatId) return;
+
+    if (activeTab !== 'chat') setActiveTab('chat');
+
+    // Optimistic user message with file info
+    const fileNames = files.map(f => f.name).join(', ');
+    const displayContent = trimmed + (trimmed ? '\n' : '') + `[Files: ${fileNames}]`;
+
+    const userMsg: ChatMessage = {
+      id: `temp-${Date.now()}`,
+      chatId,
+      role: 'user',
+      content: displayContent,
+      createdAt: new Date().toISOString(),
+      metadata: { files: files.map(f => ({ name: f.name, mimeType: f.mimeType, sizeBytes: f.sizeBytes })) },
+    };
+
+    setActiveChat(prev => prev ? { ...prev, messages: [...prev.messages, userMsg] } : null);
+
+    try {
+      await fetch(`/api/chats/${chatId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user', content: displayContent }),
+      });
+    } catch { /* silent */ }
+
+    // Convert FileInfo → ChatFileAttachment
+    const chatFiles: ChatFileAttachment[] = files
+      .filter(f => f.dataBase64)
+      .map(f => ({ name: f.name, mimeType: f.mimeType, sizeBytes: f.sizeBytes, dataBase64: f.dataBase64! }));
+
+    setCliExecuting(true);
+    cliChat.sendMessage(trimmed || 'Please analyze the attached files.', chatId, chatMode, chatFiles);
+  }, [activeChatId, isConnected, cliChat, sendMessage, mode, fetchChats, loadChat, activeTab, chatMode]);
 
   // ── CLI completion callback (event-based, not ref-tracking) ──
   const handleCliComplete = useCallback((text: string, tools: import('@/hooks/use-cli-chat').ActiveTool[]) => {
@@ -1369,6 +1440,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 instanceMeta={connection.instanceMeta}
                 connectedPort={connectedPort}
                 cliOutputLines={cliOutput.lines}
+                onStop={handleStop}
+                tabColor={activeTab as 'chat' | 'console' | 'monitor' | 'jarvis'}
               />
             </div>
           </div>
@@ -1814,6 +1887,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               )}
               <ChatInput
                 onSend={sendMessage}
+                onSendWithFiles={handleSendWithFiles}
                 isAgentRunning={isAgentRunning}
                 onStop={handleStop}
                 mode={mode}
@@ -1823,10 +1897,36 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 hasChat={true}
                 isConnected={isConnected}
                 activeTab="jarvis"
+                tabColor="jarvis"
               />
             </div>
           </div>
         ) : null}
+
+        {/* CLI Status Bar — visible when connected and status data available */}
+        {activeTab === 'chat' && isConnected && connection.statusBar && (
+          <CliStatusBar
+            statusBar={connection.statusBar}
+            checkpointCount={connection.checkpoints.length}
+            onCheckpointClick={() => {
+              setShowCheckpoints(prev => !prev);
+              connection.listCheckpoints().catch(() => {});
+            }}
+          />
+        )}
+
+        {/* Checkpoint browser panel */}
+        {activeTab === 'chat' && showCheckpoints && (
+          <div className="border-t border-white/5">
+            <CheckpointBrowser
+              checkpoints={connection.checkpoints}
+              onRevert={(id, revertMode) => {
+                connection.revertToCheckpoint(id, revertMode).catch(() => {});
+              }}
+              onClose={() => setShowCheckpoints(false)}
+            />
+          </div>
+        )}
 
         {/* Bug panel — sticky above input, visible in chat tab */}
         {activeTab === 'chat' && showBugPanel && (
@@ -1907,6 +2007,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             )}
             <ChatInput
               onSend={sendMessage}
+              onSendWithFiles={handleSendWithFiles}
               isAgentRunning={isAgentRunning}
               onStop={handleStop}
               mode={mode}
@@ -1922,6 +2023,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 monitor: monitorSessions.some(s => s.status === 'running'),
                 jarvis: connection.jarvisStatus?.daemonState === 'running',
               }}
+              tabColor={activeTab as 'chat' | 'console' | 'monitor' | 'jarvis'}
             />
           </div>
         )}
@@ -1946,23 +2048,58 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         onConnect={(inst) => { connectTo(inst); setShowSpawnDialog(false); }}
       />
 
-      {/* Brain 3D Overlay — portal to body to escape app layout stacking context */}
-      {showBrainOverlay && connectedPort && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[70] bg-black">
-          <div className="relative w-full h-full">
+      {/* Brain 3D Overlay — portal to body, supports full / minimized / hidden */}
+      {brainOverlayState !== 'hidden' && connectedPort && typeof document !== 'undefined' && createPortal(
+        brainOverlayState === 'full' ? (
+          <div className="fixed inset-0 z-[70] bg-black">
+            <div className="relative w-full h-full">
+              <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                <button
+                  onClick={() => setBrainOverlayState('minimized')}
+                  className="w-10 h-10 rounded-full bg-black/60 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
+                  title="Minimize"
+                >
+                  <Minimize2 size={16} />
+                </button>
+                <button
+                  onClick={() => setBrainOverlayState('hidden')}
+                  className="w-10 h-10 rounded-full bg-black/60 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <iframe
+                src={`http://127.0.0.1:${connectedPort}`}
+                className="w-full h-full border-0 bg-black"
+                title="HelixMind Brain"
+              />
+            </div>
+          </div>
+        ) : (
+          /* Minimized: small preview window bottom-right */
+          <div
+            className="fixed bottom-4 right-4 z-[60] w-[220px] h-[150px] rounded-xl overflow-hidden border border-white/10 shadow-2xl cursor-pointer group"
+            onClick={() => setBrainOverlayState('full')}
+          >
             <button
-              onClick={() => setShowBrainOverlay(false)}
-              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
+              onClick={(e) => { e.stopPropagation(); setBrainOverlayState('hidden'); }}
+              className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-full bg-black/70 border border-white/10 text-gray-500 hover:text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
             >
-              <X size={18} />
+              <X size={12} />
             </button>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-[5] pointer-events-none" />
+            <div className="absolute bottom-1.5 left-2 z-[6] flex items-center gap-1 pointer-events-none">
+              <Brain size={10} className="text-purple-400/60" />
+              <span className="text-[9px] text-gray-500 font-mono">Brain</span>
+            </div>
             <iframe
               src={`http://127.0.0.1:${connectedPort}`}
-              className="w-full h-full border-0 bg-black"
-              title="HelixMind Brain"
+              className="w-full h-full border-0 bg-black pointer-events-none"
+              title="HelixMind Brain Mini"
+              tabIndex={-1}
             />
           </div>
-        </div>,
+        ),
         document.body,
       )}
     </div>

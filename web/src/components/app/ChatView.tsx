@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
   MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle,
   Wifi, Terminal, Download, Plug, ExternalLink, Key, BookOpen,
+  Square,
 } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
@@ -35,15 +36,24 @@ function toolDetail(tool: ActiveTool): string | null {
   return null;
 }
 
+/* ─── Tab accent color mapping ─────────────────── */
+
+const TAB_ACCENT = {
+  chat:    { dot: 'bg-cyan-400',    cursor: 'bg-cyan-400',    text: 'text-cyan-400' },
+  console: { dot: 'bg-emerald-400', cursor: 'bg-emerald-400', text: 'text-emerald-400' },
+  monitor: { dot: 'bg-blue-400',    cursor: 'bg-blue-400',    text: 'text-blue-400' },
+  jarvis:  { dot: 'bg-red-400',     cursor: 'bg-red-400',     text: 'text-red-400' },
+} as const;
+
 /* ─── Thinking Dots ─────────────────────────────── */
 
-function ThinkingDots() {
+function ThinkingDots({ accentDot = 'bg-gray-400' }: { accentDot?: string }) {
   return (
     <div className="flex items-center gap-1">
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="w-1.5 h-1.5 rounded-full bg-gray-400"
+          className={`w-1.5 h-1.5 rounded-full ${accentDot}`}
           style={{
             animation: `thinking-bounce 1.2s ease-in-out ${i * 0.15}s infinite`,
           }}
@@ -72,6 +82,10 @@ interface ChatViewProps {
   instanceMeta?: InstanceMeta | null;
   connectedPort?: number | null;
   cliOutputLines?: string[];
+  /** Stop callback for floating stop button */
+  onStop?: () => void;
+  /** Active tab for accent color theming */
+  tabColor?: 'chat' | 'console' | 'monitor' | 'jarvis';
 }
 
 export function ChatView({
@@ -93,6 +107,8 @@ export function ChatView({
   instanceMeta,
   connectedPort,
   cliOutputLines = [],
+  onStop,
+  tabColor = 'chat',
 }: ChatViewProps) {
   const t = useTranslations('app');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -345,13 +361,13 @@ export function ChatView({
                 <div className="text-[15px] text-gray-200 whitespace-pre-wrap break-words leading-[1.7]">
                   <StreamingText text={streamingContent} />
                   <span
-                    className="inline-block w-[2px] h-[1.1em] bg-gray-400 ml-0.5 align-middle rounded-full"
+                    className={`inline-block w-[2px] h-[1.1em] ${TAB_ACCENT[tabColor].cursor} ml-0.5 align-middle rounded-full`}
                     style={{ animation: 'cursor-blink 1s step-end infinite' }}
                   />
                 </div>
               ) : (
                 <div className="flex items-center gap-2.5 py-1">
-                  <ThinkingDots />
+                  <ThinkingDots accentDot={TAB_ACCENT[tabColor].dot} />
                 </div>
               )}
             </div>
@@ -361,6 +377,17 @@ export function ChatView({
         {/* Bottom padding for breathing room */}
         <div className="h-8" />
       </div>
+
+      {/* Floating stop button */}
+      {isAgentRunning && onStop && (
+        <button
+          onClick={onStop}
+          className="absolute bottom-20 right-6 z-10 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/20 text-xs font-medium transition-all shadow-lg backdrop-blur-sm"
+        >
+          <Square size={12} />
+          {t('stopAgent')}
+        </button>
+      )}
 
       {/* Scroll to bottom */}
       {showScrollBtn && (

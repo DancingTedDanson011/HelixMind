@@ -3,6 +3,8 @@
 import { useState, useCallback, memo } from 'react';
 import { Copy, Check, CheckCircle2, XCircle, ChevronDown, ChevronUp, Wrench } from 'lucide-react';
 import { ToolBlock } from './ToolBlock';
+import { FileAttachmentCard } from './FileAttachment';
+import type { FileInfo } from './FileAttachment';
 import type { ChatMessage } from './AppShell';
 
 interface MessageBubbleProps {
@@ -13,12 +15,20 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
   const isUser = message.role === 'user';
 
   if (isUser) {
+    const userFiles = message.metadata?.files as FileInfo[] | undefined;
     return (
       <div className="flex justify-end animate-message-in">
         <div className="max-w-[85%] min-w-0">
           <div className="bg-white/[0.06] rounded-2xl rounded-tr-sm px-4 py-3 text-[15px] text-gray-200 whitespace-pre-wrap break-words leading-[1.7]">
             {message.content}
           </div>
+          {userFiles && userFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-1.5 justify-end">
+              {userFiles.map((file, i) => (
+                <FileAttachmentCard key={i} file={file} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -55,6 +65,8 @@ function AssistantContent({
     result?: string;
   }> | undefined;
 
+  const fileAttachments = metadata?.files as FileInfo[] | undefined;
+
   const segments = parseContent(content);
 
   return (
@@ -84,6 +96,15 @@ function AssistantContent({
           </div>
         );
       })}
+
+      {/* File attachments */}
+      {fileAttachments && fileAttachments.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-1">
+          {fileAttachments.map((file, i) => (
+            <FileAttachmentCard key={i} file={file} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
