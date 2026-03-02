@@ -42,19 +42,8 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
   const essentialParts: string[] = [];
   const optionalParts: string[] = [];
 
-  // [Essential] Spiral counts — compact format for narrow terminals
-  const spiralStr = termWidth < 80
-    ? '\u{1F300} ' + chalk.cyan(`${data.spiral.l1}`) + chalk.dim('/') +
-      chalk.green(`${data.spiral.l2}`) + chalk.dim('/') +
-      chalk.hex('#FFAA00')(`${data.spiral.l3}`)
-    : '\u{1F300} ' +
-      chalk.cyan(`L1:${data.spiral.l1}`) + ' ' +
-      chalk.green(`L2:${data.spiral.l2}`) + ' ' +
-      chalk.hex('#FFAA00')(`L3:${data.spiral.l3}`) + ' ' +
-      chalk.blue(`L4:${data.spiral.l4}`) + ' ' +
-      chalk.magenta(`L5:${data.spiral.l5}`) + ' ' +
-      chalk.hex('#00d4ff')(`L6:${data.spiral.l6}`);
-  essentialParts.push(spiralStr);
+  // [Essential] Brain Growth Bar — shows total knowledge stored, grows with each node
+  essentialParts.push(renderBrainGrowthBar(data.spiral, termWidth < 80));
 
   // [Essential] Token bar — shorter on narrow terminals
   essentialParts.push(renderTokenBar(data.sessionTokens, termWidth < 80));
@@ -199,6 +188,76 @@ export function getGitInfo(projectRoot: string): { branch: string; uncommitted: 
   } catch {
     return { branch: '', uncommitted: 0 };
   }
+}
+
+// Brain Growth tiers — bar fills up, then jumps to next tier
+// Each tier represents a milestone in brain knowledge capacity
+const BRAIN_GROWTH_TIERS = [
+  10,      // Starter brain
+  50,      // Learning
+  100,     // Growing
+  250,     // Mature
+  500,     // Advanced
+  1000,    // Expert
+  2500,    // Master
+  5000,    // Genius
+  10000,   // Legendary
+  25000,   // Transcendent
+  50000,   // Divine
+  100000,  // Cosmic
+];
+
+function getBrainScale(totalNodes: number): number {
+  for (const tier of BRAIN_GROWTH_TIERS) {
+    if (totalNodes < tier) return tier;
+  }
+  // Beyond 100k — round up to next 50k
+  return Math.ceil(totalNodes / 50000) * 50000;
+}
+
+/**
+ * Render brain growth bar — shows how much knowledge the brain has accumulated.
+ * The bar grows as more nodes are stored in the spiral memory.
+ */
+function renderBrainGrowthBar(spiral: { l1: number; l2: number; l3: number; l4: number; l5: number; l6: number }, compact: boolean): string {
+  const totalNodes = spiral.l1 + spiral.l2 + spiral.l3 + spiral.l4 + spiral.l5 + spiral.l6;
+  const scale = getBrainScale(totalNodes);
+  const ratio = Math.min(totalNodes / scale, 1);
+  const width = compact ? 5 : 8;
+  const filled = Math.round(ratio * width);
+  const empty = width - filled;
+
+  // Gradient colors based on brain maturity
+  let barColor: (str: string) => string;
+  let brainIcon: string;
+  
+  if (totalNodes < 10) {
+    barColor = chalk.dim;
+    brainIcon = '\u{1F9E0}'; // Brain emoji
+  } else if (totalNodes < 50) {
+    barColor = chalk.cyan;
+    brainIcon = '\u{1F9E0}';
+  } else if (totalNodes < 100) {
+    barColor = chalk.green;
+    brainIcon = '\u{1F9E0}';
+  } else if (totalNodes < 500) {
+    barColor = chalk.hex('#FFAA00');
+    brainIcon = '\u{1F4AF}'; // Hundred emoji
+  } else if (totalNodes < 1000) {
+    barColor = chalk.hex('#FF6600');
+    brainIcon = '\u{1F525}'; // Fire emoji
+  } else if (totalNodes < 5000) {
+    barColor = chalk.hex('#00d4ff');
+    brainIcon = '\u{1F680}'; // Rocket emoji
+  } else {
+    barColor = chalk.hex('#8a2be2');
+    brainIcon = '\u{2728}'; // Sparkles emoji
+  }
+
+  const bar = barColor(FILLED.repeat(filled)) + chalk.dim(EMPTY.repeat(empty));
+  const label = `${totalNodes}/${scale} brain`;
+
+  return `${brainIcon} ${bar} ${barColor(label)}`;
 }
 
 // Scale tiers — bar fills up, then jumps to next tier

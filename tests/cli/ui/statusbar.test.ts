@@ -17,21 +17,40 @@ function makeData(overrides: Partial<StatusBarData> = {}): StatusBarData {
 const WIDE = 200;
 
 describe('Statusbar', () => {
-  it('should render all spiral levels', () => {
+  it('should render brain growth bar with total nodes', () => {
     const bar = renderStatusBar(makeData(), WIDE);
-    expect(bar).toContain('L1:42');
-    expect(bar).toContain('L2:28');
-    expect(bar).toContain('L3:15');
-    expect(bar).toContain('L4:8');
-    expect(bar).toContain('L5:3');
-    expect(bar).toContain('L6:5');
+    // Total = 42+28+15+8+3+5 = 101 nodes
+    expect(bar).toContain('101');
+    expect(bar).toContain('brain');
+  });
+
+  it('should show different icons based on brain maturity', () => {
+    // Small brain (under 10 nodes)
+    const bar1 = renderStatusBar(makeData({ spiral: { l1: 5, l2: 0, l3: 0, l4: 0, l5: 0, l6: 0 } }), WIDE);
+    expect(bar1).toContain('🧠');
+
+    // Growing brain (100+ nodes)
+    const bar2 = renderStatusBar(makeData({ spiral: { l1: 80, l2: 20, l3: 0, l4: 0, l5: 0, l6: 0 } }), WIDE);
+    expect(bar2).toContain('💯');
+
+    // Expert brain (500-1000 nodes) — shows fire emoji
+    const bar3 = renderStatusBar(makeData({ spiral: { l1: 700, l2: 200, l3: 0, l4: 0, l5: 0, l6: 0 } }), WIDE);
+    expect(bar3).toContain('🔥');
+
+    // Master brain (1000+ nodes) — shows rocket
+    const bar4 = renderStatusBar(makeData({ spiral: { l1: 800, l2: 300, l3: 0, l4: 0, l5: 0, l6: 0 } }), WIDE);
+    expect(bar4).toContain('🚀');
+
+    // Legendary brain (5000+ nodes) — shows sparkles
+    const bar5 = renderStatusBar(makeData({ spiral: { l1: 4000, l2: 2000, l3: 0, l4: 0, l5: 0, l6: 0 } }), WIDE);
+    expect(bar5).toContain('✨');
   });
 
   it('should render token bar with count', () => {
     const bar = renderStatusBar(makeData(), WIDE);
     // Should show token count like "58.0k" and scale like "100.0k"
     expect(bar).toContain('58.0k');
-    expect(bar).toContain('tk');
+    expect(bar).toContain('ctx');
   });
 
   it('should auto-scale token bar', () => {
@@ -56,7 +75,7 @@ describe('Statusbar', () => {
 
   it('should render token count', () => {
     const bar = renderStatusBar(makeData(), WIDE);
-    expect(bar).toContain('3.2k tok');
+    expect(bar).toContain('3.2k msg');
   });
 
   it('should render tool calls when > 0', () => {
@@ -151,20 +170,34 @@ describe('Statusbar', () => {
   // New tests for responsive behavior
   it('should drop optional parts on narrow terminals', () => {
     const narrow = renderStatusBar(makeData(), 60);
-    // Essential parts should still be there
-    expect(narrow).toContain('tok');
+    // Essential parts should still be there (brain bar and token bar)
+    expect(narrow).toContain('brain');
     // Optional parts (git, time) may be dropped
   });
 
-  it('should use compact spiral format on narrow terminals', () => {
+  it('should use compact brain bar on narrow terminals', () => {
     const narrow = renderStatusBar(makeData(), 70);
-    // Compact format doesn't have L1:/L2: prefixes
-    expect(narrow).not.toContain('L4:');
+    // Compact format has shorter bar width
+    expect(narrow).toContain('brain');
   });
 
   it('should shorten deepseek model names', () => {
     const bar = renderStatusBar(makeData({ model: 'deepseek-reasoner' }), WIDE);
     expect(bar).toContain('ds-r1');
     expect(bar).not.toContain('deepseek-reasoner');
+  });
+
+  it('should scale brain bar based on node count', () => {
+    // Under 10 nodes — scale is 10
+    const bar1 = renderStatusBar(makeData({ spiral: { l1: 5, l2: 0, l3: 0, l4: 0, l5: 0, l6: 0 } }), WIDE);
+    expect(bar1).toContain('5/10');
+
+    // Over 10 nodes — scale is 50
+    const bar2 = renderStatusBar(makeData({ spiral: { l1: 30, l2: 0, l3: 0, l4: 0, l5: 0, l6: 0 } }), WIDE);
+    expect(bar2).toContain('30/50');
+
+    // Over 100 nodes — scale is 250
+    const bar3 = renderStatusBar(makeData({ spiral: { l1: 150, l2: 0, l3: 0, l4: 0, l5: 0, l6: 0 } }), WIDE);
+    expect(bar3).toContain('150/250');
   });
 });

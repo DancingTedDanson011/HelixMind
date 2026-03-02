@@ -14,8 +14,8 @@
 import chalk from 'chalk';
 import { EventEmitter } from 'node:events';
 
-const INPUT_WINDOW_HEIGHT = 4; // 1 top border, 1 input line, 1 hint line, 1 bottom border
-const MIN_TERMINAL_HEIGHT = 12;
+const INPUT_WINDOW_HEIGHT = 5; // 1 top border, 2 input lines, 1 hint line, 1 bottom border
+const MIN_TERMINAL_HEIGHT = 14;
 
 /** Enterprise: Typing detection thresholds */
 const TYPING_IDLE_MS = 500;        // Consider typing stopped after 500ms idle
@@ -202,7 +202,7 @@ export class InputWindow extends EventEmitter {
     if (!this._active || this._inlineMode) return;
     
     const rows = process.stdout.rows || 24;
-    const inputRow = rows - INPUT_WINDOW_HEIGHT + 1; // Row for input text
+    const inputRow = rows - INPUT_WINDOW_HEIGHT + 1; // Row for input text (first line)
     const col = 3 + this._cursorPosition; // 2 for border + 1 space
     
     process.stdout.write(`\x1b[${inputRow};${col}H`);
@@ -317,16 +317,20 @@ export class InputWindow extends EventEmitter {
     const borderColor = this._bufferLocked ? chalk.red : chalk.hex('#00d4ff');
     process.stdout.write(borderColor.dim('┌' + '─'.repeat(cols - 2) + '┐'));
     
-    // Input line (with prompt)
+    // Input line 1 (with prompt)
     process.stdout.write(`\x1b[${startRow + 1};0H`);
     process.stdout.write(borderColor.dim('│') + ' ❯ ');
     
-    // Hint line
+    // Input line 2 (extra space for long messages)
     process.stdout.write(`\x1b[${startRow + 2};0H`);
+    process.stdout.write(borderColor.dim('│') + '   ');
+    
+    // Hint line
+    process.stdout.write(`\x1b[${startRow + 3};0H`);
     process.stdout.write(borderColor.dim('│'));
     
     // Bottom border with status
-    process.stdout.write(`\x1b[${startRow + 3};0H`);
+    process.stdout.write(`\x1b[${startRow + 4};0H`);
     process.stdout.write(borderColor.dim('└' + '─'.repeat(cols - 2) + '┘'));
     
     // Restore cursor
@@ -347,6 +351,7 @@ export class InputWindow extends EventEmitter {
     const rows = process.stdout.rows || 24;
     const cols = process.stdout.columns || 80;
     const inputRow = rows - INPUT_WINDOW_HEIGHT + 1;
+    const inputRow2 = rows - INPUT_WINDOW_HEIGHT + 2;
     
     // Save cursor
     process.stdout.write('\x1b7');
@@ -358,7 +363,22 @@ export class InputWindow extends EventEmitter {
     const borderColor = this._bufferLocked ? chalk.red : chalk.hex('#00d4ff');
     const typingIndicator = this._isTyping ? chalk.dim('⌨ ') : '';
     
-    process.stdout.write(borderColor.dim('│') + ' ❯ ' + typingIndicator + this._inputContent);
+    // Wrap long input across two lines
+    const maxLine1 = cols - 6; // Account for border and prompt
+    const line1 = this._inputContent.slice(0, maxLine1);
+    const line2 = this._inputContent.slice(maxLine1, maxLine1 * 2);
+    
+    process.stdout.write(borderColor.dim('│') + ' ❯ ' + typingIndicator + line1);
+    
+    // Second line if content is long
+    if (line2) {
+      process.stdout.write(`\x1b[${inputRow2};0H\x1b[2K`);
+      process.stdout.write(borderColor.dim('│') + '   ' + line2);
+    } else {
+      // Clear second line
+      process.stdout.write(`\x1b[${inputRow2};0H\x1b[2K`);
+      process.stdout.write(borderColor.dim('│') + '   ');
+    }
     
     // Restore cursor
     process.stdout.write('\x1b8');
@@ -372,7 +392,7 @@ export class InputWindow extends EventEmitter {
     
     const rows = process.stdout.rows || 24;
     const cols = process.stdout.columns || 80;
-    const hintRow = rows - INPUT_WINDOW_HEIGHT + 2;
+    const hintRow = rows - INPUT_WINDOW_HEIGHT + 3;
     
     // Save cursor
     process.stdout.write('\x1b7');
@@ -395,7 +415,7 @@ export class InputWindow extends EventEmitter {
     
     const rows = process.stdout.rows || 24;
     const cols = process.stdout.columns || 80;
-    const statusRow = rows - INPUT_WINDOW_HEIGHT + 3;
+    const statusRow = rows - INPUT_WINDOW_HEIGHT + 4;
     
     // Save cursor
     process.stdout.write('\x1b7');
