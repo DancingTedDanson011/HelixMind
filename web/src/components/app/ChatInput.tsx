@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Send, Square, ChevronDown, Shield, ShieldOff,
-  Zap, Eye, Activity, ShieldAlert, Bot, Key,
+  Zap, Eye, ShieldAlert, Key,
 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 
@@ -115,16 +115,6 @@ export function ChatInput({
               >
                 <Eye size={10} />
                 {t('quickMonitor')}
-              </button>
-            )}
-            {(activeTab === 'chat' || activeTab === 'jarvis') && (
-              <button
-                onClick={() => onSend('Analyze the current project structure, identify all open tasks and issues, and create a prioritized action plan for improvements.')}
-                disabled={!isConnected}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.03] border border-white/5 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed text-fuchsia-400/60 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20"
-              >
-                <Bot size={10} />
-                {t('quickJarvis')}
               </button>
             )}
           </div>

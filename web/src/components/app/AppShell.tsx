@@ -22,8 +22,11 @@ import {
   AlertTriangle, Activity, X, MessageSquare, Square,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
   Bug, Bot, Search, ListChecks, ShieldCheck,
+  Play, Pause, Sparkles, Users,
 } from 'lucide-react';
 import { JarvisPanel } from '@/components/jarvis/JarvisPanel';
+import { JarvisTaskList } from '@/components/jarvis/JarvisTaskList';
+import { JarvisBottomPanel } from '@/components/jarvis/JarvisBottomPanel';
 import { InlineBugPanel } from './InlineBugPanel';
 import { TabInfoPage } from './TabInfoPage';
 
@@ -126,6 +129,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const [showInstancePicker, setShowInstancePicker] = useState(false);
   const [showSpawnDialog, setShowSpawnDialog] = useState(false);
   const [showBugPanel, setShowBugPanel] = useState(false);
+  const [showJarvisPanel, setShowJarvisPanel] = useState(true);
   const [showConnectPopover, setShowConnectPopover] = useState(false);
   const connectPopoverRef = useRef<HTMLDivElement>(null);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
@@ -1559,39 +1563,181 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         ) : activeTab === 'jarvis' ? (
           /* ─── Jarvis Tab ─── */
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className={jarvisSessionIdForOutput ? 'flex-shrink-0 max-h-[55%] overflow-y-auto' : 'flex-1 overflow-y-auto'}>
-              <JarvisPanel
-                tasks={connection.jarvisTasks}
-                status={connection.jarvisStatus}
-                onStartJarvis={() => connection.startJarvis().catch(() => {})}
-                onStopJarvis={() => connection.stopJarvis().catch(() => {})}
-                onPauseJarvis={() => connection.pauseJarvis().catch(() => {})}
-                onResumeJarvis={() => connection.resumeJarvis().catch(() => {})}
-                onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
-                onClearCompleted={() => {
-                  connection.sendRequest('clear_jarvis_completed').catch(() => {});
-                  connection.listJarvisTasks().catch(() => {});
-                }}
-                isConnected={isConnected}
-                proposals={connection.proposals}
-                identity={connection.identity}
-                autonomyLevel={connection.autonomyLevel}
-                workers={connection.workers}
-                thinkingUpdates={connection.thinkingUpdates}
-                consciousnessEvents={connection.consciousnessEvents}
-                onApproveProposal={(id) => connection.approveProposal(id).catch(() => {})}
-                onDenyProposal={(id, reason) => connection.denyProposal(id, reason).catch(() => {})}
-                onSetAutonomy={(level) => connection.setAutonomyLevel(level).catch(() => {})}
-                onTriggerDeepThink={() => connection.triggerDeepThink().catch(() => {})}
-              />
-            </div>
-            {jarvisSessionIdForOutput && (
-              <div className="flex-1 min-h-0 border-t border-white/5">
-                <TerminalViewer lines={cliOutput.lines} fullHeight />
+            {/* Compact control bar */}
+            {isConnected && connection.jarvisStatus && connection.jarvisStatus.daemonState !== 'stopped' && (() => {
+              const jStatus = connection.jarvisStatus!;
+              const jRunning = jStatus.daemonState === 'running';
+              const jPaused = jStatus.daemonState === 'paused';
+              const jPhase = jStatus.thinkingPhase ?? 'idle';
+              const PB: Record<string, { color: string; label: string }> = {
+                idle: { color: 'text-gray-500 bg-gray-500/10', label: 'Idle' },
+                quick: { color: 'text-cyan-400 bg-cyan-500/10', label: 'Quick' },
+                medium: { color: 'text-amber-400 bg-amber-500/10', label: 'Medium' },
+                deep: { color: 'text-fuchsia-400 bg-fuchsia-500/10', label: 'Deep' },
+              };
+              const pb = PB[jPhase] ?? PB.idle;
+              return (
+                <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-white/[0.02] flex-wrap">
+                  <Bot size={14} className={jRunning ? 'text-fuchsia-400 animate-pulse' : 'text-gray-400'} />
+                  <span className="text-xs font-medium text-gray-300">
+                    {jStatus.jarvisName || 'Jarvis'}:
+                    <span className={jRunning ? ' text-fuchsia-400' : ' text-gray-500'}>
+                      {' '}{jRunning ? 'Running' : jPaused ? 'Paused' : jStatus.daemonState}
+                    </span>
+                  </span>
+                  {jRunning && (
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${pb.color}`}>
+                      <Brain size={8} className="inline mr-0.5" />
+                      {pb.label}
+                    </span>
+                  )}
+                  {jStatus.autonomyLevel !== undefined && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full text-fuchsia-400/60 bg-fuchsia-500/10">
+                      L{jStatus.autonomyLevel}
+                    </span>
+                  )}
+                  {jStatus.pendingCount > 0 && (
+                    <span className="text-[9px] text-gray-500">{jStatus.pendingCount} pending</span>
+                  )}
+                  {(jStatus.activeWorkers ?? 0) > 0 && (
+                    <span className="text-[9px] text-gray-500">{jStatus.activeWorkers} workers</span>
+                  )}
+                  <div className="flex-1" />
+                  <div className="flex gap-1">
+                    {jRunning && (
+                      <button
+                        onClick={() => connection.triggerDeepThink().catch(() => {})}
+                        className="px-2 py-1 rounded-md text-[10px] text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                      >
+                        <Sparkles size={10} className="inline mr-0.5" />
+                        Think
+                      </button>
+                    )}
+                    {jRunning ? (
+                      <button
+                        onClick={() => connection.pauseJarvis().catch(() => {})}
+                        className="px-2 py-1 rounded-md text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all"
+                      >
+                        <Pause size={10} className="inline mr-0.5" />
+                        Pause
+                      </button>
+                    ) : jPaused ? (
+                      <button
+                        onClick={() => connection.resumeJarvis().catch(() => {})}
+                        className="px-2 py-1 rounded-md text-[10px] text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                      >
+                        <Play size={10} className="inline mr-0.5" />
+                        Resume
+                      </button>
+                    ) : null}
+                    <button
+                      onClick={() => connection.stopJarvis().catch(() => {})}
+                      className="px-2 py-1 rounded-md text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
+                    >
+                      <Square size={10} className="inline mr-0.5" />
+                      Stop
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Main content area */}
+            {jarvisSessionIdForOutput ? (
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                {/* Inline task list */}
+                {connection.jarvisTasks.length > 0 && (
+                  <div className="flex-shrink-0 px-4 pt-2">
+                    <JarvisTaskList
+                      tasks={connection.jarvisTasks}
+                      isConnected={isConnected}
+                      onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
+                    />
+                  </div>
+                )}
+                {/* Terminal output */}
+                <div className="flex-1 min-h-0">
+                  <TerminalViewer lines={cliOutput.lines} fullHeight />
+                </div>
+              </div>
+            ) : (
+              /* No active Jarvis session — show info page or task list */
+              <div className="flex-1 overflow-y-auto">
+                {connection.jarvisTasks.length > 0 && (
+                  <div className="px-4 pt-4 max-w-3xl mx-auto">
+                    <JarvisTaskList
+                      tasks={connection.jarvisTasks}
+                      isConnected={isConnected}
+                      onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
+                    />
+                  </div>
+                )}
+                <TabInfoPage
+                  icon={<Bot size={28} />}
+                  title={t('jarvisInfoTitle')}
+                  description={t('jarvisInfoDesc')}
+                  accentColor="fuchsia"
+                  docsHref="/docs/jarvis"
+                  docsLabel={t('jarvisInfoDocs')}
+                  features={[
+                    { icon: <Zap size={16} />, title: t('jarvisInfoFeature1Title'), description: t('jarvisInfoFeature1Desc') },
+                    { icon: <Brain size={16} />, title: t('jarvisInfoFeature2Title'), description: t('jarvisInfoFeature2Desc') },
+                    { icon: <Users size={16} />, title: t('jarvisInfoFeature3Title'), description: t('jarvisInfoFeature3Desc') },
+                  ]}
+                  actions={
+                    isConnected ? (
+                      <button
+                        onClick={() => connection.startJarvis().catch(() => {})}
+                        className="px-4 py-2 rounded-lg text-sm text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-all"
+                      >
+                        <Play size={14} className="inline mr-1.5" />
+                        {t('jarvisStart')}
+                      </button>
+                    ) : undefined
+                  }
+                />
               </div>
             )}
-            {/* Embedded input — integrated in Jarvis tab */}
-            <div className="flex-shrink-0">
+
+            {/* Bottom panel: Proposals + Consciousness */}
+            {showJarvisPanel && (
+              <div className="flex-shrink-0 px-4 pt-2 border-t border-white/5 bg-surface/50 backdrop-blur-sm">
+                <JarvisBottomPanel
+                  proposals={connection.proposals}
+                  thinkingUpdates={connection.thinkingUpdates}
+                  consciousnessEvents={connection.consciousnessEvents}
+                  identity={connection.identity}
+                  autonomyLevel={connection.autonomyLevel}
+                  isConnected={isConnected}
+                  onApproveProposal={(id) => connection.approveProposal(id).catch(() => {})}
+                  onDenyProposal={(id, reason) => connection.denyProposal(id, reason).catch(() => {})}
+                  onClose={() => setShowJarvisPanel(false)}
+                />
+              </div>
+            )}
+
+            {/* Embedded input */}
+            <div className="flex-shrink-0 relative">
+              {/* Jarvis panel toggle */}
+              {isConnected && (
+                <button
+                  onClick={() => setShowJarvisPanel(prev => !prev)}
+                  className={`absolute -top-8 right-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
+                    showJarvisPanel
+                      ? 'bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400'
+                      : connection.proposals.filter(p => p.status === 'pending').length > 0
+                        ? 'bg-amber-500/5 border-amber-500/10 text-amber-400 hover:bg-amber-500/10'
+                        : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  <Sparkles size={11} />
+                  {connection.proposals.filter(p => p.status === 'pending').length > 0 && (
+                    <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-amber-500/20 text-[8px] text-amber-400 font-bold px-0.5">
+                      {connection.proposals.filter(p => p.status === 'pending').length}
+                    </span>
+                  )}
+                </button>
+              )}
               <ChatInput
                 onSend={sendMessage}
                 isAgentRunning={isAgentRunning}
