@@ -784,7 +784,17 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       },
       getMoodAnalysis: () => jarvisSentiment.analyzeMood(),
       captureProjectState: () => jarvisWorldModel.captureProjectState(),
-      getScheduledTasks: () => jarvisScheduler.listSchedules().filter(s => s.enabled),
+      getScheduledTasks: () => {
+        const due = jarvisScheduler.tick();
+        // Enqueue fired schedules as tasks
+        for (const entry of due) {
+          jarvisQueue.addTask(entry.taskTitle, entry.taskDescription, {
+            priority: entry.priority,
+            tags: ['scheduled', `schedule_${entry.id}`],
+          });
+        }
+        return due;
+      },
       checkTriggers: (delta) => jarvisTriggers.checkTriggers(delta),
       updateStatus: () => updateStatusBar(),
     };
