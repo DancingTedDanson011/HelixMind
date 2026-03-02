@@ -49,6 +49,9 @@ export function useCliOutput(params: UseCliOutputParams): UseCliOutputReturn {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const subscribedIdRef = useRef<string | null>(null);
 
+  // Cache: sessionId → lines (persists across tab switches)
+  const cacheRef = useRef<Map<string, string[]>>(new Map());
+
   // Auto-scroll to bottom when new lines arrive
   const scrollToBottom = useCallback(() => {
     const el = containerRef.current;
@@ -61,6 +64,14 @@ export function useCliOutput(params: UseCliOutputParams): UseCliOutputReturn {
   useEffect(() => {
     const prevId = subscribedIdRef.current;
 
+    // Save current lines to cache before switching
+    if (prevId) {
+      setLines((current) => {
+        if (current.length > 0) cacheRef.current.set(prevId, current);
+        return current;
+      });
+    }
+
     // Unsubscribe from previous session
     if (prevId && connection.connectionState === 'connected') {
       connection.sendRequest('unsubscribe_output', { sessionId: prevId }).catch(() => {
@@ -68,9 +79,10 @@ export function useCliOutput(params: UseCliOutputParams): UseCliOutputReturn {
       });
     }
 
-    // Reset lines
-    setLines([]);
-    setLineCount(0);
+    // Restore cached lines or reset
+    const cached = sessionId ? cacheRef.current.get(sessionId) : undefined;
+    setLines(cached ?? []);
+    setLineCount(cached?.length ?? 0);
 
     // Subscribe to new session
     if (sessionId && connection.connectionState === 'connected') {
@@ -86,6 +98,11 @@ export function useCliOutput(params: UseCliOutputParams): UseCliOutputReturn {
       // Cleanup: unsubscribe on unmount
       const currentId = subscribedIdRef.current;
       if (currentId && connection.connectionState === 'connected') {
+        // Save lines to cache on unmount
+        setLines((current) => {
+          if (current.length > 0) cacheRef.current.set(currentId, current);
+          return current;
+        });
         connection.sendRequest('unsubscribe_output', { sessionId: currentId }).catch(() => {
           // Ignore errors during cleanup unsubscribe
         });
@@ -112,13 +129,17 @@ export function useCliOutput(params: UseCliOutputParams): UseCliOutputReturn {
           typeof data.line === 'string'
         ) {
           const cleaned = stripAnsi(data.line);
+          const sid = data.sessionId!;
 
           setLines((prev) => {
             const next = [...prev, cleaned];
             // Ring buffer: keep only the last MAX_LINES
             if (next.length > MAX_LINES) {
-              return next.slice(next.length - MAX_LINES);
+              const trimmed = next.slice(next.length - MAX_LINES);
+              cacheRef.current.set(sid, trimmed);
+              return trimmed;
             }
+            cacheRef.current.set(sid, next);
             return next;
           });
 

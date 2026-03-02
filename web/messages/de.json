@@ -858,7 +858,10 @@
     "switchToConsole": "Zu Console wechseln",
     "switchToMonitor": "Zu Monitor wechseln",
     "switchToJarvis": "Zu Jarvis wechseln",
-    "pureChat": "Chat"
+    "pureChat": "Chat",
+    "consoleCompactHint": "Starte eine Session mit den Buttons unten",
+    "monitorCompactHint": "Starte Monitoring mit den Buttons unten",
+    "jarvisCompactHint": "Starte Jarvis mit dem Button unten"
   },
   "ticket": {
     "createTitle": "Neues Ticket erstellen",

@@ -29,6 +29,7 @@ import { JarvisTaskList } from '@/components/jarvis/JarvisTaskList';
 import { JarvisBottomPanel } from '@/components/jarvis/JarvisBottomPanel';
 import { InlineBugPanel } from './InlineBugPanel';
 import { TabInfoPage } from './TabInfoPage';
+import { PermissionRequestCard } from './PermissionRequestCard';
 
 /* ─── Tab color scheme ──────────────────────── */
 
@@ -421,6 +422,17 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       setMonitorSessionId(running?.id ?? monitorSessions[0].id);
     }
   }, [activeTab, monitorSessionId, monitorSessions]);
+
+  // ── Auto-switch to console when monitor is stopped ─────
+  const prevMonitorStatusRef = useRef(connection.monitorStatus);
+  useEffect(() => {
+    const prev = prevMonitorStatusRef.current;
+    prevMonitorStatusRef.current = connection.monitorStatus;
+    // Was running → now null = monitor stopped
+    if (prev && !connection.monitorStatus && activeTab === 'monitor') {
+      setActiveTab('console');
+    }
+  }, [connection.monitorStatus, activeTab]);
 
   // ── Open session in correct tab ────────────────
   const openSessionInTab = useCallback((sessionId: string) => {
@@ -1369,6 +1381,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               <div className="flex-1 min-h-0">
                 <TerminalViewer lines={cliOutput.lines} fullHeight />
               </div>
+            ) : activeChatId ? (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-sm text-gray-500">{t('consoleCompactHint')}</p>
+              </div>
             ) : (
               <TabInfoPage
                 icon={<Terminal size={28} />}
@@ -1428,6 +1444,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                       <Square size={12} />
                       {t('monitorStop')}
                     </button>
+                  </div>
+                ) : activeChatId ? (
+                  <div className="flex items-center justify-center py-12">
+                    <p className="text-sm text-gray-500">{t('monitorCompactHint')}</p>
                   </div>
                 ) : (
                   <TabInfoPage
@@ -1675,30 +1695,36 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                     />
                   </div>
                 )}
-                <TabInfoPage
-                  icon={<Bot size={28} />}
-                  title={t('jarvisInfoTitle')}
-                  description={t('jarvisInfoDesc')}
-                  accentColor="red"
-                  docsHref="/docs/jarvis"
-                  docsLabel={t('jarvisInfoDocs')}
-                  features={[
-                    { icon: <Zap size={16} />, title: t('jarvisInfoFeature1Title'), description: t('jarvisInfoFeature1Desc') },
-                    { icon: <Brain size={16} />, title: t('jarvisInfoFeature2Title'), description: t('jarvisInfoFeature2Desc') },
-                    { icon: <Users size={16} />, title: t('jarvisInfoFeature3Title'), description: t('jarvisInfoFeature3Desc') },
-                  ]}
-                  actions={
-                    isConnected ? (
-                      <button
-                        onClick={() => connection.startJarvis().catch(() => {})}
-                        className="px-4 py-2 rounded-lg text-sm text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
-                      >
-                        <Play size={14} className="inline mr-1.5" />
-                        {t('jarvisStart')}
-                      </button>
-                    ) : undefined
-                  }
-                />
+                {activeChatId ? (
+                  <div className="flex-1 flex items-center justify-center py-12">
+                    <p className="text-sm text-gray-500">{t('jarvisCompactHint')}</p>
+                  </div>
+                ) : (
+                  <TabInfoPage
+                    icon={<Bot size={28} />}
+                    title={t('jarvisInfoTitle')}
+                    description={t('jarvisInfoDesc')}
+                    accentColor="red"
+                    docsHref="/docs/jarvis"
+                    docsLabel={t('jarvisInfoDocs')}
+                    features={[
+                      { icon: <Zap size={16} />, title: t('jarvisInfoFeature1Title'), description: t('jarvisInfoFeature1Desc') },
+                      { icon: <Brain size={16} />, title: t('jarvisInfoFeature2Title'), description: t('jarvisInfoFeature2Desc') },
+                      { icon: <Users size={16} />, title: t('jarvisInfoFeature3Title'), description: t('jarvisInfoFeature3Desc') },
+                    ]}
+                    actions={
+                      isConnected ? (
+                        <button
+                          onClick={() => connection.startJarvis().catch(() => {})}
+                          className="px-4 py-2 rounded-lg text-sm text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
+                        >
+                          <Play size={14} className="inline mr-1.5" />
+                          {t('jarvisStart')}
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                )}
               </div>
             )}
 
@@ -1716,6 +1742,34 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   onDenyProposal={(id, reason) => connection.denyProposal(id, reason).catch(() => {})}
                   onClose={() => setShowJarvisPanel(false)}
                 />
+              </div>
+            )}
+
+            {/* Permission cards — above Jarvis embedded input */}
+            {connection.pendingPermissions.length > 0 && (
+              <div className="flex-shrink-0 px-4 pt-2 border-t border-white/5 bg-surface/50 backdrop-blur-sm">
+                <div className="max-w-3xl mx-auto space-y-2 max-h-[40vh] overflow-y-auto">
+                  {connection.pendingPermissions.map((perm) => (
+                    <PermissionRequestCard
+                      key={perm.id}
+                      request={perm}
+                      onApprove={() => connection.respondPermission(perm.id, true)}
+                      onDeny={() => connection.respondPermission(perm.id, false)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Jarvis action button — when no session active */}
+            {isConnected && !jarvisSessionIdForOutput && (
+              <div className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 border-t border-white/5 bg-surface/30">
+                <button
+                  onClick={() => connection.startJarvis().catch(() => {})}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all"
+                >
+                  <Play size={12} />{t('jarvisStart')}
+                </button>
               </div>
             )}
 
@@ -1767,6 +1821,47 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onFixAll={handleFixAllBugs}
               onClose={() => setShowBugPanel(false)}
             />
+          </div>
+        )}
+
+        {/* Permission cards — visible above input in ALL non-Jarvis tabs */}
+        {activeTab !== 'jarvis' && connection.pendingPermissions.length > 0 && (
+          <div className="px-4 pt-2 border-t border-white/5 bg-surface/50 backdrop-blur-sm">
+            <div className="max-w-3xl mx-auto space-y-2 max-h-[40vh] overflow-y-auto">
+              {connection.pendingPermissions.map((perm) => (
+                <PermissionRequestCard
+                  key={perm.id}
+                  request={perm}
+                  onApprove={() => connection.respondPermission(perm.id, true)}
+                  onDeny={() => connection.respondPermission(perm.id, false)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab action bar — quick actions above input when no session active */}
+        {isConnected && activeTab === 'console' && !consoleSessionId && (
+          <div className="flex items-center justify-center gap-2 px-4 py-2 border-t border-white/5 bg-surface/30">
+            <button onClick={() => handleStartAuto()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-emerald-500/10 hover:border-emerald-500/20 hover:text-emerald-400 transition-all">
+              <Zap size={12} />Auto
+            </button>
+            <button onClick={handleStartSecurity} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all">
+              <Shield size={12} />Security
+            </button>
+          </div>
+        )}
+        {isConnected && activeTab === 'monitor' && !connection.monitorStatus && (
+          <div className="flex items-center justify-center gap-2 px-4 py-2 border-t border-white/5 bg-surface/30">
+            <button onClick={() => handleStartMonitor('passive')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-400 transition-all">
+              <Eye size={12} />{t('monitorStartPassive')}
+            </button>
+            <button onClick={() => handleStartMonitor('defensive')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all">
+              <Shield size={12} />{t('monitorStartDefensive')}
+            </button>
+            <button onClick={() => handleStartMonitor('active')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all">
+              <ShieldAlert size={12} />{t('monitorStartActive')}
+            </button>
           </div>
         )}
 
