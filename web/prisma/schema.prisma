@@ -81,6 +81,7 @@ model User {
   llmKeys       UserLLMKey[]
   brainInstances BrainInstance[]
   jarvisInstances JarvisInstance[]
+  deviceCodes   DeviceCode[]
 }
 
 model Account {
@@ -151,6 +152,21 @@ model ApiKey {
   createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DeviceCode {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  expiresAt  DateTime
+  deviceName String
+  deviceOs   String
+  userId     String?
+  apiKey     String?
+  email      String?
+  plan       String?
+  createdAt  DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 // ─── Support ─────────────────────────────────

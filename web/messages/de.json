@@ -888,7 +888,14 @@
     "cancel": "Abbrechen",
     "error": "Autorisierung fehlgeschlagen. Bitte versuche es erneut.",
     "invalidRequest": "Ungültige Anfrage",
-    "invalidRequestDesc": "Dieser Autorisierungslink ist ungültig oder abgelaufen. Bitte führe 'helixmind login' erneut aus."
+    "invalidRequestDesc": "Dieser Autorisierungslink ist ungültig oder abgelaufen. Bitte führe 'helixmind login' erneut aus.",
+    "deviceTitle": "Gerätecode eingeben",
+    "deviceDescription": "Gib den Code aus deinem Terminal ein, um die CLI zu autorisieren.",
+    "deviceCodeLabel": "Code",
+    "deviceCodePlaceholder": "XXXX-XXXX",
+    "deviceInvalid": "Ungültiger oder abgelaufener Code.",
+    "deviceSuccess": "CLI autorisiert! Du kannst diesen Tab schließen.",
+    "deviceAuthorize": "Dieses Gerät autorisieren"
   },
   "monitor": {
     "title": "Sicherheitsmonitor",

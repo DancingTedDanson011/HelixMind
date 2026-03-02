@@ -96,48 +96,100 @@ async function manualKeyLogin(store: ConfigStore, apiKey: string, webappUrl: str
 }
 
 async function browserLogin(store: ConfigStore, webappUrl: string): Promise<boolean> {
-  process.stdout.write('\n');
-  process.stdout.write(theme.primary('  \u{1F300} HelixMind Login\n'));
-  process.stdout.write(chalk.dim('  Opening browser for authorization...\n\n'));
+  const deviceName = hostname();
+  const deviceOs = `${platform()} ${release()}`;
 
-  let server;
+  process.stdout.write('\n');
+  process.stdout.write(theme.primary('  \u{1F300} HelixMind Login\n\n'));
+
+  // --- 1. Request device code (non-blocking, tolerates failure) ---
+  interface DeviceCodeResponse { code: string; expiresAt: string; pollInterval: number }
+  let deviceCode: DeviceCodeResponse | null = null;
+  try {
+    const dcRes = await fetch(`${webappUrl}/api/auth/device/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceName, deviceOs }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (dcRes.ok) {
+      deviceCode = (await dcRes.json()) as DeviceCodeResponse;
+    }
+  } catch {
+    // Device-code endpoint unavailable — continue with browser-only flow
+  }
+
+  // --- 2. Start local callback server (browser flow) ---
+  let server: Awaited<ReturnType<typeof startCallbackServer>> | null = null;
   try {
     server = await startCallbackServer();
-  } catch (err) {
-    process.stdout.write(chalk.red('  Failed to start local callback server.\n'));
+  } catch {
+    // Localhost server failed (e.g. headless env) — device-code only
+  }
+
+  if (!server && !deviceCode) {
+    process.stdout.write(chalk.red('  Login failed: no callback server and device code unavailable.\n'));
+    process.stdout.write(chalk.dim('  Try: helixmind login --api-key <key>\n\n'));
     return false;
   }
 
-  const deviceName = hostname();
-  const deviceOs = `${platform()} ${release()}`;
-  const authUrl =
-    `${webappUrl}/auth/cli` +
-    `?callback_port=${server.port}` +
-    `&state=${server.state}` +
-    `&device_name=${encodeURIComponent(deviceName)}` +
-    `&device_os=${encodeURIComponent(deviceOs)}`;
-
-  // Open browser
-  const opened = await openBrowser(authUrl);
-
-  if (!opened) {
-    process.stdout.write(chalk.yellow('  Could not open browser automatically.\n'));
-    process.stdout.write(chalk.dim('  Open this URL manually:\n\n'));
-    process.stdout.write(`  ${theme.primary(authUrl)}\n\n`);
+  // --- 3. Show device code (always, when available) ---
+  if (deviceCode) {
+    process.stdout.write(chalk.dim('  ╭──────────────────────────────────────────────────╮') + '\n');
+    process.stdout.write(chalk.dim('  │  ') + 'Open this URL on any device:' + '                    '.slice(0, 20) + chalk.dim('│') + '\n');
+    process.stdout.write(chalk.dim('  │  ') + theme.primary(`${webappUrl}/auth/device`) + chalk.dim('│'.padStart(Math.max(1, 49 - `${webappUrl}/auth/device`.length - 2))) + '\n');
+    process.stdout.write(chalk.dim('  │') + ' '.repeat(49) + chalk.dim('│') + '\n');
+    process.stdout.write(chalk.dim('  │  ') + 'Enter code: ' + chalk.bold.white(deviceCode.code) + ' '.repeat(Math.max(1, 49 - 12 - deviceCode.code.length - 2)) + chalk.dim('│') + '\n');
+    process.stdout.write(chalk.dim('  ╰──────────────────────────────────────────────────╯') + '\n\n');
   }
 
-  process.stdout.write(chalk.dim('  Waiting for authorization in browser... (timeout: 120s)\n'));
+  // --- 4. Try opening browser (when server is available) ---
+  if (server) {
+    const authUrl =
+      `${webappUrl}/auth/cli` +
+      `?callback_port=${server.port}` +
+      `&state=${server.state}` +
+      `&device_name=${encodeURIComponent(deviceName)}` +
+      `&device_os=${encodeURIComponent(deviceOs)}`;
+
+    const opened = await openBrowser(authUrl);
+
+    if (!opened && !deviceCode) {
+      process.stdout.write(chalk.yellow('  Could not open browser automatically.\n'));
+      process.stdout.write(chalk.dim('  Open this URL manually:\n\n'));
+      process.stdout.write(`  ${theme.primary(authUrl)}\n\n`);
+    }
+  }
+
+  process.stdout.write(chalk.dim('  Waiting for authorization... (expires in 15m)\n'));
   process.stdout.write(chalk.dim('  Press Ctrl+C to cancel.\n\n'));
 
+  // --- 5. Race: browser callback vs device-code polling ---
+  const abortController = new AbortController();
+
+  const browserPromise: Promise<{ apiKey: string; email?: string; plan?: string; userId?: string }> =
+    server
+      ? server.waitForCallback().then((r) => ({ apiKey: r.apiKey, email: r.email, plan: r.plan, userId: r.userId }))
+      : new Promise(() => {}); // never resolves if no server
+
+  const devicePollPromise: Promise<{ apiKey: string; email?: string; plan?: string; userId?: string }> =
+    deviceCode
+      ? pollDeviceCode(webappUrl, deviceCode.code, deviceCode.pollInterval, abortController.signal)
+      : new Promise(() => {}); // never resolves if no device code
+
   try {
-    const result = await server.waitForCallback();
+    const result = await Promise.race([browserPromise, devicePollPromise]);
+
+    // Cancel the other flow
+    abortController.abort();
+    if (server) server.close();
 
     // Store auth data
     store.set('relay.apiKey', result.apiKey);
     store.set('relay.url', webappUrl);
     if (result.email) store.set('relay.userEmail', result.email);
-    const browserPlan = (result.plan && result.plan !== 'FREE') ? result.plan : 'FREE_PLUS';
-    store.set('relay.plan', browserPlan);
+    const effectivePlan = (result.plan && result.plan !== 'FREE') ? result.plan : 'FREE_PLUS';
+    store.set('relay.plan', effectivePlan);
     if (result.userId) store.set('relay.userId', result.userId);
     store.set('relay.loginAt', new Date().toISOString());
     store.set('relay.autoConnect', true);
@@ -145,12 +197,13 @@ async function browserLogin(store: ConfigStore, webappUrl: string): Promise<bool
     showSuccessBox(result.email, result.plan, result.apiKey);
     return true;
   } catch (err) {
-    server.close();
+    abortController.abort();
+    if (server) server.close();
     const msg = err instanceof Error ? err.message : String(err);
 
     if (msg.includes('cancelled')) {
       process.stdout.write(chalk.yellow('  Authorization cancelled.\n\n'));
-    } else if (msg.includes('timed out')) {
+    } else if (msg.includes('timed out') || msg.includes('expired')) {
       process.stdout.write(chalk.yellow('  Authorization timed out.\n'));
       process.stdout.write(chalk.dim('  Try: helixmind login --api-key <key>\n\n'));
     } else {
@@ -158,6 +211,54 @@ async function browserLogin(store: ConfigStore, webappUrl: string): Promise<bool
     }
     return false;
   }
+}
+
+/**
+ * Poll the device-code endpoint until authorized or expired.
+ */
+async function pollDeviceCode(
+  webappUrl: string,
+  code: string,
+  intervalSec: number,
+  signal: AbortSignal,
+): Promise<{ apiKey: string; email?: string; plan?: string; userId?: string }> {
+  const pollUrl = `${webappUrl}/api/auth/device/poll?code=${encodeURIComponent(code)}`;
+
+  while (!signal.aborted) {
+    await new Promise((r) => setTimeout(r, intervalSec * 1000));
+    if (signal.aborted) break;
+
+    try {
+      const res = await fetch(pollUrl, { signal: AbortSignal.timeout(8_000) });
+      if (!res.ok) {
+        // 410 = expired
+        if (res.status === 410) throw new Error('Device code expired');
+        continue;
+      }
+
+      const data = (await res.json()) as {
+        status: 'pending' | 'authorized' | 'expired';
+        apiKey?: string;
+        email?: string;
+        plan?: string;
+        userId?: string;
+      };
+
+      if (data.status === 'authorized' && data.apiKey) {
+        return { apiKey: data.apiKey, email: data.email, plan: data.plan, userId: data.userId };
+      }
+      if (data.status === 'expired') {
+        throw new Error('Device code expired');
+      }
+      // status === 'pending' → continue polling
+    } catch (err) {
+      if (signal.aborted) break;
+      if (err instanceof Error && err.message.includes('expired')) throw err;
+      // Network hiccup — retry
+    }
+  }
+
+  throw new Error('Device code polling cancelled');
 }
 
 function showSuccessBox(email?: string, plan?: string, apiKey?: string): void {

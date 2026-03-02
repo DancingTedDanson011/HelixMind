@@ -888,7 +888,14 @@
     "cancel": "Cancel",
     "error": "Authorization failed. Please try again.",
     "invalidRequest": "Invalid Request",
-    "invalidRequestDesc": "This authorization link is invalid or expired. Please run 'helixmind login' again."
+    "invalidRequestDesc": "This authorization link is invalid or expired. Please run 'helixmind login' again.",
+    "deviceTitle": "Enter Device Code",
+    "deviceDescription": "Enter the code shown in your terminal to authorize the CLI.",
+    "deviceCodeLabel": "Code",
+    "deviceCodePlaceholder": "XXXX-XXXX",
+    "deviceInvalid": "Invalid or expired code.",
+    "deviceSuccess": "CLI authorized! You can close this tab.",
+    "deviceAuthorize": "Authorize this device"
   },
   "monitor": {
     "title": "Security Monitor",
