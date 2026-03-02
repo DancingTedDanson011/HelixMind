@@ -46,7 +46,7 @@ export default async function DocPage({ params }: DocPageProps) {
         <div
           data-docs-content
           className="prose prose-invert prose-sm max-w-none
-            prose-headings:text-white prose-headings:font-semibold
+            prose-headings:text-white prose-headings:font-semibold prose-headings:scroll-mt-24
             prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
             prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3
             prose-p:text-gray-400 prose-p:leading-relaxed
