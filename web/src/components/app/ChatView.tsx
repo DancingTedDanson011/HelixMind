@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, memo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle,
@@ -9,6 +9,7 @@ import {
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
 import { PermissionRequestCard } from './PermissionRequestCard';
+import { StreamingText } from './StreamingText';
 import type { ChatMessage } from './AppShell';
 import type { ActiveTool } from '@/hooks/use-cli-chat';
 import type { ToolPermissionRequest } from '@/lib/cli-types';
@@ -74,25 +75,51 @@ export function ChatView({
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const autoScrollRef = useRef(true);
 
-  const scrollToBottom = useCallback((instant = false) => {
+  const scrollToBottom = useCallback((smooth = false) => {
     const el = containerRef.current;
     if (el) {
-      if (instant) {
-        el.scrollTop = el.scrollHeight;
-      } else {
+      if (smooth) {
         el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      } else {
+        el.scrollTop = el.scrollHeight;
       }
       autoScrollRef.current = true;
       setShowScrollBtn(false);
     }
   }, []);
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages — instant during streaming to avoid jank
+  const isStreamingRef = useRef(false);
+  isStreamingRef.current = isAgentRunning && !!streamingContent;
+
   useEffect(() => {
     if (autoScrollRef.current) {
-      scrollToBottom();
+      // Use instant scroll during streaming (smooth scroll stacks & stutters)
+      scrollToBottom(false);
     }
-  }, [messages.length, streamingContent, activeTools.length, scrollToBottom]);
+  }, [messages.length, activeTools.length, scrollToBottom]);
+
+  // Throttled scroll during streaming — 60fps via rAF
+  const streamRafRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!isAgentRunning || !streamingContent) {
+      if (streamRafRef.current) cancelAnimationFrame(streamRafRef.current);
+      return;
+    }
+
+    function tick() {
+      if (autoScrollRef.current) {
+        const el = containerRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      }
+      streamRafRef.current = requestAnimationFrame(tick);
+    }
+    streamRafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (streamRafRef.current) cancelAnimationFrame(streamRafRef.current);
+    };
+  }, [isAgentRunning, !!streamingContent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
@@ -259,15 +286,15 @@ export function ChatView({
 
           {/* Streaming indicator */}
           {isAgentRunning && (
-            <div className="flex gap-3 animate-message-in">
+            <div className="flex gap-3">
               <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
                 <Bot size={14} className="text-cyan-400" />
               </div>
               <div className="flex-1 min-w-0">
                 {streamingContent ? (
-                  <div className="prose prose-invert prose-sm max-w-none">
-                    {streamingContent}
-                    <span className="inline-block w-2 h-5 rounded-sm bg-gradient-to-b from-cyan-400 to-purple-400 ml-0.5" style={{ animation: 'helix-glow 1.5s ease-in-out infinite, blink 1s step-end infinite' }} />
+                  <div className="prose prose-invert prose-sm max-w-none text-sm text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
+                    <StreamingText text={streamingContent} />
+                    <span className="inline-block w-2 h-5 rounded-sm bg-gradient-to-b from-cyan-400 to-purple-400 ml-0.5 align-middle" style={{ animation: 'helix-glow 1.5s ease-in-out infinite, blink 1s step-end infinite' }} />
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 text-sm text-gray-500">
@@ -306,7 +333,7 @@ export function ChatView({
       {/* Scroll to bottom */}
       {showScrollBtn && (
         <button
-          onClick={() => scrollToBottom()}
+          onClick={() => scrollToBottom(true)}
           className="absolute bottom-4 right-4 p-2 rounded-full bg-surface/90 border border-white/10 text-gray-400 hover:text-white shadow-lg backdrop-blur-sm transition-all hover:scale-105"
         >
           <ArrowDown size={16} />

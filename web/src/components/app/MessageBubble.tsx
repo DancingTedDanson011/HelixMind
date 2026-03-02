@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { User, Bot, Copy, Check, CheckCircle2, XCircle, ChevronDown, ChevronUp, Wrench } from 'lucide-react';
 import { ToolBlock } from './ToolBlock';
 import type { ChatMessage } from './AppShell';
@@ -9,7 +9,7 @@ interface MessageBubbleProps {
   message: ChatMessage;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   if (isUser) {
@@ -38,7 +38,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       </div>
     </div>
   );
-}
+});
 
 /* ─── Assistant content parser ────────────────── */
 
