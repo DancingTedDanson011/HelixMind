@@ -134,21 +134,25 @@ export function getBestCompletion(partial: string): string | null {
 /**
  * Write command suggestions as overlay above the bottom chrome.
  * Uses ANSI cursor positioning to avoid disturbing readline.
- * @param chromeRows Number of reserved rows at the bottom (default: 3 for BottomChrome)
+ * @param chromeRows Number of reserved rows at the bottom (default: 4 for BottomChrome)
  */
-export function writeSuggestions(suggestions: CommandDef[], chromeRows: number = 3): void {
+export function writeSuggestions(suggestions: CommandDef[], chromeRows: number = 4): void {
   if (suggestions.length === 0) return;
   if (!process.stdout.isTTY) return;
 
   const termHeight = process.stdout.rows || 24;
-  const count = suggestions.length;
-  // Suggestions go above the chrome (which occupies the last chromeRows rows)
-  const startRow = termHeight - chromeRows - count;
+  // Limit suggestions to available space (leave room for prompt line above chrome)
+  const maxSuggestions = Math.max(0, termHeight - chromeRows - 3);
+  const items = suggestions.slice(0, maxSuggestions);
+  if (items.length === 0) return;
+
+  // Suggestions go above the chrome + prompt line (which sits at termHeight - chromeRows)
+  const startRow = termHeight - chromeRows - items.length;
 
   process.stdout.write('\x1b7'); // Save cursor
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < items.length; i++) {
     const row = startRow + i;
-    const s = suggestions[i];
+    const s = items[i];
     const text = `  ${chalk.cyan(s.cmd)} ${chalk.dim('\u2014')} ${chalk.dim(s.description)}`;
     process.stdout.write(`\x1b[${row};0H\x1b[2K${text}`);
   }
@@ -157,9 +161,9 @@ export function writeSuggestions(suggestions: CommandDef[], chromeRows: number =
 
 /**
  * Clear previously rendered suggestions.
- * @param chromeRows Number of reserved rows at the bottom (default: 3 for BottomChrome)
+ * @param chromeRows Number of reserved rows at the bottom (default: 4 for BottomChrome)
  */
-export function clearSuggestions(count: number, chromeRows: number = 3): void {
+export function clearSuggestions(count: number, chromeRows: number = 4): void {
   if (count === 0) return;
   if (!process.stdout.isTTY) return;
 

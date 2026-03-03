@@ -13,8 +13,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   Layers,
+  Brain,
+  Cpu,
+  Wrench,
+  GitBranch,
+  History,
+  Shield,
+  ShieldOff,
 } from 'lucide-react';
-import type { SessionInfo, SessionStatus } from '@/lib/cli-types';
+import type { SessionInfo, SessionStatus, StatusBarInfo } from '@/lib/cli-types';
 
 /* ─── Types ───────────────────────────────────── */
 
@@ -22,6 +29,7 @@ interface SessionDetailProps {
   session: SessionInfo | null;
   outputLines: string[];
   onAbort: (id: string) => void;
+  statusBar?: StatusBarInfo | null;
 }
 
 /* ─── Helpers ─────────────────────────────────── */
@@ -49,7 +57,23 @@ function formatElapsed(ms: number): string {
 
 /* ─── Component ───────────────────────────────── */
 
-export function SessionDetail({ session, outputLines, onAbort }: SessionDetailProps) {
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+const SPIRAL_COLORS = [
+  'bg-cyan-400',
+  'bg-emerald-400',
+  'bg-yellow-400',
+  'bg-orange-400',
+  'bg-purple-400',
+  'bg-pink-400',
+] as const;
+const SPIRAL_LABELS = ['L1', 'L2', 'L3', 'L4', 'L5', 'W'] as const;
+
+export function SessionDetail({ session, outputLines, onAbort, statusBar }: SessionDetailProps) {
   const t = useTranslations('cli');
 
   // ── Empty state ─────────────────────────────────
@@ -114,6 +138,95 @@ export function SessionDetail({ session, outputLines, onAbort }: SessionDetailPr
           )}
         </div>
       </GlassPanel>
+
+      {/* ── Live Metrics ── */}
+      {statusBar && (
+        <GlassPanel intensity="subtle" className="px-4 py-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            {/* Brain / Spiral */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-gray-500">
+                <Brain size={11} />
+                <span className="font-medium">Brain</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {[statusBar.spiral.l1, statusBar.spiral.l2, statusBar.spiral.l3,
+                  statusBar.spiral.l4, statusBar.spiral.l5, statusBar.spiral.l6,
+                ].map((count, i) => (
+                  count > 0 && (
+                    <span key={i} className="flex items-center gap-0.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${SPIRAL_COLORS[i]}`} />
+                      <span className="text-gray-400 text-[10px]">{SPIRAL_LABELS[i]}:{count}</span>
+                    </span>
+                  )
+                ))}
+              </div>
+            </div>
+
+            {/* Tokens */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-gray-500">
+                <Cpu size={11} />
+                <span className="font-medium">Tokens</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400 text-[10px]">
+                  in:<span className="text-gray-300">{formatTokens(statusBar.tokens.thisSession - statusBar.tokens.thisMessage)}</span>
+                </span>
+                <span className="text-gray-400 text-[10px]">
+                  out:<span className="text-white font-medium">{formatTokens(statusBar.tokens.thisMessage)}</span>
+                </span>
+                <span className="text-gray-500 text-[10px]">
+                  total:{formatTokens(statusBar.tokens.sessionTotal)}
+                </span>
+              </div>
+            </div>
+
+            {/* Tools + Model */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-gray-500">
+                <Wrench size={11} />
+                <span className="font-medium">Tools</span>
+                <span className="text-gray-400">{statusBar.tools.callsThisRound}</span>
+                <span className="text-gray-600 mx-0.5">|</span>
+                <History size={10} className="text-gray-500" />
+                <span className="text-gray-400">{statusBar.checkpoints}</span>
+              </div>
+              <div className="text-[10px] text-gray-500 truncate" title={statusBar.model}>
+                {statusBar.model}
+              </div>
+            </div>
+
+            {/* Git + Permission */}
+            <div className="space-y-1">
+              {statusBar.git.branch && (
+                <div className="flex items-center gap-1.5 text-gray-500">
+                  <GitBranch size={11} />
+                  <span className="text-gray-400 truncate max-w-[80px]">{statusBar.git.branch}</span>
+                  {statusBar.git.uncommitted > 0 && (
+                    <span className="text-amber-400/70 text-[10px]">+{statusBar.git.uncommitted}</span>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center gap-1.5">
+                {statusBar.permissionMode === 'safe' ? (
+                  <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><Shield size={9} /> Safe</span>
+                ) : statusBar.permissionMode === 'skip' ? (
+                  <span className="text-[10px] text-amber-400 flex items-center gap-0.5"><ShieldOff size={9} /> Skip</span>
+                ) : (
+                  <span className="text-[10px] text-red-400 flex items-center gap-0.5"><ShieldOff size={9} /> YOLO</span>
+                )}
+                {statusBar.autonomous && (
+                  <span className="text-[10px] text-purple-400 font-medium">AUTO</span>
+                )}
+                {statusBar.paused && (
+                  <span className="text-[10px] text-amber-400 font-medium">PAUSED</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </GlassPanel>
+      )}
 
       {/* ── Terminal Output ── */}
       <TerminalViewer lines={outputLines} />

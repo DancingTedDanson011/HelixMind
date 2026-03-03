@@ -40,64 +40,61 @@ export interface StatusBarData {
 const CMD_STANDARD_WIDTH = 78;
 
 /**
- * Render the statusbar — fills terminal width with comprehensive metrics.
- * Adaptive: 1 line when content fits, splits to 2 on overflow.
+ * Render the statusbar — enterprise-clear with word labels.
+ * Adaptive: 1 line when content fits terminal width, splits to 2 on overflow.
  * Always returns "line1\nline2" — line2 is empty when single-line mode.
+ *
+ * Every metric has a clear label — no cryptic icons without context.
  */
 export function renderStatusBar(data: StatusBarData, maxWidth?: number): string {
   const width = maxWidth ?? CMD_STANDARD_WIDTH;
   const sep = chalk.dim(' \u2502 ');
 
-  // === Section 1: Brain — icon + bar + total + labeled level breakdown ===
+  // === Brain: icon + bar + total + labeled levels ===
   const brainSection = renderBrainSection(data.spiral);
 
-  // === Section 2: Context tokens (session bar) ===
-  const ctxSection = renderTokenBar(data.sessionTokens);
+  // === Tokens: bar + session total + (in/out breakdown) ===
+  const tokenBar = renderTokenBar(data.sessionTokens);
+  const inTok = formatTokens(data.tokens.thisSession - data.tokens.thisMessage);
+  const outTok = formatTokens(data.tokens.thisMessage);
+  const tokenSection = `${tokenBar} ${chalk.dim('(')}${chalk.dim('in:')}${inTok} ${chalk.dim('out:')}${chalk.bold(outTok)}${chalk.dim(')')}`;
 
-  // === Section 3: Model + Permission (with label) ===
-  let permLabel = '';
+  // === Model + Permission ===
+  let permText = '';
   if (data.permissionMode) {
     switch (data.permissionMode) {
-      case 'safe':  permLabel = chalk.green('\u{1F6E1}safe'); break;
-      case 'skip':  permLabel = chalk.yellow('\u26A1skip'); break;
-      case 'yolo':  permLabel = chalk.red('\u{1F525}yolo'); break;
+      case 'safe':  permText = chalk.green('Safe'); break;
+      case 'skip':  permText = chalk.yellow('Skip'); break;
+      case 'yolo':  permText = chalk.red('YOLO'); break;
     }
   }
-  const modelPerm = `${chalk.dim(shortenModelName(data.model))} ${permLabel}`;
+  const modelSection = `${chalk.dim(shortenModelName(data.model))} ${permText}`;
 
-  // === Section 4: Token breakdown (in/out) + Tools + Checkpoints ===
-  const metricsItems: string[] = [];
-  metricsItems.push(chalk.dim('in:') + formatTokens(data.tokens.thisSession - data.tokens.thisMessage));
-  metricsItems.push(chalk.dim('out:') + chalk.bold(formatTokens(data.tokens.thisMessage)));
-  metricsItems.push(`\u{1F527}${data.tools.callsThisRound}`);
-  metricsItems.push(`\u{1F551}${data.checkpoints ?? 0}`);
-  const metricsSection = metricsItems.join(' ');
+  // === Metrics: Tools + Checkpoints (always with labels) ===
+  const metricsSection = `${chalk.dim('Tools:')}${data.tools.callsThisRound} ${chalk.dim('CP:')}${data.checkpoints ?? 0}`;
 
-  // === Section 5: Git ===
+  // === Git ===
   let gitSection = '';
   if (data.git.branch) {
     const gitColor = data.git.uncommitted > 0 ? chalk.yellow : chalk.green;
     gitSection = data.git.uncommitted > 0
-      ? gitColor(`\u{1F4CC}${data.git.branch} \u2191${data.git.uncommitted}`)
-      : gitColor(`\u{1F4CC}${data.git.branch}`);
+      ? gitColor(`${data.git.branch} \u2191${data.git.uncommitted}`)
+      : gitColor(data.git.branch);
   }
 
-  // === Section 6: Live info (runtime, step, timers, state) ===
+  // === Live: state + runtime + step + timers + clock ===
   const liveItems: string[] = [];
 
-  // Paused / autonomous state
   if (data.paused) {
-    liveItems.push(chalk.yellow('\u23F8paused'));
+    liveItems.push(chalk.yellow('Paused'));
   } else if (data.autonomous) {
-    liveItems.push(chalk.hex('#FF6B9D')('\u{1F916}auto'));
+    liveItems.push(chalk.hex('#FF6B9D')('Auto'));
   }
 
-  // Runtime (during agent work)
   if (data.runtime !== undefined) {
-    liveItems.push(chalk.dim('\u23F1') + chalk.bold(formatRuntime(data.runtime)));
+    liveItems.push(chalk.bold(formatRuntime(data.runtime)));
   }
 
-  // Current step (during agent work)
   if (data.currentStep) {
     let stepInfo = data.currentStep;
     if (data.currentFile) {
@@ -109,43 +106,38 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
     liveItems.push(chalk.cyan(stepInfo));
   }
 
-  // Jarvis name
   if (data.jarvisName) {
-    liveItems.push(chalk.hex('#8a2be2')(`\u{1F9E0}${data.jarvisName}`));
+    liveItems.push(chalk.hex('#8a2be2')(data.jarvisName));
   }
 
-  // Section timer
   if (data.sectionTimer) {
     liveItems.push(chalk.hex('#FF6B9D')(data.sectionTimer.section) + chalk.dim(`:${formatRuntime(data.sectionTimer.seconds)}`));
   }
 
-  // Total session timer
   if (data.totalTimer !== undefined) {
-    liveItems.push(chalk.hex('#00D4FF')(`sess:${formatRuntime(data.totalTimer)}`));
+    liveItems.push(chalk.dim('Session:') + chalk.hex('#00D4FF')(formatRuntime(data.totalTimer)));
   }
 
-  // Clock
   const now = new Date();
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   liveItems.push(chalk.dim(time));
 
   const liveSection = liveItems.join(' ');
 
-  // === Build sections array (skip empty) ===
-  const sections: string[] = [brainSection, ctxSection, modelPerm, metricsSection];
+  // === Build sections (skip empty) ===
+  const sections: string[] = [brainSection, tokenSection, modelSection, metricsSection];
   if (gitSection) sections.push(gitSection);
   sections.push(liveSection);
 
-  // === Adaptive layout: try single line first ===
+  // === Adaptive: single line if fits, else split ===
   const singleLine = sections.join(sep);
   if (visibleLength(singleLine) <= width) {
     return truncateBar(singleLine, width) + '\n';
   }
 
-  // === Overflow: split into 2 lines ===
-  // Line 1: brain + context + model/perm
-  // Line 2: metrics + git + live info
-  const topSections = [brainSection, ctxSection, modelPerm];
+  // Line 1: brain + tokens + model
+  // Line 2: metrics + git + live
+  const topSections = [brainSection, tokenSection, modelSection];
   const bottomSections: string[] = [metricsSection];
   if (gitSection) bottomSections.push(gitSection);
   bottomSections.push(liveSection);

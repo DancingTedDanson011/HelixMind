@@ -100,6 +100,7 @@ export function LocalConnectionView({
             session={selectedSession}
             outputLines={output.lines}
             onAbort={onAbortSession}
+            statusBar={connection.statusBar}
           />
 
           {connection.findings.length > 0 && (
