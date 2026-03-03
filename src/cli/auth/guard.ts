@@ -44,18 +44,18 @@ export async function requireAuth(): Promise<ConfigStore> {
   // ─── Choice Screen (compact side-by-side) ──────────────────
   w('\n');
   w(d('  ╭' + '─'.repeat(76) + '╮') + '\n');
-  w(d('  │  ') + p('🌀 Welcome to HelixMind') + d(' '.repeat(51) + '│') + '\n');
+  w(d('  │  ') + p('\u{1F300} Welcome to HelixMind') + d(' '.repeat(51) + '│') + '\n');
   w(d('  │' + ' '.repeat(76) + '│') + '\n');
-  w(d('  │  ') + g('★') + chalk.white.bold(' [1] Login') + d(' — free, unlock everything') + '  ' + chalk.white.bold('[2] Open Source') + d(' '.repeat(19) + '│') + '\n');
+  w(d('  │  ') + 'Login — free, unlock everything' + '     ' + 'Open Source — no account needed' + d(' '.repeat(8) + '│') + '\n');
   w(d('  │' + ' '.repeat(76) + '│') + '\n');
-  w(d('  │    ') + g('✓') + ' Jarvis AGI' + ' '.repeat(26) + dim('✓ AI Agent + 22 Tools') + d(' '.repeat(13) + '│') + '\n');
-  w(d('  │    ') + g('✓') + ' Validation Matrix' + ' '.repeat(19) + dim('✓ Spiral Memory') + d(' '.repeat(19) + '│') + '\n');
-  w(d('  │    ') + g('✓') + ' Security Monitor' + ' '.repeat(20) + dim('✓ Anthropic/OpenAI/Ollama') + d(' '.repeat(9) + '│') + '\n');
-  w(d('  │    ') + g('✓') + ' Autonomous Mode' + ' '.repeat(21) + chalk.red('✗') + dim(' No Jarvis · No Validation') + d(' '.repeat(7) + '│') + '\n');
-  w(d('  │    ') + g('✓') + ' 3D Brain Management' + ' '.repeat(17) + chalk.red('✗') + dim(' No Monitor · No Security Audit') + d(' '.repeat(2) + '│') + '\n');
-  w(d('  │    ') + g('✓') + ' 3 Brains · Live Brain WebSocket' + ' '.repeat(5) + chalk.red('✗') + dim(' No Brain Management') + d(' '.repeat(13) + '│') + '\n');
+  w(d('  │    ') + g('\u2713') + ' Jarvis AGI' + ' '.repeat(26) + dim('\u2713 AI Agent + 22 Tools') + d(' '.repeat(13) + '│') + '\n');
+  w(d('  │    ') + g('\u2713') + ' Validation Matrix' + ' '.repeat(19) + dim('\u2713 Spiral Memory') + d(' '.repeat(19) + '│') + '\n');
+  w(d('  │    ') + g('\u2713') + ' Security Monitor' + ' '.repeat(20) + dim('\u2713 Anthropic/OpenAI/Ollama') + d(' '.repeat(9) + '│') + '\n');
+  w(d('  │    ') + g('\u2713') + ' Autonomous Mode' + ' '.repeat(21) + chalk.red('\u2717') + dim(' No Jarvis \u00B7 No Validation') + d(' '.repeat(7) + '│') + '\n');
+  w(d('  │    ') + g('\u2713') + ' 3D Brain Management' + ' '.repeat(17) + chalk.red('\u2717') + dim(' No Monitor \u00B7 No Security Audit') + d(' '.repeat(2) + '│') + '\n');
+  w(d('  │    ') + g('\u2713') + ' 3 Brains \u00B7 Live Brain WebSocket' + ' '.repeat(5) + chalk.red('\u2717') + dim(' No Brain Management') + d(' '.repeat(13) + '│') + '\n');
   w(d('  │' + ' '.repeat(76) + '│') + '\n');
-  w(d('  │    ') + dim('No credit card · Free forever · works offline') + d(' '.repeat(27) + '│') + '\n');
+  w(d('  │    ') + dim('No credit card \u00B7 Free forever \u00B7 works offline') + d(' '.repeat(27) + '│') + '\n');
   w(d('  ╰' + '─'.repeat(76) + '╯') + '\n\n');
 
   const choice = await promptChoice();
@@ -75,7 +75,7 @@ export async function requireAuth(): Promise<ConfigStore> {
 
   // Choice 2: Open Source
   w('\n');
-  w(d('  ') + p('▸') + d(' Open Source mode — full agent, no limits.\n'));
+  w(d('  ') + p('\u25B8') + d(' Open Source mode — full agent, no limits.\n'));
   w(d('  Run ') + chalk.white('helixmind login') + d(' anytime to unlock Jarvis AGI + more.\n\n'));
 
   return store;
@@ -91,7 +91,7 @@ function promptChoice(): Promise<string> {
       output: process.stdout,
     });
 
-    rl.question(d('  ') + g('→') + ' Choose ' + chalk.white.bold('[1]') + d('/2') + d(': '), (answer) => {
+    rl.question(d('  ') + g('\u2192') + ' ' + chalk.white.bold('[1]') + ' Login / ' + chalk.white.bold('[2]') + ' Open Source: ', (answer) => {
       rl.close();
       const trimmed = answer.trim();
       if (trimmed === '2') {

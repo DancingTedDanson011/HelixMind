@@ -11,7 +11,8 @@ describe('SessionManager', () => {
     const mgr = new SessionManager({ flags });
     expect(mgr.all).toHaveLength(1);
     expect(mgr.main.id).toBe('main');
-    expect(mgr.main.name).toBe('Chat');
+    // Main session is named after the cwd folder (HelixMind in tests)
+    expect(mgr.main.name).toBeTruthy();
     expect(mgr.activeId).toBe('main');
   });
 

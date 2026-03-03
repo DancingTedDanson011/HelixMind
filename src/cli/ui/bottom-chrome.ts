@@ -1,29 +1,30 @@
 /**
- * BottomChrome — Centralized manager for the 3 fixed rows at the bottom of the terminal.
+ * BottomChrome — Centralized manager for the 4 fixed rows at the bottom of the terminal.
  *
  * Layout (from bottom):
- *   Row N-2: separator / activity indicator  (chrome index 0)
- *   Row N-1: hints line                      (chrome index 1)
- *   Row N:   statusbar                       (chrome index 2)
+ *   Row N-3: separator / activity indicator  (chrome index 0)
+ *   Row N-2: hints line                      (chrome index 1)
+ *   Row N-1: statusbar line 1                (chrome index 2)
+ *   Row N:   statusbar line 2                (chrome index 3)
  *
- * Uses DECSTBM scroll region to protect the bottom 3 rows from scrolling.
+ * Uses DECSTBM scroll region to protect the bottom 4 rows from scrolling.
  * Includes a stdout hook (Layer 2) that redraws the chrome after every write,
  * protecting against terminals that ignore scroll regions.
  *
- * The readline prompt lives at row N-3 (the last row of the scroll region).
+ * The readline prompt lives at row N-4 (the last row of the scroll region).
  */
 
-const RESERVED_ROWS = 3;
-const MIN_TERMINAL_HEIGHT = 8;
+const RESERVED_ROWS = 4;
+const MIN_TERMINAL_HEIGHT = 10;
 
 export class BottomChrome {
   private _active = false;
   private _inlineMode = false;
   private _originalWrite: ((...args: any[]) => boolean) | null = null;
   private _redrawScheduled = false;
-  private _rowContent: [string, string, string] = ['', '', ''];
+  private _rowContent: [string, string, string, string] = ['', '', '', ''];
 
-  /** Number of rows reserved at the bottom (3, or 0 in inline mode) */
+  /** Number of rows reserved at the bottom (4, or 0 in inline mode) */
   get reservedRows(): number {
     return this._inlineMode ? 0 : RESERVED_ROWS;
   }
@@ -81,22 +82,22 @@ export class BottomChrome {
     this._clearFixedRows();
     this._resetScrollRegion();
     this._unhookStdout();
-    this._rowContent = ['', '', ''];
+    this._rowContent = ['', '', '', ''];
   }
 
   /**
    * Update a specific chrome row and redraw it immediately.
-   * @param index 0 = separator/activity (row N-2), 1 = hints (row N-1), 2 = statusbar (row N)
+   * @param index 0 = separator (row N-3), 1 = hints (row N-2), 2 = statusbar line 1 (row N-1), 3 = statusbar line 2 (row N)
    * @param content ANSI-styled string to display
    */
-  setRow(index: 0 | 1 | 2, content: string): void {
+  setRow(index: 0 | 1 | 2 | 3, content: string): void {
     this._rowContent[index] = content;
     if (!this._active || this._inlineMode) return;
     this._drawRow(index);
   }
 
   /**
-   * Redraw all 3 fixed rows using absolute cursor positioning.
+   * Redraw all 4 fixed rows using absolute cursor positioning.
    * Preserves the caller's cursor position.
    */
   redraw(): void {
@@ -108,9 +109,10 @@ export class BottomChrome {
     write(
       '\x1b[?25l' +                                     // hide cursor
       '\x1b7' +                                          // save cursor
-      `\x1b[${rows - 2};1H` + '\x1b[2K' + ` ${this._rowContent[0]}` +  // row N-2
-      `\x1b[${rows - 1};1H` + '\x1b[2K' + ` ${this._rowContent[1]}` +  // row N-1
-      `\x1b[${rows};1H`     + '\x1b[2K' + ` ${this._rowContent[2]}` +  // row N
+      `\x1b[${rows - 3};1H` + '\x1b[2K' + ` ${this._rowContent[0]}` +  // row N-3 (separator)
+      `\x1b[${rows - 2};1H` + '\x1b[2K' + ` ${this._rowContent[1]}` +  // row N-2 (hints)
+      `\x1b[${rows - 1};1H` + '\x1b[2K' + ` ${this._rowContent[2]}` +  // row N-1 (statusbar line 1)
+      `\x1b[${rows};1H`     + '\x1b[2K' + ` ${this._rowContent[3]}` +  // row N   (statusbar line 2)
       '\x1b8' +                                          // restore cursor
       '\x1b[?25h',                                       // show cursor
     );
@@ -234,9 +236,9 @@ export class BottomChrome {
   }
 
   /** Draw a single chrome row at its absolute position */
-  private _drawRow(index: 0 | 1 | 2): void {
+  private _drawRow(index: 0 | 1 | 2 | 3): void {
     const rows = process.stdout.rows || 24;
-    const row = rows - 2 + index; // 0 → N-2, 1 → N-1, 2 → N
+    const row = rows - 3 + index; // 0 → N-3, 1 → N-2, 2 → N-1, 3 → N
     const content = this._rowContent[index];
 
     this._rawWrite(
@@ -250,11 +252,12 @@ export class BottomChrome {
     );
   }
 
-  /** Clear all 3 fixed rows */
+  /** Clear all 4 fixed rows */
   private _clearFixedRows(): void {
     const rows = process.stdout.rows || 24;
     this._rawWrite(
       '\x1b7' +
+      `\x1b[${rows - 3};1H\x1b[2K` +
       `\x1b[${rows - 2};1H\x1b[2K` +
       `\x1b[${rows - 1};1H\x1b[2K` +
       `\x1b[${rows};1H\x1b[2K` +

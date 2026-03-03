@@ -29,147 +29,146 @@ export interface StatusBarData {
   paused?: boolean;
   plan?: string;
   jarvisName?: string;
+  currentStep?: string;
+  currentFile?: string;
+  runtime?: number; // seconds
+  sectionTimer?: { section: string; seconds: number };
+  totalTimer?: number; // seconds
 }
 
+// Standard CMD width is 80 chars — use 78 to leave margin
+const CMD_STANDARD_WIDTH = 78;
+
 /**
- * Render the statusbar string (single line, colored).
- * Truncates to maxWidth to prevent line wrapping in the terminal.
+ * Render the statusbar as 2 lines for standard CMD width.
+ * Line 1: Brain | Context | Model | Permission | Runtime
+ * Line 2: Step + File | Tokens | Tools | Git | Time
  */
 export function renderStatusBar(data: StatusBarData, maxWidth?: number): string {
-  const termWidth = maxWidth ?? ((process.stdout.columns || 80) - 2);
-
-  // Build parts with priority — high priority parts are kept, low priority dropped first
-  const essentialParts: string[] = [];
-  const optionalParts: string[] = [];
-
-  // [Essential] Brain Growth Bar — shows total knowledge stored, grows with each node
-  essentialParts.push(renderBrainGrowthBar(data.spiral, termWidth < 80));
-
-  // [Essential] Token bar — shorter on narrow terminals
-  essentialParts.push(renderTokenBar(data.sessionTokens, termWidth < 80));
-
-  // [Essential] Jarvis daemon indicator
-  if (data.jarvisName) {
-    essentialParts.push(chalk.hex('#ff00ff')(`\u{1F916} ${data.jarvisName}`));
-  }
-
-  // [Essential] Autonomous / Paused indicator
-  if (data.autonomous) {
-    essentialParts.push(chalk.hex('#ff6600')('\u{1F504} AUTO'));
-  } else if (data.paused) {
-    essentialParts.push(chalk.yellow('\u23F8 PAUSED'));
-  }
-
-  // [Optional] Checkpoint count
-  if (data.checkpoints !== undefined && data.checkpoints > 0) {
-    optionalParts.push(`\u{1F551} ${data.checkpoints} ckpts`);
-  }
-
-  // [Essential] Tokens
-  essentialParts.push(`\u26A1 ${formatTokens(data.tokens.thisMessage)} msg`);
-
-  // [Optional] Tools (only show if > 0)
-  if (data.tools.callsThisRound > 0) {
-    optionalParts.push(`\u{1F527} ${data.tools.callsThisRound} tools`);
-  }
-
-  // [Essential] Permission mode
+  const width = Math.min(maxWidth ?? CMD_STANDARD_WIDTH, CMD_STANDARD_WIDTH);
+  
+  // Line 1: Brain growth, Context, Model, Permission, Runtime
+  const line1Parts: string[] = [];
+  line1Parts.push(renderBrainGrowthBar(data.spiral, true));
+  line1Parts.push(renderTokenBar(data.sessionTokens, true));
+  line1Parts.push(chalk.dim(shortenModelName(data.model)));
+  
+  // Permission mode
   if (data.permissionMode) {
     switch (data.permissionMode) {
-      case 'safe':  essentialParts.push(chalk.green('\u{1F6E1} safe')); break;
-      case 'skip':  essentialParts.push(chalk.yellow('\u26A1 skip')); break;
-      case 'yolo':  essentialParts.push(chalk.red('\u{1F525} yolo')); break;
+      case 'safe':  line1Parts.push(chalk.green('\u{1F6E1}')); break;
+      case 'skip':  line1Parts.push(chalk.yellow('\u26A1')); break;
+      case 'yolo':  line1Parts.push(chalk.red('\u{1F525}')); break;
     }
   }
-
-  // [Optional] Plan badge (when logged in)
-  if (data.plan && data.plan !== 'FREE') {
-    const planColors: Record<string, string> = {
-      PRO: '#00d4ff',
-      TEAM: '#00ff88',
-      ENTERPRISE: '#8a2be2',
-    };
-    const color = planColors[data.plan] ?? '#888888';
-    optionalParts.push(chalk.hex(color).bold(data.plan));
+  
+  // Runtime (if available)
+  if (data.runtime !== undefined) {
+    line1Parts.push(chalk.dim(formatRuntime(data.runtime)));
   }
-
-  // [Essential] Model (shortened)
-  essentialParts.push(chalk.dim(shortenModelName(data.model)));
-
-  // [Optional] Git
+  
+  // Section timer (if active)
+  if (data.sectionTimer) {
+    line1Parts.push(chalk.hex('#FF6B9D')(data.sectionTimer.section) + chalk.dim(`:${formatRuntime(data.sectionTimer.seconds)}`));
+  }
+  
+  // Total timer
+  if (data.totalTimer !== undefined) {
+    line1Parts.push(chalk.hex('#00D4FF')(`⏱${formatRuntime(data.totalTimer)}`));
+  }
+  
+  // Line 2: Step + File, Message tokens, Tools, Git, Clock
+  const line2Parts: string[] = [];
+  
+  // Current step + file (most important info)
+  if (data.currentStep) {
+    let stepInfo = data.currentStep;
+    if (data.currentFile) {
+      const shortFile = data.currentFile.length > 20 
+        ? '...' + data.currentFile.slice(-17) 
+        : data.currentFile;
+      stepInfo += ` ${chalk.dim(shortFile)}`;
+    }
+    line2Parts.push(chalk.cyan(stepInfo));
+  }
+  
+  // Message tokens
+  line2Parts.push(`\u26A1${formatTokens(data.tokens.thisMessage)}`);
+  
+  // Tools (only if active)
+  if (data.tools.callsThisRound > 0) {
+    line2Parts.push(`\u{1F527}${data.tools.callsThisRound}`);
+  }
+  
+  // Checkpoints (only if > 0)
+  if (data.checkpoints !== undefined && data.checkpoints > 0) {
+    line2Parts.push(`\u{1F551}${data.checkpoints}`);
+  }
+  
+  // Git
   if (data.git.branch) {
     const gitColor = data.git.uncommitted > 0 ? chalk.yellow : chalk.green;
     const gitInfo = data.git.uncommitted > 0
       ? `${data.git.branch} \u2191${data.git.uncommitted}`
       : data.git.branch;
-    optionalParts.push(gitColor(gitInfo));
+    line2Parts.push(gitColor(gitInfo));
   }
-
-  // [Optional] Time
+  
+  // Clock
   const now = new Date();
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  optionalParts.push(chalk.dim(time));
-
-  // Assemble: start with essential parts, add optional until we'd overflow
+  line2Parts.push(chalk.dim(time));
+  
+  // Build lines with separator
   const sep = chalk.dim(' \u2502 ');
-  let result = essentialParts.join(sep);
-  for (const part of optionalParts) {
-    const candidate = result + sep + part;
-    if (visibleLength(candidate) > termWidth) break;
-    result = candidate;
-  }
-
-  // Final safety: hard truncate if still too wide (emoji width variance)
-  return truncateBar(result, termWidth);
+  const line1 = truncateBar(line1Parts.join(sep), width);
+  const line2 = truncateBar(line2Parts.join(sep), width);
+  
+  return line1 + '\n' + line2;
 }
 
 /**
- * Write the statusbar to the bottom of the terminal.
- * Layout (from bottom):
- *   row N   = statusbar (spiral counts, tokens, model, git)
- *   row N-1 = hint line (permission mode · shortcuts)
- *   row N-2 = lower input frame line └───┘
- * The upper frame line ┌───┐ + prompt │ ❯ are handled by readline (prompt string).
- */
-/**
- * Pin statusbar to the bottom row of the terminal.
- * Uses save/restore cursor so the caller's cursor position is preserved.
- * Only draws 1 row (the status bar) — separator + hint are drawn inline by showPrompt().
+ * Write the 2-line statusbar to the bottom of the terminal.
  */
 export function writeStatusBar(data: StatusBarData): void {
   const termHeight = process.stdout.rows || 24;
-  const termWidth = (process.stdout.columns || 80) - 2;
+  const termWidth = CMD_STANDARD_WIDTH;
   const bar = renderStatusBar(data, termWidth);
 
-  // Save cursor, draw bottom row, restore cursor
+  // Save cursor, draw 2 bottom rows, restore cursor
   process.stdout.write(
     `\x1b7` +                         // Save cursor
+    `\x1b[${termHeight - 1};0H` +    // Move to row N-1
+    `\x1b[2K` +                       // Clear line
+    '\x1b[K' +                        // Clear to end (for safety)
+    ` ${bar.split('\n')[0]}` +        // Line 1
     `\x1b[${termHeight};0H` +        // Move to row N
     `\x1b[2K` +                       // Clear line
-    ` ${bar}` +                        // Status bar
-    `\x1b8`,                           // Restore cursor
+    '\x1b[K' +
+    ` ${bar.split('\n')[1]}` +        // Line 2
+    `\x1b8`,                          // Restore cursor
   );
 }
 
 /**
  * Write status info as normal inline text (scrolls with content).
- * Safe to call while readline is active — no cursor jumping.
- * Shows: hint line + status bar as two regular lines.
+ * Shows 2-line statusbar + hint line.
  */
 export function writeStatusInline(data: StatusBarData): void {
-  const termWidth = (process.stdout.columns || 80) - 2;
+  const termWidth = CMD_STANDARD_WIDTH;
   const bar = renderStatusBar(data, termWidth);
+  const [line1, line2] = bar.split('\n');
 
   // Hint line
   const hints: string[] = [];
-  if (data.permissionMode === 'yolo') hints.push(chalk.red('\u25B8\u25B8 yolo mode'));
-  else if (data.permissionMode === 'skip') hints.push(chalk.yellow('\u25B8\u25B8 skip permissions'));
-  else hints.push(chalk.green('\u25B8\u25B8 safe permissions'));
-  hints.push(chalk.dim('esc = stop'));
+  if (data.permissionMode === 'yolo') hints.push(chalk.red('\u25B8\u25B8 yolo'));
+  else if (data.permissionMode === 'skip') hints.push(chalk.yellow('\u25B8\u25B8 skip'));
+  else hints.push(chalk.green('\u25B8\u25B8 safe'));
+  hints.push(chalk.dim('esc=stop'));
   hints.push(chalk.dim('/help'));
   const hintLine = ' ' + hints.join(chalk.dim(' \u00B7 '));
 
-  process.stdout.write(`${hintLine}\n ${bar}\n`);
+  process.stdout.write(`${hintLine}\n ${line1}\n ${line2}\n`);
 }
 
 /**
@@ -191,76 +190,56 @@ export function getGitInfo(projectRoot: string): { branch: string; uncommitted: 
 }
 
 // Brain Growth tiers — bar fills up, then jumps to next tier
-// Each tier represents a milestone in brain knowledge capacity
 const BRAIN_GROWTH_TIERS = [
-  10,      // Starter brain
-  50,      // Learning
-  100,     // Growing
-  250,     // Mature
-  500,     // Advanced
-  1000,    // Expert
-  2500,    // Master
-  5000,    // Genius
-  10000,   // Legendary
-  25000,   // Transcendent
-  50000,   // Divine
-  100000,  // Cosmic
+  10, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000,
 ];
 
 function getBrainScale(totalNodes: number): number {
   for (const tier of BRAIN_GROWTH_TIERS) {
     if (totalNodes < tier) return tier;
   }
-  // Beyond 100k — round up to next 50k
   return Math.ceil(totalNodes / 50000) * 50000;
 }
 
 /**
- * Render brain growth bar — shows how much knowledge the brain has accumulated.
- * The bar grows as more nodes are stored in the spiral memory.
+ * Render brain growth bar — compact for 80-char width.
  */
 function renderBrainGrowthBar(spiral: { l1: number; l2: number; l3: number; l4: number; l5: number; l6: number }, compact: boolean): string {
   const totalNodes = spiral.l1 + spiral.l2 + spiral.l3 + spiral.l4 + spiral.l5 + spiral.l6;
   const scale = getBrainScale(totalNodes);
   const ratio = Math.min(totalNodes / scale, 1);
-  const width = compact ? 5 : 8;
+  const width = compact ? 4 : 6;
   const filled = Math.round(ratio * width);
   const empty = width - filled;
 
-  // Gradient colors based on brain maturity
+  // Color based on brain maturity
   let barColor: (str: string) => string;
   let brainIcon: string;
   
   if (totalNodes < 10) {
     barColor = chalk.dim;
-    brainIcon = '\u{1F9E0}'; // Brain emoji
-  } else if (totalNodes < 50) {
-    barColor = chalk.cyan;
     brainIcon = '\u{1F9E0}';
   } else if (totalNodes < 100) {
-    barColor = chalk.green;
+    barColor = chalk.cyan;
     brainIcon = '\u{1F9E0}';
   } else if (totalNodes < 500) {
-    barColor = chalk.hex('#FFAA00');
-    brainIcon = '\u{1F4AF}'; // Hundred emoji
+    barColor = chalk.green;
+    brainIcon = '\u{1F4AF}';
   } else if (totalNodes < 1000) {
     barColor = chalk.hex('#FF6600');
-    brainIcon = '\u{1F525}'; // Fire emoji
-  } else if (totalNodes < 5000) {
-    barColor = chalk.hex('#00d4ff');
-    brainIcon = '\u{1F680}'; // Rocket emoji
+    brainIcon = '\u{1F525}';
   } else {
     barColor = chalk.hex('#8a2be2');
-    brainIcon = '\u{2728}'; // Sparkles emoji
+    brainIcon = '\u{2728}';
   }
 
   const bar = barColor(FILLED.repeat(filled)) + chalk.dim(EMPTY.repeat(empty));
-  const label = `${totalNodes}/${scale} brain`;
+  const label = `${totalNodes}`;
 
-  return `${brainIcon} ${bar} ${barColor(label)}`;
+  return `${brainIcon}${bar}${barColor(label)}`;
 }
 
-// Scale tiers — bar fills up, then jumps to next tier
+// Token scale tiers
 const SCALE_TIERS = [
   100_000, 250_000, 500_000,
   1_000_000, 2_500_000, 5_000_000,
@@ -271,31 +250,28 @@ function getScale(tokens: number): number {
   for (const tier of SCALE_TIERS) {
     if (tokens < tier) return tier;
   }
-  // Beyond 100M — round up to next 100M
   return Math.ceil(tokens / 100_000_000) * 100_000_000;
 }
 
-const BAR_WIDTH = 10;
-const FILLED = '\u2588'; // █
-const EMPTY = '\u2591';  // ░
+const FILLED = '\u2588';
+const EMPTY = '\u2591';
 
 function renderTokenBar(tokens: number, compact: boolean = false): string {
   const scale = getScale(tokens);
   const ratio = Math.min(tokens / scale, 1);
-  const width = compact ? 5 : BAR_WIDTH;
+  const width = compact ? 4 : 6;
   const filled = Math.round(ratio * width);
   const empty = width - filled;
 
-  // Color based on fill ratio
   const barColor = ratio < 0.5 ? chalk.cyan
     : ratio < 0.75 ? chalk.green
     : ratio < 0.9 ? chalk.yellow
     : chalk.hex('#FF6600');
 
   const bar = barColor(FILLED.repeat(filled)) + chalk.dim(EMPTY.repeat(empty));
-  const label = formatTokens(tokens) + '/' + formatTokens(scale) + ' ctx';
+  const label = formatTokens(tokens);
 
-  return bar + ' ' + barColor(label);
+  return `ctx${bar}${barColor(label)}`;
 }
 
 function formatTokens(n: number): string {
@@ -304,42 +280,39 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
+function formatRuntime(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}m${secs}s`;
+}
+
 function shortenModelName(model: string): string {
   const map: Record<string, string> = {
-    'claude-sonnet-4-6': 'sonnet-4.6',
-    'claude-opus-4-6': 'opus-4.6',
-    'claude-haiku-4-5-20251001': 'haiku-4.5',
+    'claude-sonnet-4-6': 'sonnet',
+    'claude-opus-4-6': 'opus',
+    'claude-haiku-4-5-20251001': 'haiku',
     'gpt-4o': 'gpt-4o',
     'gpt-4o-mini': '4o-mini',
     'gpt-4-turbo': '4-turbo',
-    'deepseek-chat': 'ds-chat',
+    'deepseek-chat': 'ds',
     'deepseek-reasoner': 'ds-r1',
     'glm-5': 'GLM-5',
     'glm-5-code': 'GLM-5C',
     'glm-4.7': 'GLM-4.7',
-    'glm-4.7-flashx': 'GLM-4.7FX',
-    'glm-4.7-flash': 'GLM-4.7F\u2605',
+    'glm-4.7-flashx': 'GLM-FX',
+    'glm-4.7-flash': 'GLM-F',
     'glm-4.6': 'GLM-4.6',
     'glm-4.5': 'GLM-4.5',
-    'glm-4.5-x': 'GLM-4.5X',
-    'glm-4.5-air': 'GLM-4.5A',
-    'glm-4.5-airx': 'GLM-4.5AX',
-    'glm-4.5-flash': 'GLM-4.5F\u2605',
   };
   if (map[model]) return map[model];
-  // Auto-shorten: strip common prefixes, truncate long names
   let short = model
     .replace('claude-', '')
     .replace('gpt-', '')
     .replace('deepseek-', 'ds-')
-    .replace('qwen2.5-coder:', 'qwen2.5:')
-    .replace('qwen3-coder:', 'qwen3:')
-    .replace('meta-llama/', '')
-    .replace('anthropic/', '')
-    .replace('openai/', '')
-    .replace('google/', '');
-  // Hard cap at 16 chars
-  if (short.length > 16) short = short.slice(0, 15) + '\u2026';
+    .replace('qwen2.5-coder:', 'qwen:')
+    .replace('qwen3-coder:', 'qwen3:');
+  if (short.length > 12) short = short.slice(0, 11) + '\u2026';
   return short;
 }
 
@@ -353,7 +326,6 @@ export function visibleLength(str: string): number {
 export function truncateBar(bar: string, maxWidth: number): string {
   const visible = visibleLength(bar);
   if (visible <= maxWidth) return bar;
-  // Strip from the end, keeping ANSI reset
   let result = '';
   let width = 0;
   let inEscape = false;
@@ -365,5 +337,5 @@ export function truncateBar(bar: string, maxWidth: number): string {
     result += ch;
     width++;
   }
-  return result + '\x1b[0m'; // reset colors
+  return result + '\x1b[0m';
 }

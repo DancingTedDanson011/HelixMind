@@ -113,6 +113,7 @@ export async function runOnboarding(
 
 /**
  * Show a short greeting for returning users.
+ * Minimal one-line — daemon box shows the full AGI banner with icon.
  */
 export function showReturningGreeting(
   identity: JarvisIdentity,
@@ -123,10 +124,8 @@ export function showReturningGreeting(
   const level = identity.autonomyLevel;
   const proj = projectName ? ` (${projectName})` : '';
 
-  process.stdout.write('\n');
+  // Minimal one-line greeting — daemon box will show the full AGI banner
   process.stdout.write(
-    g(`  \u{1F31F} ${name}`) + d(` hier${proj} \u2014 `) +
-    d(`${tasks} Tasks erledigt, Autonomy L${level}`) + '\n',
+    d(`  ${name} hier${proj} \u2014 ${tasks} Tasks, L${level}`) + '\n',
   );
-  process.stdout.write('\n');
 }

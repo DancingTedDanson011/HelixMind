@@ -6,7 +6,7 @@ import { visibleLength } from './statusbar.js';
  * Glowing activity indicator with color-wave animation across "HelixMind" text.
  * Shows elapsed time, step info, and error count during agent work.
  *
- * Renders on BottomChrome row 0 (the separator/activity row, terminal row N-2).
+ * Renders on BottomChrome row 0 (the separator/activity row).
  * Scroll region management and stdout hooking are delegated to BottomChrome.
  */
 
@@ -57,7 +57,7 @@ export class ActivityIndicator {
     this._displayName = name;
   }
 
-  /** Set the hints content to restore on chrome row 2 when activity stops/pauses */
+  /** Set the hints content to restore on chrome row 1 when activity stops/pauses */
   setRestoreContent(content: string): void {
     this._restoreContent = content;
   }
@@ -100,9 +100,9 @@ export class ActivityIndicator {
       this.interval = null;
     }
     this._onUnmute?.();
-    // Restore hints on chrome row 2
+    // Restore hints on chrome row 1
     if (this.chrome?.isActive) {
-      this.chrome.setRow(2, this._restoreContent);
+      this.chrome.setRow(1, this._restoreContent);
     }
   }
 
@@ -123,7 +123,7 @@ export class ActivityIndicator {
 
   /**
    * Stop the activity indicator and write a final status line.
-   * Restores hints on chrome row 2 and writes "Done" as inline scrolling content.
+   * Restores hints on chrome row 1 and writes "Done" as inline scrolling content.
    */
   stop(message: string = 'Done'): void {
     if (this.startTime > 0) {
@@ -136,9 +136,9 @@ export class ActivityIndicator {
     }
     this._onUnmute?.();
 
-    // Restore hints on chrome row 2
+    // Restore hints on chrome row 1
     if (this.chrome?.isActive) {
-      this.chrome.setRow(2, this._restoreContent);
+      this.chrome.setRow(1, this._restoreContent);
     }
 
     if (this.startTime > 0 && wasAnimating) {
@@ -222,9 +222,9 @@ export class ActivityIndicator {
       }
     }
 
-    // Write to chrome row 2 (hints row) — top border stays untouched
+    // Write to chrome row 0 (activity row) — hints and statusbar stay untouched
     if (this.chrome?.isActive) {
-      this.chrome.setRow(2, line);
+      this.chrome.setRow(0, line);
     }
   }
 }

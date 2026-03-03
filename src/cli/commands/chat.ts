@@ -472,6 +472,28 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let sessionTokensOutput = 0;
   let sessionToolCalls = 0;
   let roundToolCalls = 0;
+  
+  // Timer tracking
+  const sessionStartTime = Date.now();
+  let currentSection: { name: string; startTime: number } | null = null;
+  
+  function startSection(name: string): void {
+    currentSection = { name, startTime: Date.now() };
+  }
+  
+  function endSection(): void {
+    currentSection = null;
+  }
+  
+  function getSectionTimer(): { section: string; seconds: number } | undefined {
+    if (!currentSection) return undefined;
+    const seconds = Math.floor((Date.now() - currentSection.startTime) / 1000);
+    return { section: currentSection.name, seconds };
+  }
+  
+  function getTotalTimer(): number {
+    return Math.floor((Date.now() - sessionStartTime) / 1000);
+  }
 
   // Brain scope: project-local if .helixmind/ exists, else global
   // Requires directory trust before creating .helixmind/
@@ -1824,22 +1846,20 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     // Build chrome row content
     const topBorder = buildTopBorder(w);
-    const data = getStatusBarData();
-    const bar = renderStatusBar(data, w - 6); // narrower to fit in border frame
-    let statusText = bar;
-    if (sessionMgr.all.length > 1) {
-      const tabBar = truncateBar(sessionMgr.renderTabs(), Math.floor(w / 2));
-      statusText = `${tabBar}  ${bar}`;
-    }
-    const bottomBorder = buildBottomBorder(w, statusText);
     const hintLine = buildHintLine();
 
-    // Set hints content on activity indicator (for restore on chrome row 2 after agent work)
+    // Set hints content on activity indicator (for restore on chrome row 1 after agent work)
     activity.setRestoreContent(hintLine);
 
+    // 2-line statusbar
+    const statusData = getStatusBarData();
+    const statusBar = renderStatusBar(statusData, 78);
+    const [statusLine1, statusLine2] = statusBar.split('\n');
+
     chrome.setRow(0, topBorder);
-    chrome.setRow(1, bottomBorder);
-    chrome.setRow(2, hintLine);
+    chrome.setRow(1, hintLine);
+    chrome.setRow(2, ' ' + statusLine1);
+    chrome.setRow(3, ' ' + statusLine2);
 
     // Activate chrome if not already (sets scroll region + hooks stdout)
     if (!chrome.isActive && !chrome.isInlineMode) {
@@ -2406,7 +2426,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Ensure enough blank lines so the chrome rows don't overlap init output.
   // The scroll region needs at least RESERVED_ROWS (3) free rows at the bottom.
   if (process.stdout.isTTY) {
-    process.stdout.write('\n\n\n\n');
+    process.stdout.write('\n\n\n\n\n\n');
   }
 
   // Show full prompt area on startup (separator + status + > prompt)
@@ -3737,8 +3757,8 @@ async function handleSlashCommand(
     process.stdout.write(chalk.dim('  ╭──────────────────────────────────────────────────╮') + '\n');
     process.stdout.write(chalk.dim('  │  ') + theme.primary(`🔒 ${label}`) + chalk.dim(' requires login'.padEnd(48 - label.length - 4)) + chalk.dim('│') + '\n');
     process.stdout.write(chalk.dim('  │                                                  │') + '\n');
-    process.stdout.write(chalk.dim('  │  ') + chalk.white('[1]') + ' Login now' + chalk.dim(' (free, unlocks everything)    │') + '\n');
-    process.stdout.write(chalk.dim('  │  ') + chalk.white('[2]') + ' Continue in Open Source mode' + chalk.dim('             │') + '\n');
+    process.stdout.write(chalk.dim('  │  ') + 'Login now — free, unlocks everything' + chalk.dim('           │') + '\n');
+    process.stdout.write(chalk.dim('  │  ') + 'Continue in Open Source mode' + chalk.dim('             │') + '\n');
     process.stdout.write(chalk.dim('  ╰──────────────────────────────────────────────────╯') + '\n');
 
     // Pause main readline so our prompt captures input exclusively
@@ -3746,7 +3766,7 @@ async function handleSlashCommand(
     onSubPrompt?.(true);
     const choice = await new Promise<string>((resolve) => {
       const gateRl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      gateRl.question(chalk.dim('  ') + chalk.green('→') + ' ' + chalk.white.bold('[1]') + chalk.dim('/2: '), (answer) => {
+      gateRl.question(chalk.dim('  ') + chalk.green('→') + ' ' + chalk.white.bold('[1]') + ' Login / ' + chalk.white.bold('[2]') + ' Open Source: ', (answer) => {
         gateRl.close();
         resolve(answer.trim());
       });

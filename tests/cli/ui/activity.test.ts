@@ -4,21 +4,21 @@ import { BottomChrome } from '../../../src/cli/ui/bottom-chrome.js';
 
 /** Creates a mock BottomChrome that tracks setRow calls */
 function createMockChrome() {
-  const rows: [string, string, string] = ['', '', ''];
+  const rows: [string, string, string, string] = ['', '', '', ''];
   const chrome = {
     isActive: true,
     isInlineMode: false,
-    reservedRows: 3,
-    promptRow: 21,
+    reservedRows: 4,
+    promptRow: 20,
     activate: vi.fn(),
     deactivate: vi.fn(),
-    setRow: vi.fn((index: 0 | 1 | 2, content: string) => { rows[index] = content; }),
+    setRow: vi.fn((index: 0 | 1 | 2 | 3, content: string) => { rows[index] = content; }),
     redraw: vi.fn(),
     handleResize: vi.fn(),
     positionCursorForPrompt: vi.fn(),
     rows,
   };
-  return chrome as unknown as BottomChrome & { rows: [string, string, string]; setRow: ReturnType<typeof vi.fn> };
+  return chrome as unknown as BottomChrome & { rows: [string, string, string, string]; setRow: ReturnType<typeof vi.fn> };
 }
 
 describe('ActivityIndicator', () => {
@@ -42,9 +42,9 @@ describe('ActivityIndicator', () => {
     activity.start();
     expect(activity.isRunning).toBe(true);
 
-    // Should render to chrome row 2 (hints row) immediately
+    // Should render to chrome row 0 (activity row) immediately
     expect(chrome.setRow).toHaveBeenCalled();
-    const content = chrome.rows[2];
+    const content = chrome.rows[0];
     expect(content).toContain('HelixMind');
     expect(content).toContain('working');
 
@@ -73,7 +73,7 @@ describe('ActivityIndicator', () => {
     activity.setStep(3, 'editing main.ts');
     vi.advanceTimersByTime(80);
 
-    const content = chrome.rows[2];
+    const content = chrome.rows[0];
     expect(content).toContain('Step 3');
     expect(content).toContain('editing main.ts');
 
@@ -101,8 +101,8 @@ describe('ActivityIndicator', () => {
     chrome.setRow.mockClear();
 
     activity.stop();
-    // Should restore hints on chrome row 2
-    expect(chrome.setRow).toHaveBeenCalledWith(2, '▸▸ safe · esc');
+    // Should restore hints on chrome row 1 (hints row)
+    expect(chrome.setRow).toHaveBeenCalledWith(1, '▸▸ safe · esc');
   });
 
   it('restores hints on pause', () => {
@@ -113,7 +113,7 @@ describe('ActivityIndicator', () => {
     chrome.setRow.mockClear();
 
     activity.pauseAnimation();
-    expect(chrome.setRow).toHaveBeenCalledWith(2, '▸▸ safe · esc');
+    expect(chrome.setRow).toHaveBeenCalledWith(1, '▸▸ safe · esc');
     expect(activity.isAnimating).toBe(false);
     // Timer still runs
     expect(activity.isRunning).toBe(true);
