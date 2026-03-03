@@ -1,6 +1,10 @@
 import { Resend } from 'resend';
 
-export const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function resend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 export const emailFrom = process.env.EMAIL_FROM || 'HelixMind <noreply@helixmind.dev>';
 
@@ -121,7 +125,7 @@ export async function sendVerificationEmail(to: string, token: string) {
     ].join('\n'),
   );
 
-  return resend.emails.send({
+  return resend().emails.send({
     from: emailFrom,
     to,
     subject: 'Verify your email — HelixMind',
@@ -148,7 +152,7 @@ export async function sendPasswordResetEmail(to: string, token: string) {
     ].join('\n'),
   );
 
-  return resend.emails.send({
+  return resend().emails.send({
     from: emailFrom,
     to,
     subject: 'Reset your password — HelixMind',
@@ -181,7 +185,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
     ].join('\n'),
   );
 
-  return resend.emails.send({
+  return resend().emails.send({
     from: emailFrom,
     to,
     subject: 'Welcome to HelixMind — Let\'s get started',
@@ -222,7 +226,7 @@ export async function sendTicketResponseEmail(
     ].join('\n'),
   );
 
-  return resend.emails.send({
+  return resend().emails.send({
     from: emailFrom,
     to,
     subject: `Ticket update — HelixMind Support`,
@@ -251,7 +255,7 @@ export async function sendTeamInviteEmail(
     ].join('\n'),
   );
 
-  return resend.emails.send({
+  return resend().emails.send({
     from: emailFrom,
     to,
     subject: `You're invited to ${teamName} — HelixMind`,
@@ -280,7 +284,7 @@ export async function sendSubscriptionConfirmEmail(to: string, plan: string) {
     ].join('\n'),
   );
 
-  return resend.emails.send({
+  return resend().emails.send({
     from: emailFrom,
     to,
     subject: `${planDisplay} plan activated — HelixMind`,
