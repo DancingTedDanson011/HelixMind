@@ -2300,36 +2300,35 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     let rewindBrowserOpen = false;
 
     process.stdin.prependListener('data', async (chunk: Buffer) => {
-      if (rewindBrowserOpen) return; // browser has its own data handler
+      if (rewindBrowserOpen) return;
 
-      // Count ESC bytes (\x1b) in the chunk
       const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      let escCount = 0;
-      for (let i = 0; i < bytes.length; i++) {
-        if (bytes[i] === 0x1b) escCount++;
-      }
-      if (escCount === 0) {
-        lastRawEscTime = 0; // non-ESC input resets timer
-        return;
-      }
 
-      const now = Date.now();
-
-      // Two ESC bytes in one chunk (\x1b\x1b) = immediate double-ESC
-      if (escCount >= 2) {
+      // Only bare ESC matters — NOT escape sequences like arrow keys (\x1b[A)
+      // Bare ESC = exactly 1 byte: \x1b
+      // Double ESC = exactly 2 bytes: \x1b\x1b
+      // Anything else starting with \x1b is an ANSI escape sequence → ignore
+      if (bytes.length === 2 && bytes[0] === 0x1b && bytes[1] === 0x1b) {
+        // Double-ESC in one chunk → open rewind immediately
         lastRawEscTime = 0;
         await openRewindBrowser();
         return;
       }
 
-      // Single ESC byte — check timing against previous ESC
-      if (now - lastRawEscTime < RAW_ESC_THRESHOLD && lastRawEscTime > 0) {
-        lastRawEscTime = 0;
-        await openRewindBrowser();
+      if (bytes.length === 1 && bytes[0] === 0x1b) {
+        // Single bare ESC — check timing for double-ESC
+        const now = Date.now();
+        if (now - lastRawEscTime < RAW_ESC_THRESHOLD && lastRawEscTime > 0) {
+          lastRawEscTime = 0;
+          await openRewindBrowser();
+        } else {
+          lastRawEscTime = now;
+        }
         return;
       }
 
-      lastRawEscTime = now;
+      // Everything else (text, arrow keys, etc.) — don't reset timer
+      // because arrow key \x1b[A could arrive just after a real ESC press
     });
 
     async function openRewindBrowser(): Promise<void> {
