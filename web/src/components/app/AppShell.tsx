@@ -97,6 +97,47 @@ function SessionIcon({ name, size = 12, className = '' }: { name: string; size?:
   return <MessageSquare size={size} className={className} />;
 }
 
+/* ─── Autonomy Picker (inline) ────────────────── */
+
+const AUTONOMY_LEVELS: Record<number, { color: string; label: string }> = {
+  0: { color: 'text-red-400', label: 'Observe' },
+  1: { color: 'text-orange-400', label: 'Think' },
+  2: { color: 'text-yellow-400', label: 'Propose' },
+  3: { color: 'text-emerald-400', label: 'Act-Safe' },
+  4: { color: 'text-cyan-400', label: 'Act-Ask' },
+  5: { color: 'text-red-400', label: 'Critical' },
+};
+
+function AutonomyPicker({ level, onSet }: { level: number; onSet: (lvl: number) => void }) {
+  const al = AUTONOMY_LEVELS[level] ?? AUTONOMY_LEVELS[2];
+  return (
+    <div className="relative group/aut">
+      <button className={`text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/10 ${al.color} hover:bg-red-500/20 transition-colors cursor-pointer`}>
+        L{level} {al.label}
+      </button>
+      <div className="absolute top-full left-0 mt-1 hidden group-hover/aut:flex gap-0.5 bg-gray-900/95 border border-white/10 rounded-lg p-1 z-50 shadow-xl">
+        {[0, 1, 2, 3, 4, 5].map(lvl => {
+          const a = AUTONOMY_LEVELS[lvl] ?? AUTONOMY_LEVELS[2];
+          return (
+            <button
+              key={lvl}
+              onClick={() => onSet(lvl)}
+              className={`px-1.5 py-1 rounded text-[9px] font-medium transition-all whitespace-nowrap ${
+                lvl === level
+                  ? `${a.color} bg-white/10 border border-white/20`
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
+              }`}
+              title={a.label}
+            >
+              L{lvl}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Component ───────────────────────────────── */
 
 interface AppShellProps {
@@ -1772,43 +1813,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                       {pb.label}
                     </span>
                   )}
-                  {jStatus.autonomyLevel !== undefined && (() => {
-                    const AL: Record<number, { color: string; label: string }> = {
-                      0: { color: 'text-red-400', label: 'Observe' },
-                      1: { color: 'text-orange-400', label: 'Think' },
-                      2: { color: 'text-yellow-400', label: 'Propose' },
-                      3: { color: 'text-emerald-400', label: 'Act-Safe' },
-                      4: { color: 'text-cyan-400', label: 'Act-Ask' },
-                      5: { color: 'text-red-400', label: 'Critical' },
-                    };
-                    const al = AL[jStatus.autonomyLevel] ?? AL[2];
-                    return (
-                      <div className="relative group/aut">
-                        <button className={`text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/10 ${al.color} hover:bg-red-500/20 transition-colors cursor-pointer`}>
-                          L{jStatus.autonomyLevel} {al.label}
-                        </button>
-                        <div className="absolute top-full left-0 mt-1 hidden group-hover/aut:flex gap-0.5 bg-gray-900/95 border border-white/10 rounded-lg p-1 z-50 shadow-xl">
-                          {[0, 1, 2, 3, 4, 5].map(lvl => {
-                            const a = AL[lvl] ?? AL[2];
-                            return (
-                              <button
-                                key={lvl}
-                                onClick={() => connection.setAutonomyLevel(lvl).catch(() => {})}
-                                className={`px-1.5 py-1 rounded text-[9px] font-medium transition-all whitespace-nowrap ${
-                                  lvl === jStatus.autonomyLevel
-                                    ? `${a.color} bg-white/10 border border-white/20`
-                                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
-                                }`}
-                                title={a.label}
-                              >
-                                L{lvl}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {jStatus.autonomyLevel !== undefined && (
+                    <AutonomyPicker level={jStatus.autonomyLevel} onSet={(lvl) => connection.setAutonomyLevel(lvl).catch(() => {})} />
+                  )}
                   {jStatus.pendingCount > 0 && (
                     <span className="text-[9px] text-gray-500">{jStatus.pendingCount} pending</span>
                   )}
