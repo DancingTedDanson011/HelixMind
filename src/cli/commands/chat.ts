@@ -2295,7 +2295,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       // Double-ESC detection (checkpoint Rewind browser)
       // processKeypress tracks ESC timing even when STOP ran above.
+      // Only feed ESC into processKeypress (non-ESC keys would reset lastEscTime)
+      if (key.name !== 'escape') return;
       const result = processKeypress(key, keyState);
+      // DEBUG — remove after confirming double-ESC works
+      process.stderr.write(`[DBG] ESC processKeypress → ${result.action} | agentRunning=${agentRunning} | lastEsc=${keyState.lastEscTime} | cps=${checkpointStore.getAll().length}\n`);
       if (result.action === 'open_browser' && !agentRunning) {
         // Check if there are any checkpoints before opening browser
         const allCps = checkpointStore.getAll();
