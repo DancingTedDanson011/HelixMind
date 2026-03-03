@@ -34,7 +34,7 @@ import { PermissionManager } from '../agent/permissions.js';
 import { UndoStack } from '../agent/undo.js';
 import { writeStatusBar, renderStatusBar, getGitInfo, truncateBar, visibleLength, type StatusBarData } from '../ui/statusbar.js';
 import { CheckpointStore } from '../checkpoints/store.js';
-import { createKeybindingState, processKeypress } from '../checkpoints/keybinding.js';
+// keybinding module is imported directly by checkpoints/browser.ts
 import { runCheckpointBrowser } from '../checkpoints/browser.js';
 import { runFirstTimeSetup, showModelSwitcher, showKeyManagement } from './setup.js';
 import { SessionBuffer } from '../context/session-buffer.js';
@@ -2209,7 +2209,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   }
 
   // Keybinding state for double-ESC detection
-  const keyState = createKeybindingState();
+  // Double-ESC state is handled by the raw data listener (see below)
 
   // Handle raw keypresses for double-ESC + command suggestions
   if (process.stdin.isTTY) {
@@ -2247,11 +2247,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         }
       }
 
-      // === ESC detection ===
-      // Single ESC stops ALL running processes (agents, sessions, Jarvis, autonomous).
-      // Double ESC opens the checkpoint Rewind browser.
-      // IMPORTANT: Don't return after STOP — fall through so processKeypress
-      // always sees the ESC for double-ESC detection.
+      // === ESC detection (single ESC = stop) ===
+      // Double-ESC (rewind browser) is handled by the raw data listener below.
       if (key.name === 'escape') {
         const jarvisRunning = jarvisDaemonSession && jarvisDaemonSession.status === 'running';
         const anythingRunning = agentRunning || sessionMgr.hasBackgroundTasks || autonomousMode || jarvisRunning;
@@ -2289,56 +2286,92 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
           // Restore prompt so user can type again
           showPrompt();
-          // NOTE: no return — fall through to double-ESC detection below
-        }
-      }
-
-      // Double-ESC detection (checkpoint Rewind browser)
-      // processKeypress tracks ESC timing even when STOP ran above.
-      // Only feed ESC into processKeypress (non-ESC keys would reset lastEscTime)
-      if (key.name !== 'escape') return;
-      const result = processKeypress(key, keyState);
-      // DEBUG — remove after confirming double-ESC works
-      process.stderr.write(`[DBG] ESC processKeypress → ${result.action} | agentRunning=${agentRunning} | lastEsc=${keyState.lastEscTime} | cps=${checkpointStore.getAll().length}\n`);
-      if (result.action === 'open_browser' && !agentRunning) {
-        // Check if there are any checkpoints before opening browser
-        const allCps = checkpointStore.getAll();
-        if (allCps.length === 0) {
-          renderInfo(chalk.dim('No checkpoints yet \u2014 start chatting to create rewind points.'));
-          showPrompt();
-        } else {
-          // Open checkpoint browser — deactivate chrome for fullscreen TUI
-          rl.pause();
-          chrome.deactivate();
-          try {
-            const browserResult = await runCheckpointBrowser({
-              store: checkpointStore,
-              agentHistory,
-              simpleMessages: messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' })),
-              isPaused: false,
-            });
-
-            if (browserResult.action === 'revert') {
-              const r = browserResult.result;
-              process.stdout.write('\n');
-              if (r.messagesRemoved > 0) renderInfo(chalk.yellow(`${r.messagesRemoved} message(s) reverted`));
-              if (r.filesReverted > 0) renderInfo(chalk.yellow(`${r.filesReverted} file(s) reverted`));
-
-              // Restore user text into readline input
-              if (browserResult.messageText) {
-                (rl as any).line = browserResult.messageText;
-                (rl as any).cursor = browserResult.messageText.length;
-              }
-            }
-          } catch {
-            // Browser closed unexpectedly
-          }
-          chrome.activate();
-          rl.resume();
-          showPrompt();
         }
       }
     });
+  }
+
+  // === Raw data listener for double-ESC detection ===
+  // Node.js readline merges rapid \x1b\x1b into a single keypress event on Windows.
+  // This raw listener counts ESC bytes directly before readline processes them.
+  {
+    let lastRawEscTime = 0;
+    const RAW_ESC_THRESHOLD = 800; // ms
+    let rewindBrowserOpen = false;
+
+    process.stdin.prependListener('data', async (chunk: Buffer) => {
+      if (rewindBrowserOpen) return; // browser has its own data handler
+
+      // Count ESC bytes (\x1b) in the chunk
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      let escCount = 0;
+      for (let i = 0; i < bytes.length; i++) {
+        if (bytes[i] === 0x1b) escCount++;
+      }
+      if (escCount === 0) {
+        lastRawEscTime = 0; // non-ESC input resets timer
+        return;
+      }
+
+      const now = Date.now();
+
+      // Two ESC bytes in one chunk (\x1b\x1b) = immediate double-ESC
+      if (escCount >= 2) {
+        lastRawEscTime = 0;
+        await openRewindBrowser();
+        return;
+      }
+
+      // Single ESC byte — check timing against previous ESC
+      if (now - lastRawEscTime < RAW_ESC_THRESHOLD && lastRawEscTime > 0) {
+        lastRawEscTime = 0;
+        await openRewindBrowser();
+        return;
+      }
+
+      lastRawEscTime = now;
+    });
+
+    async function openRewindBrowser(): Promise<void> {
+      if (agentRunning || rewindBrowserOpen) return;
+
+      const allCps = checkpointStore.getAll();
+      if (allCps.length === 0) {
+        renderInfo(chalk.dim('No checkpoints yet \u2014 start chatting to create rewind points.'));
+        showPrompt();
+        return;
+      }
+
+      rewindBrowserOpen = true;
+      rl.pause();
+      chrome.deactivate();
+      try {
+        const browserResult = await runCheckpointBrowser({
+          store: checkpointStore,
+          agentHistory,
+          simpleMessages: messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' })),
+          isPaused: false,
+        });
+
+        if (browserResult.action === 'revert') {
+          const r = browserResult.result;
+          process.stdout.write('\n');
+          if (r.messagesRemoved > 0) renderInfo(chalk.yellow(`${r.messagesRemoved} message(s) reverted`));
+          if (r.filesReverted > 0) renderInfo(chalk.yellow(`${r.filesReverted} file(s) reverted`));
+
+          if (browserResult.messageText) {
+            (rl as any).line = browserResult.messageText;
+            (rl as any).cursor = browserResult.messageText.length;
+          }
+        }
+      } catch {
+        // Browser closed unexpectedly
+      }
+      rewindBrowserOpen = false;
+      chrome.activate();
+      rl.resume();
+      showPrompt();
+    }
   }
 
   // Build Jarvis identity context for system prompt injection (when daemon is active)
