@@ -7,25 +7,33 @@ export interface MenuItem {
   key?: string;         // shortcut key (e.g., 'd', 'q')
   marker?: string;      // e.g., "◀ current", "✓"
   disabled?: boolean;
-  danger?: boolean;     // Enterprise: mark as dangerous (red styling)
-  success?: boolean;    // Enterprise: mark as success (green styling)
-  icon?: string;        // Enterprise: custom icon
+  danger?: boolean;
+  success?: boolean;
+  icon?: string;
 }
 
 export interface SelectMenuOptions {
   title?: string;
-  cancelLabel?: string; // label for ESC/q cancel, default "Back"
-  pageSize?: number;    // visible items before scrolling, default 10
-  showCount?: boolean;  // Enterprise: show item count
-  autoFocus?: boolean;  // Enterprise: auto-select after timeout (optional)
+  cancelLabel?: string;
+  pageSize?: number;
+  showCount?: boolean;
+  autoFocus?: boolean;
 }
+
+// ANSI helpers
+const HIDE_CURSOR = '\x1b[?25l';
+const SHOW_CURSOR = '\x1b[?25h';
+const ERASE_LINE = '\x1b[2K';      // erase entire line
+const COL0 = '\r';                   // carriage return → column 0
+const MOVE_UP = (n: number) => n > 0 ? `\x1b[${n}A` : '';
+const ERASE_BELOW = '\x1b[J';       // erase from cursor to end of screen
 
 /**
  * Interactive arrow-key menu. Returns the selected index or -1 if cancelled.
  * Works in raw mode — no readline needed.
  *
- * Flicker-free rendering: uses cursor positioning + line erase instead of
- * clearing the entire region. Each line is overwritten in place.
+ * Rendering: builds entire frame in a string buffer, writes in a single
+ * process.stdout.write() call. Cursor is hidden during rendering.
  */
 export function selectMenu(
   items: MenuItem[],
@@ -37,71 +45,53 @@ export function selectMenu(
 
   let cursor = enabledIndices[0];
   let scrollOffset = 0;
-
   const visibleCount = Math.min(pageSize, items.length);
 
-  // Calculate total lines rendered (for cursor positioning)
-  function getTotalLines(): number {
-    let lines = 0;
-    if (title) lines += 2; // newline + title
-    lines += visibleCount;  // menu items
-    if (items.length > visibleCount) lines += 1; // scroll indicator
-    else if (showCount && items.length > 1) lines += 1; // count
-    lines += 2; // empty line + footer
-    return lines;
-  }
+  // Fixed line count — never changes between renders
+  const TITLE_LINES = title ? 2 : 0;
+  const ITEMS_LINES = visibleCount;
+  const META_LINE = 1; // scroll indicator OR item count OR empty
+  const FOOTER_LINES = 2; // blank + hint
+  const TOTAL_LINES = TITLE_LINES + ITEMS_LINES + META_LINE + FOOTER_LINES;
 
-  function render(isRedraw: boolean): void {
-    const totalLines = getTotalLines();
-
-    if (isRedraw) {
-      // Move cursor to start of our render region
-      process.stdout.write(`\x1b[${totalLines}A`);
-    }
-
-    // Helper: overwrite current line and move to next
-    const writeLine = (content: string) => {
-      process.stdout.write(`\x1b[2K${content}\n`);
-    };
+  function buildFrame(): string {
+    const lines: string[] = [];
 
     // Title
     if (title) {
-      writeLine('');
-      writeLine(`  ${chalk.hex('#00d4ff').bold('┌─')} ${chalk.white.bold(title)} ${chalk.hex('#00d4ff').bold('─'.repeat(Math.max(0, 30 - title.length)))}`);
+      lines.push('');
+      lines.push(`  ${chalk.hex('#00d4ff').bold('┌─')} ${chalk.white.bold(title)} ${chalk.hex('#00d4ff').bold('─'.repeat(Math.max(0, 30 - title.length)))}`);
     }
 
     // Adjust scroll window
     if (cursor < scrollOffset) scrollOffset = cursor;
     if (cursor >= scrollOffset + visibleCount) scrollOffset = cursor - visibleCount + 1;
 
+    // Menu items
     for (let vi = 0; vi < visibleCount; vi++) {
       const i = scrollOffset + vi;
-      if (i >= items.length) {
-        writeLine('');
-        continue;
-      }
+      if (i >= items.length) { lines.push(''); continue; }
 
       const item = items[i];
-      const isSelected = i === cursor;
-
-      let prefix = isSelected ? chalk.hex('#00d4ff').bold('  ❯ ') : '    ';
+      const sel = i === cursor;
+      let prefix = sel ? chalk.hex('#00d4ff').bold('  ❯ ') : '    ';
       let label: string;
       let desc: string;
-      let marker = item.marker ? ` ${item.marker}` : '';
-      let keyHint = item.key ? chalk.dim(` [${item.key}]`) : '';
+      const marker = item.marker ? ` ${item.marker}` : '';
+      const keyHint = item.key ? chalk.dim(` [${item.key}]`) : '';
 
       if (item.disabled) {
         label = chalk.dim.strikethrough(item.label);
         desc = item.description ? chalk.dim(` — ${item.description}`) : '';
       } else if (item.danger) {
-        prefix = isSelected ? chalk.red.bold('  ❯ ') : '    ';
-        label = isSelected ? chalk.red.bold(item.label) : chalk.red(item.label);
-        desc = item.description ? (isSelected ? chalk.red(` — ${item.description}`) : chalk.dim(` — ${item.description}`)) : '';
+        prefix = sel ? chalk.red.bold('  ❯ ') : '    ';
+        label = sel ? chalk.red.bold(item.label) : chalk.red(item.label);
+        desc = item.description ? (sel ? chalk.red(` — ${item.description}`) : chalk.dim(` — ${item.description}`)) : '';
       } else if (item.success) {
-        prefix = isSelected ? chalk.green.bold('  ❯ ') : '    ';
-        label = isSelected ? chalk.green.bold(item.label) : chalk.green(item.label);
-        desc = item.description ? (isSelected ? chalk.green(` — ${item.description}`) : chalk.dim(` — ${item.description}`)) : '';
-      } else if (isSelected) {
+        prefix = sel ? chalk.green.bold('  ❯ ') : '    ';
+        label = sel ? chalk.green.bold(item.label) : chalk.green(item.label);
+        desc = item.description ? (sel ? chalk.green(` — ${item.description}`) : chalk.dim(` — ${item.description}`)) : '';
+      } else if (sel) {
         label = chalk.white.bold(item.label);
         desc = item.description ? chalk.white(` — ${item.description}`) : '';
       } else {
@@ -110,128 +100,84 @@ export function selectMenu(
       }
 
       const icon = item.icon ? `${item.icon} ` : '';
-      writeLine(`${prefix}${icon}${label}${desc}${marker}${keyHint}`);
+      lines.push(`${prefix}${icon}${label}${desc}${marker}${keyHint}`);
     }
 
-    // Scroll indicator or count
+    // Meta line (scroll indicator or count)
     if (items.length > visibleCount) {
       const above = scrollOffset > 0 ? '↑' : ' ';
       const below = scrollOffset + visibleCount < items.length ? '↓' : ' ';
-      writeLine(chalk.dim(`    ${above} ${chalk.hex('#00d4ff')(`${scrollOffset + 1}-${Math.min(scrollOffset + visibleCount, items.length)}`)} of ${items.length} ${below}`));
+      lines.push(chalk.dim(`    ${above} ${chalk.hex('#00d4ff')(`${scrollOffset + 1}-${Math.min(scrollOffset + visibleCount, items.length)}`)} of ${items.length} ${below}`));
     } else if (showCount && items.length > 1) {
-      writeLine(chalk.dim(`    ${items.length} options`));
+      lines.push(chalk.dim(`    ${items.length} options`));
+    } else {
+      lines.push('');
     }
 
     // Footer
-    writeLine('');
-    writeLine(chalk.dim(`  ↑↓ navigate · Enter select · Esc/q ${cancelLabel}`));
+    lines.push('');
+    lines.push(chalk.dim(`  ↑↓ navigate · Enter select · Esc/q ${cancelLabel}`));
+
+    return lines.map(l => `${COL0}${ERASE_LINE}${l}`).join('\n');
+  }
+
+  function render(isRedraw: boolean): void {
+    let out = HIDE_CURSOR;
+    if (isRedraw) out += `${COL0}${MOVE_UP(TOTAL_LINES - 1)}`;
+    out += buildFrame();
+    out += SHOW_CURSOR;
+    process.stdout.write(out);
   }
 
   return new Promise<number>((resolve) => {
     const stdin = process.stdin;
     const wasRaw = stdin.isRaw;
 
-    if (stdin.isTTY) {
-      stdin.setRawMode(true);
-    }
+    if (stdin.isTTY) stdin.setRawMode(true);
     stdin.resume();
 
-    let firstRender = true;
+    let rendered = false;
 
     function draw(): void {
-      render(!firstRender);
-      firstRender = false;
+      render(rendered);
+      rendered = true;
     }
 
     function cleanup(result: number): void {
-      // Erase the rendered menu from the terminal
-      const totalLines = getTotalLines();
-      process.stdout.write(`\x1b[${totalLines}A\x1b[J`);
-
+      // Move to top of menu region, erase everything below, show cursor
+      process.stdout.write(`${COL0}${MOVE_UP(TOTAL_LINES - 1)}${ERASE_BELOW}${SHOW_CURSOR}`);
       stdin.removeListener('data', onData);
-      if (stdin.isTTY && wasRaw !== undefined) {
-        stdin.setRawMode(wasRaw);
-      }
+      if (stdin.isTTY && wasRaw !== undefined) stdin.setRawMode(wasRaw);
       resolve(result);
     }
 
     function moveCursor(direction: 1 | -1): void {
-      const currentPos = enabledIndices.indexOf(cursor);
-      if (currentPos === -1) return;
-      const nextPos = currentPos + direction;
-      if (nextPos >= 0 && nextPos < enabledIndices.length) {
-        cursor = enabledIndices[nextPos];
-      }
+      const pos = enabledIndices.indexOf(cursor);
+      if (pos === -1) return;
+      const next = pos + direction;
+      if (next >= 0 && next < enabledIndices.length) cursor = enabledIndices[next];
     }
 
     function onData(data: Buffer): void {
       const key = data.toString();
 
-      // ESC (alone)
-      if (key === '\x1b' || key === '\x1b\x1b') {
-        cleanup(-1);
-        return;
-      }
+      if (key === '\x1b' || key === '\x1b\x1b') { cleanup(-1); return; }
+      if (key === '\x03') { cleanup(-1); return; }
+      if (key === '\r' || key === '\n') { cleanup(cursor); return; }
 
-      // Ctrl+C
-      if (key === '\x03') {
-        cleanup(-1);
-        return;
-      }
+      if (key === '\x1b[A') { moveCursor(-1); draw(); return; }
+      if (key === '\x1b[B') { moveCursor(1); draw(); return; }
+      if (key === '\x1b[H' || key === '\x1b[5~') { cursor = enabledIndices[0]; draw(); return; }
+      if (key === '\x1b[F' || key === '\x1b[6~') { cursor = enabledIndices[enabledIndices.length - 1]; draw(); return; }
 
-      // Enter
-      if (key === '\r' || key === '\n') {
-        cleanup(cursor);
-        return;
-      }
-
-      // Arrow up
-      if (key === '\x1b[A') {
-        moveCursor(-1);
-        draw();
-        return;
-      }
-
-      // Arrow down
-      if (key === '\x1b[B') {
-        moveCursor(1);
-        draw();
-        return;
-      }
-
-      // Home / Page Up
-      if (key === '\x1b[H' || key === '\x1b[5~') {
-        cursor = enabledIndices[0];
-        draw();
-        return;
-      }
-
-      // End / Page Down
-      if (key === '\x1b[F' || key === '\x1b[6~') {
-        cursor = enabledIndices[enabledIndices.length - 1];
-        draw();
-        return;
-      }
-
-      // Shortcut key match
       const char = key.toLowerCase();
       if (char.length === 1) {
-        const matchIdx = items.findIndex(
-          (item) => !item.disabled && item.key === char,
-        );
-        if (matchIdx >= 0) {
-          cleanup(matchIdx);
-          return;
-        }
+        const idx = items.findIndex(it => !it.disabled && it.key === char);
+        if (idx >= 0) { cleanup(idx); return; }
       }
+      if (char === 'q') { cleanup(-1); return; }
 
-      // 'q' as cancel shortcut
-      if (char === 'q') {
-        cleanup(-1);
-        return;
-      }
-
-      // Ignore all other keys — no redraw, no flicker
+      // Unknown key — ignore, no redraw
     }
 
     stdin.on('data', onData);
@@ -241,7 +187,6 @@ export function selectMenu(
 
 /**
  * Convenience: show a yes/no confirmation prompt with arrow keys.
- * Enterprise: Rich styling with icons.
  */
 export function confirmMenu(question: string, defaultYes = false): Promise<boolean> {
   process.stdout.write(`\n  ${chalk.hex('#00d4ff')('❓')} ${chalk.white.bold(question)}\n`);
@@ -251,34 +196,28 @@ export function confirmMenu(question: string, defaultYes = false): Promise<boole
       { label: 'No', icon: '✗', danger: true, marker: !defaultYes ? '◀ default' : undefined },
     ],
     { cancelLabel: 'Cancel' },
-  ).then((idx) => {
-    if (idx === -1) return false;
-    return idx === 0;
-  });
+  ).then((idx) => idx === 0);
 }
 
 /**
- * Enterprise: Show a menu with quick actions
- * Returns the selected item or null if cancelled
+ * Show a menu with quick actions. Returns the selected item or null.
  */
 export async function quickActionMenu<T extends { label: string; action: () => void | Promise<void> }>(
   items: (T & { key?: string; danger?: boolean })[],
   opts?: SelectMenuOptions,
 ): Promise<T | null> {
-  const menuItems: MenuItem[] = items.map((item, i) => ({
+  const menuItems: MenuItem[] = items.map(item => ({
     label: item.label,
     key: item.key,
     danger: item.danger,
   }));
-
   const idx = await selectMenu(menuItems, opts);
   if (idx === -1) return null;
   return items[idx];
 }
 
 /**
- * Enterprise: Show a multi-select menu
- * Returns array of selected indices
+ * Multi-select menu. Returns array of selected indices.
  */
 export async function multiSelectMenu(
   items: MenuItem[],
@@ -289,108 +228,72 @@ export async function multiSelectMenu(
   const { title, pageSize = 10 } = opts;
   const visibleCount = Math.min(pageSize, items.length);
 
-  function getTotalLines(): number {
-    let lines = 0;
-    if (title) lines += 2;
-    lines += visibleCount;
-    lines += 2; // footer lines
-    lines += 1; // selected count
-    return lines;
-  }
+  const TITLE_LINES = title ? 2 : 0;
+  const TOTAL_LINES = TITLE_LINES + visibleCount + 3; // items + blank + hint + count
 
-  function render(isRedraw: boolean): void {
-    const totalLines = getTotalLines();
-
-    if (isRedraw) {
-      process.stdout.write(`\x1b[${totalLines}A`);
-    }
-
-    const writeLine = (content: string) => {
-      process.stdout.write(`\x1b[2K${content}\n`);
-    };
+  function buildFrame(): string {
+    const lines: string[] = [];
 
     if (title) {
-      writeLine('');
-      writeLine(`  ${chalk.hex('#00d4ff').bold('┌─')} ${chalk.white.bold(title)} ${chalk.hex('#00d4ff').bold('─'.repeat(Math.max(0, 30 - title.length)))}`);
+      lines.push('');
+      lines.push(`  ${chalk.hex('#00d4ff').bold('┌─')} ${chalk.white.bold(title)} ${chalk.hex('#00d4ff').bold('─'.repeat(Math.max(0, 30 - title.length)))}`);
     }
 
     for (let i = 0; i < visibleCount && i < items.length; i++) {
       const item = items[i];
-      const isSelected = i === cursor;
-      const isChecked = selected.has(i);
-
-      const prefix = isSelected ? chalk.hex('#00d4ff').bold('  ❯ ') : '    ';
-      const checkbox = isChecked ? chalk.green('☑') : chalk.dim('☐');
-      const label = isSelected ? chalk.white.bold(item.label) : (item.disabled ? chalk.dim(item.label) : item.label);
-
-      writeLine(`${prefix}${checkbox} ${label}`);
+      const sel = i === cursor;
+      const checked = selected.has(i);
+      const prefix = sel ? chalk.hex('#00d4ff').bold('  ❯ ') : '    ';
+      const checkbox = checked ? chalk.green('☑') : chalk.dim('☐');
+      const label = sel ? chalk.white.bold(item.label) : (item.disabled ? chalk.dim(item.label) : item.label);
+      lines.push(`${prefix}${checkbox} ${label}`);
     }
 
-    writeLine('');
-    writeLine(chalk.dim(`  ↑↓ navigate · Space toggle · Enter confirm · Esc cancel`));
-    writeLine(chalk.dim(`  ${selected.size} selected`));
+    lines.push('');
+    lines.push(chalk.dim(`  ↑↓ navigate · Space toggle · Enter confirm · Esc cancel`));
+    lines.push(chalk.dim(`  ${selected.size} selected`));
+
+    return lines.map(l => `${COL0}${ERASE_LINE}${l}`).join('\n');
+  }
+
+  function render(isRedraw: boolean): void {
+    let out = HIDE_CURSOR;
+    if (isRedraw) out += `${COL0}${MOVE_UP(TOTAL_LINES - 1)}`;
+    out += buildFrame();
+    out += SHOW_CURSOR;
+    process.stdout.write(out);
   }
 
   return new Promise<number[]>((resolve) => {
     const stdin = process.stdin;
     const wasRaw = stdin.isRaw;
-
-    if (stdin.isTTY) {
-      stdin.setRawMode(true);
-    }
+    if (stdin.isTTY) stdin.setRawMode(true);
     stdin.resume();
 
-    let firstRender = true;
+    let rendered = false;
 
     function cleanup(result: number[]): void {
-      const totalLines = getTotalLines();
-      process.stdout.write(`\x1b[${totalLines}A\x1b[J`);
+      process.stdout.write(`${COL0}${MOVE_UP(TOTAL_LINES - 1)}${ERASE_BELOW}${SHOW_CURSOR}`);
       stdin.removeListener('data', onData);
-      if (stdin.isTTY && wasRaw !== undefined) {
-        stdin.setRawMode(wasRaw);
-      }
+      if (stdin.isTTY && wasRaw !== undefined) stdin.setRawMode(wasRaw);
       resolve(result);
     }
 
     function onData(data: Buffer): void {
       const key = data.toString();
 
-      if (key === '\x1b' || key === '\x1b\x1b' || key === '\x03') {
-        cleanup([]);
-        return;
-      }
+      if (key === '\x1b' || key === '\x1b\x1b' || key === '\x03') { cleanup([]); return; }
+      if (key === '\r' || key === '\n') { cleanup(Array.from(selected)); return; }
 
-      if (key === '\r' || key === '\n') {
-        cleanup(Array.from(selected));
-        return;
-      }
-
-      if (key === '\x1b[A' && cursor > 0) {
-        cursor--;
-        render(!firstRender);
-        firstRender = false;
-        return;
-      }
-
-      if (key === '\x1b[B' && cursor < items.length - 1) {
-        cursor++;
-        render(!firstRender);
-        firstRender = false;
-        return;
-      }
+      if (key === '\x1b[A' && cursor > 0) { cursor--; render(!rendered); rendered = true; return; }
+      if (key === '\x1b[B' && cursor < items.length - 1) { cursor++; render(!rendered); rendered = true; return; }
 
       if (key === ' ') {
-        if (selected.has(cursor)) {
-          selected.delete(cursor);
-        } else {
-          selected.add(cursor);
-        }
-        render(!firstRender);
-        firstRender = false;
+        if (selected.has(cursor)) selected.delete(cursor);
+        else selected.add(cursor);
+        render(!rendered); rendered = true;
         return;
       }
-
-      // Ignore other keys — no redraw
     }
 
     stdin.on('data', onData);
