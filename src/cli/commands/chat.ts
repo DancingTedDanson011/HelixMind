@@ -1942,6 +1942,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     input: process.stdin,
     output: process.stdout,
     prompt: makePrompt(),
+    escapeCodeTimeout: 50, // Low timeout so ESC keypress is emitted quickly (default 500ms merges double-ESC into one event)
     completer: (line: string) => {
       if (line.startsWith('/')) {
         const matches = getSuggestions(line).map(s => s.cmd);
