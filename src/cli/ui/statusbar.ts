@@ -40,66 +40,78 @@ export interface StatusBarData {
 const CMD_STANDARD_WIDTH = 78;
 
 /**
- * Render the statusbar — adaptive: 1 line when content fits terminal width,
- * splits into 2 lines only when it would overflow.
+ * Render the statusbar — fills terminal width with comprehensive metrics.
+ * Adaptive: 1 line when content fits, splits to 2 on overflow.
  * Always returns "line1\nline2" — line2 is empty when single-line mode.
- *
- * Dense layout with grouped sections separated by │, items within groups by space.
- * Brain shows level breakdown. All metrics always visible.
  */
 export function renderStatusBar(data: StatusBarData, maxWidth?: number): string {
   const width = maxWidth ?? CMD_STANDARD_WIDTH;
   const sep = chalk.dim(' \u2502 ');
 
-  // === Section 1: Brain — icon + bar + total + level breakdown ===
+  // === Section 1: Brain — icon + bar + total + labeled level breakdown ===
   const brainSection = renderBrainSection(data.spiral);
 
-  // === Section 2: Context + Model + Permission (grouped) ===
-  const ctxBar = renderTokenBar(data.sessionTokens, true);
-  let permIcon = '';
+  // === Section 2: Context tokens (session bar) ===
+  const ctxSection = renderTokenBar(data.sessionTokens);
+
+  // === Section 3: Model + Permission (with label) ===
+  let permLabel = '';
   if (data.permissionMode) {
     switch (data.permissionMode) {
-      case 'safe':  permIcon = chalk.green('\u{1F6E1}'); break;
-      case 'skip':  permIcon = chalk.yellow('\u26A1'); break;
-      case 'yolo':  permIcon = chalk.red('\u{1F525}'); break;
+      case 'safe':  permLabel = chalk.green('\u{1F6E1}safe'); break;
+      case 'skip':  permLabel = chalk.yellow('\u26A1skip'); break;
+      case 'yolo':  permLabel = chalk.red('\u{1F525}yolo'); break;
     }
   }
-  const modelSection = `${ctxBar} ${chalk.dim(shortenModelName(data.model))}${permIcon}`;
+  const modelPerm = `${chalk.dim(shortenModelName(data.model))} ${permLabel}`;
 
-  // === Section 3: Metrics (tokens, tools, checkpoints) ===
+  // === Section 4: Token breakdown (in/out) + Tools + Checkpoints ===
   const metricsItems: string[] = [];
-  metricsItems.push(`\u26A1${formatTokens(data.tokens.thisMessage)}`);
+  metricsItems.push(chalk.dim('in:') + formatTokens(data.tokens.thisSession - data.tokens.thisMessage));
+  metricsItems.push(chalk.dim('out:') + chalk.bold(formatTokens(data.tokens.thisMessage)));
   metricsItems.push(`\u{1F527}${data.tools.callsThisRound}`);
   metricsItems.push(`\u{1F551}${data.checkpoints ?? 0}`);
   const metricsSection = metricsItems.join(' ');
 
-  // === Section 4: Git + Timers + Step + Clock ===
-  const liveItems: string[] = [];
-
-  // Git
+  // === Section 5: Git ===
+  let gitSection = '';
   if (data.git.branch) {
     const gitColor = data.git.uncommitted > 0 ? chalk.yellow : chalk.green;
-    const gitInfo = data.git.uncommitted > 0
-      ? `${data.git.branch}\u2191${data.git.uncommitted}`
-      : data.git.branch;
-    liveItems.push(gitColor(gitInfo));
+    gitSection = data.git.uncommitted > 0
+      ? gitColor(`\u{1F4CC}${data.git.branch} \u2191${data.git.uncommitted}`)
+      : gitColor(`\u{1F4CC}${data.git.branch}`);
+  }
+
+  // === Section 6: Live info (runtime, step, timers, state) ===
+  const liveItems: string[] = [];
+
+  // Paused / autonomous state
+  if (data.paused) {
+    liveItems.push(chalk.yellow('\u23F8paused'));
+  } else if (data.autonomous) {
+    liveItems.push(chalk.hex('#FF6B9D')('\u{1F916}auto'));
   }
 
   // Runtime (during agent work)
   if (data.runtime !== undefined) {
-    liveItems.push(chalk.dim(formatRuntime(data.runtime)));
+    liveItems.push(chalk.dim('\u23F1') + chalk.bold(formatRuntime(data.runtime)));
   }
 
   // Current step (during agent work)
   if (data.currentStep) {
     let stepInfo = data.currentStep;
     if (data.currentFile) {
-      const shortFile = data.currentFile.length > 20
-        ? '...' + data.currentFile.slice(-17)
+      const shortFile = data.currentFile.length > 25
+        ? '...' + data.currentFile.slice(-22)
         : data.currentFile;
       stepInfo += ` ${chalk.dim(shortFile)}`;
     }
     liveItems.push(chalk.cyan(stepInfo));
+  }
+
+  // Jarvis name
+  if (data.jarvisName) {
+    liveItems.push(chalk.hex('#8a2be2')(`\u{1F9E0}${data.jarvisName}`));
   }
 
   // Section timer
@@ -109,7 +121,7 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
 
   // Total session timer
   if (data.totalTimer !== undefined) {
-    liveItems.push(chalk.hex('#00D4FF')(`\u23F1${formatRuntime(data.totalTimer)}`));
+    liveItems.push(chalk.hex('#00D4FF')(`sess:${formatRuntime(data.totalTimer)}`));
   }
 
   // Clock
@@ -119,18 +131,27 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
 
   const liveSection = liveItems.join(' ');
 
+  // === Build sections array (skip empty) ===
+  const sections: string[] = [brainSection, ctxSection, modelPerm, metricsSection];
+  if (gitSection) sections.push(gitSection);
+  sections.push(liveSection);
+
   // === Adaptive layout: try single line first ===
-  const sections = [brainSection, modelSection, metricsSection, liveSection];
   const singleLine = sections.join(sep);
   if (visibleLength(singleLine) <= width) {
     return truncateBar(singleLine, width) + '\n';
   }
 
   // === Overflow: split into 2 lines ===
-  // Line 1: brain + model/context
-  // Line 2: metrics + live info
-  const line1 = truncateBar([brainSection, modelSection].join(sep), width);
-  const line2 = truncateBar([metricsSection, liveSection].join(sep), width);
+  // Line 1: brain + context + model/perm
+  // Line 2: metrics + git + live info
+  const topSections = [brainSection, ctxSection, modelPerm];
+  const bottomSections: string[] = [metricsSection];
+  if (gitSection) bottomSections.push(gitSection);
+  bottomSections.push(liveSection);
+
+  const line1 = truncateBar(topSections.join(sep), width);
+  const line2 = truncateBar(bottomSections.join(sep), width);
 
   return line1 + '\n' + line2;
 }
@@ -227,14 +248,14 @@ function getBrainScale(totalNodes: number): number {
 }
 
 /**
- * Render full brain section: icon + bar + total + level breakdown.
- * Example: ✨██░░1521[42·28·15·8·3·5]
+ * Render full brain section with labeled level breakdown.
+ * Example: ✨████1521 L1:42 L2:28 L3:15 L4:8 L5:3 W:5
  */
 function renderBrainSection(spiral: { l1: number; l2: number; l3: number; l4: number; l5: number; l6: number }): string {
   const totalNodes = spiral.l1 + spiral.l2 + spiral.l3 + spiral.l4 + spiral.l5 + spiral.l6;
   const scale = getBrainScale(totalNodes);
   const ratio = Math.min(totalNodes / scale, 1);
-  const barWidth = 2;
+  const barWidth = 4;
   const filled = Math.round(ratio * barWidth);
   const empty = barWidth - filled;
 
@@ -260,27 +281,23 @@ function renderBrainSection(spiral: { l1: number; l2: number; l3: number; l4: nu
 
   const bar = barColor(FILLED.repeat(filled)) + chalk.dim(EMPTY.repeat(empty));
 
-  // Level breakdown — color-coded, only non-zero levels
-  const levelColors: Array<(s: string) => string> = [
-    chalk.cyan,           // L1
-    chalk.green,          // L2
-    chalk.yellow,         // L3
-    chalk.hex('#FF6600'), // L4
-    chalk.hex('#8a2be2'), // L5
-    chalk.hex('#FF6B9D'), // L6 (web)
+  // Level breakdown — labeled + color-coded, only non-zero levels
+  const levelDefs: Array<{ label: string; value: number; color: (s: string) => string }> = [
+    { label: 'L1', value: spiral.l1, color: chalk.cyan },
+    { label: 'L2', value: spiral.l2, color: chalk.green },
+    { label: 'L3', value: spiral.l3, color: chalk.yellow },
+    { label: 'L4', value: spiral.l4, color: chalk.hex('#FF6600') },
+    { label: 'L5', value: spiral.l5, color: chalk.hex('#8a2be2') },
+    { label: 'W',  value: spiral.l6, color: chalk.hex('#FF6B9D') },
   ];
-  const levels = [spiral.l1, spiral.l2, spiral.l3, spiral.l4, spiral.l5, spiral.l6];
   const levelParts: string[] = [];
-  for (let i = 0; i < levels.length; i++) {
-    if (levels[i] > 0) {
-      levelParts.push(levelColors[i](`${levels[i]}`));
+  for (const lev of levelDefs) {
+    if (lev.value > 0) {
+      levelParts.push(chalk.dim(`${lev.label}:`) + lev.color(`${lev.value}`));
     }
   }
-  const breakdown = levelParts.length > 0
-    ? chalk.dim('[') + levelParts.join(chalk.dim('\u00B7')) + chalk.dim(']')
-    : '';
 
-  return `${brainIcon}${bar}${barColor(`${totalNodes}`)}${breakdown}`;
+  return `${brainIcon}${bar}${barColor(`${totalNodes}`)} ${levelParts.join(' ')}`;
 }
 
 // Token scale tiers
@@ -300,12 +317,12 @@ function getScale(tokens: number): number {
 const FILLED = '\u2588';
 const EMPTY = '\u2591';
 
-function renderTokenBar(tokens: number, compact: boolean = false): string {
+function renderTokenBar(tokens: number): string {
   const scale = getScale(tokens);
   const ratio = Math.min(tokens / scale, 1);
-  const width = compact ? 2 : 4;
-  const filled = Math.round(ratio * width);
-  const empty = width - filled;
+  const barWidth = 4;
+  const filled = Math.round(ratio * barWidth);
+  const empty = barWidth - filled;
 
   const barColor = ratio < 0.5 ? chalk.cyan
     : ratio < 0.75 ? chalk.green
