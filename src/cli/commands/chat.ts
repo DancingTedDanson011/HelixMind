@@ -1847,9 +1847,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // Set hints content on activity indicator (for restore on chrome row 1 after agent work)
     activity.setRestoreContent(hintLine);
 
-    // 2-line statusbar
+    // Adaptive statusbar (1 or 2 lines depending on terminal width)
     const statusData = getStatusBarData();
-    const statusBar = renderStatusBar(statusData, 78);
+    const statusBar = renderStatusBar(statusData, w - 4);
     const [statusLine1, statusLine2] = statusBar.split('\n');
 
     chrome.setRow(0, topBorder);

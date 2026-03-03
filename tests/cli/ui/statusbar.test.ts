@@ -17,10 +17,12 @@ function makeData(overrides: Partial<StatusBarData> = {}): StatusBarData {
 const WIDTH = 78;
 
 describe('Statusbar', () => {
-  it('should render 2 lines', () => {
+  it('should render 1 or 2 lines (adaptive)', () => {
     const bar = renderStatusBar(makeData(), WIDTH);
     const lines = bar.split('\n');
-    expect(lines).toHaveLength(2);
+    // Always returns 2 parts (line2 may be empty in single-line mode)
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+    expect(lines.length).toBeLessThanOrEqual(2);
   });
 
   it('should render brain growth bar with total nodes', () => {
@@ -60,10 +62,10 @@ describe('Statusbar', () => {
     expect(bar).toMatch(/[█░]/);
   });
 
-  it('should render token count on line 2', () => {
+  it('should render message token count', () => {
     const bar = renderStatusBar(makeData(), WIDTH);
-    const line2 = bar.split('\n')[1];
-    expect(line2).toContain('3.2k');
+    // Message tokens (⚡3.2k) appear somewhere in the output
+    expect(bar).toContain('3.2k');
   });
 
   it('should render tool calls when > 0', () => {
@@ -72,9 +74,10 @@ describe('Statusbar', () => {
     expect(bar).toContain('3');
   });
 
-  it('should hide tool calls when 0', () => {
+  it('should show tool calls even when 0', () => {
     const bar = renderStatusBar(makeData({ tools: { callsThisRound: 0 } }), WIDTH);
-    expect(bar).not.toContain('🔧');
+    // Tools are always shown now (even at 0)
+    expect(bar).toContain('🔧');
   });
 
   it('should render shortened model name', () => {
@@ -111,15 +114,10 @@ describe('Statusbar', () => {
     expect(bar).toContain('12');
   });
 
-  it('should not render checkpoint count when 0', () => {
+  it('should show checkpoint count even when 0', () => {
     const bar = renderStatusBar(makeData({ checkpoints: 0 }), WIDTH);
-    // Checkpoint icon should not appear without checkpoints
-    expect(bar).not.toContain('🕐');
-  });
-
-  it('should not render checkpoint section when undefined', () => {
-    const bar = renderStatusBar(makeData(), WIDTH);
-    expect(bar).not.toContain('🕐');
+    // Checkpoints are always shown now
+    expect(bar).toContain('🕑');
   });
 
   it('should render safe mode indicator with shield icon', () => {

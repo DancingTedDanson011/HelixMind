@@ -40,100 +40,113 @@ export interface StatusBarData {
 const CMD_STANDARD_WIDTH = 78;
 
 /**
- * Render the statusbar as 2 lines for standard CMD width.
- * Line 1: Brain | Context | Model | Permission | Runtime
- * Line 2: Step + File | Tokens | Tools | Git | Time
+ * Render the statusbar — adaptive: 1 line when content fits terminal width,
+ * splits into 2 lines only when it would overflow.
+ * Always returns "line1\nline2" — line2 is empty when single-line mode.
+ *
+ * Content: Brain | Context | Model | Perm | ⚡msg | 🔧tools | 🕐cp | git | runtime | step | ⏱total | clock
  */
 export function renderStatusBar(data: StatusBarData, maxWidth?: number): string {
-  const width = Math.min(maxWidth ?? CMD_STANDARD_WIDTH, CMD_STANDARD_WIDTH);
-  
-  // Line 1: Brain growth, Context, Model, Permission, Runtime
-  const line1Parts: string[] = [];
-  line1Parts.push(renderBrainGrowthBar(data.spiral, true));
-  line1Parts.push(renderTokenBar(data.sessionTokens, true));
-  line1Parts.push(chalk.dim(shortenModelName(data.model)));
-  
+  const width = maxWidth ?? CMD_STANDARD_WIDTH;
+  const sep = chalk.dim(' \u2502 ');
+
+  // === Build all parts ===
+  const parts: string[] = [];
+
+  // Brain growth
+  parts.push(renderBrainGrowthBar(data.spiral, true));
+
+  // Context tokens
+  parts.push(renderTokenBar(data.sessionTokens, true));
+
+  // Model
+  parts.push(chalk.dim(shortenModelName(data.model)));
+
   // Permission mode
   if (data.permissionMode) {
     switch (data.permissionMode) {
-      case 'safe':  line1Parts.push(chalk.green('\u{1F6E1}')); break;
-      case 'skip':  line1Parts.push(chalk.yellow('\u26A1')); break;
-      case 'yolo':  line1Parts.push(chalk.red('\u{1F525}')); break;
+      case 'safe':  parts.push(chalk.green('\u{1F6E1}')); break;
+      case 'skip':  parts.push(chalk.yellow('\u26A1')); break;
+      case 'yolo':  parts.push(chalk.red('\u{1F525}')); break;
     }
   }
-  
-  // Runtime (if available)
-  if (data.runtime !== undefined) {
-    line1Parts.push(chalk.dim(formatRuntime(data.runtime)));
-  }
-  
-  // Section timer (if active)
-  if (data.sectionTimer) {
-    line1Parts.push(chalk.hex('#FF6B9D')(data.sectionTimer.section) + chalk.dim(`:${formatRuntime(data.sectionTimer.seconds)}`));
-  }
-  
-  // Total timer
-  if (data.totalTimer !== undefined) {
-    line1Parts.push(chalk.hex('#00D4FF')(`⏱${formatRuntime(data.totalTimer)}`));
-  }
-  
-  // Line 2: Step + File, Message tokens, Tools, Git, Clock
-  const line2Parts: string[] = [];
-  
-  // Current step + file (most important info)
-  if (data.currentStep) {
-    let stepInfo = data.currentStep;
-    if (data.currentFile) {
-      const shortFile = data.currentFile.length > 20 
-        ? '...' + data.currentFile.slice(-17) 
-        : data.currentFile;
-      stepInfo += ` ${chalk.dim(shortFile)}`;
-    }
-    line2Parts.push(chalk.cyan(stepInfo));
-  }
-  
+
   // Message tokens
-  line2Parts.push(`\u26A1${formatTokens(data.tokens.thisMessage)}`);
-  
-  // Tools (only if active)
-  if (data.tools.callsThisRound > 0) {
-    line2Parts.push(`\u{1F527}${data.tools.callsThisRound}`);
-  }
-  
-  // Checkpoints (only if > 0)
-  if (data.checkpoints !== undefined && data.checkpoints > 0) {
-    line2Parts.push(`\u{1F551}${data.checkpoints}`);
-  }
-  
+  parts.push(`\u26A1${formatTokens(data.tokens.thisMessage)}`);
+
+  // Tool calls (always show)
+  parts.push(`\u{1F527}${data.tools.callsThisRound}`);
+
+  // Checkpoints (always show)
+  parts.push(`\u{1F551}${data.checkpoints ?? 0}`);
+
   // Git
   if (data.git.branch) {
     const gitColor = data.git.uncommitted > 0 ? chalk.yellow : chalk.green;
     const gitInfo = data.git.uncommitted > 0
-      ? `${data.git.branch} \u2191${data.git.uncommitted}`
+      ? `${data.git.branch}\u2191${data.git.uncommitted}`
       : data.git.branch;
-    line2Parts.push(gitColor(gitInfo));
+    parts.push(gitColor(gitInfo));
   }
-  
+
+  // Runtime (during agent work)
+  if (data.runtime !== undefined) {
+    parts.push(chalk.dim(formatRuntime(data.runtime)));
+  }
+
+  // Current step (during agent work)
+  if (data.currentStep) {
+    let stepInfo = data.currentStep;
+    if (data.currentFile) {
+      const shortFile = data.currentFile.length > 20
+        ? '...' + data.currentFile.slice(-17)
+        : data.currentFile;
+      stepInfo += ` ${chalk.dim(shortFile)}`;
+    }
+    parts.push(chalk.cyan(stepInfo));
+  }
+
+  // Section timer
+  if (data.sectionTimer) {
+    parts.push(chalk.hex('#FF6B9D')(data.sectionTimer.section) + chalk.dim(`:${formatRuntime(data.sectionTimer.seconds)}`));
+  }
+
+  // Total session timer
+  if (data.totalTimer !== undefined) {
+    parts.push(chalk.hex('#00D4FF')(`\u23F1${formatRuntime(data.totalTimer)}`));
+  }
+
   // Clock
   const now = new Date();
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  line2Parts.push(chalk.dim(time));
-  
-  // Build lines with separator
-  const sep = chalk.dim(' \u2502 ');
-  const line1 = truncateBar(line1Parts.join(sep), width);
-  const line2 = truncateBar(line2Parts.join(sep), width);
-  
+  parts.push(chalk.dim(time));
+
+  // === Adaptive layout: try single line first ===
+  const singleLine = parts.join(sep);
+  if (visibleLength(singleLine) <= width) {
+    return truncateBar(singleLine, width) + '\n';
+  }
+
+  // === Overflow: split into 2 lines ===
+  // Line 1: core metrics (brain, context, model, perm, tokens, tools, checkpoints)
+  // Line 2: dynamic info (git, runtime, step, timers, clock)
+  const coreParts = parts.slice(0, 7);  // brain..checkpoints
+  const dynParts = parts.slice(7);       // git..clock
+
+  const line1 = truncateBar(coreParts.join(sep), width);
+  const line2 = truncateBar(dynParts.join(sep), width);
+
   return line1 + '\n' + line2;
 }
 
 /**
- * Write the 2-line statusbar to the bottom of the terminal.
+ * Write the statusbar (1 or 2 lines) to the bottom of the terminal.
  */
 export function writeStatusBar(data: StatusBarData): void {
   const termHeight = process.stdout.rows || 24;
-  const termWidth = CMD_STANDARD_WIDTH;
+  const termWidth = (process.stdout.columns || 80) - 2;
   const bar = renderStatusBar(data, termWidth);
+  const [line1, line2] = bar.split('\n');
 
   // Save cursor, draw 2 bottom rows, restore cursor
   process.stdout.write(
@@ -141,21 +154,21 @@ export function writeStatusBar(data: StatusBarData): void {
     `\x1b[${termHeight - 1};0H` +    // Move to row N-1
     `\x1b[2K` +                       // Clear line
     '\x1b[K' +                        // Clear to end (for safety)
-    ` ${bar.split('\n')[0]}` +        // Line 1
+    ` ${line1}` +                     // Line 1
     `\x1b[${termHeight};0H` +        // Move to row N
     `\x1b[2K` +                       // Clear line
     '\x1b[K' +
-    ` ${bar.split('\n')[1]}` +        // Line 2
+    (line2 ? ` ${line2}` : '') +      // Line 2 (empty when single-line)
     `\x1b8`,                          // Restore cursor
   );
 }
 
 /**
  * Write status info as normal inline text (scrolls with content).
- * Shows 2-line statusbar + hint line.
+ * Shows statusbar (1 or 2 lines) + hint line.
  */
 export function writeStatusInline(data: StatusBarData): void {
-  const termWidth = CMD_STANDARD_WIDTH;
+  const termWidth = (process.stdout.columns || 80) - 2;
   const bar = renderStatusBar(data, termWidth);
   const [line1, line2] = bar.split('\n');
 
@@ -168,7 +181,8 @@ export function writeStatusInline(data: StatusBarData): void {
   hints.push(chalk.dim('/help'));
   const hintLine = ' ' + hints.join(chalk.dim(' \u00B7 '));
 
-  process.stdout.write(`${hintLine}\n ${line1}\n ${line2}\n`);
+  const statusOutput = line2 ? ` ${line1}\n ${line2}` : ` ${line1}`;
+  process.stdout.write(`${hintLine}\n${statusOutput}\n`);
 }
 
 /**
