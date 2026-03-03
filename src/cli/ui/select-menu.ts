@@ -4,8 +4,8 @@ import { theme } from './theme.js';
 export interface MenuItem {
   label: string;
   description?: string;
-  key?: string;         // shortcut key (e.g., 'd', 'q')
-  marker?: string;      // e.g., "◀ current", "✓"
+  key?: string;
+  marker?: string;
   disabled?: boolean;
   danger?: boolean;
   success?: boolean;
@@ -20,20 +20,18 @@ export interface SelectMenuOptions {
   autoFocus?: boolean;
 }
 
-// ANSI helpers
-const HIDE_CURSOR = '\x1b[?25l';
-const SHOW_CURSOR = '\x1b[?25h';
-const ERASE_LINE = '\x1b[2K';      // erase entire line
-const COL0 = '\r';                   // carriage return → column 0
-const MOVE_UP = (n: number) => n > 0 ? `\x1b[${n}A` : '';
-const ERASE_BELOW = '\x1b[J';       // erase from cursor to end of screen
+// ANSI sequences
+const HIDE = '\x1b[?25l';
+const SHOW = '\x1b[?25h';
+const SAVE = '\x1b7';          // DEC save cursor position
+const RESTORE = '\x1b8';       // DEC restore cursor position
+const ERASE_DOWN = '\x1b[J';   // erase from cursor to end of screen
+const ERASE_LINE = '\x1b[2K';
+const CR = '\r';
 
 /**
- * Interactive arrow-key menu. Returns the selected index or -1 if cancelled.
- * Works in raw mode — no readline needed.
- *
- * Rendering: builds entire frame in a string buffer, writes in a single
- * process.stdout.write() call. Cursor is hidden during rendering.
+ * Interactive arrow-key menu. Returns selected index or -1 if cancelled.
+ * Flicker-free: DEC save/restore cursor + single-buffer write.
  */
 export function selectMenu(
   items: MenuItem[],
@@ -47,27 +45,17 @@ export function selectMenu(
   let scrollOffset = 0;
   const visibleCount = Math.min(pageSize, items.length);
 
-  // Fixed line count — never changes between renders
-  const TITLE_LINES = title ? 2 : 0;
-  const ITEMS_LINES = visibleCount;
-  const META_LINE = 1; // scroll indicator OR item count OR empty
-  const FOOTER_LINES = 2; // blank + hint
-  const TOTAL_LINES = TITLE_LINES + ITEMS_LINES + META_LINE + FOOTER_LINES;
-
   function buildFrame(): string {
     const lines: string[] = [];
 
-    // Title
     if (title) {
       lines.push('');
       lines.push(`  ${chalk.hex('#00d4ff').bold('┌─')} ${chalk.white.bold(title)} ${chalk.hex('#00d4ff').bold('─'.repeat(Math.max(0, 30 - title.length)))}`);
     }
 
-    // Adjust scroll window
     if (cursor < scrollOffset) scrollOffset = cursor;
     if (cursor >= scrollOffset + visibleCount) scrollOffset = cursor - visibleCount + 1;
 
-    // Menu items
     for (let vi = 0; vi < visibleCount; vi++) {
       const i = scrollOffset + vi;
       if (i >= items.length) { lines.push(''); continue; }
@@ -103,7 +91,6 @@ export function selectMenu(
       lines.push(`${prefix}${icon}${label}${desc}${marker}${keyHint}`);
     }
 
-    // Meta line (scroll indicator or count)
     if (items.length > visibleCount) {
       const above = scrollOffset > 0 ? '↑' : ' ';
       const below = scrollOffset + visibleCount < items.length ? '↓' : ' ';
@@ -114,38 +101,38 @@ export function selectMenu(
       lines.push('');
     }
 
-    // Footer
     lines.push('');
     lines.push(chalk.dim(`  ↑↓ navigate · Enter select · Esc/q ${cancelLabel}`));
 
-    return lines.map(l => `${COL0}${ERASE_LINE}${l}`).join('\n');
-  }
-
-  function render(isRedraw: boolean): void {
-    let out = HIDE_CURSOR;
-    if (isRedraw) out += `${COL0}${MOVE_UP(TOTAL_LINES - 1)}`;
-    out += buildFrame();
-    out += SHOW_CURSOR;
-    process.stdout.write(out);
+    // Each line: CR (col 0) + erase line + content
+    return lines.map(l => `${CR}${ERASE_LINE}${l}`).join('\n');
   }
 
   return new Promise<number>((resolve) => {
     const stdin = process.stdin;
     const wasRaw = stdin.isRaw;
-
     if (stdin.isTTY) stdin.setRawMode(true);
     stdin.resume();
 
-    let rendered = false;
+    let saved = false;
 
     function draw(): void {
-      render(rendered);
-      rendered = true;
+      let out = HIDE;
+      if (!saved) {
+        out += SAVE; // save cursor position before first frame
+        saved = true;
+      } else {
+        out += RESTORE; // jump back to saved position
+      }
+      out += buildFrame();
+      out += ERASE_DOWN; // wipe any leftover lines from previous longer frame
+      out += SHOW;
+      process.stdout.write(out);
     }
 
     function cleanup(result: number): void {
-      // Move to top of menu region, erase everything below, show cursor
-      process.stdout.write(`${COL0}${MOVE_UP(TOTAL_LINES - 1)}${ERASE_BELOW}${SHOW_CURSOR}`);
+      // Restore to saved position and erase everything we drew
+      process.stdout.write(RESTORE + ERASE_DOWN + SHOW);
       stdin.removeListener('data', onData);
       if (stdin.isTTY && wasRaw !== undefined) stdin.setRawMode(wasRaw);
       resolve(result);
@@ -164,7 +151,6 @@ export function selectMenu(
       if (key === '\x1b' || key === '\x1b\x1b') { cleanup(-1); return; }
       if (key === '\x03') { cleanup(-1); return; }
       if (key === '\r' || key === '\n') { cleanup(cursor); return; }
-
       if (key === '\x1b[A') { moveCursor(-1); draw(); return; }
       if (key === '\x1b[B') { moveCursor(1); draw(); return; }
       if (key === '\x1b[H' || key === '\x1b[5~') { cursor = enabledIndices[0]; draw(); return; }
@@ -176,8 +162,6 @@ export function selectMenu(
         if (idx >= 0) { cleanup(idx); return; }
       }
       if (char === 'q') { cleanup(-1); return; }
-
-      // Unknown key — ignore, no redraw
     }
 
     stdin.on('data', onData);
@@ -186,7 +170,7 @@ export function selectMenu(
 }
 
 /**
- * Convenience: show a yes/no confirmation prompt with arrow keys.
+ * Yes/no confirmation prompt with arrow keys.
  */
 export function confirmMenu(question: string, defaultYes = false): Promise<boolean> {
   process.stdout.write(`\n  ${chalk.hex('#00d4ff')('❓')} ${chalk.white.bold(question)}\n`);
@@ -200,7 +184,7 @@ export function confirmMenu(question: string, defaultYes = false): Promise<boole
 }
 
 /**
- * Show a menu with quick actions. Returns the selected item or null.
+ * Menu with quick actions. Returns selected item or null.
  */
 export async function quickActionMenu<T extends { label: string; action: () => void | Promise<void> }>(
   items: (T & { key?: string; danger?: boolean })[],
@@ -228,9 +212,6 @@ export async function multiSelectMenu(
   const { title, pageSize = 10 } = opts;
   const visibleCount = Math.min(pageSize, items.length);
 
-  const TITLE_LINES = title ? 2 : 0;
-  const TOTAL_LINES = TITLE_LINES + visibleCount + 3; // items + blank + hint + count
-
   function buildFrame(): string {
     const lines: string[] = [];
 
@@ -253,15 +234,7 @@ export async function multiSelectMenu(
     lines.push(chalk.dim(`  ↑↓ navigate · Space toggle · Enter confirm · Esc cancel`));
     lines.push(chalk.dim(`  ${selected.size} selected`));
 
-    return lines.map(l => `${COL0}${ERASE_LINE}${l}`).join('\n');
-  }
-
-  function render(isRedraw: boolean): void {
-    let out = HIDE_CURSOR;
-    if (isRedraw) out += `${COL0}${MOVE_UP(TOTAL_LINES - 1)}`;
-    out += buildFrame();
-    out += SHOW_CURSOR;
-    process.stdout.write(out);
+    return lines.map(l => `${CR}${ERASE_LINE}${l}`).join('\n');
   }
 
   return new Promise<number[]>((resolve) => {
@@ -270,10 +243,18 @@ export async function multiSelectMenu(
     if (stdin.isTTY) stdin.setRawMode(true);
     stdin.resume();
 
-    let rendered = false;
+    let saved = false;
+
+    function draw(): void {
+      let out = HIDE;
+      if (!saved) { out += SAVE; saved = true; } else { out += RESTORE; }
+      out += buildFrame();
+      out += ERASE_DOWN + SHOW;
+      process.stdout.write(out);
+    }
 
     function cleanup(result: number[]): void {
-      process.stdout.write(`${COL0}${MOVE_UP(TOTAL_LINES - 1)}${ERASE_BELOW}${SHOW_CURSOR}`);
+      process.stdout.write(RESTORE + ERASE_DOWN + SHOW);
       stdin.removeListener('data', onData);
       if (stdin.isTTY && wasRaw !== undefined) stdin.setRawMode(wasRaw);
       resolve(result);
@@ -284,19 +265,18 @@ export async function multiSelectMenu(
 
       if (key === '\x1b' || key === '\x1b\x1b' || key === '\x03') { cleanup([]); return; }
       if (key === '\r' || key === '\n') { cleanup(Array.from(selected)); return; }
-
-      if (key === '\x1b[A' && cursor > 0) { cursor--; render(!rendered); rendered = true; return; }
-      if (key === '\x1b[B' && cursor < items.length - 1) { cursor++; render(!rendered); rendered = true; return; }
+      if (key === '\x1b[A' && cursor > 0) { cursor--; draw(); return; }
+      if (key === '\x1b[B' && cursor < items.length - 1) { cursor++; draw(); return; }
 
       if (key === ' ') {
         if (selected.has(cursor)) selected.delete(cursor);
         else selected.add(cursor);
-        render(!rendered); rendered = true;
+        draw();
         return;
       }
     }
 
     stdin.on('data', onData);
-    render(false);
+    draw();
   });
 }
