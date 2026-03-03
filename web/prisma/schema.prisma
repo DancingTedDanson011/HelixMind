@@ -47,6 +47,14 @@ enum BrainPermission {
   ADMIN
 }
 
+enum NotificationType {
+  TEAM_INVITE
+  TICKET_REPLY
+  BILLING
+  SECURITY
+  SYSTEM
+}
+
 enum TicketStatus {
   OPEN
   IN_PROGRESS
@@ -97,6 +105,7 @@ model User {
   deviceCodes   DeviceCode[]
   ownedTeams    Team[]         @relation("TeamOwner")
   teamMembers   TeamMember[]
+  notifications Notification[]
 }
 
 model Account {
@@ -399,6 +408,22 @@ model TeamInvite {
   createdAt DateTime @default(now())
 
   @@unique([teamId, email])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([createdAt])
 }
 
 model TeamBrainShare {

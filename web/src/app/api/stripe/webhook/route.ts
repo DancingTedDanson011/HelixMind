@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
+import { createNotification } from '@/lib/notifications';
 import type Stripe from 'stripe';
 import type { PrismaClient } from '@prisma/client';
 
@@ -90,6 +91,61 @@ export async function POST(req: Request) {
         }
       }
     });
+
+    // Send billing notifications (fire-and-forget, outside transaction)
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const s = event.data.object as Stripe.Checkout.Session;
+          if (s.metadata?.userId) {
+            await createNotification({
+              userId: s.metadata.userId,
+              type: 'BILLING',
+              title: 'Subscription Activated',
+              body: 'Your plan is now active. Welcome aboard!',
+              link: '/dashboard/billing',
+            });
+          }
+          break;
+        }
+        case 'customer.subscription.deleted': {
+          const sub = event.data.object as Stripe.Subscription;
+          const canceled = await prisma.subscription.findFirst({
+            where: { stripeCustomerId: sub.customer as string },
+            select: { userId: true },
+          });
+          if (canceled) {
+            await createNotification({
+              userId: canceled.userId,
+              type: 'BILLING',
+              title: 'Subscription Canceled',
+              body: 'Your subscription has been canceled. You can resubscribe anytime.',
+              link: '/dashboard/billing',
+            });
+          }
+          break;
+        }
+        case 'invoice.payment_failed': {
+          const inv = event.data.object as Stripe.Invoice;
+          const failed = await prisma.subscription.findFirst({
+            where: { stripeCustomerId: inv.customer as string },
+            select: { userId: true },
+          });
+          if (failed) {
+            await createNotification({
+              userId: failed.userId,
+              type: 'BILLING',
+              title: 'Payment Failed',
+              body: 'Your payment could not be processed. Please update your billing info.',
+              link: '/dashboard/billing',
+            });
+          }
+          break;
+        }
+      }
+    } catch (notifErr) {
+      console.error('Billing notification error:', notifErr);
+    }
 
     return NextResponse.json({ received: true });
   } catch (error: any) {

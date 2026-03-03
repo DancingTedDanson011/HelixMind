@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { createNotification } from '@/lib/notifications';
 import { z } from 'zod';
 
 const acceptSchema = z.object({
@@ -58,6 +59,21 @@ export async function POST(req: Request) {
       await tx.teamInvite.delete({ where: { id: invite.id } });
       return m;
     });
+
+    // Notify team owner
+    const team = await prisma.team.findUnique({
+      where: { id: invite.teamId },
+      select: { ownerId: true, name: true },
+    });
+    if (team) {
+      createNotification({
+        userId: team.ownerId,
+        type: 'TEAM_INVITE',
+        title: 'Invite Accepted',
+        body: `${session.user.email} joined ${team.name}`,
+        link: '/dashboard/team',
+      }).catch((err) => console.error('Accept notification error:', err));
+    }
 
     return NextResponse.json({
       member: {

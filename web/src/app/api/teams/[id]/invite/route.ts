@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTeamRole } from '@/lib/team-auth';
+import { createNotification } from '@/lib/notifications';
+import { sendTeamInviteEmail } from '@/lib/email';
 import { z } from 'zod';
 
 const inviteSchema = z.object({
@@ -71,16 +73,44 @@ export async function POST(
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    const invite = await prisma.teamInvite.upsert({
-      where: { teamId_email: { teamId: id, email: parsed.data.email } },
-      update: { role: parsed.data.role, expiresAt },
-      create: {
-        teamId: id,
-        email: parsed.data.email,
-        role: parsed.data.role,
-        expiresAt,
-      },
-    });
+    const [invite, team] = await Promise.all([
+      prisma.teamInvite.upsert({
+        where: { teamId_email: { teamId: id, email: parsed.data.email } },
+        update: { role: parsed.data.role, expiresAt },
+        create: {
+          teamId: id,
+          email: parsed.data.email,
+          role: parsed.data.role,
+          expiresAt,
+        },
+      }),
+      prisma.team.findUnique({ where: { id }, select: { name: true } }),
+    ]);
+
+    const teamName = team?.name || 'a team';
+    const inviterName = authResult.session.user.name || 'A team admin';
+    const siteUrl = process.env.NEXTAUTH_URL || 'https://helixmind.dev';
+    const acceptUrl = `${siteUrl}/invite/accept?token=${invite.token}`;
+
+    // In-app notification (only if user exists)
+    if (existingUser) {
+      await createNotification({
+        userId: existingUser.id,
+        type: 'TEAM_INVITE',
+        title: `Team Invite: ${teamName}`,
+        body: `${inviterName} invited you to join ${teamName} as ${parsed.data.role}`,
+        link: `/invite/accept?token=${invite.token}`,
+      });
+    }
+
+    // Email notification (fire-and-forget)
+    sendTeamInviteEmail(
+      parsed.data.email,
+      teamName,
+      inviterName,
+      parsed.data.role,
+      acceptUrl,
+    ).catch((err) => console.error('Team invite email error:', err));
 
     return NextResponse.json({
       invite: {

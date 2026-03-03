@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createNotification } from '@/lib/notifications';
 import { z } from 'zod';
 
 export async function GET(req: Request) {
@@ -88,6 +89,23 @@ export async function PATCH(req: Request) {
           isInternal: isInternal ?? false,
         },
       });
+
+      // Notify ticket owner (only for non-internal messages)
+      if (!isInternal) {
+        const ticketData = await prisma.ticket.findUnique({
+          where: { id },
+          select: { userId: true, number: true },
+        });
+        if (ticketData && ticketData.userId !== session.user.id) {
+          createNotification({
+            userId: ticketData.userId,
+            type: 'TICKET_REPLY',
+            title: `Ticket #${ticketData.number} Reply`,
+            body: 'Support has responded to your ticket',
+            link: `/dashboard/support/${id}`,
+          }).catch((err) => console.error('Ticket notification error:', err));
+        }
+      }
     }
 
     const ticket = await prisma.ticket.findUnique({

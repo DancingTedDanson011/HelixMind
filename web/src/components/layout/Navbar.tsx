@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { LocaleSwitcher } from './LocaleSwitcher';
 import { UserMenu } from './UserMenu';
+import { NotificationBell } from './NotificationBell';
 import { Menu, X, Sparkles, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -69,6 +70,7 @@ export function Navbar() {
           {/* Right side */}
           <div className="hidden md:flex items-center gap-3">
             <LocaleSwitcher />
+            {session?.user && <NotificationBell />}
             <UserMenu />
           </div>
 
@@ -200,6 +202,7 @@ export function Navbar() {
               >
                 <div className="flex items-center gap-4">
                   <LocaleSwitcher />
+                  {session?.user && <NotificationBell />}
                   <UserMenu />
                 </div>
                 <span className="text-xs text-gray-600 font-mono">v0.1.1</span>

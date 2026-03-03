@@ -1162,5 +1162,19 @@
       "low": "Low",
       "info": "Info"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "markAllRead": "Mark all read",
+    "teamInvite": "Team Invite",
+    "ticketReply": "Ticket Reply",
+    "billing": "Billing",
+    "security": "Security",
+    "system": "System",
+    "justNow": "Just now",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "daysAgo": "{count}d ago"
   }
 }

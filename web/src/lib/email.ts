@@ -231,6 +231,35 @@ export async function sendTicketResponseEmail(
 }
 
 /**
+ * Notify invited user about a team invitation.
+ */
+export async function sendTeamInviteEmail(
+  to: string,
+  teamName: string,
+  inviterName: string,
+  role: string,
+  acceptUrl: string,
+) {
+  const html = emailLayout(
+    `You're invited to ${teamName}`,
+    [
+      heading(`You're invited to ${teamName}`),
+      paragraph(`<strong>${inviterName}</strong> has invited you to join <strong>${teamName}</strong> as <strong>${role}</strong>.`),
+      button('Accept Invite', acceptUrl),
+      divider(),
+      muted('This invite expires in 7 days. If you did not expect this invitation, you can safely ignore this email.'),
+    ].join('\n'),
+  );
+
+  return resend.emails.send({
+    from: emailFrom,
+    to,
+    subject: `You're invited to ${teamName} — HelixMind`,
+    html,
+  });
+}
+
+/**
  * Send subscription confirmation after plan change or initial purchase.
  */
 export async function sendSubscriptionConfirmEmail(to: string, plan: string) {
