@@ -13,7 +13,7 @@ export interface KeybindingState {
 export function createKeybindingState(): KeybindingState {
   return {
     lastEscTime: 0,
-    doubleEscThreshold: 500,
+    doubleEscThreshold: 800,
     inBrowser: false,
   };
 }

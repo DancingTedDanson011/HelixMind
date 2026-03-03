@@ -1300,7 +1300,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           const maxJ = getJarvisLimitsForPlan(plan);
           if (!acquireJarvisSlot(maxJ, process.cwd())) return null;
           const jName = jarvisIdentity.getIdentity().name;
-          const bgSession = sessionMgr.create(`\u{1F916} ${jName}`, '\u{1F916}', agentHistory);
+          const bgSession = sessionMgr.create(jName, '\u{1F916}', agentHistory);
           bgSession.start();
           wireSessionOutput(bgSession);
           pushSessionCreated(serializeSession(bgSession));
@@ -2298,7 +2298,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       if (result.action === 'open_browser' && !agentRunning) {
         // Check if there are any checkpoints before opening browser
         const allCps = checkpointStore.getAll();
-        if (allCps.length === 0 || allCps.filter(cp => cp.type === 'chat').length === 0) {
+        if (allCps.length === 0) {
           renderInfo(chalk.dim('No checkpoints yet \u2014 start chatting to create rewind points.'));
           showPrompt();
         } else {
@@ -2912,7 +2912,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           startTelegramBot,
           startDaemon: () => {
             const jName = jarvisIdentity.getIdentity().name;
-            const bgSession = sessionMgr.create(`\u{1F916} ${jName}`, '\u{1F916}', agentHistory);
+            const bgSession = sessionMgr.create(jName, '\u{1F916}', agentHistory);
             bgSession.start();
             jarvisDaemonSession = bgSession;
             jarvisPaused = false;

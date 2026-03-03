@@ -33,7 +33,7 @@ describe('Keybinding - Double ESC Detection', () => {
     processKeypress({ name: 'escape' }, state);
 
     // Simulate time passing beyond threshold
-    state.lastEscTime = Date.now() - 600;
+    state.lastEscTime = Date.now() - 1000;
 
     // Second ESC (too late)
     const result = processKeypress({ name: 'escape' }, state);
