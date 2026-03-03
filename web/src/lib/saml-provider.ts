@@ -61,8 +61,9 @@ export async function validateAssertion(teamId: string, samlResponse: string): P
     const name = (profile as Record<string, unknown>)[config.nameAttribute] || profile.nameID;
     const role = config.roleAttribute ? (profile as Record<string, unknown>)[config.roleAttribute] : undefined;
 
-    if (!email) return null;
-    return { email: String(email), name: String(name || ''), role: role ? String(role) : undefined };
+    // Validate email is a real string (not undefined/null/empty)
+    if (!email || typeof email !== 'string' || !email.includes('@')) return null;
+    return { email, name: String(name || ''), role: role ? String(role) : undefined };
   } catch {
     return null;
   }

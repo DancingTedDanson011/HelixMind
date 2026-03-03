@@ -429,6 +429,7 @@ export const ChatInput = memo(function ChatInput({
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               placeholder={t('sendMessage')}
+              aria-label={t('sendMessage')}
               disabled={disabled}
               rows={1}
               className="flex-1 resize-none bg-transparent py-3 px-3 text-sm text-gray-200 placeholder-gray-600 outline-none disabled:opacity-40 disabled:cursor-not-allowed"

@@ -31,7 +31,6 @@ export async function GET(
         id: inv.id,
         email: inv.email,
         role: inv.role,
-        token: inv.token,
         expiresAt: inv.expiresAt.toISOString(),
         createdAt: inv.createdAt.toISOString(),
       })),

@@ -79,6 +79,7 @@ export function Navbar() {
             onClick={() => setMobileOpen(!mobileOpen)}
             className="md:hidden text-gray-400 hover:text-white relative z-[60] p-2"
             aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
           >
             <AnimatePresence mode="wait" initial={false}>
               {mobileOpen ? (

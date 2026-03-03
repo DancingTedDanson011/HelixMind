@@ -69,6 +69,8 @@ export function NotificationBell() {
         onClick={() => setOpen(!open)}
         className="relative flex items-center justify-center h-8 w-8 rounded-lg hover:bg-white/5 transition-colors"
         aria-label={t('title')}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <Bell size={18} className="text-gray-400" />
         {unreadCount > 0 && (
@@ -79,7 +81,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden">
+        <div role="menu" className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
             <h3 className="text-sm font-semibold text-white">{t('title')}</h3>

@@ -64,6 +64,8 @@ export function UserMenu() {
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5 transition-colors"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         {user.image ? (
           <img
@@ -86,7 +88,7 @@ export function UserMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl py-1 z-50">
+        <div role="menu" className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl py-1 z-50">
           {/* User info */}
           <div className="px-3 py-2 border-b border-white/5">
             <p className="text-sm font-medium text-white truncate">

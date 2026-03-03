@@ -121,6 +121,8 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+              aria-label="Toggle dashboard menu"
+              aria-expanded={mobileOpen}
             >
               {mobileOpen ? <X size={18} /> : <Menu size={18} />}
               <span>Menu</span>
@@ -175,6 +177,20 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
             </div>
           </div>
 
+          {/* ── Mobile Nav Backdrop ── */}
+          <AnimatePresence>
+            {mobileOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+                onClick={() => setMobileOpen(false)}
+              />
+            )}
+          </AnimatePresence>
+
           {/* ── Mobile Nav (Collapsible) ── */}
           <AnimatePresence>
             {mobileOpen && (
@@ -183,7 +199,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="lg:hidden overflow-hidden"
+                className="lg:hidden overflow-hidden relative z-40"
               >
                 <GlassPanel className="p-2 space-y-1">
                   {navItems.map((item) => {

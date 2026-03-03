@@ -18,7 +18,7 @@ export async function POST() {
       return NextResponse.json({ error: 'No subscription found' }, { status: 404 });
     }
 
-    const portalSession = await stripe.billingPortal.sessions.create({
+    const portalSession = await stripe().billingPortal.sessions.create({
       customer: subscription.stripeCustomerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
     });

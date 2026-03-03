@@ -4,6 +4,16 @@ import { prisma } from './prisma';
 let cache: Map<string, { value: string; expires: number }> = new Map();
 const CACHE_TTL = 60_000;
 
+// Only allow env var fallback for known setting keys (prevent arbitrary env access)
+const ALLOWED_ENV_KEYS = new Set(
+  ['NEXTAUTH_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GOOGLE_CLIENT_ID',
+   'GOOGLE_CLIENT_SECRET', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET',
+   'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 'RESEND_API_KEY', 'EMAIL_FROM',
+   'NEXT_PUBLIC_APP_URL', 'NEXT_PUBLIC_APP_NAME',
+   'STRIPE_PRO_MONTHLY_PRICE_ID', 'STRIPE_PRO_YEARLY_PRICE_ID',
+   'STRIPE_TEAM_MONTHLY_PRICE_ID', 'STRIPE_TEAM_YEARLY_PRICE_ID'],
+);
+
 /**
  * Get a system setting from DB, falling back to env var.
  * Admin panel writes to DB; this reads DB first, then env.
@@ -29,9 +39,11 @@ export async function getSetting(key: string, fallback?: string): Promise<string
     // DB not available, fall through to env
   }
 
-  // Fallback to env var
-  const envVal = process.env[key];
-  if (envVal) return envVal;
+  // Fallback to env var (only for known setting keys to prevent secret access)
+  if (ALLOWED_ENV_KEYS.has(key)) {
+    const envVal = process.env[key];
+    if (envVal) return envVal;
+  }
 
   return fallback ?? null;
 }

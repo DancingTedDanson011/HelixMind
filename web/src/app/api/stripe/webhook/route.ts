@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
+    event = stripe().webhooks.constructEvent(
       body,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!,
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     if (session.subscription && session.metadata?.userId) {
-      checkoutSub = await stripe.subscriptions.retrieve(session.subscription as string);
+      checkoutSub = await stripe().subscriptions.retrieve(session.subscription as string);
     }
   }
 
