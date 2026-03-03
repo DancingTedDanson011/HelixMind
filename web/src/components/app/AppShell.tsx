@@ -421,13 +421,13 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     } catch { /* silent */ }
   }, [fetchChats, activeChat?.id]);
 
-  // ── Active sessions (auto, security, monitor) — exclude main "Chat" session ──
-  const activeSessions = connection.sessions.filter(s => s.status === 'running' && s.id !== 'main' && getSessionTab(s.name, jName) !== 'jarvis');
-  const threatCount = connection.threats.length;
-
   // ── Sessions filtered by tab type ──
   const jName = connection.jarvisStatus?.jarvisName;
   const jRunning = connection.jarvisStatus?.daemonState === 'running';
+
+  // ── Active sessions (auto, security, monitor) — exclude main "Chat" session ──
+  const activeSessions = connection.sessions.filter(s => s.status === 'running' && s.id !== 'main' && getSessionTab(s.name, jName) !== 'jarvis');
+  const threatCount = connection.threats.length;
   const consoleSessions = connection.sessions.filter(s => s.id === 'main' || getSessionTab(s.name, jName, jRunning) === 'console');
   const monitorSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'monitor');
   const jarvisSessions = connection.sessions.filter(s => s.id !== 'main' && getSessionTab(s.name, jName, jRunning) === 'jarvis');
