@@ -20,18 +20,16 @@ export interface SelectMenuOptions {
   autoFocus?: boolean;
 }
 
-// ANSI sequences
 const HIDE = '\x1b[?25l';
 const SHOW = '\x1b[?25h';
-const SAVE = '\x1b7';          // DEC save cursor position
-const RESTORE = '\x1b8';       // DEC restore cursor position
-const ERASE_DOWN = '\x1b[J';   // erase from cursor to end of screen
-const ERASE_LINE = '\x1b[2K';
-const CR = '\r';
+const ERASE_BELOW = '\x1b[J';
 
 /**
  * Interactive arrow-key menu. Returns selected index or -1 if cancelled.
- * Flicker-free: DEC save/restore cursor + single-buffer write.
+ *
+ * Rendering: builds frame as line array, joins with \n, writes in single
+ * stdout.write(). On redraw: \r + cursor-up by (lineCount-1) to reach
+ * first line, then overwrite each line with \r\x1b[2K.
  */
 export function selectMenu(
   items: MenuItem[],
@@ -45,7 +43,7 @@ export function selectMenu(
   let scrollOffset = 0;
   const visibleCount = Math.min(pageSize, items.length);
 
-  function buildFrame(): string {
+  function buildLines(): string[] {
     const lines: string[] = [];
 
     if (title) {
@@ -104,8 +102,7 @@ export function selectMenu(
     lines.push('');
     lines.push(chalk.dim(`  ↑↓ navigate · Enter select · Esc/q ${cancelLabel}`));
 
-    // Each line: CR (col 0) + erase line + content
-    return lines.map(l => `${CR}${ERASE_LINE}${l}`).join('\n');
+    return lines;
   }
 
   return new Promise<number>((resolve) => {
@@ -114,25 +111,33 @@ export function selectMenu(
     if (stdin.isTTY) stdin.setRawMode(true);
     stdin.resume();
 
-    let saved = false;
+    let prevLineCount = 0;
 
     function draw(): void {
+      const lines = buildLines();
       let out = HIDE;
-      if (!saved) {
-        out += SAVE; // save cursor position before first frame
-        saved = true;
-      } else {
-        out += RESTORE; // jump back to saved position
+
+      // On redraw: move cursor back to first line of previous frame
+      if (prevLineCount > 0) {
+        out += `\r\x1b[${prevLineCount - 1}A`;
       }
-      out += buildFrame();
-      out += ERASE_DOWN; // wipe any leftover lines from previous longer frame
+
+      // Write each line: go to col 0, erase line, write content
+      out += lines.map(l => `\r\x1b[2K${l}`).join('\n');
+
+      // Erase any leftover lines below (in case previous frame was longer)
+      out += ERASE_BELOW;
       out += SHOW;
+
+      prevLineCount = lines.length;
       process.stdout.write(out);
     }
 
     function cleanup(result: number): void {
-      // Restore to saved position and erase everything we drew
-      process.stdout.write(RESTORE + ERASE_DOWN + SHOW);
+      // Erase the menu: go to first line, erase everything below
+      if (prevLineCount > 0) {
+        process.stdout.write(`\r\x1b[${prevLineCount - 1}A${ERASE_BELOW}${SHOW}`);
+      }
       stdin.removeListener('data', onData);
       if (stdin.isTTY && wasRaw !== undefined) stdin.setRawMode(wasRaw);
       resolve(result);
@@ -212,7 +217,7 @@ export async function multiSelectMenu(
   const { title, pageSize = 10 } = opts;
   const visibleCount = Math.min(pageSize, items.length);
 
-  function buildFrame(): string {
+  function buildLines(): string[] {
     const lines: string[] = [];
 
     if (title) {
@@ -234,7 +239,7 @@ export async function multiSelectMenu(
     lines.push(chalk.dim(`  ↑↓ navigate · Space toggle · Enter confirm · Esc cancel`));
     lines.push(chalk.dim(`  ${selected.size} selected`));
 
-    return lines.map(l => `${CR}${ERASE_LINE}${l}`).join('\n');
+    return lines;
   }
 
   return new Promise<number[]>((resolve) => {
@@ -243,18 +248,24 @@ export async function multiSelectMenu(
     if (stdin.isTTY) stdin.setRawMode(true);
     stdin.resume();
 
-    let saved = false;
+    let prevLineCount = 0;
 
     function draw(): void {
+      const lines = buildLines();
       let out = HIDE;
-      if (!saved) { out += SAVE; saved = true; } else { out += RESTORE; }
-      out += buildFrame();
-      out += ERASE_DOWN + SHOW;
+      if (prevLineCount > 0) {
+        out += `\r\x1b[${prevLineCount - 1}A`;
+      }
+      out += lines.map(l => `\r\x1b[2K${l}`).join('\n');
+      out += ERASE_BELOW + SHOW;
+      prevLineCount = lines.length;
       process.stdout.write(out);
     }
 
     function cleanup(result: number[]): void {
-      process.stdout.write(RESTORE + ERASE_DOWN + SHOW);
+      if (prevLineCount > 0) {
+        process.stdout.write(`\r\x1b[${prevLineCount - 1}A${ERASE_BELOW}${SHOW}`);
+      }
       stdin.removeListener('data', onData);
       if (stdin.isTTY && wasRaw !== undefined) stdin.setRawMode(wasRaw);
       resolve(result);
