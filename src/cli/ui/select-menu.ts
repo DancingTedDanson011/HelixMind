@@ -23,12 +23,9 @@ export interface SelectMenuOptions {
 /**
  * Interactive arrow-key menu. Returns the selected index or -1 if cancelled.
  * Works in raw mode — no readline needed.
- * 
- * Enterprise Features:
- * - Rich visual styling with icons and colors
- * - Danger/success styling for important options
- * - Keyboard shortcuts displayed
- * - Smooth animations
+ *
+ * Flicker-free rendering: uses cursor positioning + line erase instead of
+ * clearing the entire region. Each line is overwritten in place.
  */
 export function selectMenu(
   items: MenuItem[],
@@ -43,16 +40,34 @@ export function selectMenu(
 
   const visibleCount = Math.min(pageSize, items.length);
 
-  function render(clear: boolean): void {
-    if (clear) {
-      // Move cursor up to overwrite previous render
-      const linesToClear = (title ? 2 : 0) + visibleCount + (items.length > visibleCount ? 1 : 0) + 2;
-      process.stdout.write(`\x1b[${linesToClear}A\x1b[J`);
+  // Calculate total lines rendered (for cursor positioning)
+  function getTotalLines(): number {
+    let lines = 0;
+    if (title) lines += 2; // newline + title
+    lines += visibleCount;  // menu items
+    if (items.length > visibleCount) lines += 1; // scroll indicator
+    else if (showCount && items.length > 1) lines += 1; // count
+    lines += 2; // empty line + footer
+    return lines;
+  }
+
+  function render(isRedraw: boolean): void {
+    const totalLines = getTotalLines();
+
+    if (isRedraw) {
+      // Move cursor to start of our render region
+      process.stdout.write(`\x1b[${totalLines}A`);
     }
 
-    // Enterprise: Title with styling
+    // Helper: overwrite current line and move to next
+    const writeLine = (content: string) => {
+      process.stdout.write(`\x1b[2K${content}\n`);
+    };
+
+    // Title
     if (title) {
-      process.stdout.write(`\n  ${chalk.hex('#00d4ff').bold('┌─')} ${chalk.white.bold(title)} ${chalk.hex('#00d4ff').bold('─'.repeat(Math.max(0, 30 - title.length)))}\n`);
+      writeLine('');
+      writeLine(`  ${chalk.hex('#00d4ff').bold('┌─')} ${chalk.white.bold(title)} ${chalk.hex('#00d4ff').bold('─'.repeat(Math.max(0, 30 - title.length)))}`);
     }
 
     // Adjust scroll window
@@ -61,12 +76,14 @@ export function selectMenu(
 
     for (let vi = 0; vi < visibleCount; vi++) {
       const i = scrollOffset + vi;
-      if (i >= items.length) break;
+      if (i >= items.length) {
+        writeLine('');
+        continue;
+      }
 
       const item = items[i];
       const isSelected = i === cursor;
 
-      // Enterprise: Rich styling based on item type
       let prefix = isSelected ? chalk.hex('#00d4ff').bold('  ❯ ') : '    ';
       let label: string;
       let desc: string;
@@ -77,12 +94,10 @@ export function selectMenu(
         label = chalk.dim.strikethrough(item.label);
         desc = item.description ? chalk.dim(` — ${item.description}`) : '';
       } else if (item.danger) {
-        // Enterprise: Dangerous option (red)
         prefix = isSelected ? chalk.red.bold('  ❯ ') : '    ';
         label = isSelected ? chalk.red.bold(item.label) : chalk.red(item.label);
         desc = item.description ? (isSelected ? chalk.red(` — ${item.description}`) : chalk.dim(` — ${item.description}`)) : '';
       } else if (item.success) {
-        // Enterprise: Success option (green)
         prefix = isSelected ? chalk.green.bold('  ❯ ') : '    ';
         label = isSelected ? chalk.green.bold(item.label) : chalk.green(item.label);
         desc = item.description ? (isSelected ? chalk.green(` — ${item.description}`) : chalk.dim(` — ${item.description}`)) : '';
@@ -94,23 +109,22 @@ export function selectMenu(
         desc = item.description ? chalk.dim(` — ${item.description}`) : '';
       }
 
-      // Enterprise: Add icon if present
       const icon = item.icon ? `${item.icon} ` : '';
-
-      process.stdout.write(`${prefix}${icon}${label}${desc}${marker}${keyHint}\n`);
+      writeLine(`${prefix}${icon}${label}${desc}${marker}${keyHint}`);
     }
 
-    // Enterprise: Scroll indicator with better styling
+    // Scroll indicator or count
     if (items.length > visibleCount) {
       const above = scrollOffset > 0 ? '↑' : ' ';
       const below = scrollOffset + visibleCount < items.length ? '↓' : ' ';
-      process.stdout.write(chalk.dim(`    ${above} ${chalk.hex('#00d4ff')(`${scrollOffset + 1}-${Math.min(scrollOffset + visibleCount, items.length)}`)} of ${items.length} ${below}\n`));
+      writeLine(chalk.dim(`    ${above} ${chalk.hex('#00d4ff')(`${scrollOffset + 1}-${Math.min(scrollOffset + visibleCount, items.length)}`)} of ${items.length} ${below}`));
     } else if (showCount && items.length > 1) {
-      process.stdout.write(chalk.dim(`    ${items.length} options\n`));
+      writeLine(chalk.dim(`    ${items.length} options`));
     }
 
-    // Enterprise: Better footer
-    process.stdout.write(chalk.dim(`\n  ↑↓ navigate · Enter select · Esc/q ${cancelLabel}\n`));
+    // Footer
+    writeLine('');
+    writeLine(chalk.dim(`  ↑↓ navigate · Enter select · Esc/q ${cancelLabel}`));
   }
 
   return new Promise<number>((resolve) => {
@@ -131,8 +145,8 @@ export function selectMenu(
 
     function cleanup(result: number): void {
       // Erase the rendered menu from the terminal
-      const linesToClear = (title ? 2 : 0) + visibleCount + (items.length > visibleCount ? 1 : 0) + 2;
-      process.stdout.write(`\x1b[${linesToClear}A\x1b[J`);
+      const totalLines = getTotalLines();
+      process.stdout.write(`\x1b[${totalLines}A\x1b[J`);
 
       stdin.removeListener('data', onData);
       if (stdin.isTTY && wasRaw !== undefined) {
@@ -216,6 +230,8 @@ export function selectMenu(
         cleanup(-1);
         return;
       }
+
+      // Ignore all other keys — no redraw, no flicker
     }
 
     stdin.on('data', onData);
@@ -273,14 +289,29 @@ export async function multiSelectMenu(
   const { title, pageSize = 10 } = opts;
   const visibleCount = Math.min(pageSize, items.length);
 
-  function render(clear: boolean): void {
-    if (clear) {
-      const linesToClear = (title ? 2 : 0) + visibleCount + 2 + 2;
-      process.stdout.write(`\x1b[${linesToClear}A\x1b[J`);
+  function getTotalLines(): number {
+    let lines = 0;
+    if (title) lines += 2;
+    lines += visibleCount;
+    lines += 2; // footer lines
+    lines += 1; // selected count
+    return lines;
+  }
+
+  function render(isRedraw: boolean): void {
+    const totalLines = getTotalLines();
+
+    if (isRedraw) {
+      process.stdout.write(`\x1b[${totalLines}A`);
     }
 
+    const writeLine = (content: string) => {
+      process.stdout.write(`\x1b[2K${content}\n`);
+    };
+
     if (title) {
-      process.stdout.write(`\n  ${chalk.hex('#00d4ff').bold('┌─')} ${chalk.white.bold(title)} ${chalk.hex('#00d4ff').bold('─'.repeat(Math.max(0, 30 - title.length)))}\n`);
+      writeLine('');
+      writeLine(`  ${chalk.hex('#00d4ff').bold('┌─')} ${chalk.white.bold(title)} ${chalk.hex('#00d4ff').bold('─'.repeat(Math.max(0, 30 - title.length)))}`);
     }
 
     for (let i = 0; i < visibleCount && i < items.length; i++) {
@@ -292,11 +323,12 @@ export async function multiSelectMenu(
       const checkbox = isChecked ? chalk.green('☑') : chalk.dim('☐');
       const label = isSelected ? chalk.white.bold(item.label) : (item.disabled ? chalk.dim(item.label) : item.label);
 
-      process.stdout.write(`${prefix}${checkbox} ${label}\n`);
+      writeLine(`${prefix}${checkbox} ${label}`);
     }
 
-    process.stdout.write(chalk.dim(`\n  ↑↓ navigate · Space toggle · Enter confirm · Esc cancel\n`));
-    process.stdout.write(chalk.dim(`  ${selected.size} selected\n`));
+    writeLine('');
+    writeLine(chalk.dim(`  ↑↓ navigate · Space toggle · Enter confirm · Esc cancel`));
+    writeLine(chalk.dim(`  ${selected.size} selected`));
   }
 
   return new Promise<number[]>((resolve) => {
@@ -311,8 +343,8 @@ export async function multiSelectMenu(
     let firstRender = true;
 
     function cleanup(result: number[]): void {
-      const linesToClear = (title ? 2 : 0) + visibleCount + 2 + 2;
-      process.stdout.write(`\x1b[${linesToClear}A\x1b[J`);
+      const totalLines = getTotalLines();
+      process.stdout.write(`\x1b[${totalLines}A\x1b[J`);
       stdin.removeListener('data', onData);
       if (stdin.isTTY && wasRaw !== undefined) {
         stdin.setRawMode(wasRaw);
@@ -357,6 +389,8 @@ export async function multiSelectMenu(
         firstRender = false;
         return;
       }
+
+      // Ignore other keys — no redraw
     }
 
     stdin.on('data', onData);
