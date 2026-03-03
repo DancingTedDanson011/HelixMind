@@ -1,6 +1,6 @@
 {
   "name": "helixmind",
-  "version": "0.3.61",
+  "version": "0.3.62",
   "description": "HelixMind – AI Coding CLI with Persistent Spiral Memory",
   "type": "module",
   "main": "dist/index.js",
