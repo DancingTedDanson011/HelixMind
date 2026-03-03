@@ -474,6 +474,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let sessionTokensOutput = 0;
   let sessionToolCalls = 0;
   let roundToolCalls = 0;
+  let currentStepLabel = '';
+  let currentStepFile = '';
   
   // Timer tracking
   const sessionStartTime = Date.now();
@@ -1815,16 +1817,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     return dim('\u250C' + '\u2500'.repeat(w - 2) + '\u2510');
   }
 
-  /** Build bottom border with embedded statusbar: └─ ◉ L1:7020 | ⚡ 636 tok ──┘ */
-  function buildBottomBorder(w: number, statusText: string): string {
-    const dim = chalk.hex('#00d4ff').dim;
-    const prefix = dim('\u2514\u2500 ');
-    const statusVis = visibleLength(statusText);
-    const fill = Math.max(0, w - 4 - statusVis - 1); // 4 = "└─ " + space, 1 = "┘"
-    return `${prefix}${statusText} ${dim('\u2500'.repeat(fill) + '\u2518')}`;
-  }
-
-  /** Build hint line content for chrome row 2 */
+  /** Build hint line content for chrome row 1 */
   function buildHintLine(): string {
     const data = getStatusBarData();
     const hints: string[] = [];
@@ -1837,11 +1830,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   }
 
   /**
-   * Show the full prompt area using sticky bottom chrome with input box:
-   *   ┌──────────────────────────────────────┐  ← row N-2: top border (chrome row 0)
-   *   │ ❯ input here_                            ← cursor here (bottom of scroll region, row N-3)
-   *   └─ ◉ L1:7020 | ⚡ 636 tok | safe ──────┘  ← row N-1: bottom border + status (chrome row 1)
-   *   ▸▸ safe permissions · shift+tab · esc      ← row N:   hints (chrome row 2)
+   * Show the full prompt area using sticky bottom chrome (4 rows):
+   *   ┌──────────────────────────────────────┐  ← chrome row 0 (N-3): top border / activity indicator
+   *   │ ❯ input here_                            ← cursor (N-4, bottom of scroll region)
+   *   ▸▸ safe permissions · shift+tab · esc      ← chrome row 1 (N-2): hints
+   *   ✨████ 1521 | ctx ████ 0 | GLM-5 | 🛡     ← chrome row 2 (N-1): statusbar line 1
+   *   ⚡0 | 🕐1 | main | 03:25                   ← chrome row 3 (N):   statusbar line 2
    */
   function showPrompt(): void {
     const w = Math.max(20, (process.stdout.columns || 80) - 2);
@@ -1916,6 +1910,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       jarvisName: jarvisDaemonSession && jarvisDaemonSession.status === 'running'
         ? jarvisIdentity.getIdentity().name
         : undefined,
+      runtime: activity.isRunning ? Math.floor(activity.elapsed / 1000) : undefined,
+      currentStep: currentStepLabel || undefined,
+      currentFile: currentStepFile || undefined,
+      sectionTimer: getSectionTimer(),
+      totalTimer: getTotalTimer(),
     };
   }
 
@@ -2353,8 +2352,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     return identityPrompt + '\n\n' + runtimeContext;
   }
 
-  // Update statusbar via BottomChrome rows 2+3 (the actual 2-line statusbar).
-  // Called during agent work by the footer timer to keep token counts, tools, git etc. live.
+  // Update statusbar via BottomChrome rows 1-3 during agent work.
+  // Row 1 = hint line, Rows 2+3 = 2-line statusbar with live metrics.
+  // Called by footer timer every 500ms to keep token counts, tools, git etc. live.
   function updateStatusBar(): void {
     if (!process.stdout.isTTY) return;
     const data = getStatusBarData();
@@ -2370,6 +2370,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
 
     if (chrome.isActive) {
+      // Refresh hint line on row 1 (prevents stale border/status from previous layout)
+      chrome.setRow(1, buildHintLine());
       chrome.setRow(2, ' ' + line1);
       chrome.setRow(3, ' ' + (statusLine2 || ''));
     } else {
@@ -3038,6 +3040,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     // Send message through agent loop
     roundToolCalls = 0;
+    currentStepLabel = '';
+    currentStepFile = '';
     agentRunning = true;
     agentController.reset();
     // Set activity display name: custom Jarvis name when daemon is running, else "HelixMind"
@@ -3068,6 +3072,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
       bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
       getJarvisContextForPrompt(),
+      (label, tool) => {
+        currentStepLabel = label;
+        const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
+        currentStepFile = fileTools.has(tool) ? label.replace(/^(reading|writing|editing)\s+/, '') : '';
+      },
     );
 
     agentRunning = false;
@@ -3085,6 +3094,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         checkpointStore.createForChat(buffered.trim(), agentHistory.length);
 
         roundToolCalls = 0;
+        currentStepLabel = '';
+        currentStepFile = '';
         agentRunning = true;
         agentController.reset();
         updateStatusBar();
@@ -3098,6 +3109,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
           bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
           getJarvisContextForPrompt(),
+          (label, tool) => {
+            currentStepLabel = label;
+            const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
+            currentStepFile = fileTools.has(tool) ? label.replace(/^(reading|writing|editing)\s+/, '') : '';
+          },
         );
 
         agentRunning = false;
@@ -3366,6 +3382,7 @@ async function sendAgentMessage(
   visionProcessor?: VisionProcessor,
   onBrowserScreenshot?: ((info: { url: string; title?: string; imageBase64?: string; analysis?: string }) => void) | null,
   jarvisContext?: string | null,
+  onStepInfo?: (label: string, tool: string) => void,
 ): Promise<void> {
   // User message was rendered by renderUserMessage() in the caller before entering here.
 
@@ -3500,6 +3517,7 @@ async function sendAgentMessage(
       },
       onStepStart: (num, _tool, label) => {
         activity.setStep(num, label);
+        onStepInfo?.(label, _tool);
       },
       onStepEnd: (_num, _tool, status) => {
         if (status === 'error') activity.setError();
