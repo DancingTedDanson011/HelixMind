@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Send, Square, ChevronDown, Shield, ShieldOff,
@@ -39,7 +39,7 @@ interface ChatInputProps {
   onSendWithFiles?: (content: string, files: FileInfo[]) => void;
 }
 
-export function ChatInput({
+export const ChatInput = memo(function ChatInput({
   onSend,
   isAgentRunning,
   onStop,
@@ -484,4 +484,4 @@ export function ChatInput({
       </div>
     </div>
   );
-}
+});

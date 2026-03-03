@@ -1927,9 +1927,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               </div>
             )}
 
-            {/* Bottom panel: Proposals + Consciousness */}
-            {showJarvisPanel && (
-              <div className="flex-shrink-0 px-4 pt-2 border-t border-white/5 bg-surface/50 backdrop-blur-sm">
+            {/* Bottom panel: Proposals + Consciousness — stable slot */}
+            <div className={showJarvisPanel ? 'flex-shrink-0 px-4 pt-2 border-t border-white/5 bg-surface/50 backdrop-blur-sm' : 'hidden'}>
+              {showJarvisPanel && (
                 <JarvisBottomPanel
                   proposals={connection.proposals}
                   thinkingUpdates={connection.thinkingUpdates}
@@ -1941,49 +1941,44 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   onDenyProposal={(id, reason) => connection.denyProposal(id, reason).catch(() => {})}
                   onClose={() => setShowJarvisPanel(false)}
                 />
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Permission cards — above Jarvis embedded input */}
-            {connection.pendingPermissions.length > 0 && (
-              <div className="flex-shrink-0 px-4 pt-2 border-t border-white/5 bg-surface/50 backdrop-blur-sm">
-                <div className="max-w-3xl mx-auto space-y-2 max-h-[40vh] overflow-y-auto">
-                  {connection.pendingPermissions.map((perm) => (
-                    <PermissionRequestCard
-                      key={perm.id}
-                      request={perm}
-                      onApprove={(mode) => connection.respondPermission(perm.id, true, mode)}
-                      onDeny={() => connection.respondPermission(perm.id, false)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Jarvis action button — when no session active and daemon not running */}
-            {isConnected && !jarvisSessionIdForOutput && connection.jarvisStatus?.daemonState !== 'running' && (
-              <div className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 border-t border-white/5 bg-surface/30">
-                <button
-                  onClick={() => connection.startJarvis().catch(() => {})}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all"
-                >
-                  <Play size={12} />{t('jarvisStart')}
-                </button>
-              </div>
-            )}
-
-            {/* Jarvis Tasks — above input, not overlaying chat */}
-            {connection.jarvisTasks.length > 0 && (
-              <div className="flex-shrink-0 px-4 pt-2 pb-1 border-t border-white/5 bg-surface/30">
-                <JarvisTaskList
-                  tasks={connection.jarvisTasks}
-                  isConnected={isConnected}
-                  onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
-                    onDeleteTask={(taskId) => connection.deleteJarvisTask(taskId).catch(() => {})}
+            {/* Permission cards — stable slot */}
+            <div className={connection.pendingPermissions.length > 0 ? 'flex-shrink-0 px-4 pt-2 border-t border-white/5 bg-surface/50 backdrop-blur-sm' : 'hidden'}>
+              <div className="max-w-3xl mx-auto space-y-2 max-h-[40vh] overflow-y-auto">
+                {connection.pendingPermissions.map((perm) => (
+                  <PermissionRequestCard
+                    key={perm.id}
+                    request={perm}
+                    onApprove={(mode) => connection.respondPermission(perm.id, true, mode)}
+                    onDeny={() => connection.respondPermission(perm.id, false)}
                   />
+                ))}
               </div>
-            )}
-            {/* Embedded input */}
+            </div>
+
+            {/* Jarvis action button — stable slot */}
+            <div className={isConnected && !jarvisSessionIdForOutput && connection.jarvisStatus?.daemonState !== 'running' ? 'flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 border-t border-white/5 bg-surface/30' : 'hidden'}>
+              <button
+                onClick={() => connection.startJarvis().catch(() => {})}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all"
+              >
+                <Play size={12} />{t('jarvisStart')}
+              </button>
+            </div>
+
+            {/* Jarvis Tasks — stable slot */}
+            <div className={connection.jarvisTasks.length > 0 ? 'flex-shrink-0 px-4 pt-2 pb-1 border-t border-white/5 bg-surface/30' : 'hidden'}>
+              <JarvisTaskList
+                tasks={connection.jarvisTasks}
+                isConnected={isConnected}
+                onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
+                onDeleteTask={(taskId) => connection.deleteJarvisTask(taskId).catch(() => {})}
+              />
+            </div>
+
+            {/* Embedded input — stable slot, never unmounts */}
             <div className="flex-shrink-0 relative">
               <ChatInput
                 onSend={sendMessage}
