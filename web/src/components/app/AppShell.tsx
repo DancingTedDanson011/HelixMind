@@ -1816,6 +1816,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                       tasks={connection.jarvisTasks}
                       isConnected={isConnected}
                       onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
+                      onDeleteTask={(taskId) => connection.deleteJarvisTask(taskId).catch(() => {})}
                     />
                   </div>
                 )}
@@ -1833,6 +1834,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                       tasks={connection.jarvisTasks}
                       isConnected={isConnected}
                       onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
+                      onDeleteTask={(taskId) => connection.deleteJarvisTask(taskId).catch(() => {})}
                     />
                   </div>
                 )}
@@ -1914,13 +1916,24 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               </div>
             )}
 
+            {/* Jarvis Tasks — above input, not overlaying chat */}
+            {connection.jarvisTasks.length > 0 && (
+              <div className="flex-shrink-0 px-4 pt-2 pb-1 border-t border-white/5 bg-surface/30">
+                <JarvisTaskList
+                  tasks={connection.jarvisTasks}
+                  isConnected={isConnected}
+                  onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
+                    onDeleteTask={(taskId) => connection.deleteJarvisTask(taskId).catch(() => {})}
+                  />
+              </div>
+            )}
             {/* Embedded input */}
             <div className="flex-shrink-0 relative">
               {/* Jarvis panel toggle */}
               {isConnected && (
                 <button
                   onClick={() => setShowJarvisPanel(prev => !prev)}
-                  className={`absolute -top-8 right-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
+                  className={`absolute -top-8 left-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
                     showJarvisPanel
                       ? 'bg-red-500/10 border-red-500/20 text-red-400'
                       : connection.proposals.filter(p => p.status === 'pending').length > 0
@@ -2040,7 +2053,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             {isConnected && activeTab === 'chat' && (
               <button
                 onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
-                className={`absolute -top-8 right-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
+                className={`absolute -top-10 right-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
                   showBugPanel
                     ? 'bg-red-500/10 border-red-500/20 text-red-400'
                     : connection.bugs.filter(b => b.status === 'open').length > 0

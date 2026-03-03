@@ -333,21 +333,25 @@ export function ChatView({
             </div>
           )}
 
-          {/* Active tool calls — compact inline style */}
+          {/* Active tool calls — elegant animated style */}
           {activeTools.length > 0 && isAgentRunning && (
-            <div className="space-y-1 ml-1">
-              {activeTools.map((tool) => (
-                <div key={tool.stepNum} className="flex items-center gap-2 text-xs text-gray-500">
+            <div className="space-y-2 ml-1 animate-fade-in">
+              {activeTools.map((tool, index) => (
+                <div 
+                  key={tool.stepNum} 
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/5"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
                   {tool.status === 'running' ? (
-                    <Loader2 size={11} className="text-gray-400 animate-spin flex-shrink-0" />
+                    <Loader2 size={14} className="text-cyan-400 animate-spin flex-shrink-0" />
                   ) : tool.status === 'done' ? (
-                    <CheckCircle2 size={11} className="text-emerald-500/60 flex-shrink-0" />
+                    <CheckCircle2 size={14} className="text-emerald-400 flex-shrink-0" />
                   ) : (
-                    <XCircle size={11} className="text-red-400/60 flex-shrink-0" />
+                    <XCircle size={14} className="text-red-400 flex-shrink-0" />
                   )}
-                  <span className="text-gray-400">{toolLabel(tool.toolName)}</span>
+                  <span className="text-xs font-medium text-gray-300">{toolLabel(tool.toolName)}</span>
                   {toolDetail(tool) && (
-                    <span className="text-gray-600 font-mono truncate max-w-[280px]">{toolDetail(tool)}</span>
+                    <span className="text-xs text-gray-500 font-mono truncate max-w-[280px] bg-white/5 px-1.5 py-0.5 rounded">{toolDetail(tool)}</span>
                   )}
                 </div>
               ))}

@@ -114,6 +114,7 @@ export interface UseCliConnectionReturn {
   resumeJarvis: () => Promise<void>;
   addJarvisTask: (title: string, description: string, priority?: string) => Promise<JarvisTaskInfo>;
   listJarvisTasks: () => Promise<JarvisTaskInfo[]>;
+  deleteJarvisTask: (taskId: number) => Promise<boolean>;
   getJarvisStatus: () => Promise<JarvisStatusInfo>;
   // Jarvis AGI methods
   listProposals: () => Promise<ProposalInfo[]>;
@@ -451,6 +452,14 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
       const task = msg.task as JarvisTaskInfo;
       if (mountedRef.current) {
         setJarvisTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
+      }
+      return;
+    }
+
+    if (msg.type === 'jarvis_task_removed') {
+      const taskId = msg.taskId as number;
+      if (mountedRef.current) {
+        setJarvisTasks((prev) => prev.filter((t) => t.id !== taskId));
       }
       return;
     }
@@ -841,6 +850,14 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     return res.status;
   }, [sendRequest]);
 
+  const deleteJarvisTask = useCallback(async (taskId: number): Promise<boolean> => {
+    const res = (await sendRequest('delete_jarvis_task', { taskId })) as { success: boolean };
+    if (res.success) {
+      setJarvisTasks(prev => prev.filter(t => t.id !== taskId));
+    }
+    return res.success ?? false;
+  }, [sendRequest]);
+
   // ---------------------------------------------------------------------------
   // Jarvis AGI convenience methods
   // ---------------------------------------------------------------------------
@@ -1044,6 +1061,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     pauseJarvis,
     resumeJarvis,
     addJarvisTask,
+    deleteJarvisTask,
     listJarvisTasks,
     getJarvisStatus,
 

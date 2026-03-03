@@ -116,8 +116,10 @@ export class JarvisQueue {
   removeTask(id: number): boolean {
     const idx = this.data.tasks.findIndex(t => t.id === id);
     if (idx === -1) return false;
+    const task = this.data.tasks[idx];
     this.data.tasks.splice(idx, 1);
     this.save();
+    this.onChange?.('task_removed', task);
     return true;
   }
 

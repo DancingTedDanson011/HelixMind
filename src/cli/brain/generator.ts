@@ -370,6 +370,16 @@ export function pushJarvisTaskUpdated(task: JarvisTaskInfo): void {
   });
 }
 
+/** Push a jarvis-task-removed event to control clients */
+export function pushJarvisTaskRemoved(taskId: number): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'jarvis_task_removed',
+    taskId,
+    timestamp: Date.now(),
+  });
+}
+
 /** Push a jarvis-status-changed event to control clients */
 export function pushJarvisStatusChanged(status: JarvisStatusInfo): void {
   if (!activeBrainServer) return;

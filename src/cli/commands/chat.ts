@@ -893,7 +893,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         pushControlEvent,
         startRelayClient,
         pushJarvisTaskCreated,
-        pushJarvisTaskUpdated,
+  pushJarvisTaskUpdated,
+  pushJarvisTaskRemoved,
         pushJarvisStatusChanged,
         pushToolPermissionRequest,
         pushToolPermissionReminder,
@@ -1379,6 +1380,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
         listJarvisTasks: () => jarvisQueue.getAllTasks().map(serializeJarvisTask),
 
+        deleteJarvisTask: (taskId: number) => {
+          return jarvisQueue.removeTask(taskId);
+        },
+
         getJarvisStatus: () => ({
           ...jarvisQueue.getStatus(),
           scope: jarvisScope === 'project' ? 'local' : 'global',
@@ -1516,6 +1521,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         const info = serializeJarvisTask(task);
         if (event === 'task_created') {
           pushJarvisTaskCreated(info);
+        } else if (event === 'task_removed') {
+          pushJarvisTaskRemoved(task.id);
         } else {
           pushJarvisTaskUpdated(info);
         }
@@ -1631,7 +1638,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           resumeJarvis: () => false,
           addJarvisTask: () => ({ id: 0, title: '', description: '', status: 'pending' as const, priority: 'medium' as const, createdAt: Date.now(), updatedAt: Date.now(), retries: 0, maxRetries: 3, tags: [] }),
           listJarvisTasks: () => [],
-          getJarvisStatus: () => ({ daemonState: 'stopped' as const, currentTaskId: null, pendingCount: 0, completedCount: 0, failedCount: 0, totalCount: 0, uptimeMs: 0 }),
+        deleteJarvisTask: () => false,
+        getJarvisStatus: () => ({ daemonState: 'stopped' as const, currentTaskId: null, pendingCount: 0, completedCount: 0, failedCount: 0, totalCount: 0, uptimeMs: 0 }),
           clearJarvisCompleted: () => {},
           // Jarvis AGI stubs (relay fallback)
           listProposals: () => [],

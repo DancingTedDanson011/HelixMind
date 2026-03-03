@@ -202,6 +202,7 @@ export interface PauseJarvisRequest extends WSMessage { type: 'pause_jarvis' }
 export interface ResumeJarvisRequest extends WSMessage { type: 'resume_jarvis' }
 export interface AddJarvisTaskRequest extends WSMessage { type: 'add_jarvis_task'; title: string; description: string; priority?: 'high' | 'medium' | 'low'; dependencies?: number[]; tags?: string[] }
 export interface ListJarvisTasksRequest extends WSMessage { type: 'list_jarvis_tasks' }
+export interface DeleteJarvisTaskRequest extends WSMessage { type: 'delete_jarvis_task'; taskId: number }
 export interface GetJarvisStatusRequest extends WSMessage { type: 'get_jarvis_status' }
 export interface ClearJarvisCompletedRequest extends WSMessage { type: 'clear_jarvis_completed' }
 
@@ -409,6 +410,7 @@ export type ControlRequest =
   | ResumeJarvisRequest
   | AddJarvisTaskRequest
   | ListJarvisTasksRequest
+  | DeleteJarvisTaskRequest
   | GetJarvisStatusRequest
   | ClearJarvisCompletedRequest
   | ListProposalsRequest
@@ -464,6 +466,7 @@ export interface ControlHandlers {
   resumeJarvis(): boolean;
   addJarvisTask(title: string, description: string, opts?: { priority?: JarvisTaskPriority; dependencies?: number[]; tags?: string[] }): JarvisTaskInfo;
   listJarvisTasks(): JarvisTaskInfo[];
+  deleteJarvisTask(taskId: number): boolean;
   getJarvisStatus(): JarvisStatusInfo;
   clearJarvisCompleted(): void;
   // Jarvis AGI

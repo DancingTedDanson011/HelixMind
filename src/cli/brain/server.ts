@@ -386,6 +386,12 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             break;
           }
 
+          case 'delete_jarvis_task': {
+            const success = controlHandlers.deleteJarvisTask((msg as any).taskId);
+            sendTo(ws, { type: 'jarvis_task_deleted', success, taskId: (msg as any).taskId, requestId, timestamp: Date.now() });
+            break;
+          }
+
           case 'get_jarvis_status': {
             const status = controlHandlers.getJarvisStatus();
             sendTo(ws, { type: 'jarvis_status', status, requestId, timestamp: Date.now() });
@@ -759,7 +765,7 @@ function isControlRequest(type: string): boolean {
     'send_chat', 'get_findings', 'get_bugs', 'ping',
     'start_monitor', 'stop_monitor', 'monitor_command', 'approval_response',
     'start_jarvis', 'stop_jarvis', 'pause_jarvis', 'resume_jarvis',
-    'add_jarvis_task', 'list_jarvis_tasks', 'get_jarvis_status',
+    'add_jarvis_task', 'list_jarvis_tasks', 'delete_jarvis_task', 'get_jarvis_status',
     'clear_jarvis_completed',
     // Jarvis AGI
     'list_proposals', 'approve_proposal', 'deny_proposal',

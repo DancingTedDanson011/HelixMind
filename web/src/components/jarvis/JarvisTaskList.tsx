@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Clock, Loader2, CheckCircle2, XCircle, Pause,
-  ChevronDown, ChevronUp, Plus, RotateCcw,
+  ChevronDown, ChevronUp, Plus, RotateCcw, Trash2,
 } from 'lucide-react';
 import type { JarvisTaskInfo, JarvisTaskPriority } from '@/lib/cli-types';
 
@@ -11,6 +11,7 @@ interface JarvisTaskListProps {
   tasks: JarvisTaskInfo[];
   isConnected: boolean;
   onAddTask: (title: string, description: string, priority: JarvisTaskPriority) => void;
+  onDeleteTask: (taskId: number) => void;
 }
 
 const priorityColors = {
@@ -37,7 +38,7 @@ function elapsed(task: JarvisTaskInfo): string {
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
-export function JarvisTaskList({ tasks, isConnected, onAddTask }: JarvisTaskListProps) {
+export function JarvisTaskList({ tasks, isConnected, onAddTask, onDeleteTask }: JarvisTaskListProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
@@ -90,7 +91,7 @@ export function JarvisTaskList({ tasks, isConnected, onAddTask }: JarvisTaskList
             return (
               <div
                 key={task.id}
-                className="flex items-center gap-2 px-3 py-1.5 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] transition-colors"
+                className="group flex items-center gap-2 px-3 py-1.5 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] transition-colors"
               >
                 <Icon size={11} className={`${cfg.color} flex-shrink-0 ${cfg.spin ? 'animate-spin' : ''}`} />
                 <span className="text-[10px] text-gray-500 font-mono flex-shrink-0">#{task.id}</span>
@@ -106,6 +107,15 @@ export function JarvisTaskList({ tasks, isConnected, onAddTask }: JarvisTaskList
                 )}
                 {(task.status === 'running' || task.status === 'completed' || task.status === 'failed') && (
                   <span className="text-[10px] text-gray-600 flex-shrink-0">{elapsed(task)}</span>
+                )}
+                {task.status !== 'running' && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
+                    className="p-0.5 rounded hover:bg-red-500/20 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Delete task"
+                  >
+                    <Trash2 size={10} />
+                  </button>
                 )}
               </div>
             );
