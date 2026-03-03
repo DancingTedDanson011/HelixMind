@@ -45,6 +45,8 @@ const COMMANDS: CommandDef[] = [
   { cmd: '/jarvis pause', description: 'Pause daemon' },
   { cmd: '/jarvis resume', description: 'Resume daemon' },
   { cmd: '/jarvis clear', description: 'Clear completed tasks' },
+  { cmd: '/jarvis delete', description: 'Delete a task by ID' },
+  { cmd: '/del task', description: 'Delete a Jarvis task by ID' },
   { cmd: '/jarvis proposals', description: 'List pending proposals' },
   { cmd: '/jarvis approve', description: 'Approve a proposal' },
   { cmd: '/jarvis deny', description: 'Deny a proposal with reason' },

@@ -72,8 +72,10 @@ export function useCliOutput(params: UseCliOutputParams): UseCliOutputReturn {
       });
     }
 
-    // Unsubscribe from previous session
-    if (prevId && connection.connectionState === 'connected') {
+    // Unsubscribe from previous session — only when switching to a DIFFERENT session,
+    // not when sessionId becomes null (tab switch). This preserves the subscription
+    // so output lines are not lost during tab switches.
+    if (prevId && sessionId && prevId !== sessionId && connection.connectionState === 'connected') {
       connection.sendRequest('unsubscribe_output', { sessionId: prevId }).catch(() => {
         // Ignore errors during unsubscribe (connection may already be closed)
       });

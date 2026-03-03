@@ -374,7 +374,7 @@ export interface ToolPermissionRequest {
   reminderAt: number;
 }
 
-export interface ToolPermissionResponseRequest extends WSMessage { type: 'tool_permission_response'; requestId: string; approved: boolean }
+export interface ToolPermissionResponseRequest extends WSMessage { type: 'tool_permission_response'; requestId: string; approved: boolean; mode?: 'once' | 'session' | 'yolo' }
 export interface ToolPermissionRequestEvent extends WSMessage { type: 'tool_permission_request'; request: ToolPermissionRequest }
 export interface ToolPermissionReminderEvent extends WSMessage { type: 'tool_permission_reminder'; request: ToolPermissionRequest }
 export interface ToolPermissionResolvedEvent extends WSMessage { type: 'tool_permission_resolved'; requestId: string; approved: boolean; deniedBy?: 'user' | 'system_timeout' }
@@ -494,7 +494,7 @@ export interface ControlHandlers {
   getConfig(): { provider: string; apiKey: string; model: string };
   switchModel(provider: string, model: string): boolean;
   // Tool Permission Approval (remote)
-  handleToolPermissionResponse(requestId: string, approved: boolean): void;
+  handleToolPermissionResponse(requestId: string, approved: boolean, mode?: 'once' | 'session' | 'yolo'): void;
   // Status Bar
   getStatusBar(): StatusBarInfo;
   // Checkpoints

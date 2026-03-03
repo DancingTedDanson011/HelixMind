@@ -28,6 +28,7 @@ interface JarvisPanelProps {
   onResumeJarvis: () => void;
   onAddTask: (title: string, description: string, priority: 'high' | 'medium' | 'low') => void;
   onClearCompleted: () => void;
+  onDeleteTask: (taskId: number) => void;
   isConnected: boolean;
   // AGI props
   proposals?: ProposalInfo[];
@@ -83,7 +84,7 @@ type Section = 'tasks' | 'proposals' | 'consciousness';
 
 export function JarvisPanel({
   tasks, status, onStartJarvis, onStopJarvis, onPauseJarvis, onResumeJarvis,
-  onAddTask, onClearCompleted, isConnected,
+  onAddTask, onClearCompleted, onDeleteTask, isConnected,
   proposals = [], identity = null, autonomyLevel = 2, workers = [],
   thinkingUpdates = [], consciousnessEvents = [],
   onApproveProposal, onDenyProposal, onSetAutonomy, onTriggerDeepThink,
@@ -346,7 +347,7 @@ export function JarvisPanel({
                   {t('jarvisTaskRunning')} ({runningTasks.length})
                 </h3>
                 {runningTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} />
+                  <TaskCard key={task.id} task={task} onDelete={onDeleteTask} />
                 ))}
               </div>
             )}
@@ -359,7 +360,7 @@ export function JarvisPanel({
                   {t('jarvisTaskPending')} ({pendingTasks.length})
                 </h3>
                 {pendingTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} />
+                  <TaskCard key={task.id} task={task} onDelete={onDeleteTask} />
                 ))}
               </div>
             )}
@@ -381,7 +382,7 @@ export function JarvisPanel({
                   </button>
                 </div>
                 {completedTasks.slice().reverse().slice(0, 10).map((task) => (
-                  <TaskCard key={task.id} task={task} />
+                  <TaskCard key={task.id} task={task} onDelete={onDeleteTask} />
                 ))}
               </div>
             )}
@@ -466,13 +467,13 @@ export function JarvisPanel({
 
 /* ─── Task Card ───────────────────────────────── */
 
-function TaskCard({ task }: { task: JarvisTaskInfo }) {
+function TaskCard({ task, onDelete }: { task: JarvisTaskInfo; onDelete?: (taskId: number) => void }) {
   const cfg = statusConfig[task.status] || statusConfig.pending;
   const Icon = cfg.icon;
   const pri = priorityColors[task.priority] || priorityColors.medium;
 
   return (
-    <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
+    <div className="group p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
       <div className="flex items-start gap-2">
         <Icon size={14} className={`${cfg.color} flex-shrink-0 mt-0.5 ${task.status === 'running' ? 'animate-spin' : ''}`} />
         <div className="flex-1 min-w-0">
@@ -515,6 +516,15 @@ function TaskCard({ task }: { task: JarvisTaskInfo }) {
             ))}
           </div>
         </div>
+        {onDelete && task.status !== 'running' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+            className="p-1 rounded hover:bg-red-500/20 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5"
+            title="Delete task"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
       </div>
     </div>
   );

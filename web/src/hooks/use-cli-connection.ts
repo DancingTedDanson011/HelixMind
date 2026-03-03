@@ -139,7 +139,7 @@ export interface UseCliConnectionReturn {
 
   // Tool Permission Approval
   pendingPermissions: ToolPermissionRequest[];
-  respondPermission: (requestId: string, approved: boolean) => Promise<void>;
+  respondPermission: (requestId: string, approved: boolean, mode?: 'once' | 'session' | 'yolo') => Promise<void>;
 
   // Status Bar
   statusBar: StatusBarInfo | null;
@@ -968,7 +968,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   // Tool Permission Approval
   // ---------------------------------------------------------------------------
   const respondPermission = useCallback(
-    async (requestId: string, approved: boolean): Promise<void> => {
+    async (requestId: string, approved: boolean, mode?: 'once' | 'session' | 'yolo'): Promise<void> => {
       // Optimistic UI update — remove card immediately
       if (mountedRef.current) {
         setPendingPermissions((prev) => prev.filter((p) => p.id !== requestId));
@@ -976,7 +976,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
       // Use sendRaw (fire-and-forget) instead of sendRequest because:
       // 1. The server doesn't send a response for permission approvals
       // 2. sendRequest would generate its own requestId that gets overwritten by payload.requestId
-      sendRaw({ type: 'tool_permission_response', requestId, approved, timestamp: Date.now() });
+      sendRaw({ type: 'tool_permission_response', requestId, approved, mode, timestamp: Date.now() });
     },
     [sendRaw],
   );

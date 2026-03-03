@@ -77,7 +77,7 @@ interface ChatViewProps {
   isConnected?: boolean;
   isExecuting?: boolean;
   pendingPermissions?: ToolPermissionRequest[];
-  onApprovePermission?: (requestId: string) => void;
+  onApprovePermission?: (requestId: string, mode?: 'once' | 'session' | 'yolo') => void;
   onDenyPermission?: (requestId: string) => void;
   instanceMeta?: InstanceMeta | null;
   connectedPort?: number | null;
@@ -326,7 +326,7 @@ export function ChatView({
                 <PermissionRequestCard
                   key={perm.id}
                   request={perm}
-                  onApprove={() => onApprovePermission?.(perm.id)}
+                  onApprove={(mode) => onApprovePermission?.(perm.id, mode)}
                   onDeny={() => onDenyPermission?.(perm.id)}
                 />
               ))}

@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldAlert, ShieldCheck, Clock, Check, X, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Clock, Check, X, AlertTriangle, Zap, Flame } from 'lucide-react';
 import type { ToolPermissionRequest } from '@/lib/cli-types';
 
 interface PermissionRequestCardProps {
   request: ToolPermissionRequest;
-  onApprove: () => void;
+  onApprove: (mode?: 'once' | 'session' | 'yolo') => void;
   onDeny: () => void;
 }
 
@@ -45,9 +45,9 @@ export function PermissionRequestCard({ request, onApprove, onDeny }: Permission
   const isExpired = timeLeft <= 0;
   const progressPct = Math.max(0, Math.min(100, (timeLeft / (request.expiresAt - request.timestamp)) * 100));
 
-  const handleApprove = () => {
+  const handleApprove = (mode?: 'once' | 'session' | 'yolo') => {
     setResolved('approved');
-    onApprove();
+    onApprove(mode);
   };
 
   const handleDeny = () => {
@@ -130,7 +130,7 @@ export function PermissionRequestCard({ request, onApprove, onDeny }: Permission
       {/* Buttons */}
       <div className="flex gap-2 px-3 pb-3">
         <button
-          onClick={handleApprove}
+          onClick={() => handleApprove('once')}
           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 text-xs font-medium transition-colors"
         >
           <ShieldCheck size={13} />
@@ -143,6 +143,24 @@ export function PermissionRequestCard({ request, onApprove, onDeny }: Permission
           <X size={13} />
           Deny
         </button>
+        <button
+          onClick={() => handleApprove('session')}
+          className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-400 text-xs font-medium transition-colors"
+          title="Always allow — skip permissions for this session"
+        >
+          <Zap size={12} />
+          Always
+        </button>
+        {isDangerous && (
+          <button
+            onClick={() => handleApprove('yolo')}
+            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-medium transition-colors"
+            title="YOLO mode — disable ALL confirmations (dangerous!)"
+          >
+            <Flame size={12} />
+            YOLO
+          </button>
+        )}
       </div>
     </div>
   );

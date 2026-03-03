@@ -75,15 +75,14 @@ export interface ChatFull {
 
 /* ─── Session tab assignment helper ──────────── */
 
-function getSessionTab(name: string, jarvisName?: string, daemonRunning?: boolean): 'console' | 'monitor' | 'jarvis' {
+function getSessionTab(name: string, jarvisName?: string, _daemonRunning?: boolean): 'console' | 'monitor' | 'jarvis' {
   const lower = name.toLowerCase();
   if (lower.includes('monitor') || lower.includes('security') || lower.includes('audit')) return 'monitor';
-  // Jarvis sessions only count when daemon is actually running
-  if (daemonRunning) {
-    if (lower.includes('jarvis')) return 'jarvis';
-    // Match custom Jarvis name (e.g. "🤖 Olaf" contains "olaf")
-    if (jarvisName && lower.includes(jarvisName.toLowerCase())) return 'jarvis';
-  }
+  // 🤖 emoji → always Jarvis (all Jarvis sessions use this icon)
+  if (name.includes('🤖')) return 'jarvis';
+  if (lower.includes('jarvis')) return 'jarvis';
+  // Match custom Jarvis name (min 2 chars, e.g. "Olfa" → jarvis)
+  if (jarvisName && jarvisName.length >= 2 && lower.includes(jarvisName.toLowerCase())) return 'jarvis';
   return 'console'; // auto, everything else → Console
 }
 
@@ -382,7 +381,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   }, [fetchChats, activeChat?.id]);
 
   // ── Active sessions (auto, security, monitor) — exclude main "Chat" session ──
-  const activeSessions = connection.sessions.filter(s => s.status === 'running' && s.id !== 'main');
+  const activeSessions = connection.sessions.filter(s => s.status === 'running' && s.id !== 'main' && getSessionTab(s.name, jName) !== 'jarvis');
   const threatCount = connection.threats.length;
 
   // ── Sessions filtered by tab type ──
@@ -440,6 +439,18 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       setMonitorSessionId(running?.id ?? monitorSessions[0].id);
     }
   }, [activeTab, monitorSessionId, monitorSessions]);
+
+  // ── Auto-switch to jarvis tab when daemon starts ─────
+  const prevDaemonStateRef = useRef(connection.jarvisStatus?.daemonState);
+  useEffect(() => {
+    const prev = prevDaemonStateRef.current;
+    const curr = connection.jarvisStatus?.daemonState;
+    prevDaemonStateRef.current = curr;
+    // Transition from not-running → running → switch to jarvis tab
+    if (prev !== 'running' && curr === 'running') {
+      setActiveTab('jarvis');
+    }
+  }, [connection.jarvisStatus?.daemonState]);
 
   // ── Auto-switch to console when monitor is stopped ─────
   const prevMonitorStatusRef = useRef(connection.monitorStatus);
@@ -1103,7 +1114,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           {activeTab === 'chat' ? (
             <ChatSidebar
               chats={chats}
-              sessions={isConnected ? connection.sessions : undefined}
+              sessions={isConnected ? consoleSessions : undefined}
               jarvisName={connection.jarvisStatus?.jarvisName}
               activeChatId={activeChatId}
               isConnected={isConnected}
@@ -1148,7 +1159,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
           ) : activeTab === 'jarvis' ? (
             <ChatSidebar
               chats={chats}
-              sessions={isConnected ? connection.sessions : undefined}
+              sessions={isConnected ? jarvisSessions : undefined}
               jarvisName={connection.jarvisStatus?.jarvisName}
               activeChatId={activeChatId}
               isConnected={isConnected}
@@ -1424,14 +1435,19 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 )}
               </button>
             )}
-            {activeSessions.map((session) => (
+            {activeSessions.map((session) => {
+              const sessionTab = getSessionTab(session.name, jName);
+              const pillColor = sessionTab === 'monitor'
+                ? { active: 'bg-blue-500/10 border-blue-500/20 text-blue-400', idle: 'bg-blue-500/5 border-blue-500/15 text-blue-400/80 hover:bg-blue-500/10' }
+                : { active: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400', idle: 'bg-white/5 border-white/10 text-gray-300 hover:bg-emerald-500/5 hover:border-emerald-500/10' };
+              const isActive = (sessionTab === 'console' && consoleSessionId === session.id && activeTab === 'console')
+                || (sessionTab === 'monitor' && monitorSessionId === session.id && activeTab === 'monitor');
+              return (
               <button
                 key={session.id}
                 onClick={() => openSessionInTab(session.id)}
                 className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] border flex-shrink-0 transition-all ${
-                  consoleSessionId === session.id && activeTab === 'console'
-                    ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
-                    : 'bg-white/5 border-white/10 text-gray-300 hover:bg-cyan-500/5 hover:border-cyan-500/10'
+                  isActive ? pillColor.active : pillColor.idle
                 }`}
               >
                 <SessionIcon name={session.name} size={10} className="text-gray-400" />
@@ -1443,7 +1459,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   </span>
                 )}
               </button>
-            ))}
+              );
+            })}
             {connection.findings.length > 0 && (
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-amber-500/5 border border-amber-500/10 flex-shrink-0">
                 <AlertTriangle size={8} className="text-amber-400" />
@@ -1486,7 +1503,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                 isConnected={isConnected}
                 isExecuting={cliExecuting}
                 pendingPermissions={connection.pendingPermissions}
-                onApprovePermission={(id) => connection.respondPermission(id, true)}
+                onApprovePermission={(id, mode) => connection.respondPermission(id, true, mode)}
                 onDenyPermission={(id) => connection.respondPermission(id, false)}
                 instanceMeta={connection.instanceMeta}
                 connectedPort={connectedPort}
@@ -1755,11 +1772,43 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                       {pb.label}
                     </span>
                   )}
-                  {jStatus.autonomyLevel !== undefined && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full text-red-400/60 bg-red-500/10">
-                      L{jStatus.autonomyLevel}
-                    </span>
-                  )}
+                  {jStatus.autonomyLevel !== undefined && (() => {
+                    const AL: Record<number, { color: string; label: string }> = {
+                      0: { color: 'text-red-400', label: 'Observe' },
+                      1: { color: 'text-orange-400', label: 'Think' },
+                      2: { color: 'text-yellow-400', label: 'Propose' },
+                      3: { color: 'text-emerald-400', label: 'Act-Safe' },
+                      4: { color: 'text-cyan-400', label: 'Act-Ask' },
+                      5: { color: 'text-red-400', label: 'Critical' },
+                    };
+                    const al = AL[jStatus.autonomyLevel] ?? AL[2];
+                    return (
+                      <div className="relative group/aut">
+                        <button className={`text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/10 ${al.color} hover:bg-red-500/20 transition-colors cursor-pointer`}>
+                          L{jStatus.autonomyLevel} {al.label}
+                        </button>
+                        <div className="absolute top-full left-0 mt-1 hidden group-hover/aut:flex gap-0.5 bg-gray-900/95 border border-white/10 rounded-lg p-1 z-50 shadow-xl">
+                          {[0, 1, 2, 3, 4, 5].map(lvl => {
+                            const a = AL[lvl] ?? AL[2];
+                            return (
+                              <button
+                                key={lvl}
+                                onClick={() => connection.setAutonomyLevel(lvl).catch(() => {})}
+                                className={`px-1.5 py-1 rounded text-[9px] font-medium transition-all whitespace-nowrap ${
+                                  lvl === jStatus.autonomyLevel
+                                    ? `${a.color} bg-white/10 border border-white/20`
+                                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
+                                }`}
+                                title={a.label}
+                              >
+                                L{lvl}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {jStatus.pendingCount > 0 && (
                     <span className="text-[9px] text-gray-500">{jStatus.pendingCount} pending</span>
                   )}
@@ -1896,7 +1945,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                     <PermissionRequestCard
                       key={perm.id}
                       request={perm}
-                      onApprove={() => connection.respondPermission(perm.id, true)}
+                      onApprove={(mode) => connection.respondPermission(perm.id, true, mode)}
                       onDeny={() => connection.respondPermission(perm.id, false)}
                     />
                   ))}
@@ -1929,26 +1978,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             )}
             {/* Embedded input */}
             <div className="flex-shrink-0 relative">
-              {/* Jarvis panel toggle */}
-              {isConnected && (
-                <button
-                  onClick={() => setShowJarvisPanel(prev => !prev)}
-                  className={`absolute -top-8 left-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
-                    showJarvisPanel
-                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                      : connection.proposals.filter(p => p.status === 'pending').length > 0
-                        ? 'bg-amber-500/5 border-amber-500/10 text-amber-400 hover:bg-amber-500/10'
-                        : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
-                  }`}
-                >
-                  <Sparkles size={11} />
-                  {connection.proposals.filter(p => p.status === 'pending').length > 0 && (
-                    <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-amber-500/20 text-[8px] text-amber-400 font-bold px-0.5">
-                      {connection.proposals.filter(p => p.status === 'pending').length}
-                    </span>
-                  )}
-                </button>
-              )}
               <ChatInput
                 onSend={sendMessage}
                 onSendWithFiles={handleSendWithFiles}

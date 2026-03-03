@@ -142,6 +142,8 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/jarvis pause', label: '/jarvis pause', description: 'Pause daemon' },
       { cmd: '/jarvis resume', label: '/jarvis resume', description: 'Resume daemon' },
       { cmd: '/jarvis clear', label: '/jarvis clear', description: 'Clear completed tasks' },
+      { cmd: '/jarvis delete', label: '/jarvis delete <id>', description: 'Delete a task by ID' },
+      { cmd: '/del task', label: '/del task <id>', description: 'Delete a Jarvis task by ID' },
       { cmd: '/jarvis local', label: '/jarvis local', description: 'Switch to project-local Jarvis' },
       { cmd: '/jarvis global', label: '/jarvis global', description: 'Switch to global Jarvis' },
       { cmd: '/jarvis name', label: '/jarvis name "..."', description: 'Set Jarvis name' },
@@ -1273,8 +1275,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           }).catch(() => {});
         },
 
-        handleToolPermissionResponse: (requestId, approved) => {
-          permissions.resolveRemote(requestId, approved, 'user');
+        handleToolPermissionResponse: (requestId, approved, mode) => {
+          permissions.resolveRemote(requestId, approved, 'user', mode);
         },
 
         getFindings: () => [...collectedFindings],
@@ -1422,7 +1424,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         listProposals: () => [],
         approveProposal: () => false,
         denyProposal: () => false,
-        setAutonomyLevel: () => false,
+        setAutonomyLevel: (level: number) => {
+          if (level < 0 || level > 5) return false;
+          jarvisAutonomy.setLevel(level as import('../jarvis/types.js').AutonomyLevel);
+          jarvisIdentity.setAutonomyLevel(level as import('../jarvis/types.js').AutonomyLevel);
+          return true;
+        },
         getIdentity: () => null,
         triggerDeepThink: () => {},
         addSchedule: () => null,
@@ -1649,8 +1656,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           stopMonitor: () => false,
           handleMonitorCommand: () => {},
           handleApprovalResponse: () => {},
-          handleToolPermissionResponse: (requestId: string, approved: boolean) => {
-            permissions.resolveRemote(requestId, approved, 'user');
+          handleToolPermissionResponse: (requestId: string, approved: boolean, mode?: 'once' | 'session' | 'yolo') => {
+            permissions.resolveRemote(requestId, approved, 'user', mode);
           },
           getFindings: () => [...collectedFindings],
           getBugs: () => bugJournal.getAllBugs().map(b => ({
@@ -1671,7 +1678,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           listProposals: () => [],
           approveProposal: () => false,
           denyProposal: () => false,
-          setAutonomyLevel: () => false,
+          setAutonomyLevel: (level: number) => {
+            if (level < 0 || level > 5) return false;
+            jarvisAutonomy.setLevel(level as import('../jarvis/types.js').AutonomyLevel);
+            jarvisIdentity.setAutonomyLevel(level as import('../jarvis/types.js').AutonomyLevel);
+            return true;
+          },
           getIdentity: () => null,
           triggerDeepThink: () => {},
           addSchedule: () => null,
@@ -2865,6 +2877,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         {
           queue: jarvisQueue,
           identity: jarvisIdentity,
+          autonomy: jarvisAutonomy,
           sentiment: jarvisSentiment,
           getScope: () => jarvisScope,
           setScope: (scope: 'project' | 'global') => {
@@ -3744,6 +3757,7 @@ async function handleSlashCommand(
     setPaused: (v: boolean) => void;
     startDaemon: () => void;
     identity: JarvisIdentityManager;
+    autonomy: import('../jarvis/autonomy.js').AutonomyManager;
     sentiment: SentimentAnalyzer;
     getScope: () => 'project' | 'global';
     setScope: (scope: 'project' | 'global') => void;
@@ -4457,6 +4471,29 @@ async function handleSlashCommand(
       }
       break;
 
+    case '/del': {
+      // /del task <id> — shorthand for /jarvis delete <id>
+      if (!(await gateCheck('jarvis', 'Jarvis AGI'))) break;
+      if (!jarvisCtx) { renderInfo('Jarvis not available.'); break; }
+      const delTarget = parts[1]?.toLowerCase();
+      if (delTarget === 'task') {
+        const delId = parseInt(parts[2], 10);
+        if (isNaN(delId)) {
+          renderInfo('Usage: /del task <id>');
+          break;
+        }
+        const delOk = jarvisCtx.queue.removeTask(delId);
+        if (delOk) {
+          renderInfo(chalk.hex('#ff00ff')(`\u2716 Task #${delId} deleted.`));
+        } else {
+          renderInfo(chalk.yellow(`Task #${delId} not found.`));
+        }
+      } else {
+        renderInfo('Usage: /del task <id>');
+      }
+      break;
+    }
+
     case '/jarvis': {
       if (!(await gateCheck('jarvis', 'Jarvis AGI'))) break;
       if (!jarvisCtx) { renderInfo('Jarvis not available.'); break; }
@@ -4611,6 +4648,19 @@ async function handleSlashCommand(
         const removed = jq.clearCompleted();
         renderInfo(`Cleared ${removed} completed task(s).`);
 
+      } else if (sub === 'delete' || sub === 'del' || sub === 'remove') {
+        const taskId = parseInt(parts[2], 10);
+        if (isNaN(taskId)) {
+          renderInfo(`Usage: /jarvis delete <id>`);
+          break;
+        }
+        const ok = jq.removeTask(taskId);
+        if (ok) {
+          renderInfo(chalk.hex('#ff00ff')(`\u2716 Task #${taskId} deleted.`));
+        } else {
+          renderInfo(chalk.yellow(`Task #${taskId} not found.`));
+        }
+
       } else if (sub === 'local') {
         if (jarvisCtx.getSession()?.status === 'running') {
           renderInfo(chalk.yellow(`Stop ${jn} first (/jarvis stop) before switching scope.`));
@@ -4730,8 +4780,32 @@ async function handleSlashCommand(
           renderInfo('Usage: /jarvis skills [list|install|enable|disable|remove] <name>');
         }
 
+      } else if (sub === 'autonomy') {
+        const autoCmd = parts[2]?.toLowerCase();
+        if (autoCmd === 'set') {
+          const lvl = parseInt(parts[3], 10);
+          if (isNaN(lvl) || lvl < 0 || lvl > 5) {
+            renderInfo(chalk.yellow('Level must be 0-5. Usage: /jarvis autonomy set <0-5>'));
+          } else {
+            jarvisCtx.autonomy.setLevel(lvl as import('../jarvis/types.js').AutonomyLevel);
+            jarvisCtx.identity.setAutonomyLevel(lvl as import('../jarvis/types.js').AutonomyLevel);
+            renderInfo(chalk.hex('#ff00ff')(`Autonomy → L${lvl} ${jarvisCtx.autonomy.getLabel()}`));
+          }
+        } else {
+          // show / default
+          const identity = jarvisCtx.identity.getIdentity();
+          const statusStr = jarvisCtx.autonomy.getStatusString(identity);
+          const nextReqs = jarvisCtx.autonomy.getNextLevelRequirements();
+          renderInfo(chalk.hex('#ff00ff').bold(`Autonomy: ${statusStr}`));
+          renderInfo(chalk.dim(`  Levels: 0=Observe  1=Think  2=Propose  3=Act-Safe  4=Act-Ask  5=Act-Critical`));
+          if (nextReqs) {
+            renderInfo(chalk.dim(`  Next level requires: approval ≥${(nextReqs.minApprovalRate * 100).toFixed(0)}%, success ≥${(nextReqs.minSuccessRate * 100).toFixed(0)}%, tasks ≥${nextReqs.minCompletedTasks}`));
+          }
+          renderInfo(chalk.dim('  Manual: /jarvis autonomy set <0-5>'));
+        }
+
       } else {
-        renderInfo(`Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear|local|global|name|telegram|skills]`);
+        renderInfo(`Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear|delete|local|global|name|telegram|skills|autonomy]`);
       }
       break;
     }

@@ -595,6 +595,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             controlHandlers.handleToolPermissionResponse(
               (msg as any).requestId,
               (msg as any).approved,
+              (msg as any).mode,
             );
             // ACK back to the sender
             sendTo(ws, { type: 'tool_permission_response_ack', requestId: (msg as any).requestId, timestamp: Date.now() });
