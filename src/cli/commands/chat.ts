@@ -4528,7 +4528,27 @@ async function handleSlashCommand(
           if (onboardResult.scope && onboardResult.scope !== jarvisCtx.getScope()) {
             jarvisCtx.setScope(onboardResult.scope);
           }
+
+          // Autonomy level selection
+          const autonomyItems: MenuItem[] = [
+            { label: 'L0 Observe', description: 'No tool access — read-only', icon: '\u{1F512}', key: '0' },
+            { label: 'L1 Think', description: 'Read-only — can browse files', icon: '\u{1F441}\uFE0F', key: '1' },
+            { label: 'L2 Propose', description: 'Suggest changes, needs approval', icon: '\u{1F4DD}', key: '2', marker: '\u25C0 default' },
+            { label: 'L3 Act-Safe', description: 'Safe edits + browser autonomously', icon: '\u26A1', key: '3' },
+            { label: 'L4 Act-Ask', description: 'File writes, asks for dangerous ops', icon: '\u{1F527}', key: '4' },
+            { label: 'L5 Act-Critical', description: 'Full autonomy — shell, git, everything', icon: '\u{1F525}', key: '5', danger: true },
+          ];
+          rl.pause();
+          process.stdout.write(`\n  ${chalk.hex('#ff00ff').bold('\u{1F916}')} ${chalk.white.bold('Autonomy Level')}\n`);
+          const levelIdx = await selectMenu(autonomyItems, { cancelLabel: 'Default (L2)', pageSize: 6 });
+          rl.resume();
+          const chosenLevel = (levelIdx >= 0 ? levelIdx : 2) as import('../jarvis/types.js').AutonomyLevel;
+          jarvisCtx.autonomy.setLevel(chosenLevel);
+          jarvisCtx.identity.setAutonomyLevel(chosenLevel);
+
           jarvisCtx.startDaemon();
+          renderInfo(chalk.hex('#ff00ff')(`  Autonomy: L${chosenLevel} ${jarvisCtx.autonomy.getLabel()}`));
+
           // Auto-create first task from user goal so Jarvis starts working immediately
           if (onboardResult.goalText) {
             const finalName = jarvisCtx.identity.getIdentity().name;
@@ -4542,7 +4562,28 @@ async function handleSlashCommand(
           }
         } else {
           showReturningGreeting(identity);
+
+          // Autonomy level selection
+          const currentLevel = jarvisCtx.autonomy.getLevel();
+          const autonomyItems: MenuItem[] = [
+            { label: 'L0 Observe', description: 'No tool access — read-only', icon: '\u{1F512}', key: '0' },
+            { label: 'L1 Think', description: 'Read-only — can browse files', icon: '\u{1F441}\uFE0F', key: '1' },
+            { label: 'L2 Propose', description: 'Suggest changes, needs approval', icon: '\u{1F4DD}', key: '2' },
+            { label: 'L3 Act-Safe', description: 'Safe edits + browser autonomously', icon: '\u26A1', key: '3' },
+            { label: 'L4 Act-Ask', description: 'File writes, asks for dangerous ops', icon: '\u{1F527}', key: '4' },
+            { label: 'L5 Act-Critical', description: 'Full autonomy — shell, git, everything', icon: '\u{1F525}', key: '5', danger: true },
+          ];
+          autonomyItems[currentLevel].marker = '\u25C0 current';
+          rl.pause();
+          process.stdout.write(`\n  ${chalk.hex('#ff00ff').bold('\u{1F916}')} ${chalk.white.bold('Autonomy Level')}\n`);
+          const levelIdx = await selectMenu(autonomyItems, { cancelLabel: `Keep L${currentLevel}`, pageSize: 6 });
+          rl.resume();
+          const chosenLevel = (levelIdx >= 0 ? levelIdx : currentLevel) as import('../jarvis/types.js').AutonomyLevel;
+          jarvisCtx.autonomy.setLevel(chosenLevel);
+          jarvisCtx.identity.setAutonomyLevel(chosenLevel);
+
           jarvisCtx.startDaemon();
+          renderInfo(chalk.hex('#ff00ff')(`  Autonomy: L${chosenLevel} ${jarvisCtx.autonomy.getLabel()}`));
         }
 
       } else if (sub === 'task') {
