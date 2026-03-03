@@ -9,7 +9,8 @@ import type { LLMProvider, ChatMessage, ToolMessage } from '../providers/types.j
 import { analyzeProject } from '../context/project.js';
 import { assembleSystemPrompt } from '../context/assembler.js';
 import type { SpiralQueryResult } from '../../types.js';
-import { renderLogo } from '../ui/logo.js';
+import { renderLogo, renderVersion } from '../ui/logo.js';
+import { VERSION } from '../version.js';
 import {
   renderAssistantEnd,
   renderError,
@@ -292,8 +293,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   const store = new ConfigStore(configDir);
   let config = store.getAll();
 
-  // Show logo early
+  // Show logo + version early
   process.stdout.write(renderLogo());
+  process.stdout.write(renderVersion(VERSION) + '\n\n');
 
   // ─── Auth Gate: require login on first use ───────────────────
   // Once logged in, credentials are cached locally.
@@ -942,7 +944,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           process.cwd(),
           config.model,
           config.provider,
-          '0.1.0',
+          VERSION,
           instanceId,
           getPermissionMode(),
         );
@@ -2351,23 +2353,25 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     return identityPrompt + '\n\n' + runtimeContext;
   }
 
-  // Update statusbar via BottomChrome row 1 (bottom border with embedded status).
-  // Called during agent work by the footer timer to update token counts etc.
+  // Update statusbar via BottomChrome rows 2+3 (the actual 2-line statusbar).
+  // Called during agent work by the footer timer to keep token counts, tools, git etc. live.
   function updateStatusBar(): void {
     if (!process.stdout.isTTY) return;
     const data = getStatusBarData();
     const w = (process.stdout.columns || 80) - 2;
-    const bar = renderStatusBar(data, w - 6); // narrower to fit in border frame
+    const bar = renderStatusBar(data, w - 4);
+    const [statusLine1, statusLine2] = bar.split('\n');
 
-    // Combine tab bar into status text when background sessions exist
-    let statusText = bar;
+    // Prepend tab bar to status line 1 when background sessions exist
+    let line1 = statusLine1;
     if (sessionMgr.all.length > 1) {
       const tabBar = truncateBar(sessionMgr.renderTabs(), Math.floor(w / 2));
-      statusText = `${tabBar}  ${bar}`;
+      line1 = `${tabBar}  ${statusLine1}`;
     }
 
     if (chrome.isActive) {
-      chrome.setRow(1, buildBottomBorder(w, statusText));
+      chrome.setRow(2, ' ' + line1);
+      chrome.setRow(3, ' ' + (statusLine2 || ''));
     } else {
       // Inline fallback
       writeStatusBar(data);
@@ -2432,15 +2436,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Show full prompt area on startup (separator + status + > prompt)
   showPrompt();
 
-  // Footer timer — redraws statusbar on chrome row 2 during agent work.
+  // Footer timer — redraws statusbar on chrome rows 2+3 during agent work.
   // Skipped when:
   //   - user is at readline prompt (isAtPrompt) — prevents cursor-jumping
   //   - inline progress active (inlineProgressActive) — prevents flicker over feed progress
-  // Note: activity.isAnimating guard no longer needed — activity uses chrome row 0,
-  // statusbar uses chrome row 2, they don't collide.
+  // Activity uses chrome row 0, statusbar uses rows 2+3 — they don't collide.
+  const FOOTER_TIMER_MS = 500;
   const footerTimer = setInterval(() => {
     if (process.stdout.isTTY && !isAtPrompt && !inlineProgressActive) updateStatusBar();
-  }, 500);
+  }, FOOTER_TIMER_MS);
   footerTimer.unref();
 
   /** Process a complete input (single line or assembled paste block) */

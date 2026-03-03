@@ -10,6 +10,7 @@ import type {
   InstanceMeta,
   WSMessage,
 } from './control-protocol.js';
+import { VERSION } from '../version.js';
 
 export type VoiceInputHandler = (text: string) => void;
 export type ScopeSwitchHandler = (scope: 'project' | 'global') => void;
@@ -40,6 +41,10 @@ export interface BrainServer {
 }
 
 const OLLAMA_BASE = 'http://localhost:11434';
+const OLLAMA_PROXY_TIMEOUT_MS = 5000;
+const BRAIN_PORT_START = 9420;
+const BRAIN_PORT_END = 9440;
+const AUTH_TIMEOUT_MS = 5000;
 
 /** Proxy a request to the Ollama API and return the response */
 async function ollamaProxy(
@@ -50,7 +55,7 @@ async function ollamaProxy(
 ): Promise<void> {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
+    const timer = setTimeout(() => controller.abort(), OLLAMA_PROXY_TIMEOUT_MS);
     const opts: RequestInit = { method, signal: controller.signal };
     if (body) {
       opts.headers = { 'Content-Type': 'application/json' };
@@ -173,7 +178,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
         model: 'unknown',
         provider: 'unknown',
         uptime: 0,
-        version: '0.1.0',
+        version: VERSION,
       };
       res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
       res.end(JSON.stringify(meta));
@@ -232,9 +237,8 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
   });
 
   return new Promise((resolve, reject) => {
-    // Find a free port starting from 9420 (try up to 20 ports)
-    let port = 9420;
-    const maxPort = 9440;
+    let port = BRAIN_PORT_START;
+    const maxPort = BRAIN_PORT_END;
 
     httpServer.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE' && port < maxPort) {
@@ -603,15 +607,14 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
         let authenticated = false;
         let authTimeout: ReturnType<typeof setTimeout> | null = null;
 
-        // Give client 5 seconds to authenticate; if no auth message arrives,
+        // Give client time to authenticate; if no auth message arrives,
         // treat as legacy brain client (backward-compatible)
         authTimeout = setTimeout(() => {
           if (!authenticated) {
-            // Legacy brain client — add to brain clients without auth
             brainClients.add(ws);
             ws.send(JSON.stringify({ type: 'full_sync', data: latestData }));
           }
-        }, 5000);
+        }, AUTH_TIMEOUT_MS);
 
         ws.on('close', () => {
           brainClients.delete(ws);
@@ -626,9 +629,10 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           try {
             const msg = JSON.parse(String(raw));
 
-            // Auth handshake
+            // Auth handshake — guard against late auth after timeout already fired
             if (msg.type === 'auth') {
               if (authTimeout) { clearTimeout(authTimeout); authTimeout = null; }
+              if (authenticated) return; // Already authenticated (timeout or previous auth)
 
               if (msg.token === connectionToken) {
                 authenticated = true;

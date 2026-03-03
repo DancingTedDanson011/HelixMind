@@ -18,6 +18,30 @@ import type { SessionBuffer } from '../context/session-buffer.js';
 import { isRateLimitError, handleRateLimitError, detectCreditsExhausted } from '../providers/rate-limiter.js';
 import { trimConversation, estimateTokens } from '../context/trimmer.js';
 
+/** Produce a targeted recovery hint based on the error content. */
+function getErrorHint(errorResult: string): string {
+  const lower = errorResult.toLowerCase();
+  if (lower.includes('enoent') || lower.includes('no such file') || lower.includes('not found') || lower.includes('does not exist')) {
+    return 'The file or path does not exist. Verify the path using list_directory or find_files before retrying.';
+  }
+  if (lower.includes('eperm') || lower.includes('permission denied') || lower.includes('access denied')) {
+    return 'Permission denied. Try a different approach or ask the user for guidance.';
+  }
+  if (lower.includes('timed out') || lower.includes('timeout') || lower.includes('etimedout')) {
+    return 'The operation timed out. Consider breaking it into smaller, faster operations.';
+  }
+  if (lower.includes('ebusy') || lower.includes('resource busy') || lower.includes('locked')) {
+    return 'The file is locked by another process. Wait a moment or use a different file path.';
+  }
+  if (lower.includes('enospc') || lower.includes('no space')) {
+    return 'Disk space exhausted. Cannot write more data.';
+  }
+  if (lower.includes('syntax error') || lower.includes('syntaxerror') || lower.includes('unexpected token')) {
+    return 'Syntax error in the code or command. Review the syntax carefully and fix the structure.';
+  }
+  return 'The above tool call failed. Analyze the error, adjust your approach, and try again. Do not repeat the exact same failing call.';
+}
+
 export class AgentAbortError extends Error {
   constructor(message: string = 'Agent aborted') {
     super(message);
@@ -332,7 +356,7 @@ export async function runAgentLoop(
             toolResults.push({
               type: 'tool_result',
               tool_use_id: block.id,
-              content: `${result}\n\n[Auto-recovery hint: The above tool call failed. Analyze the error, adjust your approach, and try again. Do not repeat the exact same failing call.]`,
+              content: `${result}\n\n[Auto-recovery hint: ${getErrorHint(result)}]`,
               is_error: true,
             });
           } else {

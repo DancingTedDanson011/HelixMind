@@ -6,12 +6,13 @@ import { handleSpiralStatus } from './tools/spiral-status.js';
 import { spiralCompactSchema, handleSpiralCompact } from './tools/spiral-compact.js';
 import { spiralRelateSchema, handleSpiralRelate } from './tools/spiral-relate.js';
 import type { SpiralConfig } from './types.js';
+import { VERSION } from './cli/version.js';
 
 export function createServer(config: SpiralConfig): { server: McpServer; engine: SpiralEngine } {
   const engine = new SpiralEngine(config);
 
   const server = new McpServer(
-    { name: 'spiral-context-mcp', version: '0.1.0' },
+    { name: 'spiral-context-mcp', version: VERSION },
     { capabilities: { logging: {} } },
   );
 

@@ -65,6 +65,9 @@ export async function initializeTools(): Promise<void> {
     await import('./browser-type.js');
     await import('./browser-close.js');
   } catch {
-    // puppeteer-core not installed — browser tools not available
+    // puppeteer-core not installed — browser tools silently unavailable
+    if (process.env.DEBUG) {
+      console.error('[tools] Browser tools unavailable — install puppeteer-core for browser automation');
+    }
   }
 }

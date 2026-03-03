@@ -15,6 +15,8 @@ export function generateBrainFile(data: BrainExport): string {
   return outputPath;
 }
 
+const BRAIN_POLL_INTERVAL_MS = 5000;
+
 /** Active brain server instance (singleton per process) */
 let activeBrainServer: BrainServer | null = null;
 let updateInterval: ReturnType<typeof setInterval> | null = null;
@@ -55,7 +57,7 @@ export async function startLiveBrain(
     try {
       const { exportBrainData } = await import('./exporter.js');
       initialData = exportBrainData(engine, projectName, brainScope);
-    } catch { /* use empty */ }
+    } catch { /* Engine may not be ready yet — use empty initial data */ }
   }
 
   if (activeBrainServer) {
@@ -94,9 +96,9 @@ export async function startLiveBrain(
           activeBrainServer?.pushUpdate(freshData);
         }
       } catch {
-        // Engine might be closed
+        // Engine may be closed during shutdown — stop polling
       }
-    }, 5000);
+    }, BRAIN_POLL_INTERVAL_MS);
   }
 
   return activeBrainServer.url;

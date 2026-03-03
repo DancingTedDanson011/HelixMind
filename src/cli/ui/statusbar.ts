@@ -173,8 +173,16 @@ export function writeStatusInline(data: StatusBarData): void {
 
 /**
  * Get current git info (branch + uncommitted count).
+ * Cached for 10 seconds to avoid spawning 240+ git processes per minute
+ * during agent work when the footer timer calls getStatusBarData() every 500ms.
  */
+let gitCache: { branch: string; uncommitted: number } | null = null;
+let gitCacheTime = 0;
+const GIT_CACHE_TTL = 10_000;
+
 export function getGitInfo(projectRoot: string): { branch: string; uncommitted: number } {
+  const now = Date.now();
+  if (gitCache && (now - gitCacheTime) < GIT_CACHE_TTL) return gitCache;
   try {
     const branch = execSync('git branch --show-current', {
       cwd: projectRoot, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
@@ -183,10 +191,17 @@ export function getGitInfo(projectRoot: string): { branch: string; uncommitted: 
       cwd: projectRoot, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
     const uncommitted = status ? status.split('\n').length : 0;
-    return { branch, uncommitted };
+    gitCache = { branch, uncommitted };
+    gitCacheTime = now;
+    return gitCache;
   } catch {
     return { branch: '', uncommitted: 0 };
   }
+}
+
+/** Force refresh on next call (e.g., after git operations). */
+export function invalidateGitCache(): void {
+  gitCache = null;
 }
 
 // Brain Growth tiers — bar fills up, then jumps to next tier

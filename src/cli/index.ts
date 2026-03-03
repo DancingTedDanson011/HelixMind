@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { VERSION } from './version.js';
 
 
 
@@ -31,7 +32,7 @@ const program = new Command();
 program
   .name('helixmind')
   .description('HelixMind \u2013 AI Coding CLI with Spiral Context Memory')
-  .version('0.1.0')
+  .version(VERSION)
   .helpOption('-h, --help', 'Display help for command')
   .addHelpCommand('help [command]', 'Display help for specific command');
 

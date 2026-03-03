@@ -273,17 +273,16 @@ const checkers: Record<string, StaticChecker> = {
 
     const issues: string[] = [];
 
-    // Check for floating promises: async function call without await
-    const asyncCallRegex = /(?<!await\s)(?<!return\s)(?<!\.catch\()(?<!\.then\()(\w+)\s*\([^)]*\)\s*;/g;
-    // This is a heuristic — too many false positives, so keep it simple
-
-    // Check for async function without any await
-    const asyncFuncRegex = /async\s+(?:function\s+)?(\w+)\s*\([^)]*\)\s*\{([^}]*)\}/g;
+    // Find async function declarations and check if they use await.
+    // Use bracket counting instead of regex to handle nested blocks correctly.
+    const asyncPattern = /async\s+(?:function\s+)?(\w+)\s*\([^)]*\)\s*\{/g;
     let match;
-    while ((match = asyncFuncRegex.exec(code)) !== null) {
-      const body = match[2];
-      if (!body.includes('await') && !body.includes('Promise')) {
-        issues.push(`Async function "${match[1]}" has no await`);
+    while ((match = asyncPattern.exec(code)) !== null) {
+      const funcName = match[1];
+      const bodyStart = match.index + match[0].length - 1; // index of opening {
+      const body = extractBalancedBlock(code, bodyStart);
+      if (body && !body.includes('await') && !body.includes('Promise') && !body.includes('.then(')) {
+        issues.push(`Async function "${funcName}" has no await`);
       }
     }
 
@@ -404,6 +403,93 @@ const checkers: Record<string, StaticChecker> = {
     }
     return pass('no-secrets', 'No plaintext secrets detected');
   },
+
+  'code-duplication': (output) => {
+    const code = extractCodeContent(output, ['ts', 'typescript', 'js', 'javascript', 'py', 'python']);
+    if (!code) return pass('code-duplication', 'No code content found');
+
+    // Extract meaningful lines — skip short lines, comments, and common boilerplate
+    const boilerplate = new Set(['return;', 'break;', 'continue;', 'default:', 'else {', '} else {', '});', '],', '});']);
+    const lines = code.split('\n')
+      .map(l => l.trim())
+      .filter(l =>
+        l.length > 40
+        && !l.startsWith('//')
+        && !l.startsWith('#')
+        && !l.startsWith('*')
+        && !l.startsWith('import ')
+        && !l.startsWith('return ')
+        && !boilerplate.has(l)
+      );
+    const lineCounts = new Map<string, number>();
+
+    for (const line of lines) {
+      lineCounts.set(line, (lineCounts.get(line) || 0) + 1);
+    }
+
+    const duplicates = [...lineCounts.entries()].filter(([, count]) => count > 1);
+
+    if (duplicates.length > 3) {
+      const dupeList = duplicates.slice(0, 5).map(([line, count]) => `"${line.slice(0, 40)}..." (${count}x)`).join('; ');
+      return {
+        id: 'code-duplication',
+        passed: false,
+        details: `${duplicates.length} duplicate lines found: ${dupeList}`,
+        severity: 'warning',
+        autofix: false
+      };
+    }
+    return pass('code-duplication', 'No significant code duplication', 'warning');
+  },
+
+  'outdated-references': (output, ctx) => {
+    const code = extractCodeContent(output, ['ts', 'typescript', 'js', 'javascript']);
+    if (!code) return pass('outdated-references', 'No code content found');
+
+    const issues: string[] = [];
+
+    const importRegex = /import\s+(?:.*?\s+from\s+)?['"]([^'"]+)['"]/g;
+    let match;
+
+    while ((match = importRegex.exec(code)) !== null) {
+      const importPath = match[1];
+
+      // Skip node_modules imports
+      if (!importPath.startsWith('.') && !importPath.startsWith('/')) continue;
+
+      // In ESM TypeScript, .js imports are the CORRECT pattern (compiled output).
+      // Flag .ts imports instead — they should use .js extension for ESM.
+      if (importPath.endsWith('.ts')) {
+        issues.push(`Import "${importPath}" uses .ts extension — ESM requires .js extension`);
+      }
+
+      // Check if file exists in project
+      if (ctx?.projectFiles && ctx.projectFiles.length > 0) {
+        const normalized = importPath.replace(/\.(js|ts|jsx|tsx)$/, '');
+        const found = ctx.projectFiles.some(f =>
+          f.includes(normalized) ||
+          f.includes(normalized + '.ts') ||
+          f.includes(normalized + '.js') ||
+          f.includes(normalized + '/index.ts') ||
+          f.includes(normalized + '/index.js')
+        );
+        if (!found) {
+          issues.push(`Import "${importPath}" may reference deleted/moved file`);
+        }
+      }
+    }
+
+    if (issues.length > 0) {
+      return {
+        id: 'outdated-references',
+        passed: false,
+        details: issues.slice(0, 5).join('; '),
+        severity: 'warning',
+        autofix: false
+      };
+    }
+    return pass('outdated-references', 'No outdated references detected', 'warning');
+  },
 };
 
 /**
@@ -480,12 +566,62 @@ function detectLanguage(code: string): string {
   return 'typescript';
 }
 
+/**
+ * Extract the balanced block starting at the given index (which should point to '{').
+ * Returns the content between the braces, or null if unbalanced.
+ */
+function extractBalancedBlock(code: string, startIdx: number): string | null {
+  if (code[startIdx] !== '{') return null;
+  let depth = 0;
+  let inString = false;
+  let stringChar = '';
+  let escaped = false;
+
+  for (let i = startIdx; i < code.length; i++) {
+    const ch = code[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (inString) {
+      if (ch === stringChar && stringChar !== '`') { inString = false; }
+      else if (ch === stringChar && stringChar === '`') { inString = false; }
+      else if (stringChar === '`' && ch === '$' && code[i + 1] === '{') {
+        // Template literal expression — skip ${, count inner braces
+        i++; // skip $
+        // The { will be handled by the depth counter below
+      }
+      if (inString) continue;
+    }
+    if (!inString && (ch === '"' || ch === "'" || ch === '`')) {
+      inString = true;
+      stringChar = ch;
+      continue;
+    }
+    if (ch === '/' && code[i + 1] === '/') {
+      const nl = code.indexOf('\n', i);
+      i = nl === -1 ? code.length : nl;
+      continue;
+    }
+    if (ch === '/' && code[i + 1] === '*') {
+      const end = code.indexOf('*/', i + 2);
+      i = end === -1 ? code.length : end + 1;
+      continue;
+    }
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return code.slice(startIdx + 1, i);
+    }
+  }
+  return null;
+}
+
 function checkBracketBalance(code: string): { balanced: boolean; type?: string; details?: string; fix?: string } {
   const pairs: Record<string, string> = { '(': ')', '[': ']', '{': '}' };
   const stack: string[] = [];
   let inString = false;
   let stringChar = '';
   let escaped = false;
+  let templateDepth = 0; // Track nested ${...} inside template literals
 
   for (let i = 0; i < code.length; i++) {
     const ch = code[i];
@@ -494,7 +630,19 @@ function checkBracketBalance(code: string): { balanced: boolean; type?: string; 
     if (ch === '\\') { escaped = true; continue; }
 
     if (inString) {
-      if (ch === stringChar) inString = false;
+      if (stringChar === '`') {
+        // Template literal: handle ${...} expressions
+        if (ch === '$' && code[i + 1] === '{') {
+          templateDepth++;
+          inString = false; // Exit string mode to count brackets in expression
+          i++; // skip '{'
+          stack.push('{');
+          continue;
+        }
+        if (ch === '`') { inString = false; }
+      } else {
+        if (ch === stringChar) inString = false;
+      }
       continue;
     }
 
@@ -527,6 +675,12 @@ function checkBracketBalance(code: string): { balanced: boolean; type?: string; 
       }
       if (pairs[expected] !== ch) {
         return { balanced: false, type: ch, details: `Expected '${pairs[expected]}' but found '${ch}'`, fix: `Change '${ch}' to '${pairs[expected]}'` };
+      }
+      // If closing a template expression, re-enter template string mode
+      if (ch === '}' && templateDepth > 0 && expected === '{') {
+        templateDepth--;
+        inString = true;
+        stringChar = '`';
       }
     }
   }

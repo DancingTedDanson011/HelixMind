@@ -6,6 +6,10 @@ import WebSocket from 'ws';
 import type { ControlHandlers, ControlRequest, InstanceMeta } from './control-protocol.js';
 import type { BrainServer } from './server.js';
 
+const INITIAL_BACKOFF_MS = 1000;
+const MAX_BACKOFF_MS = 30_000;
+const PING_INTERVAL_MS = 30_000;
+
 interface RelayClient {
   close(): void;
 }
@@ -20,7 +24,7 @@ export function createRelayClient(
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let pingTimer: ReturnType<typeof setInterval> | null = null;
-  let backoff = 1000;
+  let backoff = INITIAL_BACKOFF_MS;
   let closed = false;
   let authenticated = false;
 
@@ -38,12 +42,13 @@ export function createRelayClient(
     try {
       ws = new WebSocket(url);
     } catch {
+      // WebSocket constructor failed (invalid URL or network issue)
       scheduleReconnect();
       return;
     }
 
     ws.on('open', () => {
-      backoff = 1000;
+      backoff = INITIAL_BACKOFF_MS;
       // Send auth
       ws!.send(JSON.stringify({
         type: 'cli_auth',
@@ -71,7 +76,7 @@ export function createRelayClient(
             if (ws?.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
             }
-          }, 30000);
+          }, PING_INTERVAL_MS);
 
           return;
         }
@@ -87,7 +92,7 @@ export function createRelayClient(
         if (authenticated && isControlRequest(msg.type)) {
           handleControlMessage(msg as ControlRequest);
         }
-      } catch { /* ignore malformed */ }
+      } catch { /* Ignore malformed JSON from relay — non-fatal */ }
     });
 
     ws.on('close', () => {
@@ -167,10 +172,12 @@ export function createRelayClient(
 
   function scheduleReconnect(): void {
     if (closed) return;
+    // Add random jitter (0–25%) to prevent thundering herd on server restart
+    const jitter = Math.random() * backoff * 0.25;
     reconnectTimer = setTimeout(() => {
-      backoff = Math.min(backoff * 2, 30000);
+      backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       connect();
-    }, backoff);
+    }, backoff + jitter);
   }
 
   // Start connection

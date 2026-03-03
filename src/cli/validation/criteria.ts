@@ -7,6 +7,7 @@ import type { TaskCategory, TaskClassification } from './classifier.js';
 
 export type CriterionCategory =
   | 'structural'
+  | 'quality'
   | 'completeness'
   | 'consistency'
   | 'logic'

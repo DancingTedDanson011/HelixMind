@@ -142,13 +142,14 @@ function formatCategory(category: string): string {
     style: 'Style       ',
     security: 'Security    ',
     performance: 'Performance ',
+    quality: 'Quality     ',
   };
   return chalk.bold(labels[category] || category.padEnd(12));
 }
 
 function groupByCategory(results: CheckResult[]): Map<string, CheckResult[]> {
   const grouped = new Map<string, CheckResult[]>();
-  const order: CriterionCategory[] = ['structural', 'completeness', 'consistency', 'logic', 'style', 'security', 'performance'];
+  const order: CriterionCategory[] = ['structural', 'quality', 'completeness', 'consistency', 'logic', 'style', 'security', 'performance'];
 
   // Pre-fill in order
   for (const cat of order) {
@@ -174,13 +175,57 @@ function groupByCategory(results: CheckResult[]): Map<string, CheckResult[]> {
   return grouped;
 }
 
-function inferCategory(id: string): string {
-  if (id.includes('html') || id.includes('syntax') || id.includes('links') || id.includes('ids') || id.includes('import') || id.includes('types') || id.includes('bracket') || id.includes('assertion') || id.includes('mocks')) return 'structural';
-  if (id.includes('requirement') || id.includes('complete') || id.includes('bug-addressed') || id.includes('output-format') || id.includes('responsive')) return 'completeness';
-  if (id.includes('style') || id.includes('naming') || id.includes('pattern') || id.includes('response-format') || id.includes('spiral-style') || id.includes('spiral-pattern')) return 'consistency';
-  if (id.includes('dead-code') || id.includes('async') || id.includes('error-handling') || id.includes('no-regression') || id.includes('behavior') || id.includes('edge') || id.includes('circular') || id.includes('separation') || id.includes('input-handled') || id.includes('false-positive') || id.includes('spiral-bugs')) return 'logic';
-  if (id.includes('security') || id.includes('sql') || id.includes('hardcoded') || id.includes('auth') || id.includes('secret') || id.includes('injection') || id.includes('no-secrets')) return 'security';
-  if (id.includes('status-code') || id.includes('img-alt') || id.includes('events')) return 'structural';
-  if (id.startsWith('dyn-') || id.startsWith('spiral-')) return 'completeness';
+const CATEGORY_MAP: Record<string, CriterionCategory> = {
+  // Structural
+  'html-valid': 'structural',
+  'links-valid': 'structural',
+  'ids-unique': 'structural',
+  'img-alt': 'structural',
+  'syntax-valid': 'structural',
+  'status-codes': 'structural',
+  'events-bound': 'structural',
+  'imports-resolve': 'structural',
+  'bracket-balance': 'structural',
+  'types-consistent': 'structural',
+  'assertions-exist': 'structural',
+  'mocks-cleanup': 'structural',
+  // Quality
+  'code-duplication': 'quality',
+  'outdated-references': 'quality',
+  // Completeness
+  'requirements-met': 'completeness',
+  'responsive': 'completeness',
+  'bug-addressed': 'completeness',
+  'output-format': 'completeness',
+  // Consistency
+  'style-match': 'consistency',
+  'naming-match': 'consistency',
+  'response-format': 'consistency',
+  'pattern-match': 'consistency',
+  // Logic
+  'no-dead-code': 'logic',
+  'async-await': 'logic',
+  'error-handling': 'logic',
+  'no-regression': 'logic',
+  'edge-cases': 'logic',
+  'input-handled': 'logic',
+  'no-circular': 'logic',
+  'separation': 'logic',
+  'false-positive': 'logic',
+  'behavior': 'logic',
+  // Security
+  'sql-injection': 'security',
+  'no-hardcoded': 'security',
+  'no-secrets': 'security',
+  'auth-check': 'security',
+  'security-check': 'security',
+};
+
+function inferCategory(id: string): CriterionCategory {
+  if (CATEGORY_MAP[id]) return CATEGORY_MAP[id];
+  if (id.startsWith('dyn-')) return 'completeness';
+  if (id.startsWith('spiral-style') || id.startsWith('spiral-pattern')) return 'consistency';
+  if (id.startsWith('spiral-bugs')) return 'logic';
+  if (id.startsWith('spiral-')) return 'completeness';
   return 'structural';
 }
