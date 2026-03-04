@@ -167,7 +167,6 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
   // Unique connection token for this CLI session (required for WS auth)
   const connectionToken = randomUUID();
-  let tokenConsumed = false; // H2: /api/token becomes one-time-use
   let instanceMeta: InstanceMeta | null = null;
   let controlHandlers: ControlHandlers | null = null;
 
@@ -214,17 +213,11 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
       res.end(JSON.stringify(meta));
 
     } else if (url === '/api/token') {
-      // Full token — NO CORS headers to prevent cross-origin theft from malicious websites
-      // Only the brain HTML page (same-origin) can access this endpoint
-      // One-time-use: once consumed, subsequent requests are rejected
-      if (tokenConsumed) {
-        res.writeHead(410, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Token already consumed' }));
-      } else {
-        tokenConsumed = true;
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ token: connectionToken }));
-      }
+      // Full token — CORS allowed for localhost origins only (discovery from web dashboard)
+
+      // Token can be fetched multiple times (needed for both web dashboard and brain HTML)
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+      res.end(JSON.stringify({ token: connectionToken }));
 
     } else if (url === '/api/token-hint') {
       const hint = connectionToken.slice(-4);
