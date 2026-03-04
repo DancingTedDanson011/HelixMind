@@ -374,10 +374,12 @@ export class PermissionManager {
     }
 
     process.stdout.write('\n');
+    this.rl?.pause();
     const idx = await selectMenu(items, {
       title: 'Permission Required',
       cancelLabel: 'Deny',
     });
+    this.rl?.resume();
 
     // Handle selection
     switch (idx) {
