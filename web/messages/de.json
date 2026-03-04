@@ -13,7 +13,8 @@
     "login": "Anmelden",
     "getStarted": "Jetzt starten",
     "dashboard": "Dashboard",
-    "enterprise": "Enterprise"
+    "enterprise": "Enterprise",
+    "openApp": "App öffnen"
   },
   "hero": {
     "badge": "Open Source AI Coding CLI",
@@ -575,6 +576,8 @@
       "noActivity": "Noch keine Aktivität.",
       "noActivityHint": "Aktivitäten erscheinen hier, sobald du HelixMind nutzt.",
       "quickLinks": "Schnellzugriff",
+      "openAppTitle": "HelixMind App starten",
+      "openAppDesc": "Verbinde dich mit deiner CLI, chatte mit deinem Agenten und verwalte Sessions.",
       "linkApp": "App öffnen",
       "linkProfile": "Profil",
       "linkBilling": "Abrechnung",

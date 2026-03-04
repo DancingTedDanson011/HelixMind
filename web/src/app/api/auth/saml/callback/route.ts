@@ -72,11 +72,11 @@ export async function POST(req: NextRequest) {
       salt: '',
     });
 
-    // Set session cookie and redirect to dashboard
+    // Set session cookie and redirect to app
     const isSecure = req.url.startsWith('https');
     const cookieName = isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token';
 
-    const response = NextResponse.redirect(new URL('/dashboard', req.url));
+    const response = NextResponse.redirect(new URL('/app', req.url));
     response.cookies.set(cookieName, token, {
       httpOnly: true,
       secure: isSecure,

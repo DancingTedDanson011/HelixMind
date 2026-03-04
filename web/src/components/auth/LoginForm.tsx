@@ -45,7 +45,7 @@ export function LoginForm() {
       setError(t('invalidCredentials'));
       setLoading(false);
     } else {
-      router.push('/dashboard');
+      router.push('/app');
     }
   };
 
@@ -58,7 +58,7 @@ export function LoginForm() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => signIn('google', { callbackUrl: `/${locale}/dashboard` })}
+          onClick={() => signIn('google', { callbackUrl: `/${locale}/app` })}
         >
           <GoogleIcon />
           {t('google')}
@@ -66,7 +66,7 @@ export function LoginForm() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => signIn('github', { callbackUrl: `/${locale}/dashboard` })}
+          onClick={() => signIn('github', { callbackUrl: `/${locale}/app` })}
         >
           <Github size={16} />
           {t('github')}

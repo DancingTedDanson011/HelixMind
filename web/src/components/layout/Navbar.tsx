@@ -60,10 +60,10 @@ export function Navbar() {
             {session?.user && (
               <Link
                 href={'/app' as any}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 hover:border-cyan-400/50 hover:shadow-[0_0_16px_rgba(0,212,255,0.2)] transition-all duration-200"
               >
                 <Sparkles size={14} />
-                App
+                {t('openApp')}
               </Link>
             )}
           </div>
@@ -183,7 +183,7 @@ export function Navbar() {
                     >
                       <span className="flex items-center gap-3 text-3xl font-display font-bold text-cyan-400 group-hover:text-cyan-300 transition-colors duration-300">
                         <Sparkles size={24} />
-                        App
+                        {t('openApp')}
                       </span>
                       <ArrowRight
                         size={20}

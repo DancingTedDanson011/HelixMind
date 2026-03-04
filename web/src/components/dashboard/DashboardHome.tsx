@@ -14,9 +14,11 @@ import {
   Activity,
   Layers,
   ArrowUpRight,
+  ArrowRight,
   Clock,
   Shield,
   Terminal,
+  Sparkles,
 } from 'lucide-react';
 
 /* ─── Types ───────────────────────────────────── */
@@ -108,6 +110,28 @@ export function DashboardHome({ user }: DashboardHomeProps) {
         <p className="text-sm text-gray-500 mt-1">
           {t('home.subtitle')}
         </p>
+      </motion.div>
+
+      {/* ── Open App CTA ── */}
+      <motion.div variants={item}>
+        <Link href="/app">
+          <GlassPanel
+            glow
+            className="group flex items-center gap-4 cursor-pointer border-cyan-500/20 hover:border-cyan-400/40 hover:shadow-[0_0_24px_rgba(0,212,255,0.12)] transition-all duration-300"
+          >
+            <div className="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center shrink-0">
+              <Sparkles size={22} className="text-cyan-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-lg font-semibold text-white">{t('home.openAppTitle')}</p>
+              <p className="text-sm text-gray-400">{t('home.openAppDesc')}</p>
+            </div>
+            <ArrowRight
+              size={20}
+              className="text-cyan-400/50 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all duration-200 shrink-0"
+            />
+          </GlassPanel>
+        </Link>
       </motion.div>
 
       {/* ── Subscription Status ── */}

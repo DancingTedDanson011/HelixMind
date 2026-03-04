@@ -34,7 +34,7 @@ export function CtaSection() {
 
   const handleCtaClick = async () => {
     if (isPwa) {
-      router.push('/dashboard');
+      router.push('/app');
     } else if (canInstall) {
       await installPwa();
     } else {
