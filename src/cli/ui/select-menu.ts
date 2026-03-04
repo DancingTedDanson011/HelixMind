@@ -23,6 +23,9 @@ export interface SelectMenuOptions {
 const HIDE = '\x1b[?25l';
 const SHOW = '\x1b[?25h';
 const ERASE_BELOW = '\x1b[J';
+// Disable all mouse tracking modes (basic, any-event, SGR encoding)
+const MOUSE_OFF = '\x1b[?1000l\x1b[?1003l\x1b[?1006l';
+const MOUSE_ON  = '\x1b[?1000h\x1b[?1003h\x1b[?1006h';
 
 /**
  * Interactive arrow-key menu. Returns selected index or -1 if cancelled.
@@ -111,6 +114,10 @@ export function selectMenu(
     if (stdin.isTTY) stdin.setRawMode(true);
     stdin.resume();
 
+    // Disable mouse tracking to prevent terminal mouse events from
+    // interfering with arrow-key navigation (Windows Terminal issue)
+    process.stdout.write(MOUSE_OFF);
+
     let prevLineCount = 0;
 
     function draw(): void {
@@ -151,15 +158,31 @@ export function selectMenu(
     }
 
     function onData(data: Buffer): void {
+      const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data);
       const key = data.toString();
 
-      if (key === '\x1b' || key === '\x1b\x1b') { cleanup(-1); return; }
-      if (key === '\x03') { cleanup(-1); return; }
-      if (key === '\r' || key === '\n') { cleanup(cursor); return; }
-      if (key === '\x1b[A') { moveCursor(-1); draw(); return; }
-      if (key === '\x1b[B') { moveCursor(1); draw(); return; }
-      if (key === '\x1b[H' || key === '\x1b[5~') { cursor = enabledIndices[0]; draw(); return; }
-      if (key === '\x1b[F' || key === '\x1b[6~') { cursor = enabledIndices[enabledIndices.length - 1]; draw(); return; }
+      // ── Mouse & unknown escape sequence filter ──────────────
+      // Discard mouse tracking sequences (SGR: \x1b[< , Normal: \x1b[M + raw bytes)
+      // and any other unrecognized multi-byte escape sequences that terminals
+      // (especially Windows Terminal) may emit on mouse movement.
+      if (key.startsWith('\x1b[<') || key.startsWith('\x1b[M')) return;
+
+      // Bare ESC = exactly 1 byte \x1b, Double ESC = exactly 2 bytes \x1b\x1b
+      // Anything else starting with \x1b that isn't a recognized key → ignore
+      if (bytes[0] === 0x1b) {
+        if (bytes.length === 1) { cleanup(-1); return; }                           // bare ESC
+        if (bytes.length === 2 && bytes[1] === 0x1b) { cleanup(-1); return; }      // double ESC
+        // Recognized ANSI sequences
+        if (key === '\x1b[A') { moveCursor(-1); draw(); return; }                  // Up
+        if (key === '\x1b[B') { moveCursor(1); draw(); return; }                   // Down
+        if (key === '\x1b[H' || key === '\x1b[5~') { cursor = enabledIndices[0]; draw(); return; }  // Home / PgUp
+        if (key === '\x1b[F' || key === '\x1b[6~') { cursor = enabledIndices[enabledIndices.length - 1]; draw(); return; } // End / PgDn
+        // All other escape sequences (mouse coords, bracketed paste, etc.) → discard
+        return;
+      }
+
+      if (key === '\x03') { cleanup(-1); return; }                                 // Ctrl+C
+      if (key === '\r' || key === '\n') { cleanup(cursor); return; }               // Enter
 
       const char = key.toLowerCase();
       if (char.length === 1) {
@@ -247,6 +270,7 @@ export async function multiSelectMenu(
     const wasRaw = stdin.isRaw;
     if (stdin.isTTY) stdin.setRawMode(true);
     stdin.resume();
+    process.stdout.write(MOUSE_OFF);
 
     let prevLineCount = 0;
 
@@ -272,12 +296,21 @@ export async function multiSelectMenu(
     }
 
     function onData(data: Buffer): void {
+      const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data);
       const key = data.toString();
 
-      if (key === '\x1b' || key === '\x1b\x1b' || key === '\x03') { cleanup([]); return; }
+      // Discard mouse tracking sequences
+      if (key.startsWith('\x1b[<') || key.startsWith('\x1b[M')) return;
+
+      if (bytes[0] === 0x1b) {
+        if (bytes.length <= 2) { cleanup([]); return; }                // bare ESC or double ESC
+        if (key === '\x1b[A' && cursor > 0) { cursor--; draw(); return; }
+        if (key === '\x1b[B' && cursor < items.length - 1) { cursor++; draw(); return; }
+        return; // ignore all other escape sequences
+      }
+
+      if (key === '\x03') { cleanup([]); return; }
       if (key === '\r' || key === '\n') { cleanup(Array.from(selected)); return; }
-      if (key === '\x1b[A' && cursor > 0) { cursor--; draw(); return; }
-      if (key === '\x1b[B' && cursor < items.length - 1) { cursor++; draw(); return; }
 
       if (key === ' ') {
         if (selected.has(cursor)) selected.delete(cursor);
