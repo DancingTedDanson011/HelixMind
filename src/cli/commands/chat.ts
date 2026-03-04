@@ -2675,10 +2675,17 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let pasteTimer: ReturnType<typeof setTimeout> | null = null;
   const PASTE_THRESHOLD_MS = 100; // Lines arriving faster than this = paste (100ms for Windows compat)
 
-  // Ensure enough blank lines so the chrome rows don't overlap init output.
-  // The scroll region needs at least RESERVED_ROWS (3) free rows at the bottom.
+  // Scroll the viewport so the bottom chrome rows land in the visible area.
+  // On Windows Terminal / ConPTY the cursor may sit mid-viewport after startup
+  // output, and absolute-positioned writes target off-screen rows. The fix:
+  // 1. Move cursor to the last terminal row (creates scrollback if needed).
+  // 2. Print newlines to push the viewport fully down.
+  // 3. showPrompt() then activates chrome with scroll region at the right spot.
   if (process.stdout.isTTY) {
-    process.stdout.write('\n\n\n\n\n\n');
+    const termRows = process.stdout.rows || 24;
+    // Move to last row, then emit newlines to ensure full viewport scroll
+    process.stdout.write(`\x1b[${termRows};1H`);
+    process.stdout.write('\n'.repeat(chrome.baseRows + 2));
   }
 
   // Show full prompt area on startup (separator + status + > prompt)
