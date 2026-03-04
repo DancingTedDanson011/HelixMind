@@ -41,8 +41,9 @@ jobs:
 
             set -a && source .env && set +a
 
-            echo "=== Clean node_modules + npm/prisma cache ==="
+            echo "=== Clean node_modules + build cache ==="
             rm -rf node_modules node_modules_old_* 2>/dev/null || true
+            rm -rf .next 2>/dev/null || true
             rm -rf "$HOME/.cache/prisma" 2>/dev/null || true
             npm cache clean --force 2>/dev/null || true
 
