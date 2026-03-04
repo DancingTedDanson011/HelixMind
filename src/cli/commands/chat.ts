@@ -1969,7 +1969,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   // Update prompt, chrome, and activity on terminal resize
   process.stdout.on('resize', () => {
-    suggestionPanel.close(); // Close panel on resize (reopens on next keypress)
+    closeSuggestionPanel(); // Close panel on resize (reopens on next keypress)
     rl.setPrompt(makePrompt());
     chrome.handleResize();
     activity.handleResize();
@@ -1989,6 +1989,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   function replaceReadlineInput(text: string): void {
     (rl as any).line = text;
     (rl as any).cursor = text.length;
+    (rl as any)._refreshLine();
+  }
+
+  /** Close suggestion panel and restore readline prompt at the correct position */
+  function closeSuggestionPanel(): void {
+    if (!suggestionPanel.isOpen) return;
+    suggestionPanel.close();
+    // Scroll region changed — reposition cursor and refresh readline prompt
+    chrome.positionCursorForPrompt();
     (rl as any)._refreshLine();
   }
 
@@ -2019,23 +2028,29 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Tab — confirm selection (or select first)
       if (key.name === 'tab' && !key.shift) {
         const cmd = suggestionPanel.confirm();
-        if (cmd) replaceReadlineInput(cmd + ' ');
+        if (cmd) {
+          chrome.positionCursorForPrompt();
+          replaceReadlineInput(cmd + ' ');
+        }
         return; // swallow
       }
       // Enter — if item selected, confirm without submitting
       if (key.name === 'return' && suggestionPanel.selectedIndex >= 0) {
         const cmd = suggestionPanel.confirm();
-        if (cmd) replaceReadlineInput(cmd + ' ');
+        if (cmd) {
+          chrome.positionCursorForPrompt();
+          replaceReadlineInput(cmd + ' ');
+        }
         return; // swallow
       }
       // Enter with nothing selected — close panel and let readline submit
       if (key.name === 'return' && suggestionPanel.selectedIndex < 0) {
-        suggestionPanel.close();
+        closeSuggestionPanel();
         // fall through to origTtyWrite
       }
       // Escape — close panel without stopping agent
       if (key.name === 'escape') {
-        suggestionPanel.close();
+        closeSuggestionPanel();
         panelJustClosed = true;
         // Schedule reset for next tick (so keypress handler sees the flag)
         process.nextTick(() => { panelJustClosed = false; });
@@ -2322,10 +2337,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               suggestionPanel.open(suggestions, currentLine);
             }
           } else {
-            suggestionPanel.close();
+            closeSuggestionPanel();
           }
         } else {
-          suggestionPanel.close();
+          closeSuggestionPanel();
         }
       }
 
@@ -2339,7 +2354,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
         if (anythingRunning) {
           // Close suggestion panel if open
-          suggestionPanel.close();
+          closeSuggestionPanel();
 
           // IMMEDIATE STOP — single ESC press
           activity.stop('Stopped');
