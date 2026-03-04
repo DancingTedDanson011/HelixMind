@@ -1992,6 +1992,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Intercept raw keystrokes BEFORE readline processes them
   const origTtyWrite = (rl as any)._ttyWrite.bind(rl);
   (rl as any)._ttyWrite = function (s: string, key: any) {
+    // Block ALL readline input while full-screen browser (Rewind/Plan) is active.
+    // The browser reads raw stdin directly — readline must not process anything.
+    if (fullScreenBrowserOpen) return;
+
     if (suggestionPanel.isOpen && key) {
       // Down arrow — navigate suggestions
       if (key.name === 'down') {
@@ -2288,6 +2292,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   if (process.stdin.isTTY) {
     process.stdin.on('keypress', async (_str: string, key: any) => {
       if (!key) return;
+      // Skip all keypress processing while full-screen browser is active
+      if (fullScreenBrowserOpen) return;
 
       // === Tab switching: Ctrl+PageUp / Ctrl+PageDown ===
       if (key.ctrl && key.name === 'pageup') {
