@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { inflateSync } from 'zlib';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 export async function GET(
   req: Request,
@@ -12,6 +13,9 @@ export async function GET(
   if (rateLimited) return rateLimited;
 
   const { id } = await params;
+  const invalid = validateId(id);
+  if (invalid) return invalid;
+
   const auth = await requireApiKeyWithPlan(req, 'ENTERPRISE');
   if (!auth) return NextResponse.json({ error: 'Unauthorized or insufficient plan' }, { status: 403 });
 
@@ -33,9 +37,11 @@ export async function GET(
     orderBy: { version: 'desc' },
   });
 
+  // SECURITY: Cap decompressed output to 100MB to prevent decompression bombs
+  const MAX_DECOMPRESS_BYTES = 100 * 1024 * 1024;
   if (latest) {
     try {
-      const nodes = JSON.parse(inflateSync(Buffer.from(latest.nodesJson)).toString('utf-8'));
+      const nodes = JSON.parse(inflateSync(Buffer.from(latest.nodesJson), { maxOutputLength: MAX_DECOMPRESS_BYTES }).toString('utf-8'));
       if (Array.isArray(nodes)) {
         for (const node of nodes) {
           const level = node.level || 1;

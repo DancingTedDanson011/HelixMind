@@ -20,12 +20,16 @@ export async function getSamlInstance(teamId: string) {
 
   const callbackUrl = `${SP_ENTITY_ID}/api/auth/saml/callback`;
 
+  // H7: Reject SHA-1 — only allow SHA-256 and SHA-512 for SAML signatures
+  const algo = config.signatureAlgorithm as string;
+  const safeAlgo: 'sha256' | 'sha512' = algo === 'sha512' ? 'sha512' : 'sha256';
+
   const saml = new SAML({
     callbackUrl,
     entryPoint: config.ssoUrl,
     issuer: SP_ENTITY_ID,
     idpCert: config.certificate,
-    signatureAlgorithm: config.signatureAlgorithm as 'sha1' | 'sha256' | 'sha512',
+    signatureAlgorithm: safeAlgo,
     wantAssertionsSigned: true,
     audience: SP_ENTITY_ID,
   });
@@ -64,7 +68,8 @@ export async function validateAssertion(teamId: string, samlResponse: string): P
     // Validate email is a real string (not undefined/null/empty)
     if (!email || typeof email !== 'string' || !email.includes('@')) return null;
     return { email, name: String(name || ''), role: role ? String(role) : undefined };
-  } catch {
+  } catch (err) {
+    console.error(`[SAML] Assertion validation failed for team ${teamId}:`, err instanceof Error ? err.message : String(err));
     return null;
   }
 }

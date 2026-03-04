@@ -28,6 +28,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
+    // SECURITY: Cap number of active keys per user to prevent abuse
+    const activeKeyCount = await prisma.apiKey.count({
+      where: { userId: session.user.id, revokedAt: null },
+    });
+    if (activeKeyCount >= 20) {
+      return NextResponse.json({ error: 'Maximum 20 active API keys allowed' }, { status: 400 });
+    }
+
     // Generate key: hm_<32 random hex chars>
     const rawKey = `hm_${randomBytes(32).toString('hex')}`;
     const keyHash = createHash('sha256').update(rawKey).digest('hex');
@@ -72,8 +80,8 @@ export async function DELETE(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    if (!id || !/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
+      return NextResponse.json({ error: 'Missing or invalid id' }, { status: 400 });
     }
 
     await prisma.apiKey.updateMany({

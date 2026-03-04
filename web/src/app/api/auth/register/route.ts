@@ -29,9 +29,10 @@ export async function POST(req: Request) {
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
+      // H8: Generic error to prevent user enumeration
       return NextResponse.json(
-        { error: 'Email already in use' },
-        { status: 409 },
+        { error: 'Registration failed' },
+        { status: 400 },
       );
     }
 

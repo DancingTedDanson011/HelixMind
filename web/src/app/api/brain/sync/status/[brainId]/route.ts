@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateApiKey } from '@/lib/relay-auth';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 export async function GET(
   req: Request,
@@ -24,6 +25,8 @@ export async function GET(
     }
 
     const { brainId } = await params;
+    const invalid = validateId(brainId, 'brainId');
+    if (invalid) return invalid;
 
     const brain = await prisma.brainInstance.findFirst({
       where: { id: brainId, userId: result.userId },

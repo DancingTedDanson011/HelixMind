@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { registerTool } from './registry.js';
 
 registerTool({
@@ -17,20 +17,18 @@ registerTool({
 
   async execute(input, ctx) {
     try {
-      execSync('git rev-parse --is-inside-work-tree', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
     } catch {
       return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git.`;
     }
 
     try {
       const count = (input.count as number) ?? 10;
-      const filePath = input.file ? ` -- "${input.file}"` : '';
-      const format = '--format=%h  %s  (%ar)  <%an>';
+      // Use execFileSync to prevent shell injection via file paths
+      const args = ['log', `-${count}`, '--format=%h  %s  (%ar)  <%an>'];
+      if (input.file) args.push('--', String(input.file));
 
-      const log = execSync(
-        `git log -${count} "${format}"${filePath}`,
-        { cwd: ctx.projectRoot, encoding: 'utf-8' },
-      ).trim();
+      const log = execFileSync('git', args, { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
 
       if (!log) {
         return 'No commits found.';

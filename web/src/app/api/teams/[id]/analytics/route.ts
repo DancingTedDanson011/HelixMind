@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTeamRole } from '@/lib/team-auth';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 export async function GET(
   req: Request,
@@ -12,6 +13,9 @@ export async function GET(
 
   try {
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
+
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');
     if (!authResult) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

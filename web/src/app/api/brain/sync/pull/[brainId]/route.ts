@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { inflateSync } from 'zlib';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 export async function GET(
   req: Request,
@@ -21,6 +22,8 @@ export async function GET(
     }
 
     const { brainId } = await params;
+    const invalid = validateId(brainId, 'brainId');
+    if (invalid) return invalid;
 
     // Verify brain belongs to user
     const brain = await prisma.brainInstance.findFirst({
@@ -42,8 +45,9 @@ export async function GET(
       return NextResponse.json({ error: 'No snapshots found' }, { status: 404 });
     }
 
-    // Decompress nodesJson
-    const nodesJson = inflateSync(Buffer.from(snapshot.nodesJson)).toString('utf-8');
+    // SECURITY: Cap decompressed output to 100MB to prevent decompression bombs
+    const MAX_DECOMPRESS_BYTES = 100 * 1024 * 1024;
+    const nodesJson = inflateSync(Buffer.from(snapshot.nodesJson), { maxOutputLength: MAX_DECOMPRESS_BYTES }).toString('utf-8');
 
     return NextResponse.json({
       brainId,

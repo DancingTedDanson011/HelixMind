@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { randomBytes, createHash } from 'crypto';
 import { checkRateLimit, DEVICE_CODE_RATE_LIMIT } from '@/lib/rate-limit';
+import { encryptApiKey } from '@/lib/crypto';
 import { z } from 'zod';
 
 const confirmSchema = z.object({
@@ -103,11 +104,12 @@ export async function POST(req: Request) {
     });
 
     // Update DeviceCode with result (CLI will pick it up via poll)
+    // SECURITY: Encrypt the API key before storing — never store plaintext keys in DB
     await prisma.deviceCode.update({
       where: { id: record.id },
       data: {
         userId: session.user.id,
-        apiKey: rawKey,
+        apiKey: encryptApiKey(rawKey),
         email: user?.email,
         plan,
       },

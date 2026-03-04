@@ -123,10 +123,18 @@ app.prepare().then(() => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
 
     // Validate origin for browser WebSocket connections (prevent cross-site hijacking)
-    if (pathname === '/api/relay/web' && origin) {
+    if (pathname === '/api/relay/web') {
+      // SECURITY: Require Origin header — non-browser clients must not connect to web relay
+      if (!origin) {
+        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+        socket.destroy();
+        return;
+      }
       const allowedOrigins = [
-        `http://${hostname}:${port}`,
-        `https://${hostname}:${port}`,
+        `http://localhost:${port}`,
+        `https://localhost:${port}`,
+        `http://127.0.0.1:${port}`,
+        `https://127.0.0.1:${port}`,
         appUrl,
       ].filter(Boolean);
       if (!allowedOrigins.includes(origin)) {
@@ -180,7 +188,9 @@ app.prepare().then(() => {
           }
 
           userId = result.userId;
-          instanceId = msg.instanceId || `cli_${Date.now()}`;
+          // Sanitize instanceId: alphanumeric + dash/underscore, max 64 chars
+          const rawId = String(msg.instanceId || `cli_${Date.now()}`);
+          instanceId = rawId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64) || `cli_${Date.now()}`;
           authenticated = true;
 
           // Register CLI connection

@@ -17,6 +17,9 @@ export async function GET(req: Request, { params }: Params) {
     }
 
     const { id } = await params;
+    if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
+      return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
+    }
     const isSupport = session.user.role === 'SUPPORT';
 
     const user = await prisma.user.findUnique({
@@ -77,6 +80,9 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     const { id } = await params;
+    if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
+      return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
+    }
     const body = await req.json();
     const parsed = updateUserSchema.safeParse(body);
     if (!parsed.success) {
@@ -84,6 +90,11 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     const { role, name, locale, plan } = parsed.data;
+
+    // SECURITY: Prevent admins from promoting themselves to higher roles
+    if (role && role === 'ADMIN' && id === session.user.id) {
+      return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 });
+    }
 
     // Prevent demotion of ANY admin when only 1 remains (not just self-demotion)
     if (role && role !== 'ADMIN') {
@@ -110,6 +121,8 @@ export async function PATCH(req: Request, { params }: Params) {
       }
 
       if (plan) {
+        // SECURITY: Log admin plan overrides for audit trail
+        console.warn(`[ADMIN AUDIT] User ${session.user.id} (${session.user.email}) changed plan for user ${id} to ${plan}`);
         await tx.subscription.upsert({
           where: { userId: id },
           update: { plan },

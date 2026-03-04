@@ -4,10 +4,11 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 const createMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
-  content: z.string().min(1),
+  content: z.string().min(1).max(100_000),
   metadata: z.record(z.unknown()).optional(),
 });
 
@@ -22,6 +23,9 @@ export async function GET(
     }
 
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
+
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get('cursor');
     const limit = Math.min(Number(searchParams.get('limit') || 50), 100);
@@ -65,6 +69,9 @@ export async function POST(
     }
 
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
+
     const body = await req.json();
     const parsed = createMessageSchema.safeParse(body);
     if (!parsed.success) {

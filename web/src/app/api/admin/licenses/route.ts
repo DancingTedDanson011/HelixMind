@@ -3,6 +3,16 @@ import { createHash, randomBytes } from 'crypto';
 import { requireRole } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { z } from 'zod';
+
+const createLicenseSchema = z.object({
+  seats: z.number().int().min(1).max(10000).default(10),
+  features: z.array(z.string().max(100)).max(50).default([]),
+  expiresAt: z.string().min(1),
+  maxActivations: z.number().int().min(1).max(1000).default(1),
+  teamId: z.string().uuid().optional(),
+  plan: z.enum(['PRO', 'TEAM', 'ENTERPRISE']).default('ENTERPRISE'),
+});
 
 function generateLicenseKey(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -59,18 +69,12 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const {
-      seats = 10,
-      features = [],
-      expiresAt,
-      maxActivations = 1,
-      teamId,
-      plan = 'ENTERPRISE',
-    } = body;
-
-    if (!expiresAt) {
-      return NextResponse.json({ error: 'expiresAt is required' }, { status: 400 });
+    const parsed = createLicenseSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
     }
+
+    const { seats, features, expiresAt, maxActivations, teamId, plan } = parsed.data;
 
     const expiryDate = new Date(expiresAt);
     if (isNaN(expiryDate.getTime()) || expiryDate <= new Date()) {
@@ -123,8 +127,14 @@ export async function DELETE(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'License id is required' }, { status: 400 });
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return NextResponse.json({ error: 'Valid license id is required' }, { status: 400 });
+    }
+
+    // Verify license exists before deleting
+    const existing = await prisma.license.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'License not found' }, { status: 404 });
     }
 
     await prisma.license.delete({ where: { id } });

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { inflateSync } from 'zlib';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 interface SpiralNode {
   id: string;
@@ -32,6 +33,8 @@ export async function GET(
     }
 
     const { id: brainId } = await params;
+    const invalid = validateId(brainId);
+    if (invalid) return invalid;
 
     const brain = await prisma.brainInstance.findFirst({
       where: { id: brainId, userId: result.userId },
@@ -51,7 +54,9 @@ export async function GET(
       return NextResponse.json({ nodes: [], total: 0 });
     }
 
-    const json = inflateSync(Buffer.from(snapshot.nodesJson)).toString('utf-8');
+    // SECURITY: Cap decompressed output to 100MB to prevent decompression bombs
+    const MAX_DECOMPRESS_BYTES = 100 * 1024 * 1024;
+    const json = inflateSync(Buffer.from(snapshot.nodesJson), { maxOutputLength: MAX_DECOMPRESS_BYTES }).toString('utf-8');
     let nodes: SpiralNode[] = JSON.parse(json);
 
     const url = new URL(req.url);

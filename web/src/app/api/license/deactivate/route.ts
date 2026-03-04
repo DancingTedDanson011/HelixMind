@@ -31,6 +31,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'License not found' }, { status: 404 });
     }
 
+    // SECURITY: Verify the license belongs to the authenticated user's team
+    // Reject teamless licenses — only team-bound licenses can be deactivated via API
+    if (!license.teamId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const teamMember = await prisma.teamMember.findFirst({
+      where: { userId: authResult.userId, teamId: license.teamId },
+    });
+    if (!teamMember) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     if (license.activations <= 0) {
       return NextResponse.json({ error: 'No active activations to deactivate' }, { status: 400 });
     }

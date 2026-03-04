@@ -10,6 +10,13 @@ export const emailFrom = process.env.EMAIL_FROM || 'HelixMind <noreply@helixmind
 
 const baseUrl = () => process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
+/** Escape HTML special characters to prevent injection in email templates */
+function esc(text: string): string {
+  return text.replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+  );
+}
+
 // ─── Brand constants for emails ─────────────────────────────────
 const brand = {
   primary: '#00d4ff',
@@ -170,7 +177,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
   const html = emailLayout(
     'Welcome to HelixMind',
     [
-      heading(`Welcome to HelixMind, ${name}!`),
+      heading(`Welcome to HelixMind, ${esc(name)}!`),
       paragraph('Your account is ready. HelixMind gives your AI coding agent a spiral context memory — so it remembers what matters and forgets what doesn\'t.'),
       infoBox('Get started: install the CLI, run <code style="color:' + brand.primary + '; background:' + brand.background + '; padding:2px 6px; border-radius:3px; font-size:13px;">helixmind init</code> in your project, and start coding with context that evolves.'),
       button('Go to Dashboard', dashboardUrl),
@@ -221,7 +228,7 @@ export async function sendTicketResponseEmail(
       </div>`,
       button('View Ticket', ticketUrl),
       divider(),
-      muted(`Ticket ID: ${ticketId}`),
+      muted(`Ticket ID: ${esc(ticketId)}`),
       muted('You can reply directly from your dashboard.'),
     ].join('\n'),
   );
@@ -245,10 +252,10 @@ export async function sendTeamInviteEmail(
   acceptUrl: string,
 ) {
   const html = emailLayout(
-    `You're invited to ${teamName}`,
+    `You're invited to ${esc(teamName)}`,
     [
-      heading(`You're invited to ${teamName}`),
-      paragraph(`<strong>${inviterName}</strong> has invited you to join <strong>${teamName}</strong> as <strong>${role}</strong>.`),
+      heading(`You're invited to ${esc(teamName)}`),
+      paragraph(`<strong>${esc(inviterName)}</strong> has invited you to join <strong>${esc(teamName)}</strong> as <strong>${esc(role)}</strong>.`),
       button('Accept Invite', acceptUrl),
       divider(),
       muted('This invite expires in 7 days. If you did not expect this invitation, you can safely ignore this email.'),
@@ -258,7 +265,7 @@ export async function sendTeamInviteEmail(
   return resend().emails.send({
     from: emailFrom,
     to,
-    subject: `You're invited to ${teamName} — HelixMind`,
+    subject: `You're invited to ${esc(teamName)} — HelixMind`,
     html,
   });
 }

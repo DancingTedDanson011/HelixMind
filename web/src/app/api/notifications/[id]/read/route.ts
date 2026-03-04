@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 export async function PATCH(
   req: Request,
@@ -17,6 +18,8 @@ export async function PATCH(
     }
 
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
 
     const notification = await prisma.notification.findUnique({ where: { id } });
     if (!notification || notification.userId !== session.user.id) {

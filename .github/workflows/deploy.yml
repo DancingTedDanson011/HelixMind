@@ -43,7 +43,10 @@ jobs:
               echo "Copied .env from repo root"
             fi
 
-            set -a && source .env && set +a
+            # H10: Export only the env vars needed for build (not all secrets into shell)
+            export DATABASE_URL=$(grep '^DATABASE_URL=' .env | cut -d= -f2-)
+            export NEXTAUTH_URL=$(grep '^NEXTAUTH_URL=' .env | cut -d= -f2-)
+            export NEXT_PUBLIC_APP_URL=$(grep '^NEXT_PUBLIC_APP_URL=' .env | cut -d= -f2-)
 
             echo "=== Clean node_modules + build cache ==="
             rm -rf node_modules node_modules_old_* 2>/dev/null || true
@@ -52,7 +55,7 @@ jobs:
             npm cache clean --force 2>/dev/null || true
 
             echo "=== NPM Install ==="
-            npm ci --include=dev
+            npm ci
 
             echo "=== Prisma DB Push (safe, no --accept-data-loss) ==="
             npx prisma db push

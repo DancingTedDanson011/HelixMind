@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 import { z } from 'zod';
 
 const updateChatSchema = z.object({
@@ -25,6 +26,8 @@ export async function GET(
     }
 
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
 
     const chat = await prisma.chat.findFirst({
       where: { id, userId: session.user.id },
@@ -60,6 +63,9 @@ export async function PATCH(
     }
 
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
+
     const body = await req.json();
     const parsed = updateChatSchema.safeParse(body);
     if (!parsed.success) {
@@ -99,6 +105,8 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
 
     const existing = await prisma.chat.findFirst({
       where: { id, userId: session.user.id },

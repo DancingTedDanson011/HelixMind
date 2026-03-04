@@ -48,9 +48,13 @@ export async function POST(req: Request) {
 
     const expiresAt = new Date(Date.now() + EXPIRES_IN_MS);
 
+    // Generate a poll secret the CLI must present when polling for the result
+    const pollSecret = randomBytes(32).toString('hex');
+
     await prisma.deviceCode.create({
       data: {
         code,
+        pollSecret,
         expiresAt,
         deviceName: parsed.data.deviceName,
         deviceOs: parsed.data.deviceOs,
@@ -61,6 +65,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       code,
+      pollSecret,
       expiresAt: expiresAt.toISOString(),
       verifyUrl: `${baseUrl}/auth/device`,
       pollInterval: 5,

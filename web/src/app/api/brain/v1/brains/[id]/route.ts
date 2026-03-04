@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 export async function GET(
   req: Request,
@@ -20,6 +21,8 @@ export async function GET(
     }
 
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
 
     const brain = await prisma.brainInstance.findFirst({
       where: { id, userId: result.userId },
@@ -70,6 +73,9 @@ export async function PATCH(
     }
 
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
+
     const body = await req.json();
 
     // Verify ownership
@@ -129,6 +135,8 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
 
     // Verify ownership
     const brain = await prisma.brainInstance.findFirst({

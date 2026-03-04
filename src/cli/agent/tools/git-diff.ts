@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { registerTool } from './registry.js';
 
 registerTool({
@@ -17,20 +17,21 @@ registerTool({
 
   async execute(input, ctx) {
     try {
-      execSync('git rev-parse --is-inside-work-tree', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
     } catch {
       return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git.`;
     }
 
     try {
-      const staged = (input.staged as boolean) ? '--cached' : '';
-      const filePath = input.path ? ` -- "${input.path}"` : '';
-      const cmd = `git diff ${staged}${filePath}`.trim();
+      // Use execFileSync to prevent shell injection via file paths
+      const args = ['diff'];
+      if (input.staged) args.push('--cached');
+      if (input.path) args.push('--', String(input.path));
 
-      const diff = execSync(cmd, { cwd: ctx.projectRoot, encoding: 'utf-8', maxBuffer: 1024 * 1024 }).trim();
+      const diff = execFileSync('git', args, { cwd: ctx.projectRoot, encoding: 'utf-8', maxBuffer: 1024 * 1024 }).trim();
 
       if (!diff) {
-        return staged ? 'No staged changes.' : 'No unstaged changes.';
+        return input.staged ? 'No staged changes.' : 'No unstaged changes.';
       }
 
       // Truncate very long diffs

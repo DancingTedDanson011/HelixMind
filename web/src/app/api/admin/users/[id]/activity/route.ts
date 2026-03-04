@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -16,6 +17,8 @@ export async function GET(req: Request, { params }: Params) {
     }
 
     const { id } = await params;
+    const invalid = validateId(id, 'user id');
+    if (invalid) return invalid;
 
     // Verify user exists
     const user = await prisma.user.findUnique({ where: { id }, select: { id: true } });

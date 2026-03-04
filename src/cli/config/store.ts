@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 
 export interface ProviderEntry {
@@ -111,7 +111,9 @@ export class ConfigStore {
   }
 
   private save(config: HelixMindConfig): void {
-    writeFileSync(this.configPath, JSON.stringify(config, null, 2), 'utf-8');
+    writeFileSync(this.configPath, JSON.stringify(config, null, 2), { encoding: 'utf-8', mode: 0o600 });
+    // H9: Ensure restrictive permissions on config file (contains API keys)
+    try { chmodSync(this.configPath, 0o600); } catch { /* Windows may not support chmod */ }
   }
 
   getAll(): HelixMindConfig {

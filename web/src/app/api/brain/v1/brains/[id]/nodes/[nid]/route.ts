@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { inflateSync, deflateSync } from 'zlib';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 interface SpiralNode {
   id: string;
@@ -22,8 +23,11 @@ async function getLatestSnapshot(brainId: string) {
   });
 }
 
+// SECURITY: Cap decompressed output to 100MB to prevent decompression bombs
+const MAX_DECOMPRESS_BYTES = 100 * 1024 * 1024;
+
 function decompressNodes(snapshot: { nodesJson: Uint8Array }): SpiralNode[] {
-  const json = inflateSync(Buffer.from(snapshot.nodesJson)).toString('utf-8');
+  const json = inflateSync(Buffer.from(snapshot.nodesJson), { maxOutputLength: MAX_DECOMPRESS_BYTES }).toString('utf-8');
   return JSON.parse(json);
 }
 
@@ -48,6 +52,10 @@ export async function GET(
     }
 
     const { id: brainId, nid } = await params;
+    const invalidId = validateId(brainId);
+    if (invalidId) return invalidId;
+    const invalidNid = validateId(nid, 'nid');
+    if (invalidNid) return invalidNid;
 
     const brain = await prisma.brainInstance.findFirst({
       where: { id: brainId, userId: result.userId },
@@ -93,6 +101,10 @@ export async function PATCH(
     }
 
     const { id: brainId, nid } = await params;
+    const invalidId = validateId(brainId);
+    if (invalidId) return invalidId;
+    const invalidNid = validateId(nid, 'nid');
+    if (invalidNid) return invalidNid;
 
     const brain = await prisma.brainInstance.findFirst({
       where: { id: brainId, userId: result.userId },
@@ -172,6 +184,10 @@ export async function DELETE(
     }
 
     const { id: brainId, nid } = await params;
+    const invalidId = validateId(brainId);
+    if (invalidId) return invalidId;
+    const invalidNid = validateId(nid, 'nid');
+    if (invalidNid) return invalidNid;
 
     const brain = await prisma.brainInstance.findFirst({
       where: { id: brainId, userId: result.userId },

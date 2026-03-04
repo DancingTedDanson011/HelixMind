@@ -5,6 +5,7 @@ import { createNotification } from '@/lib/notifications';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import type { TicketStatus } from '@prisma/client';
 import { z } from 'zod';
+import { validateId } from '@/lib/validation';
 
 export async function GET(req: Request) {
   const rateLimited = checkRateLimit(req, 'api/admin/tickets', GENERAL_RATE_LIMIT);
@@ -18,10 +19,11 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1);
+    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '20') || 20), 100);
 
-    const where = status ? { status: status as TicketStatus } : {};
+    const validStatuses: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+    const where = status && validStatuses.includes(status as TicketStatus) ? { status: status as TicketStatus } : {};
 
     const [tickets, total] = await Promise.all([
       prisma.ticket.findMany({

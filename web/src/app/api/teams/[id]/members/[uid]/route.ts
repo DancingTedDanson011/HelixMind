@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTeamRole } from '@/lib/team-auth';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 import { z } from 'zod';
 
 const patchSchema = z.object({
@@ -17,6 +18,11 @@ export async function PATCH(
 
   try {
     const { id, uid } = await params;
+    const invalidId = validateId(id);
+    if (invalidId) return invalidId;
+    const invalidUid = validateId(uid, 'uid');
+    if (invalidUid) return invalidUid;
+
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');
     if (!authResult) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -59,6 +65,11 @@ export async function DELETE(
 
   try {
     const { id, uid } = await params;
+    const invalidId = validateId(id);
+    if (invalidId) return invalidId;
+    const invalidUid = validateId(uid, 'uid');
+    if (invalidUid) return invalidUid;
+
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');
     if (!authResult) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

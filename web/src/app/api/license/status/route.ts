@@ -41,7 +41,7 @@ export async function GET(req: Request) {
       });
     }
 
-    const active = license.expiresAt > new Date() && license.activations <= license.maxActivations;
+    const active = license.expiresAt > new Date() && license.activations < license.maxActivations;
 
     return NextResponse.json({
       active,

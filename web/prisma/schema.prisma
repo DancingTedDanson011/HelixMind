@@ -181,6 +181,7 @@ model ApiKey {
 model DeviceCode {
   id         String    @id @default(cuid())
   code       String    @unique
+  pollSecret String?
   expiresAt  DateTime
   deviceName String
   deviceOs   String

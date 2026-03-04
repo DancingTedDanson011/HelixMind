@@ -14,14 +14,14 @@ import type {
 type PushIdentityChangedFn = (trait: string, oldValue: number, newValue: number, reason: string) => void;
 let _pushIdentityChanged: PushIdentityChangedFn | null = null;
 let _pushIdentityChangedResolved = false;
-function getPushIdentityChanged(): PushIdentityChangedFn | null {
+async function getPushIdentityChanged(): Promise<PushIdentityChangedFn | null> {
   if (!_pushIdentityChangedResolved) {
-    _pushIdentityChangedResolved = true;
     try {
-      // Dynamic require to break circular dependency
-      const gen = require('../brain/generator.js');
+      const gen = await import('../brain/generator.js');
       _pushIdentityChanged = gen.pushIdentityChanged ?? null;
+      _pushIdentityChangedResolved = true;
     } catch {
+      // Module not loaded yet — retry next time (don't cache failure)
       _pushIdentityChanged = null;
     }
   }
@@ -398,10 +398,11 @@ Denial is feedback — use it to make better proposals.`;
     this.identity.traits[trait] = newValue;
     // Push identity_changed event to brain clients if value actually changed
     if (oldValue !== newValue) {
-      const push = getPushIdentityChanged();
-      if (push) {
-        push(trait, oldValue, newValue, reason ?? `${delta > 0 ? '+' : ''}${delta.toFixed(2)}`);
-      }
+      getPushIdentityChanged().then(push => {
+        if (push) {
+          push(trait, oldValue, newValue, reason ?? `${delta > 0 ? '+' : ''}${delta.toFixed(2)}`);
+        }
+      }).catch(() => {});
     }
   }
 

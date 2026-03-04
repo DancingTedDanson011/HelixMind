@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { decryptApiKey } from '@/lib/crypto';
 import { checkRateLimit, AI_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 import Anthropic from '@anthropic-ai/sdk';
 
 export async function POST(
@@ -18,6 +19,8 @@ export async function POST(
   }
 
   const { id: chatId } = await params;
+  const invalid = validateId(chatId);
+  if (invalid) return invalid;
 
   // Verify ownership
   const chat = await prisma.chat.findFirst({
@@ -95,7 +98,8 @@ Write the prompt in the same language as the conversation. Be specific and actio
 
     return NextResponse.json({ agentPrompt });
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: errMsg }, { status: 500 });
+    // SECURITY: Don't expose raw API error messages (may contain API keys in error context)
+    console.error('Create prompt error:', err instanceof Error ? err.message : String(err));
+    return NextResponse.json({ error: 'Failed to generate prompt' }, { status: 500 });
   }
 }

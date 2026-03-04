@@ -150,7 +150,7 @@ export function createRelayClient(
         break;
 
       case 'send_chat': {
-        handlers.sendChat(msg.text, msg.chatId, msg.mode, msg.files as any);
+        handlers.sendChat(msg.text, msg.chatId, msg.mode, msg.files);
         sendRelay({ type: 'chat_received', requestId, timestamp: Date.now() });
         break;
       }
@@ -168,15 +168,15 @@ export function createRelayClient(
       }
 
       case 'delete_bug': {
-        const success = await handlers.deleteBug((msg as any).bugId);
-        sendRelay({ type: 'bug_deleted', success, bugId: (msg as any).bugId, requestId, timestamp: Date.now() });
+        const success = await handlers.deleteBug(msg.bugId);
+        sendRelay({ type: 'bug_deleted', success, bugId: msg.bugId, requestId, timestamp: Date.now() });
         break;
       }
 
       // --- Monitor ---
       case 'start_monitor': {
-        const sessionId = handlers.startMonitor((msg as any).mode);
-        sendRelay({ type: 'monitor_started', sessionId, mode: (msg as any).mode, requestId, timestamp: Date.now() });
+        const sessionId = handlers.startMonitor(msg.mode);
+        sendRelay({ type: 'monitor_started', sessionId, mode: msg.mode, requestId, timestamp: Date.now() });
         break;
       }
 
@@ -187,13 +187,13 @@ export function createRelayClient(
       }
 
       case 'monitor_command': {
-        handlers.handleMonitorCommand((msg as any).command, (msg as any).params);
+        handlers.handleMonitorCommand(msg.command, msg.params);
         sendRelay({ type: 'monitor_command_ack', requestId, timestamp: Date.now() });
         break;
       }
 
       case 'approval_response': {
-        handlers.handleApprovalResponse((msg as any).requestId, (msg as any).approved);
+        handlers.handleApprovalResponse(msg.requestId, msg.approved);
         sendRelay({ type: 'approval_response_ack', requestId, timestamp: Date.now() });
         break;
       }
@@ -229,9 +229,9 @@ export function createRelayClient(
 
       case 'add_jarvis_task': {
         const task = handlers.addJarvisTask(
-          (msg as any).title,
-          (msg as any).description,
-          { priority: (msg as any).priority, dependencies: (msg as any).dependencies, tags: (msg as any).tags },
+          msg.title,
+          msg.description,
+          { priority: msg.priority, dependencies: msg.dependencies, tags: msg.tags },
         );
         sendRelay({ type: 'jarvis_task_added', task, requestId, timestamp: Date.now() });
         break;
@@ -244,8 +244,8 @@ export function createRelayClient(
       }
 
       case 'delete_jarvis_task': {
-        const success = handlers.deleteJarvisTask((msg as any).taskId);
-        sendRelay({ type: 'jarvis_task_deleted', success, taskId: (msg as any).taskId, requestId, timestamp: Date.now() });
+        const success = handlers.deleteJarvisTask(msg.taskId);
+        sendRelay({ type: 'jarvis_task_deleted', success, taskId: msg.taskId, requestId, timestamp: Date.now() });
         break;
       }
 
@@ -269,20 +269,20 @@ export function createRelayClient(
       }
 
       case 'approve_proposal': {
-        const success = handlers.approveProposal((msg as any).proposalId);
-        sendRelay({ type: 'proposal_approved', proposalId: (msg as any).proposalId, success, requestId, timestamp: Date.now() });
+        const success = handlers.approveProposal(msg.proposalId);
+        sendRelay({ type: 'proposal_approved', proposalId: msg.proposalId, success, requestId, timestamp: Date.now() });
         break;
       }
 
       case 'deny_proposal': {
-        const success = handlers.denyProposal((msg as any).proposalId, (msg as any).reason);
-        sendRelay({ type: 'proposal_denied', proposalId: (msg as any).proposalId, success, requestId, timestamp: Date.now() });
+        const success = handlers.denyProposal(msg.proposalId, msg.reason);
+        sendRelay({ type: 'proposal_denied', proposalId: msg.proposalId, success, requestId, timestamp: Date.now() });
         break;
       }
 
       case 'set_autonomy_level': {
-        const success = handlers.setAutonomyLevel((msg as any).level);
-        sendRelay({ type: 'autonomy_level_set', level: (msg as any).level, success, requestId, timestamp: Date.now() });
+        const success = handlers.setAutonomyLevel(msg.level);
+        sendRelay({ type: 'autonomy_level_set', level: msg.level, success, requestId, timestamp: Date.now() });
         break;
       }
 
@@ -299,13 +299,13 @@ export function createRelayClient(
       }
 
       case 'add_schedule': {
-        const schedule = handlers.addSchedule((msg as any).expression, (msg as any).taskTitle, (msg as any).scheduleType);
+        const schedule = handlers.addSchedule(msg.expression, msg.taskTitle, msg.scheduleType);
         sendRelay({ type: 'schedule_added', schedule, requestId, timestamp: Date.now() });
         break;
       }
 
       case 'remove_schedule': {
-        const success = handlers.removeSchedule((msg as any).scheduleId);
+        const success = handlers.removeSchedule(msg.scheduleId);
         sendRelay({ type: 'schedule_removed', success, requestId, timestamp: Date.now() });
         break;
       }
@@ -317,13 +317,13 @@ export function createRelayClient(
       }
 
       case 'add_trigger': {
-        const trigger = handlers.addTrigger((msg as any).source, (msg as any).pattern, (msg as any).action);
+        const trigger = handlers.addTrigger(msg.source, msg.pattern, msg.action);
         sendRelay({ type: 'trigger_added', trigger, requestId, timestamp: Date.now() });
         break;
       }
 
       case 'remove_trigger': {
-        const success = handlers.removeTrigger((msg as any).triggerId);
+        const success = handlers.removeTrigger(msg.triggerId);
         sendRelay({ type: 'trigger_removed', success, requestId, timestamp: Date.now() });
         break;
       }
@@ -341,7 +341,12 @@ export function createRelayClient(
       }
 
       case 'register_project': {
-        const project = handlers.registerProject((msg as any).path, (msg as any).name);
+        // SECURITY: Validate path from remote to prevent path traversal / null byte injection
+        if (typeof msg.path !== 'string' || msg.path.length > 500 || msg.path.includes('\0') || msg.path.includes('..')) {
+          sendRelay({ type: 'error', message: 'Invalid project path', requestId, timestamp: Date.now() });
+          break;
+        }
+        const project = handlers.registerProject(msg.path, msg.name);
         sendRelay({ type: 'project_registered', project, requestId, timestamp: Date.now() });
         break;
       }
@@ -360,9 +365,9 @@ export function createRelayClient(
       }
 
       case 'rename_brain': {
-        const success = handlers.renameBrain((msg as any).brainId, (msg as any).newName);
+        const success = handlers.renameBrain(msg.brainId, msg.newName);
         if (success) {
-          sendRelay({ type: 'brain_renamed', brainId: (msg as any).brainId, newName: (msg as any).newName, requestId, timestamp: Date.now() });
+          sendRelay({ type: 'brain_renamed', brainId: msg.brainId, newName: msg.newName, requestId, timestamp: Date.now() });
         } else {
           sendRelay({ type: 'error', message: 'Brain not found or rename failed', requestId, timestamp: Date.now() });
         }
@@ -370,9 +375,9 @@ export function createRelayClient(
       }
 
       case 'switch_brain': {
-        const success = handlers.switchBrain((msg as any).brainId);
+        const success = handlers.switchBrain(msg.brainId);
         if (success) {
-          sendRelay({ type: 'brain_switched', brainId: (msg as any).brainId, requestId, timestamp: Date.now() });
+          sendRelay({ type: 'brain_switched', brainId: msg.brainId, requestId, timestamp: Date.now() });
         } else {
           sendRelay({ type: 'error', message: 'Brain not found or switch failed', requestId, timestamp: Date.now() });
         }
@@ -380,11 +385,20 @@ export function createRelayClient(
       }
 
       case 'create_brain': {
-        const brain = handlers.createBrain((msg as any).name, (msg as any).brainType, (msg as any).projectPath);
+        // SECURITY: Validate projectPath from remote to prevent path traversal / null byte injection
+        if (msg.projectPath && (typeof msg.projectPath !== 'string' || msg.projectPath.length > 500 || msg.projectPath.includes('\0') || msg.projectPath.includes('..'))) {
+          sendRelay({ type: 'error', message: 'Invalid project path', requestId, timestamp: Date.now() });
+          break;
+        }
+        if (typeof msg.name !== 'string' || msg.name.length > 200) {
+          sendRelay({ type: 'error', message: 'Invalid brain name', requestId, timestamp: Date.now() });
+          break;
+        }
+        const brain = handlers.createBrain(msg.name, msg.brainType, msg.projectPath);
         if (brain) {
           sendRelay({ type: 'brain_created', brain, requestId, timestamp: Date.now() });
         } else {
-          sendRelay({ type: 'brain_limit_reached', limitType: (msg as any).brainType, current: 0, max: 0, requestId, timestamp: Date.now() });
+          sendRelay({ type: 'brain_limit_reached', limitType: msg.brainType, current: 0, max: 0, requestId, timestamp: Date.now() });
         }
         break;
       }
@@ -397,7 +411,7 @@ export function createRelayClient(
       }
 
       case 'switch_model': {
-        const success = handlers.switchModel((msg as any).provider, (msg as any).model);
+        const success = handlers.switchModel(msg.provider, msg.model);
         sendRelay({ type: 'model_switched', success, requestId, timestamp: Date.now() });
         break;
       }
@@ -417,10 +431,10 @@ export function createRelayClient(
 
       case 'revert_to_checkpoint': {
         const result = handlers.revertToCheckpoint(
-          (msg as any).checkpointId,
-          (msg as any).mode || 'both',
+          msg.checkpointId,
+          msg.mode || 'both',
         );
-        sendRelay({ type: 'checkpoint_reverted', checkpointId: (msg as any).checkpointId, mode: (msg as any).mode || 'both', ...result, requestId, timestamp: Date.now() });
+        sendRelay({ type: 'checkpoint_reverted', checkpointId: msg.checkpointId, mode: msg.mode || 'both', ...result, requestId, timestamp: Date.now() });
         break;
       }
 
@@ -434,21 +448,21 @@ export function createRelayClient(
       case 'tool_permission_response': {
         // SECURITY: mode intentionally not forwarded — remote clients cannot escalate permissions
         handlers.handleToolPermissionResponse(
-          (msg as any).requestId,
-          (msg as any).approved,
+          msg.requestId,
+          msg.approved,
         );
-        sendRelay({ type: 'tool_permission_response_ack', requestId: (msg as any).requestId, timestamp: Date.now() });
+        sendRelay({ type: 'tool_permission_response_ack', requestId: msg.requestId, timestamp: Date.now() });
         break;
       }
 
       // --- Brain Sync (stub) ---
       case 'brain_sync_push': {
-        sendRelay({ type: 'brain_sync_status', brainId: (msg as any).brainId, synced: true, version: (msg as any).version, lastSyncedAt: Date.now(), requestId, timestamp: Date.now() });
+        sendRelay({ type: 'brain_sync_status', brainId: msg.brainId, synced: true, version: msg.version, lastSyncedAt: Date.now(), requestId, timestamp: Date.now() });
         break;
       }
 
       case 'brain_sync_pull': {
-        sendRelay({ type: 'brain_sync_data', brainId: (msg as any).brainId, version: 0, nodesJson: '[]', requestId, timestamp: Date.now() });
+        sendRelay({ type: 'brain_sync_data', brainId: msg.brainId, version: 0, nodesJson: '[]', requestId, timestamp: Date.now() });
         break;
       }
 
@@ -460,14 +474,14 @@ export function createRelayClient(
 
       // --- Swarm ---
       case 'start_swarm': {
-        const swarmId = handlers.startSwarm((msg as any).message);
+        const swarmId = handlers.startSwarm(msg.message);
         sendRelay({ type: 'swarm_started', swarmId, requestId, timestamp: Date.now() });
         break;
       }
 
       case 'abort_swarm': {
-        const success = handlers.abortSwarm((msg as any).swarmId);
-        sendRelay({ type: 'swarm_aborted', swarmId: (msg as any).swarmId, success, requestId, timestamp: Date.now() });
+        const success = handlers.abortSwarm(msg.swarmId);
+        sendRelay({ type: 'swarm_aborted', swarmId: msg.swarmId, success, requestId, timestamp: Date.now() });
         break;
       }
 

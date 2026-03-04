@@ -60,6 +60,7 @@ const AUTH_TIMEOUT_MS = 5000;
 async function ollamaProxy(
   path: string,
   res: ServerResponse,
+  corsOrigin: string,
   method = 'GET',
   body?: string,
 ): Promise<void> {
@@ -75,7 +76,7 @@ async function ollamaProxy(
     clearTimeout(timer);
     res.writeHead(upstream.ok ? 200 : upstream.status, {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': corsOrigin,
     });
     res.end(await upstream.text());
   } catch {
@@ -88,12 +89,13 @@ async function ollamaProxy(
 async function ollamaPullStream(
   modelName: string,
   res: ServerResponse,
+  corsOrigin: string,
 ): Promise<void> {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': corsOrigin,
   });
   let hadError = false;
   try {
@@ -165,6 +167,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
   // Unique connection token for this CLI session (required for WS auth)
   const connectionToken = randomUUID();
+  let tokenConsumed = false; // H2: /api/token becomes one-time-use
   let instanceMeta: InstanceMeta | null = null;
   let controlHandlers: ControlHandlers | null = null;
 
@@ -213,8 +216,15 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
     } else if (url === '/api/token') {
       // Full token — NO CORS headers to prevent cross-origin theft from malicious websites
       // Only the brain HTML page (same-origin) can access this endpoint
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ token: connectionToken }));
+      // One-time-use: once consumed, subsequent requests are rejected
+      if (tokenConsumed) {
+        res.writeHead(410, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Token already consumed' }));
+      } else {
+        tokenConsumed = true;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ token: connectionToken }));
+      }
 
     } else if (url === '/api/token-hint') {
       const hint = connectionToken.slice(-4);
@@ -235,23 +245,23 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
     // --- Ollama proxy endpoints ---
     } else if (url === '/api/ollama/status') {
-      await ollamaProxy('/api/version', res);
+      await ollamaProxy('/api/version', res, allowedOrigin);
     } else if (url === '/api/ollama/models') {
-      await ollamaProxy('/api/tags', res);
+      await ollamaProxy('/api/tags', res, allowedOrigin);
     } else if (url === '/api/ollama/running') {
-      await ollamaProxy('/api/ps', res);
+      await ollamaProxy('/api/ps', res, allowedOrigin);
     } else if (url === '/api/ollama/pull' && req.method === 'POST') {
       const body = await readBody(req);
       try {
         const { name } = JSON.parse(body) as { name: string };
-        await ollamaPullStream(name, res);
+        await ollamaPullStream(name, res, allowedOrigin);
       } catch {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid request body' }));
       }
     } else if (url === '/api/ollama/delete' && req.method === 'POST') {
       const body = await readBody(req);
-      await ollamaProxy('/api/delete', res, 'DELETE', body);
+      await ollamaProxy('/api/delete', res, allowedOrigin, 'DELETE', body);
     } else if (url === '/api/cloud/models') {
       // Return cloud models from known providers
       const cloudModels = [
@@ -287,7 +297,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
     httpServer.listen(port, '127.0.0.1', () => {
       // Create WebSocket server AFTER HTTP server is successfully listening
-      const wss = new WebSocketServer({ server: httpServer });
+      const wss = new WebSocketServer({ server: httpServer, maxPayload: 1 * 1024 * 1024 });
 
       // Brain visualization clients (legacy — no auth required)
       const brainClients = new Set<WebSocket>();
@@ -298,6 +308,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
       // Output subscriptions: sessionId → set of subscribed clients
       const outputSubscriptions = new Map<string, Set<WebSocket>>();
 
+      let lastOllamaSpawn = 0;
       let voiceHandler: VoiceInputHandler | null = null;
       let scopeSwitchHandler: ScopeSwitchHandler | null = null;
       let modelActivateHandler: ModelActivateHandler | null = null;
@@ -364,7 +375,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'send_chat': {
-            controlHandlers.sendChat(msg.text, msg.chatId, msg.mode, msg.files as any);
+            controlHandlers.sendChat(msg.text, msg.chatId, msg.mode, msg.files);
             sendTo(ws, { type: 'chat_received', requestId, timestamp: Date.now() });
             break;
           }
@@ -382,15 +393,15 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'delete_bug': {
-            const success = await controlHandlers.deleteBug((msg as any).bugId);
-            sendTo(ws, { type: 'bug_deleted', success, bugId: (msg as any).bugId, requestId, timestamp: Date.now() });
+            const success = await controlHandlers.deleteBug(msg.bugId);
+            sendTo(ws, { type: 'bug_deleted', success, bugId: msg.bugId, requestId, timestamp: Date.now() });
             break;
           }
 
           // --- Monitor ---
           case 'start_monitor': {
-            const sessionId = controlHandlers.startMonitor((msg as any).mode);
-            sendTo(ws, { type: 'monitor_started', sessionId, mode: (msg as any).mode, requestId, timestamp: Date.now() });
+            const sessionId = controlHandlers.startMonitor(msg.mode);
+            sendTo(ws, { type: 'monitor_started', sessionId, mode: msg.mode, requestId, timestamp: Date.now() });
             break;
           }
 
@@ -401,13 +412,13 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'monitor_command': {
-            controlHandlers.handleMonitorCommand((msg as any).command, (msg as any).params);
+            controlHandlers.handleMonitorCommand(msg.command, msg.params);
             sendTo(ws, { type: 'monitor_command_ack', requestId, timestamp: Date.now() });
             break;
           }
 
           case 'approval_response': {
-            controlHandlers.handleApprovalResponse((msg as any).requestId, (msg as any).approved);
+            controlHandlers.handleApprovalResponse(msg.requestId, msg.approved);
             sendTo(ws, { type: 'approval_response_ack', requestId, timestamp: Date.now() });
             break;
           }
@@ -443,9 +454,9 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
           case 'add_jarvis_task': {
             const task = controlHandlers.addJarvisTask(
-              (msg as any).title,
-              (msg as any).description,
-              { priority: (msg as any).priority, dependencies: (msg as any).dependencies, tags: (msg as any).tags },
+              msg.title,
+              msg.description,
+              { priority: msg.priority, dependencies: msg.dependencies, tags: msg.tags },
             );
             sendTo(ws, { type: 'jarvis_task_added', task, requestId, timestamp: Date.now() });
             break;
@@ -458,8 +469,8 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'delete_jarvis_task': {
-            const success = controlHandlers.deleteJarvisTask((msg as any).taskId);
-            sendTo(ws, { type: 'jarvis_task_deleted', success, taskId: (msg as any).taskId, requestId, timestamp: Date.now() });
+            const success = controlHandlers.deleteJarvisTask(msg.taskId);
+            sendTo(ws, { type: 'jarvis_task_deleted', success, taskId: msg.taskId, requestId, timestamp: Date.now() });
             break;
           }
 
@@ -483,20 +494,20 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'approve_proposal': {
-            const success = controlHandlers.approveProposal((msg as any).proposalId);
-            sendTo(ws, { type: 'proposal_approved', proposalId: (msg as any).proposalId, success, requestId, timestamp: Date.now() });
+            const success = controlHandlers.approveProposal(msg.proposalId);
+            sendTo(ws, { type: 'proposal_approved', proposalId: msg.proposalId, success, requestId, timestamp: Date.now() });
             break;
           }
 
           case 'deny_proposal': {
-            const success = controlHandlers.denyProposal((msg as any).proposalId, (msg as any).reason);
-            sendTo(ws, { type: 'proposal_denied', proposalId: (msg as any).proposalId, success, requestId, timestamp: Date.now() });
+            const success = controlHandlers.denyProposal(msg.proposalId, msg.reason);
+            sendTo(ws, { type: 'proposal_denied', proposalId: msg.proposalId, success, requestId, timestamp: Date.now() });
             break;
           }
 
           case 'set_autonomy_level': {
-            const success = controlHandlers.setAutonomyLevel((msg as any).level);
-            sendTo(ws, { type: 'autonomy_level_set', level: (msg as any).level, success, requestId, timestamp: Date.now() });
+            const success = controlHandlers.setAutonomyLevel(msg.level);
+            sendTo(ws, { type: 'autonomy_level_set', level: msg.level, success, requestId, timestamp: Date.now() });
             break;
           }
 
@@ -513,13 +524,13 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'add_schedule': {
-            const schedule = controlHandlers.addSchedule((msg as any).expression, (msg as any).taskTitle, (msg as any).scheduleType);
+            const schedule = controlHandlers.addSchedule(msg.expression, msg.taskTitle, msg.scheduleType);
             sendTo(ws, { type: 'schedule_added', schedule, requestId, timestamp: Date.now() });
             break;
           }
 
           case 'remove_schedule': {
-            const success = controlHandlers.removeSchedule((msg as any).scheduleId);
+            const success = controlHandlers.removeSchedule(msg.scheduleId);
             sendTo(ws, { type: 'schedule_removed', success, requestId, timestamp: Date.now() });
             break;
           }
@@ -531,13 +542,13 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'add_trigger': {
-            const trigger = controlHandlers.addTrigger((msg as any).source, (msg as any).pattern, (msg as any).action);
+            const trigger = controlHandlers.addTrigger(msg.source, msg.pattern, msg.action);
             sendTo(ws, { type: 'trigger_added', trigger, requestId, timestamp: Date.now() });
             break;
           }
 
           case 'remove_trigger': {
-            const success = controlHandlers.removeTrigger((msg as any).triggerId);
+            const success = controlHandlers.removeTrigger(msg.triggerId);
             sendTo(ws, { type: 'trigger_removed', success, requestId, timestamp: Date.now() });
             break;
           }
@@ -555,7 +566,12 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'register_project': {
-            const project = controlHandlers.registerProject((msg as any).path, (msg as any).name);
+            // SECURITY: Validate path to prevent path traversal / null byte injection
+            if (typeof msg.path !== 'string' || msg.path.length > 500 || msg.path.includes('\0') || msg.path.includes('..')) {
+              sendTo(ws, { type: 'error', message: 'Invalid project path', requestId, timestamp: Date.now() });
+              break;
+            }
+            const project = controlHandlers.registerProject(msg.path, msg.name);
             sendTo(ws, { type: 'project_registered', project, requestId, timestamp: Date.now() });
             break;
           }
@@ -573,7 +589,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'switch_model': {
-            const success = controlHandlers.switchModel((msg as any).provider, (msg as any).model);
+            const success = controlHandlers.switchModel(msg.provider, msg.model);
             sendTo(ws, { type: 'model_switched', success, requestId, timestamp: Date.now() });
             break;
           }
@@ -593,10 +609,10 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
           case 'revert_to_checkpoint': {
             const result = controlHandlers.revertToCheckpoint(
-              (msg as any).checkpointId,
-              (msg as any).mode || 'both',
+              msg.checkpointId,
+              msg.mode || 'both',
             );
-            sendTo(ws, { type: 'checkpoint_reverted', checkpointId: (msg as any).checkpointId, mode: (msg as any).mode || 'both', ...result, requestId, timestamp: Date.now() });
+            sendTo(ws, { type: 'checkpoint_reverted', checkpointId: msg.checkpointId, mode: msg.mode || 'both', ...result, requestId, timestamp: Date.now() });
             break;
           }
 
@@ -608,13 +624,13 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'rename_brain': {
-            const success = controlHandlers.renameBrain((msg as any).brainId, (msg as any).newName);
+            const success = controlHandlers.renameBrain(msg.brainId, msg.newName);
             if (success) {
-              sendTo(ws, { type: 'brain_renamed', brainId: (msg as any).brainId, newName: (msg as any).newName, requestId, timestamp: Date.now() });
+              sendTo(ws, { type: 'brain_renamed', brainId: msg.brainId, newName: msg.newName, requestId, timestamp: Date.now() });
               // Broadcast to all control clients
               for (const client of controlClients) {
                 if (client !== ws && client.readyState === WebSocket.OPEN) {
-                  sendTo(client, { type: 'brain_renamed', brainId: (msg as any).brainId, newName: (msg as any).newName, timestamp: Date.now() });
+                  sendTo(client, { type: 'brain_renamed', brainId: msg.brainId, newName: msg.newName, timestamp: Date.now() });
                 }
               }
             } else {
@@ -624,9 +640,9 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'switch_brain': {
-            const success = controlHandlers.switchBrain((msg as any).brainId);
+            const success = controlHandlers.switchBrain(msg.brainId);
             if (success) {
-              sendTo(ws, { type: 'brain_switched', brainId: (msg as any).brainId, requestId, timestamp: Date.now() });
+              sendTo(ws, { type: 'brain_switched', brainId: msg.brainId, requestId, timestamp: Date.now() });
             } else {
               sendTo(ws, { type: 'error', message: 'Brain not found or switch failed', requestId, timestamp: Date.now() });
             }
@@ -634,7 +650,16 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'create_brain': {
-            const brain = controlHandlers.createBrain((msg as any).name, (msg as any).brainType, (msg as any).projectPath);
+            // SECURITY: Validate projectPath to prevent path traversal / null byte injection
+            if (msg.projectPath && (typeof msg.projectPath !== 'string' || msg.projectPath.length > 500 || msg.projectPath.includes('\0') || msg.projectPath.includes('..'))) {
+              sendTo(ws, { type: 'error', message: 'Invalid project path', requestId, timestamp: Date.now() });
+              break;
+            }
+            if (typeof msg.name !== 'string' || msg.name.length > 200) {
+              sendTo(ws, { type: 'error', message: 'Invalid brain name', requestId, timestamp: Date.now() });
+              break;
+            }
+            const brain = controlHandlers.createBrain(msg.name, msg.brainType, msg.projectPath);
             if (brain) {
               sendTo(ws, { type: 'brain_created', brain, requestId, timestamp: Date.now() });
               // Broadcast to all control clients
@@ -645,7 +670,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
               }
             } else {
               // Limit reached — send limit event
-              sendTo(ws, { type: 'brain_limit_reached', limitType: (msg as any).brainType, current: 0, max: 0, requestId, timestamp: Date.now() });
+              sendTo(ws, { type: 'brain_limit_reached', limitType: msg.brainType, current: 0, max: 0, requestId, timestamp: Date.now() });
             }
             break;
           }
@@ -661,22 +686,22 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           case 'tool_permission_response': {
             // SECURITY: mode intentionally not forwarded — remote clients cannot escalate permissions
             controlHandlers.handleToolPermissionResponse(
-              (msg as any).requestId,
-              (msg as any).approved,
+              msg.requestId,
+              msg.approved,
             );
             // ACK back to the sender
-            sendTo(ws, { type: 'tool_permission_response_ack', requestId: (msg as any).requestId, timestamp: Date.now() });
+            sendTo(ws, { type: 'tool_permission_response_ack', requestId: msg.requestId, timestamp: Date.now() });
             break;
           }
 
           // --- Brain Sync (stub — no real sync backend yet) ---
           case 'brain_sync_push': {
-            sendTo(ws, { type: 'brain_sync_status', brainId: (msg as any).brainId, synced: true, version: (msg as any).version, lastSyncedAt: Date.now(), requestId, timestamp: Date.now() });
+            sendTo(ws, { type: 'brain_sync_status', brainId: msg.brainId, synced: true, version: msg.version, lastSyncedAt: Date.now(), requestId, timestamp: Date.now() });
             break;
           }
 
           case 'brain_sync_pull': {
-            sendTo(ws, { type: 'brain_sync_data', brainId: (msg as any).brainId, version: 0, nodesJson: '[]', requestId, timestamp: Date.now() });
+            sendTo(ws, { type: 'brain_sync_data', brainId: msg.brainId, version: 0, nodesJson: '[]', requestId, timestamp: Date.now() });
             break;
           }
 
@@ -688,14 +713,14 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
           // --- Swarm ---
           case 'start_swarm': {
-            const swarmId = controlHandlers.startSwarm((msg as any).message);
+            const swarmId = controlHandlers.startSwarm(msg.message);
             sendTo(ws, { type: 'swarm_started', swarmId, requestId, timestamp: Date.now() });
             break;
           }
 
           case 'abort_swarm': {
-            const success = controlHandlers.abortSwarm((msg as any).swarmId);
-            sendTo(ws, { type: 'swarm_aborted', swarmId: (msg as any).swarmId, success, requestId, timestamp: Date.now() });
+            const success = controlHandlers.abortSwarm(msg.swarmId);
+            sendTo(ws, { type: 'swarm_aborted', swarmId: msg.swarmId, success, requestId, timestamp: Date.now() });
             break;
           }
 
@@ -705,6 +730,20 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             break;
           }
         }
+      }
+
+      // Rate limiting: max messages per second per client
+      const WS_MAX_MSG_PER_SEC = 60;
+      const wsMessageCounters = new Map<WebSocket, { count: number; resetAt: number }>();
+      function wsCheckRateLimit(ws: WebSocket): boolean {
+        const now = Date.now();
+        let ctr = wsMessageCounters.get(ws);
+        if (!ctr || now > ctr.resetAt) {
+          ctr = { count: 0, resetAt: now + 1000 };
+          wsMessageCounters.set(ws, ctr);
+        }
+        ctr.count++;
+        return ctr.count <= WS_MAX_MSG_PER_SEC;
       }
 
       // Connection limit to prevent resource exhaustion
@@ -720,18 +759,18 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
         let authenticated = false;
         let authTimeout: ReturnType<typeof setTimeout> | null = null;
 
-        // Give client time to authenticate; if no auth message arrives,
-        // treat as legacy brain client (backward-compatible, read-only)
+        // Give client time to authenticate; close if no auth message arrives
         authTimeout = setTimeout(() => {
           if (!authenticated) {
-            brainClients.add(ws);
-            ws.send(JSON.stringify({ type: 'full_sync', data: latestData }));
+            ws.send(JSON.stringify({ type: 'auth_fail', reason: 'Auth timeout', timestamp: Date.now() }));
+            ws.close(4001, 'Auth timeout');
           }
         }, AUTH_TIMEOUT_MS);
 
         ws.on('close', () => {
           brainClients.delete(ws);
           controlClients.delete(ws);
+          wsMessageCounters.delete(ws);
           // Clean up output subscriptions
           for (const subs of outputSubscriptions.values()) {
             subs.delete(ws);
@@ -739,6 +778,8 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
         });
 
         ws.on('message', (raw) => {
+          if (!wsCheckRateLimit(ws)) return;
+
           try {
             const msg = JSON.parse(String(raw));
 
@@ -796,11 +837,18 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
               modelActivateHandler(msg.model);
             }
             if (msg.type === 'start_ollama') {
-              try {
-                const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
-                child.unref();
-                sendTo(ws, { type: 'ollama_starting', timestamp: Date.now() });
-              } catch { /* ignore spawn errors */ }
+              // SECURITY: Debounce ollama spawns — max once per 30s to prevent process exhaustion
+              const now = Date.now();
+              if (now - lastOllamaSpawn < 30_000) {
+                sendTo(ws, { type: 'ollama_starting', timestamp: Date.now(), throttled: true });
+              } else {
+                lastOllamaSpawn = now;
+                try {
+                  const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
+                  child.unref();
+                  sendTo(ws, { type: 'ollama_starting', timestamp: Date.now() });
+                } catch { /* ignore spawn errors */ }
+              }
             }
           } catch { /* ignore malformed */ }
         });

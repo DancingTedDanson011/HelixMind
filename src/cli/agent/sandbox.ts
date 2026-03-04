@@ -9,16 +9,28 @@ const MAX_CONTENT_LENGTH = 5 * 1024 * 1024;
 
 /** Sensitive files that should never be read or written by the agent */
 const BLOCKED_FILES = [
+  // Environment files (all variants)
   '.env', '.env.local', '.env.production', '.env.staging', '.env.development', '.env.test',
-  'id_rsa', 'id_ed25519', 'id_ecdsa',
-  '.ssh/config', '.ssh/authorized_keys', '.ssh/known_hosts',
-  '.npmrc', '.pypirc', '.netrc',
-  'credentials.json', 'serviceAccountKey.json',
+  '.env.production.local', '.env.development.local', '.env.test.local', '.env.local.local',
+  // SSH keys and config
+  'id_rsa', 'id_ed25519', 'id_ecdsa', 'id_dsa',
+  '.ssh/config', '.ssh/authorized_keys', '.ssh/known_hosts', '.ssh/id_rsa', '.ssh/id_ed25519',
+  // Package manager credentials
+  '.npmrc', '.pypirc', '.netrc', '.yarnrc',
+  // Cloud credentials
+  'credentials.json', 'serviceAccountKey.json', 'service-account.json',
   '.git-credentials', '.docker/config.json',
   '.aws/credentials', '.aws/config',
   '.kube/config',
-  '.bash_history', '.zsh_history',
-  '.config/gcloud/credentials.db',
+  '.config/gcloud/credentials.db', '.config/gcloud/application_default_credentials.json',
+  // Shell history
+  '.bash_history', '.zsh_history', '.node_repl_history', '.python_history',
+  // GPG/PGP keys
+  '.gnupg/secring.gpg', '.gnupg/private-keys-v1.d',
+  // Token/secret files
+  '.vault-token', '.terraform/credentials.tfrc.json',
+  // Database files that may contain sensitive data
+  '.pgpass', '.my.cnf',
 ];
 
 /** Dangerous command patterns that require extra confirmation */
@@ -37,6 +49,19 @@ const DANGEROUS_PATTERNS = [
   /\bformat\s+[a-z]:/i,
   /\bdel\s+\/[sq]/i,
   /\brmdir\s+\/s/i,
+  // Network tools (reverse shells, data exfiltration)
+  /\b(nc|ncat|netcat)\s.*-[el]/,
+  /\b(curl|wget)\b.*-[oO]\s/,
+  // Package manager installs (supply chain risk)
+  /\bnpm\s+install\s+-g/,
+  /\bpip\s+install\b/,
+  // Docker privileged / host mounts
+  /\bdocker\s+run\b.*--privileged/,
+  /\bdocker\s+run\b.*-v\s*\/:/,
+  // crontab modification
+  /\bcrontab\s+-[re]/,
+  // SSH connections (lateral movement)
+  /\bssh\b.*@/,
 ];
 
 export class SecurityError extends Error {
@@ -72,6 +97,14 @@ export function validatePathEx(requestedPath: string, projectRoot: string): Path
     if (lower.endsWith('/' + blocked) || lower.endsWith('\\' + blocked) || lower === blocked) {
       throw new SecurityError(`Access denied: ${requestedPath} is a sensitive file`);
     }
+  }
+  // Pattern-based blocks: catch all .env variants and key files
+  const filename = lower.split('/').pop() || '';
+  if (/^\.env(\..+)?$/.test(filename) && !/\.(example|sample|template)$/.test(filename)) {
+    throw new SecurityError(`Access denied: ${requestedPath} is a sensitive file`);
+  }
+  if (/^id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$/.test(filename)) {
+    throw new SecurityError(`Access denied: ${requestedPath} is a sensitive file`);
   }
 
   // Symlinks ALWAYS blocked (lstatSync does NOT follow symlinks, unlike statSync)
@@ -138,6 +171,14 @@ export function validatePath(requestedPath: string, projectRoot: string): string
     if (lower.endsWith('/' + blocked) || lower.endsWith('\\' + blocked) || lower === blocked) {
       throw new SecurityError(`Access denied: ${requestedPath} is a sensitive file`);
     }
+  }
+  // Pattern-based blocks: catch all .env variants and key files
+  const filename = lower.split('/').pop() || '';
+  if (/^\.env(\..+)?$/.test(filename) && !/\.(example|sample|template)$/.test(filename)) {
+    throw new SecurityError(`Access denied: ${requestedPath} is a sensitive file`);
+  }
+  if (/^id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$/.test(filename)) {
+    throw new SecurityError(`Access denied: ${requestedPath} is a sensitive file`);
   }
 
   // Check if path exists and is not a symlink (lstatSync does NOT follow symlinks)

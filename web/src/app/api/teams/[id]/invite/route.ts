@@ -4,6 +4,7 @@ import { requireTeamRole } from '@/lib/team-auth';
 import { createNotification } from '@/lib/notifications';
 import { sendTeamInviteEmail } from '@/lib/email';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 import { z } from 'zod';
 
 const inviteSchema = z.object({
@@ -20,6 +21,9 @@ export async function GET(
 
   try {
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
+
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');
     if (!authResult) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -54,6 +58,9 @@ export async function POST(
 
   try {
     const { id } = await params;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
+
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');
     if (!authResult) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -118,12 +125,14 @@ export async function POST(
       acceptUrl,
     ).catch((err) => console.error('Team invite email error:', err));
 
+    // SECURITY: Do not expose the invite token in the API response.
+    // The token is distributed via email only, preventing interception via
+    // browser network logs, proxy logs, or XSS-based API response theft.
     return NextResponse.json({
       invite: {
         id: invite.id,
         email: invite.email,
         role: invite.role,
-        token: invite.token,
         expiresAt: invite.expiresAt.toISOString(),
         createdAt: invite.createdAt.toISOString(),
       },

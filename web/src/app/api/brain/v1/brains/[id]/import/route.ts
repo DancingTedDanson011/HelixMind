@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { deflateSync } from 'zlib';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 export async function POST(
   req: Request,
@@ -12,6 +13,9 @@ export async function POST(
   if (rateLimited) return rateLimited;
 
   const { id } = await params;
+  const invalid = validateId(id);
+  if (invalid) return invalid;
+
   const auth = await requireApiKeyWithPlan(req, 'ENTERPRISE');
   if (!auth) return NextResponse.json({ error: 'Unauthorized or insufficient plan' }, { status: 403 });
 
@@ -27,7 +31,25 @@ export async function POST(
     return NextResponse.json({ error: 'nodes must be an array' }, { status: 400 });
   }
 
+  // SECURITY: Cap node count to prevent memory exhaustion during import
+  const MAX_IMPORT_NODES = 50000;
+  if (nodes.length > MAX_IMPORT_NODES) {
+    return NextResponse.json({ error: `Too many nodes (max ${MAX_IMPORT_NODES})` }, { status: 400 });
+  }
+
+  // Validate edges if provided
+  if (edges !== undefined && !Array.isArray(edges)) {
+    return NextResponse.json({ error: 'edges must be an array' }, { status: 400 });
+  }
+  if (Array.isArray(edges) && edges.length > MAX_IMPORT_NODES * 2) {
+    return NextResponse.json({ error: 'Too many edges' }, { status: 400 });
+  }
+
   const nodesJson = JSON.stringify(nodes);
+  // Cap serialized size to 50MB to prevent OOM
+  if (nodesJson.length > 50 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Import data too large' }, { status: 400 });
+  }
   const compressedNodes = deflateSync(Buffer.from(nodesJson));
   const compressedEdges = edges ? deflateSync(Buffer.from(JSON.stringify(edges))) : null;
   const newVersion = brain.syncVersion + 1;

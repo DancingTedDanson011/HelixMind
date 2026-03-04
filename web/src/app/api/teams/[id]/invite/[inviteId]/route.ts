@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTeamRole } from '@/lib/team-auth';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 
 export async function DELETE(
   req: Request,
@@ -12,6 +13,11 @@ export async function DELETE(
 
   try {
     const { id, inviteId } = await params;
+    const invalidId = validateId(id);
+    if (invalidId) return invalidId;
+    const invalidInviteId = validateId(inviteId, 'inviteId');
+    if (invalidInviteId) return invalidInviteId;
+
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');
     if (!authResult) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

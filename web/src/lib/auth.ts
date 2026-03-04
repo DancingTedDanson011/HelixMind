@@ -28,11 +28,13 @@ const providers: Provider[] = [
       if (!parsed.success) return null;
 
       // Dev-mode fallback: test users when DB is not available (passwords from env vars only)
-      const devUsers = process.env.NODE_ENV !== 'production' ? [
-        { id: 'dev-admin', email: process.env.DEV_ADMIN_EMAIL || 'admin@helixmind.dev', password: process.env.DEV_ADMIN_PASSWORD || '', name: 'Admin', role: 'ADMIN' },
-        { id: 'dev-support', email: process.env.DEV_SUPPORT_EMAIL || 'support@helixmind.dev', password: process.env.DEV_SUPPORT_PASSWORD || '', name: 'Support', role: 'SUPPORT' },
-        { id: 'dev-user', email: process.env.DEV_USER_EMAIL || 'user@helixmind.dev', password: process.env.DEV_USER_PASSWORD || '', name: 'Test User', role: 'USER' },
-      ] : [];
+      // SECURITY: Requires BOTH NODE_ENV=development AND explicit opt-in via ALLOW_DEV_USERS=true
+      const devUsersEnabled = process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_USERS === 'true';
+      const devUsers = devUsersEnabled ? [
+        { id: 'dev-admin', email: process.env.DEV_ADMIN_EMAIL || 'admin@helixmind.dev', passwordHash: process.env.DEV_ADMIN_PASSWORD_HASH || '', name: 'Admin', role: 'ADMIN' },
+        { id: 'dev-support', email: process.env.DEV_SUPPORT_EMAIL || 'support@helixmind.dev', passwordHash: process.env.DEV_SUPPORT_PASSWORD_HASH || '', name: 'Support', role: 'SUPPORT' },
+        { id: 'dev-user', email: process.env.DEV_USER_EMAIL || 'user@helixmind.dev', passwordHash: process.env.DEV_USER_PASSWORD_HASH || '', name: 'Test User', role: 'USER' },
+      ].filter(u => u.passwordHash.length >= 10) : [];
 
       // Try database first
       try {
@@ -50,13 +52,15 @@ const providers: Provider[] = [
         // DB not available — fall through to dev users
       }
 
-      // Dev fallback (only in development)
-      if (process.env.NODE_ENV !== 'production') {
-        const devUser = devUsers.find(
-          (u) => u.email === parsed.data.email && u.password === parsed.data.password,
-        );
-        if (devUser) {
-          return { id: devUser.id, email: devUser.email, name: devUser.name, image: null };
+      // Dev fallback (only in development + explicit opt-in, using bcrypt not plaintext)
+      if (devUsersEnabled) {
+        for (const devUser of devUsers) {
+          if (devUser.email === parsed.data.email) {
+            const isValid = await bcrypt.compare(parsed.data.password, devUser.passwordHash);
+            if (isValid) {
+              return { id: devUser.id, email: devUser.email, name: devUser.name, image: null };
+            }
+          }
         }
       }
 
@@ -107,10 +111,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (adminEmails.includes(user.email!)) {
           token.role = 'ADMIN';
           token.locale = 'en';
-          // Also update DB role if possible
-          try {
-            await prisma.user.update({ where: { id: user.id! }, data: { role: 'ADMIN' } });
-          } catch { /* DB might not be available */ }
+          // SECURITY: Do NOT persist admin role to DB — env-based admin status must remain
+          // revocable by removing the email from ADMIN_EMAILS. Persisting to DB would
+          // grant permanent admin even after the env var is updated.
         } else if (devRoles[user.id!]) {
           token.role = devRoles[user.id!];
           token.locale = 'en';

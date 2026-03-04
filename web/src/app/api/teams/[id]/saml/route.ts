@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTeamRole, requireEnterprisePlan } from '@/lib/team-auth';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { validateId } from '@/lib/validation';
 import { z } from 'zod';
 
 const samlConfigSchema = z.object({
@@ -24,6 +25,8 @@ export async function GET(
   const rateLimited = checkRateLimit(req, 'api/teams/saml', GENERAL_RATE_LIMIT);
   if (rateLimited) return rateLimited;
   const { id: teamId } = await params;
+  const invalid = validateId(teamId);
+  if (invalid) return invalid;
 
   const teamAuth = await requireTeamRole(teamId, 'OWNER', 'ADMIN');
   if (!teamAuth) {
@@ -64,6 +67,8 @@ export async function PUT(
   const rateLimited = checkRateLimit(req, 'api/teams/saml', GENERAL_RATE_LIMIT);
   if (rateLimited) return rateLimited;
   const { id: teamId } = await params;
+  const invalid = validateId(teamId);
+  if (invalid) return invalid;
 
   const teamAuth = await requireTeamRole(teamId, 'OWNER', 'ADMIN');
   if (!teamAuth) {
@@ -110,6 +115,8 @@ export async function DELETE(
   const rateLimited = checkRateLimit(req, 'api/teams/saml', GENERAL_RATE_LIMIT);
   if (rateLimited) return rateLimited;
   const { id: teamId } = await params;
+  const invalid = validateId(teamId);
+  if (invalid) return invalid;
 
   const teamAuth = await requireTeamRole(teamId, 'OWNER');
   if (!teamAuth) {

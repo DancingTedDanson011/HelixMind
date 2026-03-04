@@ -13,7 +13,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.redirect(new URL('/auth/login?error=saml_missing_params', req.url));
     }
 
+    // H6: Validate RelayState is a valid UUID (teamId) to prevent injection/tampering
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(relayState)) {
+      return NextResponse.redirect(new URL('/auth/login?error=saml_invalid_state', req.url));
+    }
+
     const teamId = relayState;
+
+    // Verify team exists before processing SAML assertion
+    const team = await prisma.team.findUnique({ where: { id: teamId }, select: { id: true } });
+    if (!team) {
+      return NextResponse.redirect(new URL('/auth/login?error=saml_invalid_team', req.url));
+    }
 
     // Validate the SAML assertion
     const profile = await validateAssertion(teamId, samlResponse);
@@ -44,16 +56,11 @@ export async function POST(req: NextRequest) {
     });
 
     if (!existingMember) {
-      // Map SAML role to TeamRole (default to MEMBER)
-      let teamRole: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' = 'MEMBER';
-      if (profile.role) {
-        const roleLower = profile.role.toLowerCase();
-        if (roleLower === 'admin') teamRole = 'ADMIN';
-        else if (roleLower === 'viewer' || roleLower === 'readonly') teamRole = 'VIEWER';
-      }
-
+      // SECURITY: JIT-provisioned users always start as MEMBER.
+      // IdP-controlled role attributes are not trusted for privilege assignment.
+      // Team admins must manually promote users via the team management UI.
       await prisma.teamMember.create({
-        data: { teamId, userId: user.id, role: teamRole },
+        data: { teamId, userId: user.id, role: 'MEMBER' },
       });
     }
 
@@ -93,7 +100,8 @@ export async function POST(req: NextRequest) {
     });
 
     return response;
-  } catch {
+  } catch (err) {
+    console.error('[SAML Callback] Error:', err instanceof Error ? err.message : String(err));
     return NextResponse.redirect(new URL('/auth/login?error=saml_error', req.url));
   }
 }

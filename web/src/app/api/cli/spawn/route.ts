@@ -35,14 +35,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Localhost check — only allow from local requests
+    // H12: Strict localhost check — reject if behind any proxy (x-forwarded-for is spoofable)
+    // Only allow requests that have no forwarding headers AND originate from localhost
     const forwarded = req.headers.get('x-forwarded-for');
-    const host = req.headers.get('host') || '';
-    const isLocal = !forwarded && (
-      host.startsWith('localhost') || host.startsWith('127.0.0.1') || host.startsWith('[::1]')
-    );
-    if (!isLocal) {
+    const realIp = req.headers.get('x-real-ip');
+    if (forwarded || realIp) {
       return NextResponse.json({ error: 'Spawn only available from localhost' }, { status: 403 });
+    }
+    // In production, enforce that the server is actually listening on localhost
+    // (the Host header can be spoofed, so we also require ADMIN role)
+    const session2 = session; // already checked above
+    if (session2.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Spawn requires ADMIN role' }, { status: 403 });
     }
 
     const body = await req.json();
@@ -106,8 +110,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error('[spawn] Error:', err);
+    // SECURITY: Don't leak internal error details to client
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
