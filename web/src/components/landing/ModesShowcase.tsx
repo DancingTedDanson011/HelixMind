@@ -97,15 +97,16 @@ function JarvisDemo({ t }: { t: (key: string) => string }) {
 }
 
 function AgentDemo({ t }: { t: (key: string) => string }) {
-  // ASCII art banner (simplified ANSI Shadow style)
-  const bannerLines = [
+  // ASCII art banner as single block (gradient flows across entire banner)
+  const bannerText = [
     '██╗  ██╗███████╗██╗     ██╗██╗  ██╗',
     '██║  ██║██╔════╝██║     ██║╚██╗██╔╝',
     '███████║█████╗  ██║     ██║ ╚███╔╝ ',
     '██╔══██║██╔══╝  ██║     ██║ ██╔██╗ ',
     '██║  ██║███████╗███████╗██║██╔╝ ██╗',
     '╚═╝  ╚═╝╚══════╝╚══════╝╚═╝╚═╝  ╚═╝',
-  ];
+    '  ─── Mind ───',
+  ].join('\n');
 
   const infoLines = [
     { label: 'Provider', value: 'Anthropic', color: '#00d4ff' },
@@ -133,40 +134,23 @@ function AgentDemo({ t }: { t: (key: string) => string }) {
       </div>
 
       <div className="px-4 pt-3 pb-1 space-y-0">
-        {/* ASCII Banner with gradient */}
-        <motion.div
+        {/* ASCII Banner — single block so gradient flows across entire art */}
+        <motion.pre
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="mb-1"
+          className="mb-1 text-[7px] sm:text-[8px] leading-[1.15] font-bold whitespace-pre select-none"
+          style={{
+            background: 'linear-gradient(135deg, #00d4ff 0%, #4169e1 40%, #8a2be2 70%, #c471ed 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            filter: 'saturate(1.3) brightness(1.1)',
+          }}
         >
-          {bannerLines.map((line, i) => (
-            <div
-              key={i}
-              className="text-[7px] sm:text-[8px] leading-[1.1] font-bold whitespace-pre"
-              style={{
-                background: `linear-gradient(90deg, #00d4ff, #4169e1, #8a2be2)`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              {line}
-            </div>
-          ))}
-          <div
-            className="text-[9px] mt-0.5 tracking-[0.3em]"
-            style={{
-              background: `linear-gradient(90deg, #00d4ff, #4169e1, #8a2be2)`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            {'  ─── Mind ───'}
-          </div>
-        </motion.div>
+          {bannerText}
+        </motion.pre>
 
         {/* Info lines */}
         <motion.div
