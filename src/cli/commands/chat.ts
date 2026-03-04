@@ -1777,6 +1777,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       const relayApiKey = config.relay?.apiKey as string | undefined;
       if (relayUrl && relayApiKey) {
         startRelayClient(relayUrl, relayApiKey, controlHandlerImpl, updateMeta).catch(() => {});
+        renderInfo(`  \u{1F310} Relay: ${chalk.dim(relayUrl.replace(/\/api.*/, ''))}`);
+      } else {
+        renderInfo(`  ${chalk.dim('\u{1F310} Web: not connected')} ${chalk.dim('— run')} ${chalk.cyan('hx login')} ${chalk.dim('to link with helix-mind.ai')}`);
       }
     } catch { /* control protocol optional */ }
   }
@@ -2471,6 +2474,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       fullScreenBrowserOpen = true;
       rl.pause();
       chrome.deactivate();
+
+      // CRITICAL: Remove ALL stdin data listeners to prevent readline's internal
+      // handler from buffering keypresses during Rewind navigation. Without this,
+      // arrow key escape sequences leak into readline's line buffer and trigger
+      // phantom slash commands (e.g. /model) when Rewind closes.
+      const savedDataListeners = process.stdin.rawListeners('data').slice();
+      process.stdin.removeAllListeners('data');
+
+      let didRevertWithMessage = false;
       try {
         const browserResult = await runCheckpointBrowser({
           store: checkpointStore,
@@ -2488,13 +2500,28 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           if (browserResult.messageText) {
             (rl as any).line = browserResult.messageText;
             (rl as any).cursor = browserResult.messageText.length;
+            didRevertWithMessage = true;
           }
         }
       } catch {
         // Browser closed unexpectedly
       }
+
+      // Restore all saved stdin data listeners (browser already removed its own)
+      for (const listener of savedDataListeners) {
+        process.stdin.on('data', listener as (...args: any[]) => void);
+      }
+
+      // Clear readline buffer unless a revert populated it with the message text
+      if (!didRevertWithMessage) {
+        (rl as any).line = '';
+        (rl as any).cursor = 0;
+      }
+
       fullScreenBrowserOpen = false;
       chrome.activate();
+      // Drain phantom line events for 500ms (sub-menu shared stdin)
+      drainUntil = Date.now() + 500;
       rl.resume();
       showPrompt();
     }
@@ -2514,6 +2541,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   }
 
   function handleBracketedPaste(text: string): void {
+    // Suppress readline 'line' events from the same paste data — readline also
+    // receives the raw bytes and fires duplicate line events for each \n.
+    drainUntil = Date.now() + 150;
+
     const trimmed = text.trim();
     if (!trimmed) return;
 
@@ -2524,17 +2555,18 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${chalk.cyan(`[${lineCount} Zeilen]`)} ${theme.dim(trimmed.split('\n')[0].slice(0, 50) + (trimmed.split('\n')[0].length > 50 ? '...' : ''))}\n`);
       rl.prompt();
     } else {
+      // Always show preview and wait for confirmation — never auto-send pastes
       const lineCount = trimmed.split('\n').length;
+      const preview = trimmed.split('\n')[0].slice(0, 60);
+      const suffix = trimmed.split('\n')[0].length > 60 ? '...' : '';
       if (lineCount > 1) {
-        // Multi-line paste — show preview and wait for confirmation
-        process.stdout.write(`\x1b[2K\r  ${chalk.cyan(`[${lineCount} Zeilen]`)} ${chalk.dim(trimmed.split('\n')[0].slice(0, 60) + (trimmed.split('\n')[0].length > 60 ? '...' : ''))}\n`);
-        process.stdout.write(`  ${chalk.dim('Enter = senden | Esc = verwerfen')}\n`);
-        pasteBuffer = trimmed.split('\n');
-        rl.prompt();
+        process.stdout.write(`\x1b[2K\r  ${chalk.cyan(`[${lineCount} Zeilen]`)} ${chalk.dim(preview + suffix)}\n`);
       } else {
-        // Single-line paste — send immediately
-        processInput(trimmed);
+        process.stdout.write(`\x1b[2K\r  ${chalk.cyan('[Pasted]')} ${chalk.dim(preview + suffix)}\n`);
       }
+      process.stdout.write(`  ${chalk.dim('Enter = senden | Esc = verwerfen')}\n`);
+      pasteBuffer = trimmed.split('\n');
+      rl.prompt();
     }
   }
 
@@ -3301,10 +3333,22 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         // Phase 2: Show plan for review
         planModeState = 'reviewing';
         fullScreenBrowserOpen = true;
+        rl.pause();
         chrome.deactivate();
+        // Isolate stdin: remove all data listeners to prevent readline buffering
+        const savedPlanListeners = process.stdin.rawListeners('data').slice();
+        process.stdin.removeAllListeners('data');
         const { choice } = await runPlanBrowser(plan);
+        // Restore stdin listeners
+        for (const listener of savedPlanListeners) {
+          process.stdin.on('data', listener as (...args: any[]) => void);
+        }
+        (rl as any).line = '';
+        (rl as any).cursor = 0;
         chrome.activate();
         fullScreenBrowserOpen = false;
+        drainUntil = Date.now() + 500;
+        rl.resume();
 
         if (choice === 'approve' || choice === 'approve_auto') {
           // Phase 3: Execute the plan step by step
@@ -3552,8 +3596,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       chrome.writeAtPromptRow('');
     }
 
-    // Guard: skip phantom line events from sub-readline
-    if (Date.now() < drainUntil) {
+    // Guard: skip phantom line events from sub-readline or bracketed paste
+    if (Date.now() < drainUntil || bracketedPasteActive) {
       showPrompt();
       return;
     }

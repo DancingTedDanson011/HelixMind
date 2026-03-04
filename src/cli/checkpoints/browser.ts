@@ -126,6 +126,15 @@ export function runCheckpointBrowser(options: BrowserOptions): Promise<BrowserRe
     const totalItems = entries.length + 1;
     const maxVisible = Math.min(totalItems, Math.max(6, (process.stdout.rows || 24) - 10));
 
+    // CRITICAL: Save and remove ALL other data/keypress listeners on stdin.
+    // readline.emitKeypressEvents adds a permanent 'data' listener that converts
+    // raw bytes into 'keypress' events consumed by readline. Without removing it,
+    // every keystroke in the browser leaks to readline (history nav, submit, etc.).
+    const savedDataListeners = process.stdin.listeners('data');
+    const savedKeypressListeners = process.stdin.listeners('keypress');
+    process.stdin.removeAllListeners('data');
+    process.stdin.removeAllListeners('keypress');
+
     function render(): void {
       process.stdout.write('\x1b[2J\x1b[H');
 
@@ -274,6 +283,15 @@ export function runCheckpointBrowser(options: BrowserOptions): Promise<BrowserRe
       process.stdin.removeListener('data', handleKey);
       if (process.stdin.isTTY && !wasRaw) {
         process.stdin.setRawMode(false);
+      }
+      // Restore all saved data/keypress listeners that were removed on open.
+      // This gives readline.emitKeypressEvents and readline.Interface back
+      // their event handlers so normal input processing resumes.
+      for (const listener of savedDataListeners) {
+        process.stdin.on('data', listener as (...args: any[]) => void);
+      }
+      for (const listener of savedKeypressListeners) {
+        process.stdin.on('keypress', listener as (...args: any[]) => void);
       }
       process.stdout.write('\x1b[2J\x1b[H');
     }

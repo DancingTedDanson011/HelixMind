@@ -58,6 +58,15 @@ export function runPlanBrowser(plan: ExecutionPlan): Promise<PlanBrowserResult> 
 
     const maxVisible = Math.min(totalItems, Math.max(6, (process.stdout.rows || 24) - 12));
 
+    // CRITICAL: Save and remove ALL other data/keypress listeners on stdin.
+    // readline.emitKeypressEvents adds a permanent 'data' listener that converts
+    // raw bytes into 'keypress' events consumed by readline. Without removing it,
+    // every keystroke in the browser leaks to readline (history nav, submit, etc.).
+    const savedDataListeners = process.stdin.listeners('data');
+    const savedKeypressListeners = process.stdin.listeners('keypress');
+    process.stdin.removeAllListeners('data');
+    process.stdin.removeAllListeners('keypress');
+
     function render(): void {
       const termWidth = Math.max(60, (process.stdout.columns || 80) - 2);
       process.stdout.write('\x1b[2J\x1b[H');
@@ -219,6 +228,15 @@ export function runPlanBrowser(plan: ExecutionPlan): Promise<PlanBrowserResult> 
       process.stdin.removeListener('data', handleKey);
       if (process.stdin.isTTY && !wasRaw) {
         process.stdin.setRawMode(false);
+      }
+      // Restore all saved data/keypress listeners that were removed on open.
+      // This gives readline.emitKeypressEvents and readline.Interface back
+      // their event handlers so normal input processing resumes.
+      for (const listener of savedDataListeners) {
+        process.stdin.on('data', listener as (...args: any[]) => void);
+      }
+      for (const listener of savedKeypressListeners) {
+        process.stdin.on('keypress', listener as (...args: any[]) => void);
       }
       // Clear screen and return to normal
       process.stdout.write('\x1b[2J\x1b[H');
