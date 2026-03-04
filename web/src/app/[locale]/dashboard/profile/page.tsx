@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { ProfileEditor } from '@/components/dashboard/ProfileEditor';
-import { LLMKeySettings } from '@/components/dashboard/LLMKeySettings';
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -33,7 +32,6 @@ export default async function ProfilePage() {
           createdAt: user.createdAt.toISOString(),
         }}
       />
-      <LLMKeySettings />
     </DashboardLayout>
   );
 }

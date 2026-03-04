@@ -1,0 +1,108 @@
+---
+title: Brain API Referenz
+description: REST- und WebSocket-API für programmatischen Zugriff auf HelixMind Brains.
+order: 30
+category: API
+---
+
+# Brain API Referenz
+
+Die HelixMind Brain API bietet programmatischen Zugriff auf deine Spiral-Brains. Nutze sie, um Brain-Nodes aus externen Anwendungen, CI/CD-Pipelines oder eigenen Integrationen zu erstellen, lesen, aktualisieren und zu durchsuchen.
+
+## Authentifizierung
+
+Alle API-Anfragen erfordern einen HelixMind API-Schluessel. Erstelle einen unter **Dashboard > API Keys**.
+
+```
+Authorization: Bearer hm_dein_api_key
+```
+
+API-Schluessel verwenden das Praefix `hm_` und koennen auf bestimmte Operationen beschraenkt werden.
+
+## Basis-URL
+
+```
+https://helix-mind.ai/api/brain/v1
+```
+
+## Endpunkte
+
+### Brains
+
+| Methode | Pfad | Beschreibung |
+|---------|------|-------------|
+| `GET` | `/brains` | Alle Brains des authentifizierten Nutzers auflisten |
+| `POST` | `/brains` | Neues Brain erstellen |
+| `GET` | `/brains/:id` | Brain-Details abrufen |
+| `DELETE` | `/brains/:id` | Brain loeschen |
+
+### Nodes
+
+| Methode | Pfad | Beschreibung |
+|---------|------|-------------|
+| `GET` | `/brains/:id/nodes` | Alle Nodes eines Brains auflisten |
+| `POST` | `/brains/:id/nodes` | Neuen Node erstellen |
+| `GET` | `/brains/:id/nodes/:nid` | Bestimmten Node abrufen |
+| `PATCH` | `/brains/:id/nodes/:nid` | Node aktualisieren |
+| `DELETE` | `/brains/:id/nodes/:nid` | Node loeschen |
+
+### Suche
+
+| Methode | Pfad | Beschreibung |
+|---------|------|-------------|
+| `POST` | `/brains/:id/search` | Semantische Suche ueber Brain-Nodes |
+
+### Import / Export
+
+| Methode | Pfad | Beschreibung |
+|---------|------|-------------|
+| `GET` | `/brains/:id/export` | Brain als JSON exportieren |
+| `POST` | `/brains/:id/import` | Nodes in ein Brain importieren |
+
+### Statistiken
+
+| Methode | Pfad | Beschreibung |
+|---------|------|-------------|
+| `GET` | `/brains/:id/stats` | Brain-Statistiken abrufen (Node-Anzahl, Level, Groesse) |
+
+## Sync API
+
+Die Sync API ermoeglicht der CLI, inkrementelle Aenderungen zu pushen und zu pullen.
+
+| Methode | Pfad | Beschreibung |
+|---------|------|-------------|
+| `POST` | `/sync/push` | Lokale Aenderungen in die Cloud pushen |
+| `GET` | `/sync/pull/:brainId` | Remote-Aenderungen pullen |
+| `GET` | `/sync/status/:brainId` | Sync-Status pruefen |
+
+## WebSocket-Verbindung
+
+Fuer Echtzeit-Brain-Visualisierung und Live-Updates, verbinde per WebSocket:
+
+```
+wss://helix-mind.ai/api/relay/cli?apiKey=hm_dein_key
+```
+
+Das WebSocket-Relay ermoeglicht der CLI, Session-Events, Findings und Brain-Updates in Echtzeit an das Web-Dashboard zu streamen.
+
+## Rate Limits
+
+| Plan | Anfragen/min |
+|------|-------------|
+| Free+ | 30 |
+| Pro | 120 |
+| Team | 300 |
+| Enterprise | Individuell |
+
+## Fehler-Antworten
+
+Alle Fehler folgen einem einheitlichen Format:
+
+```json
+{
+  "error": "Beschreibung des Fehlers",
+  "code": "ERROR_CODE"
+}
+```
+
+Haeufige HTTP-Statuscodes: `401` (nicht autorisiert), `403` (verboten), `404` (nicht gefunden), `429` (Rate-Limit erreicht), `500` (Serverfehler).
