@@ -29,8 +29,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Prisma
-prisma/migrations/
+# Prisma — migrations MUST be committed for production deployments
+# DO NOT ignore prisma/migrations/
 
 # Serwist (generated service worker)
 public/sw*

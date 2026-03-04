@@ -11,6 +11,7 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   transpilePackages: ['three'],
   serverExternalPackages: ['@node-saml/node-saml', 'xml-crypto', 'xml-encryption', '@xmldom/xmldom'],
   outputFileTracingRoot: resolve('.'),
