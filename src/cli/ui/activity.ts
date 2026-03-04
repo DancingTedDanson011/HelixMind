@@ -44,6 +44,9 @@ export class ActivityIndicator {
   private _onMute: (() => void) | null = null;
   private _onUnmute: (() => void) | null = null;
   private _displayName = 'HelixMind';
+  private _planCurrent = 0;
+  private _planTotal = 0;
+  private _planLabel = '';
 
   /** Reference to the shared BottomChrome instance */
   private chrome: BottomChrome | null;
@@ -119,6 +122,20 @@ export class ActivityIndicator {
 
   setError(): void {
     this.errors++;
+  }
+
+  /** Set plan execution progress — shown alongside the step indicator */
+  setPlanProgress(current: number, total: number, label: string): void {
+    this._planCurrent = current;
+    this._planTotal = total;
+    this._planLabel = label;
+  }
+
+  /** Clear plan progress (after plan completes) */
+  clearPlanProgress(): void {
+    this._planCurrent = 0;
+    this._planTotal = 0;
+    this._planLabel = '';
   }
 
   /**
@@ -213,8 +230,15 @@ export class ActivityIndicator {
 
     let line = `${symbol} ${coloredText} working${dots} ${timeStr}`;
 
-    // Step indicator
-    if (this.stepNum > 0) {
+    // Plan progress indicator (takes priority over plain step indicator)
+    if (this._planTotal > 0) {
+      const planColor = this.errors > 0 ? chalk.yellow : chalk.cyan;
+      line += `  ${planColor(`[Plan ${this._planCurrent}/${this._planTotal}]`)}`;
+      if (this._planLabel) {
+        line += ` ${chalk.dim(this._planLabel.slice(0, 40))}`;
+      }
+    } else if (this.stepNum > 0) {
+      // Step indicator (when not in plan mode)
       const stepColor = this.errors > 0 ? chalk.yellow : chalk.dim;
       line += `  ${stepColor(`[Step ${this.stepNum}]`)}`;
       if (this.stepLabel) {

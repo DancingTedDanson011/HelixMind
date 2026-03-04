@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/license/status', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const authResult = await requireApiKeyWithPlan(req);
     if (!authResult) {

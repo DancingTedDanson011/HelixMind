@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { usePathname } from '@/i18n/routing';
-import { Link } from '@/i18n/routing';
+import { Link, type AppHref } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen,
@@ -201,7 +201,7 @@ export function DocsSidebar() {
                         return (
                           <Link
                             key={doc.slug}
-                            href={`/docs/${doc.slug}` as any}
+                            href={`/docs/${doc.slug}` as AppHref}
                             onClick={() => setMobileOpen(false)}
                             className={cn(
                               'block text-[13px] py-1.5 pl-4 pr-3 ml-px rounded-r-lg transition-all duration-150',

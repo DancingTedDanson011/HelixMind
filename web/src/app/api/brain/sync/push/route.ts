@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { deflateSync } from 'zlib';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 const MAX_SNAPSHOTS_PER_BRAIN = 10;
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/brain/sync/push', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const result = await requireApiKeyWithPlan(req, 'PRO', 'TEAM', 'ENTERPRISE');
     if (!result) {

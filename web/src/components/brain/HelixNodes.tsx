@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
-import type { DemoNode } from './brain-demo-data';
+import type { DemoNode } from './brain-types';
 import { LEVEL_SIZES } from '@/lib/constants';
 
 interface HelixNodesProps {

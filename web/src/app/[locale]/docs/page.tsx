@@ -1,7 +1,7 @@
 import { getLocale } from 'next-intl/server';
 import { getAllDocs } from '@/lib/mdx';
 import { GlassPanel } from '@/components/ui/GlassPanel';
-import { Link } from '@/i18n/routing';
+import { Link, type AppHref } from '@/i18n/routing';
 import { BookOpen } from 'lucide-react';
 import { DocsLayout } from '@/components/docs/DocsLayout';
 
@@ -31,7 +31,7 @@ export default async function DocsPage() {
             </h2>
             <div className="grid gap-3">
               {categoryDocs.map((doc) => (
-                <Link key={doc.slug} href={`/docs/${doc.slug}` as any}>
+                <Link key={doc.slug} href={`/docs/${doc.slug}` as AppHref}>
                   <GlassPanel className="p-4 hover:border-primary/20 transition-all cursor-pointer">
                     <div className="flex items-start gap-3">
                       <BookOpen size={18} className="text-primary mt-0.5 flex-shrink-0" />

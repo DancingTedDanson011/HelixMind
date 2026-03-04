@@ -166,7 +166,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   }, []);
   const [mode, setMode] = useState<'normal' | 'skip-permissions' | 'yolo'>('normal');
   const [activeTab, setActiveTab] = useState<'chat' | 'console' | 'monitor' | 'jarvis'>(
-    (initialTab === 'console' || initialTab === 'monitor' || initialTab === 'jarvis') ? initialTab as any : 'chat'
+    (initialTab === 'console' || initialTab === 'monitor' || initialTab === 'jarvis') ? initialTab : 'chat'
   );
   const [consoleSessionId, setConsoleSessionId] = useState<string | null>(initialSession || null);
   const [monitorSessionId, setMonitorSessionId] = useState<string | null>(null);

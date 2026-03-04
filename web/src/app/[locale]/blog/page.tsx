@@ -1,7 +1,7 @@
 import { getLocale } from 'next-intl/server';
 import { getAllBlogPosts } from '@/lib/mdx';
 import { GlassPanel } from '@/components/ui/GlassPanel';
-import { Link } from '@/i18n/routing';
+import { Link, type AppHref } from '@/i18n/routing';
 import { Badge } from '@/components/ui/Badge';
 import { Calendar, PenLine } from 'lucide-react';
 
@@ -19,7 +19,7 @@ export default async function BlogPage() {
 
         <div className="space-y-6">
           {posts.map((post) => (
-            <Link key={post.slug} href={`/blog/${post.slug}` as any}>
+            <Link key={post.slug} href={`/blog/${post.slug}` as AppHref}>
               <GlassPanel className="p-6 hover:border-primary/20 transition-all cursor-pointer group">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="flex items-center gap-1.5 text-xs text-gray-500">

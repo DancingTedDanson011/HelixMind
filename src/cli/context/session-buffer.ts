@@ -66,12 +66,16 @@ export class SessionBuffer {
     });
   }
 
+  /** Optional callback fired when an assistant summary is added */
+  onSummary?: (text: string) => void;
+
   addAssistantSummary(text: string): void {
     this.push({
       type: 'assistant_summary',
       summary: text.length > 500 ? text.slice(0, 500) + '...' : text,
       timestamp: Date.now(),
     });
+    this.onSummary?.(text);
   }
 
   /** Add a decision from agent response */

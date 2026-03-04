@@ -3,7 +3,7 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { DemoNode, DemoEdge } from '../brain-demo-data';
+import type { DemoNode, DemoEdge } from '../brain-types';
 import { computeNebulaPositions } from './NebulaNodes';
 import { LEVEL_COLORS } from '@/lib/constants';
 import { edgeVertexShader, edgeFragmentShader } from './shaders';

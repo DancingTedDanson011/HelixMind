@@ -10,6 +10,24 @@ import type {
   TrustMetrics, IdentityEvent, AutonomyLevel,
 } from './types.js';
 
+/** Lazy import to avoid circular deps — resolved on first use */
+type PushIdentityChangedFn = (trait: string, oldValue: number, newValue: number, reason: string) => void;
+let _pushIdentityChanged: PushIdentityChangedFn | null = null;
+let _pushIdentityChangedResolved = false;
+function getPushIdentityChanged(): PushIdentityChangedFn | null {
+  if (!_pushIdentityChangedResolved) {
+    _pushIdentityChangedResolved = true;
+    try {
+      // Dynamic require to break circular dependency
+      const gen = require('../brain/generator.js');
+      _pushIdentityChanged = gen.pushIdentityChanged ?? null;
+    } catch {
+      _pushIdentityChanged = null;
+    }
+  }
+  return _pushIdentityChanged;
+}
+
 const TRAIT_MIN = 0.0;
 const TRAIT_MAX = 1.0;
 const MAX_RECENT_LEARNINGS = 50;
@@ -138,17 +156,17 @@ export class JarvisIdentityManager {
       case 'proposal_approved':
         trust.totalApproved++;
         trust.totalProposals++;
-        this.adjustTrait('confidence', +0.03);
-        this.adjustTrait('proactivity', +0.02);
+        this.adjustTrait('confidence', +0.03, `Proposal #${event.proposalId} approved`);
+        this.adjustTrait('proactivity', +0.02, `Proposal #${event.proposalId} approved`);
         this.addLearning(`Proposal #${event.proposalId} approved`, 'approval');
         break;
 
       case 'proposal_denied':
         trust.totalDenied++;
         trust.totalProposals++;
-        this.adjustTrait('caution', +0.05);
-        this.adjustTrait('proactivity', -0.02);
-        this.adjustTrait('confidence', -0.02);
+        this.adjustTrait('caution', +0.05, `Proposal #${event.proposalId} denied`);
+        this.adjustTrait('proactivity', -0.02, `Proposal #${event.proposalId} denied`);
+        this.adjustTrait('confidence', -0.02, `Proposal #${event.proposalId} denied`);
         this.addLearning(
           `Proposal #${event.proposalId} denied: ${event.reason}. I should avoid similar proposals.`,
           'denial',
@@ -157,14 +175,14 @@ export class JarvisIdentityManager {
 
       case 'task_completed':
         trust.totalTasksCompleted++;
-        this.adjustTrait('confidence', +0.02);
+        this.adjustTrait('confidence', +0.02, `Task #${event.taskId} completed`);
         this.addLearning(`Task #${event.taskId}: ${event.summary}`, 'success');
         break;
 
       case 'task_failed':
         trust.totalTasksFailed++;
-        this.adjustTrait('caution', +0.03);
-        this.adjustTrait('confidence', -0.03);
+        this.adjustTrait('caution', +0.03, `Task #${event.taskId} failed`);
+        this.adjustTrait('confidence', -0.03, `Task #${event.taskId} failed`);
         this.addLearning(`Task #${event.taskId} failed: ${event.error}`, 'failure');
         break;
 
@@ -176,16 +194,16 @@ export class JarvisIdentityManager {
         });
         this.identity.autonomyLevel = event.newLevel;
         if (event.newLevel > event.oldLevel) {
-          this.adjustTrait('confidence', +0.05);
+          this.adjustTrait('confidence', +0.05, `Autonomy increased: ${event.reason}`);
         } else {
-          this.adjustTrait('caution', +0.05);
-          this.adjustTrait('confidence', -0.05);
+          this.adjustTrait('caution', +0.05, `Autonomy decreased: ${event.reason}`);
+          this.adjustTrait('confidence', -0.05, `Autonomy decreased: ${event.reason}`);
         }
         break;
 
       case 'anomaly_detected':
-        this.adjustTrait('caution', +0.10);
-        this.adjustTrait('proactivity', -0.05);
+        this.adjustTrait('caution', +0.10, `Anomaly: ${event.description}`);
+        this.adjustTrait('proactivity', -0.05, `Anomaly: ${event.description}`);
         this.addLearning(`Anomaly: ${event.description}. Must be more careful.`, 'anomaly');
         break;
 
@@ -196,13 +214,13 @@ export class JarvisIdentityManager {
       case 'sentiment_shift':
         // High frustration → become more empathetic, less verbose
         if (event.frustrationLevel > 0.7) {
-          this.adjustTrait('empathy', +0.03);
-          this.adjustTrait('verbosity', -0.02);
+          this.adjustTrait('empathy', +0.03, 'High user frustration');
+          this.adjustTrait('verbosity', -0.02, 'High user frustration');
         }
         // Recovery: satisfied after frustrated → empathy + confidence boost
         if (event.to === 'satisfied' && event.from === 'frustrated') {
-          this.adjustTrait('empathy', +0.05);
-          this.adjustTrait('confidence', +0.02);
+          this.adjustTrait('empathy', +0.05, 'User mood recovered');
+          this.adjustTrait('confidence', +0.02, 'User mood recovered');
         }
         this.addLearning(
           `Sentiment shift: ${event.from} → ${event.to} (frustration: ${(event.frustrationLevel * 100).toFixed(0)}%)`,
@@ -374,9 +392,17 @@ Denial is feedback — use it to make better proposals.`;
 
   // ─── Internal ───────────────────────────────────────────────────────
 
-  private adjustTrait(trait: keyof IdentityTraits, delta: number): void {
-    const current = this.identity.traits[trait];
-    this.identity.traits[trait] = Math.max(TRAIT_MIN, Math.min(TRAIT_MAX, current + delta));
+  private adjustTrait(trait: keyof IdentityTraits, delta: number, reason?: string): void {
+    const oldValue = this.identity.traits[trait];
+    const newValue = Math.max(TRAIT_MIN, Math.min(TRAIT_MAX, oldValue + delta));
+    this.identity.traits[trait] = newValue;
+    // Push identity_changed event to brain clients if value actually changed
+    if (oldValue !== newValue) {
+      const push = getPushIdentityChanged();
+      if (push) {
+        push(trait, oldValue, newValue, reason ?? `${delta > 0 ? '+' : ''}${delta.toFixed(2)}`);
+      }
+    }
   }
 
   private addLearning(content: string, source: string): void {

@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireTeamRole, requireEnterprisePlan } from '@/lib/team-auth';
 import { buildAuthnRequestUrl, getSamlInstance } from '@/lib/saml-provider';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 // POST — test SAML config by verifying it exists and building an auth request URL
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/teams/saml/test', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
   const { id: teamId } = await params;
 
   const teamAuth = await requireTeamRole(teamId, 'OWNER', 'ADMIN');

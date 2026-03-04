@@ -10,6 +10,8 @@ import { getTool, getAllToolDefinitions, type ToolContext } from './tools/regist
 import { PermissionManager } from './permissions.js';
 import { validatePathEx } from './sandbox.js';
 import { renderToolCall, renderToolResult, renderToolDenied, resetToolCounter, renderToolBlockStart, renderToolBlockEnd } from '../ui/tool-output.js';
+import type { AgentIdentity } from './plan-types.js';
+import { PLAN_MODE_TOOLS } from './plan-types.js';
 import { renderAssistantEnd } from '../ui/chat-view.js';
 import type { CheckpointStore } from '../checkpoints/store.js';
 import { captureFileSnapshots, fillSnapshotAfter } from '../checkpoints/revert.js';
@@ -71,6 +73,10 @@ export interface AgentLoopOptions {
   /** Called when a tool call is about to execute — used by web chat to stream tool details */
   onToolCallDetail?: (stepNum: number, name: string, input: Record<string, unknown>) => void;
   maxIterations?: number;
+  /** When true, only read-only tools are sent to the LLM */
+  planMode?: boolean;
+  /** Agent identity for colored @name display in tool blocks */
+  agentIdentity?: AgentIdentity;
 }
 
 export interface AgentLoopResult {
@@ -115,8 +121,13 @@ export async function runAgentLoop(
     onToolCallDetail,
     maxIterations = 200,
   } = options;
+  const { planMode, agentIdentity } = options;
 
-  const tools = getAllToolDefinitions();
+  // In plan mode, filter to read-only tools only
+  const allTools = getAllToolDefinitions();
+  const tools = planMode
+    ? allTools.filter(t => PLAN_MODE_TOOLS.has(t.name))
+    : allTools;
   resetToolCounter();
   const messages: ToolMessage[] = [...conversationHistory];
 
@@ -246,7 +257,7 @@ export async function runAgentLoop(
     if (toolUseBlocks.length > 0) {
       // Start visual tool block on first tool execution
       if (!toolBlockStarted) {
-        renderToolBlockStart();
+        renderToolBlockStart(agentIdentity);
         toolBlockStarted = true;
         toolBlockStartTime = Date.now();
       }
@@ -272,7 +283,7 @@ export async function runAgentLoop(
         onStepStart?.(stepNum, block.name, stepLabel);
         sessionBuffer?.addToolCall(block.name, block.input);
 
-        renderToolCall(block.name, block.input);
+        renderToolCall(block.name, block.input, agentIdentity);
 
         // Check permission
         const allowed = await permissions.check(

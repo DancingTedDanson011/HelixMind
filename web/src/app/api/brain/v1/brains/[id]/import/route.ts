@@ -2,11 +2,15 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { deflateSync } from 'zlib';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/brain/v1/import', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   const { id } = await params;
   const auth = await requireApiKeyWithPlan(req, 'ENTERPRISE');
   if (!auth) return NextResponse.json({ error: 'Unauthorized or insufficient plan' }, { status: 403 });

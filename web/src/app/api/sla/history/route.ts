@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/sla/history', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     // Last 12 months of SLA reports
     const reports = await prisma.slaReport.findMany({

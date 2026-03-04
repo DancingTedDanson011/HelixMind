@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { encryptApiKey } from '@/lib/crypto';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 // GET — list user's LLM keys (provider + hint only, never the real key)
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/user/llm-keys', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -20,6 +23,8 @@ export async function GET() {
 
 // POST — save/update LLM key
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/user/llm-keys', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -60,6 +65,8 @@ export async function POST(req: Request) {
 
 // DELETE — remove LLM key by provider
 export async function DELETE(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/user/llm-keys', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

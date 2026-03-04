@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 // Fallback prices if PlanConfig is not seeded
 const DEFAULT_PRICES = {
@@ -8,7 +9,10 @@ const DEFAULT_PRICES = {
   TEAM: { monthly: 39, yearly: 390 },
 };
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/admin/stats', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id || session.user.role !== 'ADMIN') {

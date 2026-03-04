@@ -6,7 +6,7 @@ import {
   Send, Square, ChevronDown, Shield, ShieldOff,
   Zap, Eye, ShieldAlert, Key, ArrowRight, Terminal, Bot, Paperclip,
 } from 'lucide-react';
-import { Link } from '@/i18n/routing';
+import { Link, type AppHref } from '@/i18n/routing';
 import { SlashCommandMenu } from './SlashCommandMenu';
 import { FileAttachmentPill } from './FileAttachment';
 import type { FileInfo } from './FileAttachment';
@@ -476,7 +476,7 @@ export const ChatInput = memo(function ChatInput({
         {!hasLLMKey && (
           <div className="mt-1.5 text-[10px] text-gray-500 flex items-center gap-1 px-3">
             <Key size={9} className="text-cyan-500/50" />
-            <Link href={'/dashboard/api-keys' as any} className="text-cyan-500/70 hover:text-cyan-400 underline underline-offset-2 transition-colors">
+            <Link href={'/dashboard/api-keys' as AppHref} className="text-cyan-500/70 hover:text-cyan-400 underline underline-offset-2 transition-colors">
               {t('noApiKeyLink')}
             </Link>
             <span className="text-gray-600">{t('noApiKeyText')}</span>

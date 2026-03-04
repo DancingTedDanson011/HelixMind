@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateApiKey } from '@/lib/relay-auth';
 import { plans } from '@/lib/constants';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import type { Plan } from '@prisma/client';
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/brain/create', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const authHeader = req.headers.get('authorization');
     const apiKey = authHeader?.replace(/^Bearer\s+/i, '');

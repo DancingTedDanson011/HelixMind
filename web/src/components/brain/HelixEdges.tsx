@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
-import type { DemoNode, DemoEdge } from './brain-demo-data';
+import type { DemoNode, DemoEdge } from './brain-types';
 import { FORCE_LAYOUT } from '@/lib/constants';
 
 interface HelixEdgesProps {

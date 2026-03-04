@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/license/validate', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await req.json();
     const { licenseKey } = body;

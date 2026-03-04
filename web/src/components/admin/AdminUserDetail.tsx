@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
+import { getPlanBadgeVariant } from '@/lib/plan-utils';
 import { Button } from '@/components/ui/Button';
 import {
   ArrowLeft, Activity, Monitor, Key, Ticket,
@@ -49,12 +50,7 @@ const roleBadgeVariant: Record<string, 'default' | 'error' | 'warning' | 'primar
   SUPPORT: 'warning',
 };
 
-const planBadgeVariant: Record<string, 'default' | 'primary' | 'spiral' | 'warning'> = {
-  FREE: 'default',
-  PRO: 'primary',
-  TEAM: 'spiral',
-  ENTERPRISE: 'warning',
-};
+
 
 const statusBadgeVariant: Record<string, 'default' | 'primary' | 'success' | 'warning'> = {
   OPEN: 'primary',
@@ -210,7 +206,7 @@ export function AdminUserDetail({ userId, userRole, onBack }: AdminUserDetailPro
                 ) : (
                   <>
                     <Badge variant={roleBadgeVariant[user.role] || 'default'}>{user.role}</Badge>
-                    <Badge variant={planBadgeVariant[plan] || 'default'}>{plan}</Badge>
+                    <Badge variant={getPlanBadgeVariant(plan)}>{plan}</Badge>
                   </>
                 )}
                 <span className="text-xs text-gray-600 flex items-center gap-1">

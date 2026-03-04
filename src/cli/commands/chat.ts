@@ -73,6 +73,11 @@ import { getValidationModelConfig, createValidationProvider } from '../validatio
 import { renderValidationSummary, renderValidationStart, renderClassification, renderValidationOneLine } from '../validation/reporter.js';
 import { storeValidationResult, getValidationStats, renderValidationStats } from '../validation/stats.js';
 import { isFeatureAvailable, getLoginCTA, getJarvisLimitsForPlan, getBrainLimitsForPlan, isLoggedIn, type Feature } from '../auth/feature-gate.js';
+import { PlanEngine } from '../agent/plan-engine.js';
+import { executePlan } from '../agent/plan-executor.js';
+import { renderPlanReview, showPlanApprovalMenu, renderPlanStepStart, renderPlanStepEnd, renderPlanComplete } from '../ui/plan-display.js';
+import { AGENT_IDENTITIES, type PlanModeState } from '../agent/plan-types.js';
+import type { PlanInfo, PlanStepInfo } from '@helixmind/protocol';
 import chalk from 'chalk';
 
 interface ChatOptions {
@@ -97,6 +102,10 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/keys', label: '/keys', description: 'Manage API keys' },
       { cmd: '/yolo', label: '/yolo', description: 'Toggle YOLO mode' },
       { cmd: '/skip-permissions', label: '/skip-permissions', description: 'Toggle skip-permissions' },
+      { cmd: '/plan', label: '/plan', description: 'Toggle plan mode (read-only → plan → execute)' },
+      { cmd: '/plan on', label: '/plan on', description: 'Enable plan mode' },
+      { cmd: '/plan off', label: '/plan off', description: 'Disable plan mode' },
+      { cmd: '/plan show', label: '/plan show', description: 'Show current plan' },
     ],
   },
   {
@@ -386,6 +395,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   const permissions = new PermissionManager();
   if (options.yolo) permissions.setYolo(true);
   if (options.skipPermissions) permissions.setSkipPermissions(true);
+
+  // Plan mode state
+  let planModeState: PlanModeState = 'off';
+  const planEngine = new PlanEngine();
 
   // Undo stack
   const undoStack = new UndoStack();
@@ -783,8 +796,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       sendMessage: async (prompt) => {
         bgSession.controller.reset();
         const rth = { text: '' };
-        const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
-        bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+        bgSession.buffer.onSummary = (t) => { rth.text = t; };
         await sendAgentMessage(
           prompt, bgSession.history, provider, project, spiralEngine, config,
           permissions, bgSession.undoStack, checkpointStore,
@@ -793,7 +805,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           () => { sessionToolCalls++; },
           undefined, { enabled: false, verbose: false, strict: false },
         );
-        bgSession.buffer.addAssistantSummary = orig;
+        bgSession.buffer.onSummary = undefined;
         return rth.text;
       },
       isAborted: () => bgSession.controller.isAborted,
@@ -983,30 +995,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Wire main session output so web clients can subscribe to 'main'
       wireSessionOutput(sessionMgr.main);
 
-      // Hook stdout to capture main session output for web streaming
-      const _origWrite = process.stdout.write.bind(process.stdout);
-      let _mainBuf = '';
-      // Statusbar patterns to filter out (these are redrawn 60x/sec and are noise)
-      const _statusbarRe = /L\d+:\d+\s+L\d+:\d+|safe permissions|shift\+tab to cycle|esc to interrupt|FREE_PLUS|FREE_BASE|\d+\/\d+\.?\d*k tk|\d+ ckpts/;
-      process.stdout.write = function(chunk: any, encoding?: any, callback?: any) {
-        const text = typeof chunk === 'string' ? chunk : chunk.toString();
-        _mainBuf += text;
-        let ni;
-        while ((ni = _mainBuf.indexOf('\n')) !== -1) {
-          const line = _mainBuf.slice(0, ni);
-          _mainBuf = _mainBuf.slice(ni + 1);
-          // Strip all ANSI sequences (colors, cursor movement, etc.)
-          const stripped = line.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').trim();
-          // Skip empty lines, statusbar redraws, and prompt-only lines
-          if (stripped.length > 0 && !_statusbarRe.test(stripped) && stripped !== '›' && stripped !== '>') {
-            sessionMgr.main.capture(line);
-          }
-        }
-        return _origWrite(chunk, encoding, callback);
-      } as typeof process.stdout.write;
+      // Capture main session stdout output for web streaming
+      const stdoutCapture = new (await import('../brain/stdout-capture.js')).StdoutCapture(sessionMgr.main);
+      stdoutCapture.start();
 
       // Register control handlers
-      registerControlHandlers({
+      const controlHandlerImpl: import('../brain/control-protocol.js').ControlHandlers = {
         listSessions: () => sessionMgr.all.map(serializeSession),
 
         startAuto: (goal?) => {
@@ -1025,11 +1019,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 sendMessage: async (prompt) => {
                   bgSession.controller.reset();
                   const resultTextHolder = { text: '' };
-                  const origAddSummary = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
-                  bgSession.buffer.addAssistantSummary = (t: string) => {
-                    resultTextHolder.text = t;
-                    origAddSummary(t);
-                  };
+                  bgSession.buffer.onSummary = (t) => { resultTextHolder.text = t; };
                   await sendAgentMessage(
                     prompt, bgSession.history, provider, project, spiralEngine, config,
                     permissions, bgSession.undoStack, checkpointStore,
@@ -1039,7 +1029,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     undefined,
                     { enabled: false, verbose: false, strict: false },
                   );
-                  bgSession.buffer.addAssistantSummary = origAddSummary;
+                  bgSession.buffer.onSummary = undefined;
                   return resultTextHolder.text;
                 },
                 isAborted: () => !autonomousMode || bgSession.controller.isAborted,
@@ -1195,8 +1185,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 sendMessage: async (prompt) => {
                   bgSession.controller.reset();
                   const rth = { text: '' };
-                  const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
-                  bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+                  bgSession.buffer.onSummary = (t) => { rth.text = t; };
                   await sendAgentMessage(
                     prompt, bgSession.history, provider, project, spiralEngine, config,
                     permissions, bgSession.undoStack, checkpointStore,
@@ -1205,7 +1194,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     () => { sessionToolCalls++; },
                     undefined, { enabled: false, verbose: false, strict: false },
                   );
-                  bgSession.buffer.addAssistantSummary = orig;
+                  bgSession.buffer.onSummary = undefined;
                   return rth.text;
                 },
                 isAborted: () => bgSession.controller.isAborted,
@@ -1225,8 +1214,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 sendMessage: async (prompt) => {
                   bgSession.controller.reset();
                   const rth = { text: '' };
-                  const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
-                  bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+                  bgSession.buffer.onSummary = (t) => { rth.text = t; };
                   await sendAgentMessage(
                     prompt, bgSession.history, provider, project, spiralEngine, config,
                     permissions, bgSession.undoStack, checkpointStore,
@@ -1235,7 +1223,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     () => { sessionToolCalls++; },
                     undefined, { enabled: false, verbose: false, strict: false },
                   );
-                  bgSession.buffer.addAssistantSummary = orig;
+                  bgSession.buffer.onSummary = undefined;
                   return rth.text;
                 },
                 isAborted: () => bgSession.controller.isAborted,
@@ -1331,8 +1319,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 sendMessage: async (prompt) => {
                   bgSession.controller.reset();
                   const rth = { text: '' };
-                  const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
-                  bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+                  bgSession.buffer.onSummary = (t) => { rth.text = t; };
                   await sendAgentMessage(
                     prompt, bgSession.history, provider, project, spiralEngine, config,
                     permissions, bgSession.undoStack, checkpointStore,
@@ -1341,7 +1328,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     () => { sessionToolCalls++; },
                     undefined, { enabled: false, verbose: false, strict: false },
                   );
-                  bgSession.buffer.addAssistantSummary = orig;
+                  bgSession.buffer.onSummary = undefined;
                   return rth.text;
                 },
                 isAborted: () => bgSession.controller.isAborted,
@@ -1459,7 +1446,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         listProjects: () => [],
         registerProject: () => null,
         getWorkers: () => [],
-        getConfig: () => ({ provider: config.provider, apiKey: config.apiKey, model: config.model }),
+        getConfig: () => ({ provider: config.provider, apiKey: config.apiKey ? config.apiKey.slice(0, 4) + '****' : '', model: config.model }),
         switchModel: (newProvider: string, newModel: string) => {
           try {
             provider = createProvider(newProvider, config.apiKey, newModel, config.providers?.[newProvider]?.baseURL);
@@ -1545,6 +1532,88 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           checkpointStore.truncateAfter(id);
           return { filesReverted, messagesRemoved };
         },
+        // Plan Mode
+        getActivePlan: (): PlanInfo | null => {
+          const active = planEngine.getActive();
+          if (!active) return null;
+          return {
+            id: active.id,
+            title: active.title,
+            description: active.description,
+            steps: active.steps.map(s => ({
+              id: s.id, title: s.title, description: s.description,
+              tools: s.tools, affectedFiles: s.affectedFiles, dependencies: s.dependencies,
+              status: s.status, result: s.result, error: s.error,
+              startedAt: s.startedAt, completedAt: s.completedAt,
+            })),
+            status: active.status,
+            source: active.source,
+            createdAt: active.createdAt,
+            approvedAt: active.approvedAt,
+            completedAt: active.completedAt,
+            rejectionReason: active.rejectionReason,
+            totalStepsCompleted: active.totalStepsCompleted,
+            totalStepsFailed: active.totalStepsFailed,
+            proposalId: active.proposalId,
+          };
+        },
+        approvePlan: (planId: string): boolean => {
+          const plan = planEngine.approve(planId);
+          return !!plan;
+        },
+        rejectPlan: (planId: string, reason: string): boolean => {
+          const plan = planEngine.reject(planId, reason);
+          return !!plan;
+        },
+        setPlanMode: (enabled: boolean): boolean => {
+          if (enabled) {
+            planModeState = 'planning';
+            permissions.setPlanMode(true);
+          } else {
+            planModeState = 'off';
+            permissions.setPlanMode(false);
+          }
+          updateStatusBar();
+          return true;
+        },
+      };
+      registerControlHandlers(controlHandlerImpl);
+
+      // Wire plan engine change events to brain server
+      planEngine.setOnChange(async (event, plan) => {
+        const { pushPlanCreated, pushPlanUpdated } = await import('../brain/generator.js');
+        const planInfo: PlanInfo = {
+          id: plan.id,
+          title: plan.title,
+          description: plan.description,
+          steps: plan.steps.map(s => ({
+            id: s.id,
+            title: s.title,
+            description: s.description,
+            tools: s.tools,
+            affectedFiles: s.affectedFiles,
+            dependencies: s.dependencies,
+            status: s.status,
+            result: s.result,
+            error: s.error,
+            startedAt: s.startedAt,
+            completedAt: s.completedAt,
+          })),
+          status: plan.status,
+          source: plan.source,
+          createdAt: plan.createdAt,
+          approvedAt: plan.approvedAt,
+          completedAt: plan.completedAt,
+          rejectionReason: plan.rejectionReason,
+          totalStepsCompleted: plan.totalStepsCompleted,
+          totalStepsFailed: plan.totalStepsFailed,
+          proposalId: plan.proposalId,
+        };
+        if (event === 'plan_created') {
+          pushPlanCreated(planInfo);
+        } else {
+          pushPlanUpdated(planInfo);
+        }
       });
 
       // Wire bug journal change events to brain server
@@ -1626,175 +1695,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         renderInfo(`  \u{1F511} Brain token: ${chalk.dim(token.slice(-4))} ${chalk.dim('(full token in /brain)')}`);
       }
 
-      // Start relay client if configured
+      // Start relay client if configured — reuses the same controlHandlerImpl
       const relayUrl = config.relay?.url as string | undefined;
       const relayApiKey = config.relay?.apiKey as string | undefined;
       if (relayUrl && relayApiKey) {
-        startRelayClient(relayUrl, relayApiKey, {
-          listSessions: () => sessionMgr.all.map(serializeSession),
-          startAuto: (goal?) => { /* relay delegates to local handlers — already registered */ return ''; },
-          startSecurity: () => '',
-          abortSession: (id) => { sessionMgr.abort(id); return true; },
-          sendChat: (text, chatId, mode, files) => {
-            const effectiveChatId = chatId || `relay-${Date.now()}`;
-            // Write uploaded files
-            let enrichedText = text;
-            if (files && files.length > 0) {
-              const uploadsDir = join(process.cwd(), '.helixmind', 'uploads');
-              try { mkdirSync(uploadsDir, { recursive: true }); } catch { /* exists */ }
-              const filePaths: string[] = [];
-              for (const f of files.slice(0, 3)) {
-                if (f.sizeBytes > 5 * 1024 * 1024) continue;
-                try {
-                  const dest = join(uploadsDir, `${Date.now()}-${f.name}`);
-                  writeFileSync(dest, Buffer.from(f.dataBase64, 'base64'));
-                  filePaths.push(dest);
-                } catch { /* skip */ }
-              }
-              if (filePaths.length > 0) {
-                enrichedText += '\n\nAttached files:\n' + filePaths.map(p => `- ${p}`).join('\n');
-              }
-            }
-            import('../brain/web-chat-handler.js').then(({ handleWebChat }) => {
-              handleWebChat(enrichedText, effectiveChatId, {
-                provider, spiralEngine, project, config, checkpointStore, bugJournal,
-              }, {
-                onStarted: (cid) => { pushControlEvent({ type: 'chat_started', chatId: cid, timestamp: Date.now() }); },
-                onTextChunk: (cid, chunk) => { pushControlEvent({ type: 'chat_text_chunk', chatId: cid, text: chunk, timestamp: Date.now() }); },
-                onToolStart: (cid, sn, tn, ti) => { pushControlEvent({ type: 'chat_tool_start', chatId: cid, stepNum: sn, toolName: tn, toolInput: ti, timestamp: Date.now() }); },
-                onToolEnd: (cid, sn, tn, st, r) => { pushControlEvent({ type: 'chat_tool_end', chatId: cid, stepNum: sn, toolName: tn, status: st, result: r, timestamp: Date.now() }); },
-                onComplete: (cid, ft, s, tu) => { pushControlEvent({ type: 'chat_complete', chatId: cid, text: ft, steps: s, tokensUsed: tu, timestamp: Date.now() }); },
-                onError: (cid, e) => { pushControlEvent({ type: 'chat_error', chatId: cid, error: e, timestamp: Date.now() }); },
-              }).catch((err) => {
-                pushControlEvent({ type: 'chat_error', chatId: effectiveChatId, error: err?.message || 'Unknown error', timestamp: Date.now() });
-              });
-            }).catch(() => {});
-          },
-          startMonitor: () => '',
-          stopMonitor: () => false,
-          handleMonitorCommand: () => {},
-          handleApprovalResponse: () => {},
-          handleToolPermissionResponse: (requestId: string, approved: boolean, mode?: 'once' | 'session' | 'yolo') => {
-            permissions.resolveRemote(requestId, approved, 'user', mode);
-          },
-          getFindings: () => [...collectedFindings],
-          getBugs: () => bugJournal.getAllBugs().map(b => ({
-            id: b.id, description: b.description, file: b.file, line: b.line,
-            status: b.status, createdAt: b.createdAt, updatedAt: b.updatedAt,
-            fixedAt: b.fixedAt, fixDescription: b.fixDescription,
-          })),
-          startJarvis: () => '',
-          stopJarvis: () => false,
-          pauseJarvis: () => false,
-          resumeJarvis: () => false,
-          addJarvisTask: () => ({ id: 0, title: '', description: '', status: 'pending' as const, priority: 'medium' as const, createdAt: Date.now(), updatedAt: Date.now(), retries: 0, maxRetries: 3, tags: [] }),
-          listJarvisTasks: () => [],
-        deleteJarvisTask: () => false,
-        getJarvisStatus: () => ({ daemonState: 'stopped' as const, currentTaskId: null, pendingCount: 0, completedCount: 0, failedCount: 0, totalCount: 0, uptimeMs: 0 }),
-          clearJarvisCompleted: () => {},
-          // Jarvis AGI stubs (relay fallback)
-          listProposals: () => [],
-          approveProposal: () => false,
-          denyProposal: () => false,
-          setAutonomyLevel: (level: number) => {
-            if (level < 0 || level > 5) return false;
-            jarvisAutonomy.setLevel(level as import('../jarvis/types.js').AutonomyLevel);
-            jarvisIdentity.setAutonomyLevel(level as import('../jarvis/types.js').AutonomyLevel);
-            return true;
-          },
-          getIdentity: () => null,
-          triggerDeepThink: () => {},
-          addSchedule: () => null,
-          removeSchedule: () => false,
-          listSchedules: () => [],
-          addTrigger: () => null,
-          removeTrigger: () => false,
-          listTriggers: () => [],
-          listProjects: () => [],
-          registerProject: () => null,
-          getWorkers: () => [],
-          getConfig: () => ({ provider: config.provider, apiKey: config.apiKey, model: config.model }),
-          switchModel: (newProvider: string, newModel: string) => {
-            try {
-              provider = createProvider(newProvider, config.apiKey, newModel, config.providers?.[newProvider]?.baseURL);
-              config = { ...config, provider: newProvider, model: newModel };
-              return true;
-            } catch { return false; }
-          },
-        getBrainList: () => {
-          if (!brainManager) return { brains: [], limits: { maxGlobal: Infinity, maxLocal: Infinity, maxActive: Infinity } };
-          return { brains: brainManager.getAll(), limits: brainManager.getLimits() };
-        },
-        renameBrain: (id: string, name: string) => {
-          if (!brainManager) return false;
-          try { brainManager.rename(id, name); return true; } catch { return false; }
-        },
-        switchBrain: (id: string) => {
-          if (!brainManager) return false;
-          return brainManager.activate(id);
-        },
-        createBrain: (name: string, brainType: 'global' | 'local', projectPath?: string) => {
-          if (!brainManager) return null;
-          const brainPath = brainType === 'global'
-            ? join(homedir(), '.spiral-context')
-            : join(projectPath ?? process.cwd(), '.helixmind');
-          const brain = brainManager.register({ name, type: brainType, path: brainPath, projectPath });
-          if (!brainManager.activate(brain.id)) return null;
-          return brain;
-        },
-        getStatusBar: () => {
-          const data = getStatusBarData();
-          return {
-            spiral: data.spiral,
-            tokens: { thisMessage: data.tokens.thisMessage, thisSession: data.tokens.thisSession, sessionTotal: data.sessionTokens },
-            tools: data.tools,
-            model: data.model,
-            git: data.git,
-            checkpoints: data.checkpoints ?? 0,
-            permissionMode: data.permissionMode === 'yolo' ? 'yolo' as const
-              : data.permissionMode === 'skip' ? 'skip' as const : 'safe' as const,
-            autonomous: data.autonomous ?? false,
-            paused: data.paused ?? false,
-          };
-        },
-        listCheckpoints: () => {
-          return checkpointStore.getAll().map(cp => ({
-            id: cp.id,
-            timestamp: cp.timestamp.getTime(),
-            type: cp.type,
-            label: cp.label,
-            messageIndex: cp.messageIndex,
-            hasFileSnapshots: (cp.fileSnapshots?.length ?? 0) > 0,
-            fileCount: cp.fileSnapshots?.length ?? 0,
-            toolName: cp.toolName,
-          }));
-        },
-        revertToCheckpoint: (id: number, mode: 'chat' | 'code' | 'both') => {
-          const cp = checkpointStore.get(id);
-          if (!cp) return { filesReverted: 0, messagesRemoved: 0 };
-          let filesReverted = 0;
-          let messagesRemoved = 0;
-          if (mode === 'code' || mode === 'both') {
-            for (const snap of cp.fileSnapshots ?? []) {
-              if (snap.contentBefore === null) continue;
-              try {
-                const { writeFileSync, mkdirSync } = require('fs');
-                const { dirname } = require('path');
-                mkdirSync(dirname(snap.path), { recursive: true });
-                writeFileSync(snap.path, snap.contentBefore, 'utf-8');
-                filesReverted++;
-              } catch { /* skip */ }
-            }
-          }
-          if (mode === 'chat' || mode === 'both') {
-            const beforeLen = agentHistory.length;
-            agentHistory.splice(cp.messageIndex);
-            messagesRemoved = beforeLen - agentHistory.length;
-          }
-          checkpointStore.truncateAfter(id);
-          return { filesReverted, messagesRemoved };
-        },
-        }, updateMeta).catch(() => {});
+        startRelayClient(relayUrl, relayApiKey, controlHandlerImpl, updateMeta).catch(() => {});
       }
     } catch { /* control protocol optional */ }
   }
@@ -1934,6 +1839,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       git,
       checkpoints: checkpointStore.count,
       permissionMode: permissions.getModeLabel(),
+      planMode: planModeState !== 'off',
       autonomous: autonomousMode,
       paused: agentController.isPaused,
       plan: (store.get('relay.plan') as string | undefined) ?? undefined,
@@ -2715,11 +2621,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   sendMessage: async (prompt) => {
                     bgSession.controller.reset();
                     const resultTextHolder = { text: '' };
-                    const origAddSummary = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
-                    bgSession.buffer.addAssistantSummary = (t: string) => {
-                      resultTextHolder.text = t;
-                      origAddSummary(t);
-                    };
+                    bgSession.buffer.onSummary = (t) => { resultTextHolder.text = t; };
                     await sendAgentMessage(
                       prompt, bgSession.history, provider, project, spiralEngine, config,
                       permissions, bgSession.undoStack, checkpointStore,
@@ -2729,7 +2631,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                       undefined,
                       { enabled: false, verbose: false, strict: false },
                     );
-                    bgSession.buffer.addAssistantSummary = origAddSummary;
+                    bgSession.buffer.onSummary = undefined;
                     return resultTextHolder.text;
                   },
                   isAborted: () => bgSession.controller.isAborted,
@@ -2755,11 +2657,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   sendMessage: async (prompt) => {
                     bgSession.controller.reset();
                     const resultTextHolder = { text: '' };
-                    const origAddSummary = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
-                    bgSession.buffer.addAssistantSummary = (t: string) => {
-                      resultTextHolder.text = t;
-                      origAddSummary(t);
-                    };
+                    bgSession.buffer.onSummary = (t) => { resultTextHolder.text = t; };
                     await sendAgentMessage(
                       prompt, bgSession.history, provider, project, spiralEngine, config,
                       permissions, bgSession.undoStack, checkpointStore,
@@ -2769,7 +2667,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                       undefined,
                       { enabled: false, verbose: false, strict: false },
                     );
-                    bgSession.buffer.addAssistantSummary = origAddSummary;
+                    bgSession.buffer.onSummary = undefined;
                     return resultTextHolder.text;
                   },
                   isAborted: () => bgSession.controller.isAborted,
@@ -2845,11 +2743,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     bgSession.controller.reset();
 
                     const resultTextHolder = { text: '' };
-                    const origAddSummary = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
-                    bgSession.buffer.addAssistantSummary = (t: string) => {
-                      resultTextHolder.text = t;
-                      origAddSummary(t);
-                    };
+                    bgSession.buffer.onSummary = (t) => { resultTextHolder.text = t; };
 
                     await sendAgentMessage(
                       prompt, bgSession.history, provider, project, spiralEngine, config,
@@ -2861,7 +2755,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                       { enabled: false, verbose: false, strict: false },
                     );
 
-                    bgSession.buffer.addAssistantSummary = origAddSummary;
+                    bgSession.buffer.onSummary = undefined;
                     return resultTextHolder.text;
                   },
                   isAborted: () => !autonomousMode || bgSession.controller.isAborted,
@@ -2984,8 +2878,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   sendMessage: async (prompt) => {
                     bgSession.controller.reset();
                     const rth = { text: '' };
-                    const orig = bgSession.buffer.addAssistantSummary.bind(bgSession.buffer);
-                    bgSession.buffer.addAssistantSummary = (t: string) => { rth.text = t; orig(t); };
+                    bgSession.buffer.onSummary = (t) => { rth.text = t; };
                     await sendAgentMessage(
                       prompt, bgSession.history, provider, project, spiralEngine, config,
                       permissions, bgSession.undoStack, checkpointStore,
@@ -2994,7 +2887,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                       () => { sessionToolCalls++; },
                       undefined, { enabled: false, verbose: false, strict: false },
                     );
-                    bgSession.buffer.addAssistantSummary = orig;
+                    bgSession.buffer.onSummary = undefined;
                     return rth.text;
                   },
                   isAborted: () => bgSession.controller.isAborted,
@@ -3051,6 +2944,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
         () => updateMetaFn?.(),
         chrome,
+        {
+          engine: planEngine,
+          getState: () => planModeState,
+          setState: (s: PlanModeState) => { planModeState = s; },
+        },
       );
       if (handled === 'exit') {
         spiralEngine?.close();
@@ -3125,33 +3023,142 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     );
     updateStatusBar();
 
-    await sendAgentMessage(
-      input, agentHistory, provider, project, spiralEngine, config,
-      permissions, undoStack, checkpointStore, agentController, activity, sessionBuffer,
-      (inp, out) => {
-        sessionTokensInput += inp;
-        sessionTokensOutput += out;
-      },
-      () => {
-        sessionToolCalls++;
-        roundToolCalls++;
-      },
-      () => {
-        // Activity started — readline stays active for type-ahead buffering.
-        // Muting is handled by activity.setMuteCallbacks (mute during LLM stream,
-        // unmute during tool execution so user can answer permission prompts).
-        isAtPrompt = false;
-      },
-      { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-      bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
-      getJarvisContextForPrompt(),
-      (label, tool) => {
-        currentStepLabel = label;
-        const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
-        currentStepFile = fileTools.has(tool) ? label.replace(/^(reading|writing|editing)\s+/, '') : '';
-      },
-      jarvisLearning,
-    );
+    // ═══ PLAN MODE FLOW ═══
+    if (planModeState === 'planning') {
+      // Phase 1: Read-only exploration — agent explores codebase and generates a plan
+      renderInfo(chalk.cyan('\u25B8 Plan mode: exploring codebase (read-only)...'));
+      permissions.setPlanMode(true);
+
+      await sendAgentMessage(
+        input, agentHistory, provider, project, spiralEngine, config,
+        permissions, undoStack, checkpointStore, agentController, activity, sessionBuffer,
+        (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+        () => { sessionToolCalls++; roundToolCalls++; },
+        () => { isAtPrompt = false; },
+        { enabled: false, verbose: false, strict: false },
+        bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
+        getJarvisContextForPrompt(),
+        (label, tool) => {
+          currentStepLabel = label;
+          const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
+          currentStepFile = fileTools.has(tool) ? label.replace(/^(reading|writing|editing)\s+/, '') : '';
+        },
+        jarvisLearning,
+      );
+
+      // Parse the LLM response for a structured plan
+      const lastMsg = agentHistory[agentHistory.length - 1];
+      const responseText = typeof lastMsg?.content === 'string' ? lastMsg.content : '';
+      const parsedPlan = planEngine.parseLLMPlan(responseText);
+      const plan = parsedPlan ? planEngine.createFromLLMResponse(parsedPlan) : null;
+
+      if (plan) {
+        // Phase 2: Show plan for review
+        planModeState = 'reviewing';
+        chrome.deactivate();
+        renderPlanReview(plan);
+        const choice = await showPlanApprovalMenu();
+        chrome.activate();
+
+        if (choice === 'approve' || choice === 'approve_auto') {
+          // Phase 3: Execute the plan step by step
+          planModeState = 'executing';
+          permissions.setPlanMode(false);
+          if (choice === 'approve_auto') permissions.setSkipPermissions(true);
+
+          planEngine.approve(plan.id);
+          renderInfo(chalk.green('\u2713 Plan approved — executing...'));
+          updateStatusBar();
+
+          await executePlan({
+            plan,
+            planEngine,
+            agentLoopOptions: {
+              provider,
+              systemPrompt: assembleSystemPrompt(
+                project.name !== 'unknown' ? project : null,
+                { level_1: [], level_2: [], level_3: [], level_4: [], level_5: [], total_tokens: 0, node_count: 0 },
+                sessionBuffer.buildContext() || undefined,
+                { provider: provider.name, model: provider.model },
+              ),
+              permissions,
+              toolContext: {
+                projectRoot: process.cwd(),
+                undoStack,
+                spiralEngine,
+                bugJournal,
+                browserController,
+                visionProcessor,
+                learningJournal: jarvisLearning,
+              },
+              checkpointStore,
+              sessionBuffer,
+              agentIdentity: AGENT_IDENTITIES.main,
+            },
+            controller: agentController,
+            conversationHistory: agentHistory,
+            callbacks: {
+              onPlanStepStart: (step, idx, total) => {
+                renderPlanStepStart(step, idx, total, 'main');
+                activity.setPlanProgress(idx, total, step.title);
+              },
+              onPlanStepEnd: (step, status) => {
+                const idx = plan.steps.indexOf(step) + 1;
+                renderPlanStepEnd(step, idx, plan.steps.length, status);
+                activity.clearPlanProgress();
+              },
+              onPlanComplete: (completedPlan) => {
+                renderPlanComplete(completedPlan);
+              },
+            },
+          });
+
+          if (choice === 'approve_auto') permissions.setSkipPermissions(false);
+        } else if (choice === 'reject') {
+          planEngine.reject(plan.id, 'User rejected');
+          renderInfo(chalk.red('\u2717 Plan rejected.'));
+        } else {
+          // 'modify' — for now, just show the plan again
+          renderInfo(chalk.dim('Modify not yet implemented — use /plan show to review.'));
+        }
+      } else {
+        renderInfo(chalk.dim('No structured plan detected in response.'));
+      }
+
+      // Reset plan mode state
+      planModeState = 'off';
+      permissions.setPlanMode(false);
+      updateStatusBar();
+    } else {
+      // ═══ NORMAL MODE ═══
+      await sendAgentMessage(
+        input, agentHistory, provider, project, spiralEngine, config,
+        permissions, undoStack, checkpointStore, agentController, activity, sessionBuffer,
+        (inp, out) => {
+          sessionTokensInput += inp;
+          sessionTokensOutput += out;
+        },
+        () => {
+          sessionToolCalls++;
+          roundToolCalls++;
+        },
+        () => {
+          // Activity started — readline stays active for type-ahead buffering.
+          // Muting is handled by activity.setMuteCallbacks (mute during LLM stream,
+          // unmute during tool execution so user can answer permission prompts).
+          isAtPrompt = false;
+        },
+        { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+        bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
+        getJarvisContextForPrompt(),
+        (label, tool) => {
+          currentStepLabel = label;
+          const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
+          currentStepFile = fileTools.has(tool) ? label.replace(/^(reading|writing|editing)\s+/, '') : '';
+        },
+        jarvisLearning,
+      );
+    }
 
     agentRunning = false;
 
@@ -3837,6 +3844,11 @@ async function handleSlashCommand(
   },
   onModeChange?: () => void,
   chrome?: BottomChrome,
+  planCtx?: {
+    engine: PlanEngine;
+    getState: () => PlanModeState;
+    setState: (s: PlanModeState) => void;
+  },
 ): Promise<string | void> {
   const parts = input.split(/\s+/);
   let cmd = parts[0].toLowerCase();
@@ -3949,7 +3961,7 @@ async function handleSlashCommand(
           sessionTokens, sessionToolCalls,
           onProviderSwitch, onBrainSwitch, currentBrainScope, onAutonomous, onValidation,
           sessionManager, onRegisterBrainHandlers, onSubPrompt, bugJournal, jarvisCtx,
-          onModeChange, chrome,
+          onModeChange, chrome, planCtx,
         );
       }
       break;
@@ -4298,6 +4310,68 @@ async function handleSlashCommand(
         onModeChange?.();
       } else {
         renderInfo(`Skip-permissions: ${permissions.isSkipPermissions() ? 'ON' : 'OFF'}`);
+      }
+      break;
+    }
+
+    case '/plan': {
+      const arg = parts[1]?.toLowerCase();
+      if (!planCtx) {
+        renderInfo('Plan mode not available.');
+        break;
+      }
+      if (arg === 'on') {
+        planCtx.setState('planning');
+        permissions.setPlanMode(true);
+        renderInfo(chalk.cyan('\u25B8 Plan mode ON') + chalk.dim(' \u2014 next message triggers read-only exploration + plan generation'));
+        onModeChange?.();
+      } else if (arg === 'off') {
+        planCtx.setState('off');
+        permissions.setPlanMode(false);
+        renderInfo('Plan mode OFF');
+        onModeChange?.();
+      } else if (arg === 'show') {
+        const active = planCtx.engine.getActive();
+        if (active) {
+          chrome?.deactivate();
+          renderPlanReview(active);
+          chrome?.activate();
+        } else {
+          renderInfo('No active plan.');
+        }
+      } else if (arg === 'approve') {
+        const active = planCtx.engine.getActive();
+        if (active && active.status === 'pending_approval') {
+          planCtx.engine.approve(active.id);
+          renderInfo(chalk.green('\u2713 Plan approved.'));
+        } else {
+          renderInfo('No plan pending approval.');
+        }
+      } else if (arg === 'reject') {
+        const active = planCtx.engine.getActive();
+        if (active && active.status === 'pending_approval') {
+          const reason = parts.slice(2).join(' ') || 'User rejected';
+          planCtx.engine.reject(active.id, reason);
+          planCtx.setState('off');
+          permissions.setPlanMode(false);
+          renderInfo(chalk.red('\u2717 Plan rejected.'));
+          onModeChange?.();
+        } else {
+          renderInfo('No plan pending approval.');
+        }
+      } else {
+        // Toggle
+        const currentlyOn = planCtx.getState() !== 'off';
+        if (currentlyOn) {
+          planCtx.setState('off');
+          permissions.setPlanMode(false);
+          renderInfo('Plan mode OFF');
+        } else {
+          planCtx.setState('planning');
+          permissions.setPlanMode(true);
+          renderInfo(chalk.cyan('\u25B8 Plan mode ON') + chalk.dim(' \u2014 next message triggers read-only exploration + plan generation'));
+        }
+        onModeChange?.();
       }
       break;
     }

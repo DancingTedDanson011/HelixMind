@@ -2,9 +2,14 @@ import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createNotification } from '@/lib/notifications';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import type { TicketStatus } from '@prisma/client';
 import { z } from 'zod';
 
 export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/admin/tickets', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await requireRole('ADMIN', 'SUPPORT');
     if (!session) {
@@ -16,7 +21,7 @@ export async function GET(req: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
 
-    const where = status ? { status: status as any } : {};
+    const where = status ? { status: status as TicketStatus } : {};
 
     const [tickets, total] = await Promise.all([
       prisma.ticket.findMany({
@@ -52,6 +57,9 @@ const updateTicketSchema = z.object({
 });
 
 export async function PATCH(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/admin/tickets', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await requireRole('ADMIN', 'SUPPORT');
     if (!session) {

@@ -3,6 +3,7 @@
  * Forwards brain events and handles control messages from remote browsers.
  */
 import WebSocket from 'ws';
+import { CONTROL_REQUEST_TYPES } from './control-protocol.js';
 import type { ControlHandlers, ControlRequest, InstanceMeta } from './control-protocol.js';
 import type { BrainServer } from './server.js';
 
@@ -21,6 +22,11 @@ export function createRelayClient(
   getInstanceMeta: () => InstanceMeta,
   brainServer: BrainServer | null,
 ): RelayClient {
+  // Refuse non-TLS remote connections to protect API key
+  if (relayUrl.startsWith('ws://') && !relayUrl.includes('127.0.0.1') && !relayUrl.includes('localhost')) {
+    return { close() {} };
+  }
+
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let pingTimer: ReturnType<typeof setInterval> | null = null;
@@ -138,9 +144,13 @@ export function createRelayClient(
         break;
       }
 
+      case 'subscribe_output':
+      case 'unsubscribe_output':
+        // Output subscriptions are handled locally by the brain server, not relayed
+        break;
+
       case 'send_chat': {
-        const chatMsg = msg as { text: string; chatId?: string; mode?: 'normal' | 'skip-permissions' };
-        handlers.sendChat(chatMsg.text, chatMsg.chatId, chatMsg.mode);
+        handlers.sendChat(msg.text, msg.chatId, msg.mode, msg.files as any);
         sendRelay({ type: 'chat_received', requestId, timestamp: Date.now() });
         break;
       }
@@ -154,6 +164,291 @@ export function createRelayClient(
       case 'get_bugs': {
         const bugs = handlers.getBugs();
         sendRelay({ type: 'bugs_list', bugs, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      // --- Monitor ---
+      case 'start_monitor': {
+        const sessionId = handlers.startMonitor((msg as any).mode);
+        sendRelay({ type: 'monitor_started', sessionId, mode: (msg as any).mode, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'stop_monitor': {
+        const success = handlers.stopMonitor();
+        sendRelay({ type: 'monitor_stopped', success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'monitor_command': {
+        handlers.handleMonitorCommand((msg as any).command, (msg as any).params);
+        sendRelay({ type: 'monitor_command_ack', requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'approval_response': {
+        handlers.handleApprovalResponse((msg as any).requestId, (msg as any).approved);
+        sendRelay({ type: 'approval_response_ack', requestId, timestamp: Date.now() });
+        break;
+      }
+
+      // --- Jarvis ---
+      case 'start_jarvis': {
+        const sessionId = handlers.startJarvis();
+        if (sessionId) {
+          sendRelay({ type: 'jarvis_started', sessionId, requestId, timestamp: Date.now() });
+        } else {
+          sendRelay({ type: 'error', error: 'Jarvis instance limit reached. Upgrade your plan or stop an existing instance.', requestId, timestamp: Date.now() });
+        }
+        break;
+      }
+
+      case 'stop_jarvis': {
+        const success = handlers.stopJarvis();
+        sendRelay({ type: 'jarvis_stopped', success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'pause_jarvis': {
+        const success = handlers.pauseJarvis();
+        sendRelay({ type: 'jarvis_paused', success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'resume_jarvis': {
+        const success = handlers.resumeJarvis();
+        sendRelay({ type: 'jarvis_resumed', success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'add_jarvis_task': {
+        const task = handlers.addJarvisTask(
+          (msg as any).title,
+          (msg as any).description,
+          { priority: (msg as any).priority, dependencies: (msg as any).dependencies, tags: (msg as any).tags },
+        );
+        sendRelay({ type: 'jarvis_task_added', task, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'list_jarvis_tasks': {
+        const tasks = handlers.listJarvisTasks();
+        sendRelay({ type: 'jarvis_tasks_list', tasks, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'delete_jarvis_task': {
+        const success = handlers.deleteJarvisTask((msg as any).taskId);
+        sendRelay({ type: 'jarvis_task_deleted', success, taskId: (msg as any).taskId, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'get_jarvis_status': {
+        const status = handlers.getJarvisStatus();
+        sendRelay({ type: 'jarvis_status', status, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'clear_jarvis_completed': {
+        handlers.clearJarvisCompleted();
+        sendRelay({ type: 'jarvis_cleared', requestId, timestamp: Date.now() });
+        break;
+      }
+
+      // --- Jarvis AGI ---
+      case 'list_proposals': {
+        const proposals = handlers.listProposals();
+        sendRelay({ type: 'proposals_list', proposals, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'approve_proposal': {
+        const success = handlers.approveProposal((msg as any).proposalId);
+        sendRelay({ type: 'proposal_approved', proposalId: (msg as any).proposalId, success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'deny_proposal': {
+        const success = handlers.denyProposal((msg as any).proposalId, (msg as any).reason);
+        sendRelay({ type: 'proposal_denied', proposalId: (msg as any).proposalId, success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'set_autonomy_level': {
+        const success = handlers.setAutonomyLevel((msg as any).level);
+        sendRelay({ type: 'autonomy_level_set', level: (msg as any).level, success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'get_identity': {
+        const identity = handlers.getIdentity();
+        sendRelay({ type: 'identity_info', identity, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'trigger_deep_think': {
+        handlers.triggerDeepThink();
+        sendRelay({ type: 'deep_think_triggered', requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'add_schedule': {
+        const schedule = handlers.addSchedule((msg as any).expression, (msg as any).taskTitle, (msg as any).scheduleType);
+        sendRelay({ type: 'schedule_added', schedule, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'remove_schedule': {
+        const success = handlers.removeSchedule((msg as any).scheduleId);
+        sendRelay({ type: 'schedule_removed', success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'list_schedules': {
+        const schedules = handlers.listSchedules();
+        sendRelay({ type: 'schedules_list', schedules, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'add_trigger': {
+        const trigger = handlers.addTrigger((msg as any).source, (msg as any).pattern, (msg as any).action);
+        sendRelay({ type: 'trigger_added', trigger, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'remove_trigger': {
+        const success = handlers.removeTrigger((msg as any).triggerId);
+        sendRelay({ type: 'trigger_removed', success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'list_triggers': {
+        const triggers = handlers.listTriggers();
+        sendRelay({ type: 'triggers_list', triggers, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'list_projects': {
+        const projects = handlers.listProjects();
+        sendRelay({ type: 'projects_list', projects, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'register_project': {
+        const project = handlers.registerProject((msg as any).path, (msg as any).name);
+        sendRelay({ type: 'project_registered', project, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'get_workers': {
+        const workers = handlers.getWorkers();
+        sendRelay({ type: 'workers_list', workers, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      // --- Brain Management ---
+      case 'get_brain_list': {
+        const { brains, limits } = handlers.getBrainList();
+        sendRelay({ type: 'brain_list', brains, limits, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'rename_brain': {
+        const success = handlers.renameBrain((msg as any).brainId, (msg as any).newName);
+        if (success) {
+          sendRelay({ type: 'brain_renamed', brainId: (msg as any).brainId, newName: (msg as any).newName, requestId, timestamp: Date.now() });
+        } else {
+          sendRelay({ type: 'error', message: 'Brain not found or rename failed', requestId, timestamp: Date.now() });
+        }
+        break;
+      }
+
+      case 'switch_brain': {
+        const success = handlers.switchBrain((msg as any).brainId);
+        if (success) {
+          sendRelay({ type: 'brain_switched', brainId: (msg as any).brainId, requestId, timestamp: Date.now() });
+        } else {
+          sendRelay({ type: 'error', message: 'Brain not found or switch failed', requestId, timestamp: Date.now() });
+        }
+        break;
+      }
+
+      case 'create_brain': {
+        const brain = handlers.createBrain((msg as any).name, (msg as any).brainType, (msg as any).projectPath);
+        if (brain) {
+          sendRelay({ type: 'brain_created', brain, requestId, timestamp: Date.now() });
+        } else {
+          sendRelay({ type: 'brain_limit_reached', limitType: (msg as any).brainType, current: 0, max: 0, requestId, timestamp: Date.now() });
+        }
+        break;
+      }
+
+      // --- Config & Model ---
+      case 'get_config': {
+        const cfg = handlers.getConfig();
+        sendRelay({ type: 'config_response', provider: cfg.provider, apiKey: cfg.apiKey ? cfg.apiKey.slice(0, 4) + '****' : '', model: cfg.model, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'switch_model': {
+        const success = handlers.switchModel((msg as any).provider, (msg as any).model);
+        sendRelay({ type: 'model_switched', success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      // --- Status Bar & Checkpoints ---
+      case 'get_status_bar': {
+        const data = handlers.getStatusBar();
+        sendRelay({ type: 'status_bar_update', data, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'list_checkpoints': {
+        const checkpoints = handlers.listCheckpoints();
+        sendRelay({ type: 'checkpoints_list', checkpoints, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'revert_to_checkpoint': {
+        const result = handlers.revertToCheckpoint(
+          (msg as any).checkpointId,
+          (msg as any).mode || 'both',
+        );
+        sendRelay({ type: 'checkpoint_reverted', checkpointId: (msg as any).checkpointId, mode: (msg as any).mode || 'both', ...result, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      // --- Remote Tool Execution ---
+      case 'remote_tool_result': {
+        // Handled by relay forwarding, not local handlers
+        break;
+      }
+
+      // --- Tool Permission Approval ---
+      case 'tool_permission_response': {
+        handlers.handleToolPermissionResponse(
+          (msg as any).requestId,
+          (msg as any).approved,
+          (msg as any).mode,
+        );
+        sendRelay({ type: 'tool_permission_response_ack', requestId: (msg as any).requestId, timestamp: Date.now() });
+        break;
+      }
+
+      // --- Brain Sync (stub) ---
+      case 'brain_sync_push': {
+        sendRelay({ type: 'brain_sync_status', brainId: (msg as any).brainId, synced: true, version: (msg as any).version, lastSyncedAt: Date.now(), requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'brain_sync_pull': {
+        sendRelay({ type: 'brain_sync_data', brainId: (msg as any).brainId, version: 0, nodesJson: '[]', requestId, timestamp: Date.now() });
+        break;
+      }
+
+      // --- License (stub) ---
+      case 'license_validate': {
+        sendRelay({ type: 'license_status', valid: false, plan: 'FREE', features: [], expiresAt: '', requestId, timestamp: Date.now() });
         break;
       }
     }
@@ -183,20 +478,10 @@ export function createRelayClient(
   // Start connection
   connect();
 
-  // Hook into brain server push events if available
+  // Subscribe to brain server events for relay forwarding (no monkey-patching)
   if (brainServer) {
-    const origPushEvent = brainServer.pushEvent.bind(brainServer);
-    const origPushControlEvent = brainServer.pushControlEvent.bind(brainServer);
-
-    // Monkey-patch to also forward to relay
-    brainServer.pushEvent = (event) => {
-      origPushEvent(event);
-      forwardEvent(event);
-    };
-    brainServer.pushControlEvent = (event) => {
-      origPushControlEvent(event);
-      forwardEvent(event);
-    };
+    brainServer.on('event', forwardEvent);
+    brainServer.on('control', forwardEvent);
   }
 
   return {
@@ -210,9 +495,5 @@ export function createRelayClient(
 }
 
 function isControlRequest(type: string): boolean {
-  return [
-    'list_sessions', 'start_auto', 'start_security',
-    'abort_session', 'subscribe_output', 'unsubscribe_output',
-    'send_chat', 'get_findings', 'get_bugs', 'ping',
-  ].includes(type);
+  return CONTROL_REQUEST_TYPES.has(type);
 }

@@ -1,91 +1,46 @@
 /**
- * Shared TypeScript interfaces mirroring the CLI's control-protocol.ts types.
- * Used by web hooks and components to communicate with local or relay CLI instances.
+ * Shared TypeScript interfaces for CLI ↔ Web communication.
+ * Wire types are canonically defined in @helixmind/protocol (shared/protocol-types.ts)
+ * and re-exported here. Web-only types are defined below.
  */
 
-// ---------------------------------------------------------------------------
-// Session
-// ---------------------------------------------------------------------------
-
-export type SessionStatus = 'idle' | 'running' | 'done' | 'error' | 'paused';
-
-// ---------------------------------------------------------------------------
-// Instance metadata returned by CLI's /api/instance endpoint
-// ---------------------------------------------------------------------------
-
-export interface InstanceMeta {
-  instanceId: string;
-  projectName: string;
-  projectPath: string;
-  model: string;
-  provider: string;
-  uptime: number;
-  version: string;
-  permissionMode?: 'safe' | 'skip-permissions' | 'yolo';
-}
-
-// ---------------------------------------------------------------------------
-// Session info from list_sessions response
-// ---------------------------------------------------------------------------
-
-export interface SessionInfo {
-  id: string;
-  name: string;
-  icon: string;
-  status: SessionStatus;
-  startTime: number;
-  endTime: number;
-  elapsed: number;
-  outputLineCount: number;
-  recentOutput: string[];
-  result: { text: string; stepsCount: number; errorsCount: number } | null;
-}
+// Re-export all shared wire types from the canonical source
+export type {
+  SessionStatus,
+  SessionInfo,
+  InstanceMeta,
+  Finding,
+  BugStatus,
+  BugInfo,
+  BrowserScreenshotInfo,
+  JarvisTaskStatus,
+  JarvisTaskPriority,
+  JarvisDaemonState,
+  JarvisTaskInfo,
+  JarvisStatusInfo,
+  ProposalInfo,
+  IdentityInfo,
+  ScheduleInfo,
+  TriggerInfo,
+  WorkerInfo,
+  ChatFileAttachment,
+  ToolPermissionRequest,
+  StatusBarInfo,
+  CheckpointInfo,
+  WSMessage,
+  PlanInfo,
+  PlanStepInfo,
+  PlanStatusInfo,
+  PlanStepStatusInfo,
+} from '@helixmind/protocol';
 
 // ---------------------------------------------------------------------------
-// Finding from security/auto sessions
+// Web-only types (not shared with CLI)
 // ---------------------------------------------------------------------------
 
-export interface Finding {
-  sessionName: string;
-  finding: string;
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
-  file: string;
-  timestamp: number;
-}
+// --- Discovery ---
 
-// ---------------------------------------------------------------------------
-// Bug Journal
-// ---------------------------------------------------------------------------
-
-export type BugStatus = 'open' | 'investigating' | 'fixed' | 'verified';
-
-export interface BugInfo {
-  id: number;
-  description: string;
-  file?: string;
-  line?: number;
-  status: BugStatus;
-  createdAt: number;
-  updatedAt: number;
-  fixedAt?: number;
-  fixDescription?: string;
-}
-
-// ---------------------------------------------------------------------------
-// Browser Screenshot
-// ---------------------------------------------------------------------------
-
-export interface BrowserScreenshotInfo {
-  url: string;
-  title?: string;
-  timestamp: number;
-  imageBase64?: string;
-  analysis?: string;
-}
-
-// ---------------------------------------------------------------------------
-// Discovery result from scanning local ports
-// ---------------------------------------------------------------------------
+import type { InstanceMeta } from '@helixmind/protocol';
 
 export interface DiscoveredInstance {
   port: number;
@@ -94,13 +49,7 @@ export interface DiscoveredInstance {
   tokenHint: string;
 }
 
-// ---------------------------------------------------------------------------
-// Connection
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Web Chat Events (CLI → Browser, streamed)
-// ---------------------------------------------------------------------------
+// --- Web Chat Events (CLI → Browser, streamed) ---
 
 export interface ChatStartedEvent {
   type: 'chat_started';
@@ -158,9 +107,7 @@ export type ChatEvent =
   | ChatCompleteEvent
   | ChatErrorEvent;
 
-// ---------------------------------------------------------------------------
-// Monitor Types
-// ---------------------------------------------------------------------------
+// --- Monitor Types ---
 
 export type MonitorMode = 'passive' | 'defensive' | 'active';
 export type ThreatSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
@@ -204,104 +151,7 @@ export interface MonitorStatus {
   lastScan: number;
 }
 
-// ---------------------------------------------------------------------------
-// Connection
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Jarvis
-// ---------------------------------------------------------------------------
-
-export type JarvisTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused';
-export type JarvisTaskPriority = 'high' | 'medium' | 'low';
-export type JarvisDaemonState = 'stopped' | 'running' | 'paused';
-
-export interface JarvisTaskInfo {
-  id: number;
-  title: string;
-  description: string;
-  status: JarvisTaskStatus;
-  priority: JarvisTaskPriority;
-  createdAt: number;
-  updatedAt: number;
-  startedAt?: number;
-  completedAt?: number;
-  result?: string;
-  error?: string;
-  retries: number;
-  maxRetries: number;
-  sessionId?: string;
-  dependencies?: number[];
-  tags?: string[];
-}
-
-export interface JarvisStatusInfo {
-  daemonState: JarvisDaemonState;
-  currentTaskId: number | null;
-  pendingCount: number;
-  completedCount: number;
-  failedCount: number;
-  totalCount: number;
-  uptimeMs: number;
-  autonomyLevel?: number;
-  thinkingPhase?: string;
-  activeWorkers?: number;
-  scope?: 'local' | 'global';
-  jarvisName?: string;
-}
-
-// ---------------------------------------------------------------------------
-// Jarvis AGI
-// ---------------------------------------------------------------------------
-
-export interface ProposalInfo {
-  id: number;
-  title: string;
-  description: string;
-  rationale: string;
-  status: 'pending' | 'approved' | 'denied' | 'expired';
-  category: string;
-  affectedFiles: string[];
-  createdAt: number;
-  decidedAt?: number;
-  denialReason?: string;
-}
-
-export interface IdentityInfo {
-  traits: Record<string, number>;
-  trust: { approvalRate: number; successRate: number; totalProposals: number };
-  autonomyLevel: number;
-  uptime: number;
-  recentLearnings: string[];
-}
-
-export interface ScheduleInfo {
-  id: number;
-  type: string;
-  expression: string;
-  taskTitle: string;
-  enabled: boolean;
-  nextRunAt?: number;
-  lastRunAt?: number;
-}
-
-export interface TriggerInfo {
-  id: number;
-  source: string;
-  pattern: string;
-  action: string;
-  enabled: boolean;
-  lastFiredAt?: number;
-}
-
-export interface WorkerInfo {
-  workerId: number;
-  taskId: number;
-  taskTitle: string;
-  status: 'running' | 'completed' | 'failed';
-  startedAt: number;
-  completedAt?: number;
-}
+// --- Jarvis AGI web-only types ---
 
 export interface ThinkingUpdate {
   phase: string;
@@ -316,60 +166,7 @@ export interface ConsciousnessEvent {
   timestamp: number;
 }
 
-// ---------------------------------------------------------------------------
-// Connection
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Tool Permission Approval
-// ---------------------------------------------------------------------------
-
-export interface ToolPermissionRequest {
-  id: string;
-  toolName: string;
-  toolInput: Record<string, unknown>;
-  permissionLevel: 'ask' | 'dangerous';
-  detail: string;
-  sessionId: string;
-  timestamp: number;
-  expiresAt: number;
-}
-
-// --- Status Bar ---
-export interface StatusBarInfo {
-  spiral: { l1: number; l2: number; l3: number; l4: number; l5: number; l6: number };
-  tokens: { thisMessage: number; thisSession: number; sessionTotal: number };
-  tools: { callsThisRound: number };
-  model: string;
-  git: { branch: string; uncommitted: number };
-  checkpoints: number;
-  permissionMode: 'safe' | 'skip' | 'yolo';
-  autonomous: boolean;
-  paused: boolean;
-}
-
-// --- Checkpoints ---
-export interface CheckpointInfo {
-  id: number;
-  timestamp: number;
-  type: string;
-  label: string;
-  messageIndex: number;
-  hasFileSnapshots: boolean;
-  fileCount: number;
-  toolName?: string;
-}
-
-// ---------------------------------------------------------------------------
-// File Attachments
-// ---------------------------------------------------------------------------
-
-export interface ChatFileAttachment {
-  name: string;
-  mimeType: string;
-  sizeBytes: number;
-  dataBase64: string;
-}
+// --- Connection ---
 
 export type ConnectionState =
   | 'disconnected'

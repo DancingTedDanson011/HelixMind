@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTeamRole, requireEnterprisePlan } from '@/lib/team-auth';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const samlConfigSchema = z.object({
@@ -17,9 +18,11 @@ const samlConfigSchema = z.object({
 
 // GET — return SAML config for team (ADMIN+ only, Enterprise plan)
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/teams/saml', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
   const { id: teamId } = await params;
 
   const teamAuth = await requireTeamRole(teamId, 'OWNER', 'ADMIN');
@@ -58,6 +61,8 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/teams/saml', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
   const { id: teamId } = await params;
 
   const teamAuth = await requireTeamRole(teamId, 'OWNER', 'ADMIN');
@@ -99,9 +104,11 @@ export async function PUT(
 
 // DELETE — remove SAML config (OWNER only)
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/teams/saml', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
   const { id: teamId } = await params;
 
   const teamAuth = await requireTeamRole(teamId, 'OWNER');

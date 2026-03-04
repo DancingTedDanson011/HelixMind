@@ -24,10 +24,11 @@ export interface StatusBarData {
     uncommitted: number;
   };
   checkpoints?: number;
-  permissionMode?: 'safe' | 'skip' | 'yolo';
+  permissionMode?: 'safe' | 'skip' | 'yolo' | 'plan';
   autonomous?: boolean;
   paused?: boolean;
   plan?: string;
+  planMode?: boolean;
   jarvisName?: string;
   currentStep?: string;
   currentFile?: string;
@@ -67,6 +68,7 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
       case 'safe':  permText = chalk.green('Safe'); break;
       case 'skip':  permText = chalk.yellow('Skip'); break;
       case 'yolo':  permText = chalk.red('YOLO'); break;
+      case 'plan':  permText = chalk.cyan('Plan'); break;
     }
   }
   const modelSection = `${chalk.dim(shortenModelName(data.model))} ${permText}`;
@@ -85,6 +87,14 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
 
   // === Live: state + runtime + step + timers + clock ===
   const liveItems: string[] = [];
+
+  if (data.planMode) {
+    liveItems.push(chalk.cyan('\u25B8 PLAN'));
+  }
+
+  if (data.plan) {
+    liveItems.push(chalk.cyan(data.plan.slice(0, 30)));
+  }
 
   if (data.paused) {
     liveItems.push(chalk.yellow('Paused'));

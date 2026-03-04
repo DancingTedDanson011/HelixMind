@@ -5,7 +5,7 @@ import type { BrainExport } from './exporter.js';
 import type { BrainScope } from '../../utils/config.js';
 import { generateBrainHTML } from './template.js';
 import { startBrainServer, type BrainServer } from './server.js';
-import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo, TriggerInfo, WorkerInfo, ToolPermissionRequest } from './control-protocol.js';
+import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo, TriggerInfo, WorkerInfo, ToolPermissionRequest, PlanInfo, PlanStepInfo } from './control-protocol.js';
 
 /** Generate a static HTML file (fallback / export) */
 export function generateBrainFile(data: BrainExport): string {
@@ -28,6 +28,9 @@ let pendingModelActivateHandler: ((model: string) => void) | null = null;
 
 /** Relay client instance */
 let activeRelayClient: { close(): void } | null = null;
+
+/** Cached instance ID for event enrichment */
+let cachedInstanceId: string | null = null;
 
 /**
  * Start a live brain server that auto-refreshes when spiral data changes.
@@ -227,6 +230,7 @@ export function registerControlHandlers(handlers: ControlHandlers): void {
 
 /** Set instance metadata on the brain server (for discovery) */
 export function setInstanceMeta(meta: InstanceMeta): void {
+  cachedInstanceId = meta.instanceId;
   if (activeBrainServer) {
     activeBrainServer.setInstanceMeta(meta);
   }
@@ -433,7 +437,7 @@ export function pushJarvisLearning(topic: string, content: string, spiralLevel: 
 /** Push an identity change event to all clients */
 export function pushIdentityChanged(trait: string, oldValue: number, newValue: number, reason: string): void {
   if (!activeBrainServer) return;
-  const event = { type: 'identity_changed', trait, oldValue, newValue, reason, timestamp: Date.now() };
+  const event = { type: 'identity_changed', trait, oldValue, newValue, reason, instanceId: cachedInstanceId ?? undefined, timestamp: Date.now() };
   activeBrainServer.pushEvent(event);
   activeBrainServer.pushControlEvent(event);
 }
@@ -508,6 +512,34 @@ export function pushTTSAudio(audioBase64: string, text: string, duration: number
 export function pushNotificationSent(channel: string, title: string): void {
   if (!activeBrainServer) return;
   activeBrainServer.pushControlEvent({ type: 'notification_sent', channel, title, timestamp: Date.now() });
+}
+
+// ---------------------------------------------------------------------------
+// Plan Mode — Push Functions
+// ---------------------------------------------------------------------------
+
+/** Push a plan-created event to all clients */
+export function pushPlanCreated(plan: PlanInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'plan_created', plan, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a plan-updated event to all clients */
+export function pushPlanUpdated(plan: PlanInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'plan_updated', plan, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a plan-step-updated event to all clients */
+export function pushPlanStepUpdated(planId: string, step: PlanStepInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'plan_step_updated', planId, step, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
 }
 
 // ---------------------------------------------------------------------------

@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { plans } from '@/lib/constants';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import type { Plan } from '@prisma/client';
 
 export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/brain/v1/brains', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const result = await requireApiKeyWithPlan(req, 'ENTERPRISE');
     if (!result) {
@@ -40,6 +44,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/brain/v1/brains', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const result = await requireApiKeyWithPlan(req, 'ENTERPRISE');
     if (!result) {

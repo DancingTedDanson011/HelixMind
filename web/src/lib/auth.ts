@@ -1,4 +1,5 @@
 import NextAuth from 'next-auth';
+import type { Provider } from '@auth/core/providers';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
 import GitHub from 'next-auth/providers/github';
@@ -15,7 +16,7 @@ const loginSchema = z.object({
 // Only use PrismaAdapter when DATABASE_URL is configured
 const hasDatabase = !!process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('placeholder');
 
-const providers = [
+const providers: Provider[] = [
   Credentials({
     name: 'credentials',
     credentials: {
@@ -69,14 +70,14 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
   providers.push(GitHub({
     clientId: process.env.GITHUB_CLIENT_ID,
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
-  }) as any);
+  }));
 }
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   providers.push(Google({
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  }) as any);
+  }));
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({

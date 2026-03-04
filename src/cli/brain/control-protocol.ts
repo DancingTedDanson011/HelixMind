@@ -1,168 +1,32 @@
 /**
  * Control Protocol — shared types and serializers for CLI ↔ Web communication.
  * Used by both local WebSocket (Brain Server) and remote Relay connections.
+ *
+ * Wire types are canonically defined in @helixmind/protocol (shared/protocol-types.ts)
+ * and re-exported here for backwards compatibility.
  */
-import type { Session, SessionStatus } from '../sessions/session.js';
+import type { Session } from '../sessions/session.js';
 import type { BrainInstance, BrainLimits } from './instance-manager.js';
 
-// ---------------------------------------------------------------------------
-// Data types
-// ---------------------------------------------------------------------------
+// Import shared wire types from the canonical source (for local use)
+import type {
+  SessionStatus, SessionInfo, InstanceMeta, Finding, BugStatus, BugInfo,
+  BrowserScreenshotInfo, JarvisTaskStatus, JarvisTaskPriority, JarvisDaemonState,
+  JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo,
+  TriggerInfo, WorkerInfo, ChatFileAttachment, ToolPermissionRequest, StatusBarInfo,
+  CheckpointInfo, WSMessage,
+  PlanInfo, PlanStepInfo, PlanStatusInfo, PlanStepStatusInfo,
+} from '@helixmind/protocol';
 
-export interface InstanceMeta {
-  instanceId: string;
-  projectName: string;
-  projectPath: string;
-  model: string;
-  provider: string;
-  uptime: number;
-  version: string;
-  permissionMode: 'safe' | 'skip-permissions' | 'yolo';
-}
-
-export interface SessionInfo {
-  id: string;
-  name: string;
-  icon: string;
-  status: SessionStatus;
-  startTime: number;
-  endTime: number;
-  elapsed: number;
-  outputLineCount: number;
-  recentOutput: string[];
-  result: { text: string; stepsCount: number; errorsCount: number } | null;
-}
-
-export interface Finding {
-  sessionName: string;
-  finding: string;
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
-  file: string;
-  timestamp: number;
-}
-
-export type BugStatus = 'open' | 'investigating' | 'fixed' | 'verified';
-
-export interface BugInfo {
-  id: number;
-  description: string;
-  file?: string;
-  line?: number;
-  status: BugStatus;
-  createdAt: number;
-  updatedAt: number;
-  fixedAt?: number;
-  fixDescription?: string;
-}
-
-export interface BrowserScreenshotInfo {
-  url: string;
-  title?: string;
-  timestamp: number;
-  /** Base64-encoded PNG screenshot (may be absent if too large) */
-  imageBase64?: string;
-  analysis?: string;
-}
-
-// --- Jarvis data types ---
-export type JarvisTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused';
-export type JarvisTaskPriority = 'high' | 'medium' | 'low';
-export type JarvisDaemonState = 'stopped' | 'running' | 'paused';
-
-export interface JarvisTaskInfo {
-  id: number;
-  title: string;
-  description: string;
-  status: JarvisTaskStatus;
-  priority: JarvisTaskPriority;
-  createdAt: number;
-  updatedAt: number;
-  startedAt?: number;
-  completedAt?: number;
-  result?: string;
-  error?: string;
-  retries: number;
-  maxRetries: number;
-  sessionId?: string;
-  dependencies?: number[];
-  tags?: string[];
-}
-
-export interface JarvisStatusInfo {
-  daemonState: JarvisDaemonState;
-  currentTaskId: number | null;
-  pendingCount: number;
-  completedCount: number;
-  failedCount: number;
-  totalCount: number;
-  uptimeMs: number;
-  autonomyLevel?: number;
-  thinkingPhase?: string;
-  activeWorkers?: number;
-  scope?: 'local' | 'global';
-  jarvisName?: string;
-}
-
-// --- Jarvis AGI data types ---
-
-export interface ProposalInfo {
-  id: number;
-  title: string;
-  description: string;
-  rationale: string;
-  status: 'pending' | 'approved' | 'denied' | 'expired';
-  category: string;
-  affectedFiles: string[];
-  createdAt: number;
-  decidedAt?: number;
-  denialReason?: string;
-}
-
-export interface IdentityInfo {
-  traits: Record<string, number>;
-  trust: { approvalRate: number; successRate: number; totalProposals: number };
-  autonomyLevel: number;
-  uptime: number;
-  recentLearnings: string[];
-}
-
-export interface ScheduleInfo {
-  id: number;
-  type: string;
-  expression: string;
-  taskTitle: string;
-  enabled: boolean;
-  nextRunAt?: number;
-  lastRunAt?: number;
-}
-
-export interface TriggerInfo {
-  id: number;
-  source: string;
-  pattern: string;
-  action: string;
-  enabled: boolean;
-  lastFiredAt?: number;
-}
-
-export interface WorkerInfo {
-  workerId: number;
-  taskId: number;
-  taskTitle: string;
-  status: 'running' | 'completed' | 'failed';
-  startedAt: number;
-  completedAt?: number;
-}
-
-// ---------------------------------------------------------------------------
-// WS message envelope
-// ---------------------------------------------------------------------------
-
-export interface WSMessage {
-  type: string;
-  requestId?: string;
-  timestamp: number;
-}
+// Re-export all shared wire types for backwards compatibility
+export type {
+  SessionStatus, SessionInfo, InstanceMeta, Finding, BugStatus, BugInfo,
+  BrowserScreenshotInfo, JarvisTaskStatus, JarvisTaskPriority, JarvisDaemonState,
+  JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo,
+  TriggerInfo, WorkerInfo, ChatFileAttachment, ToolPermissionRequest, StatusBarInfo,
+  CheckpointInfo, WSMessage,
+  PlanInfo, PlanStepInfo, PlanStatusInfo, PlanStepStatusInfo,
+};
 
 // --- Auth ---
 export interface AuthMessage extends WSMessage { type: 'auth'; token: string }
@@ -180,12 +44,6 @@ export interface StartSecurityRequest extends WSMessage { type: 'start_security'
 export interface AbortSessionRequest extends WSMessage { type: 'abort_session'; sessionId: string }
 export interface SubscribeOutputRequest extends WSMessage { type: 'subscribe_output'; sessionId: string }
 export interface UnsubscribeOutputRequest extends WSMessage { type: 'unsubscribe_output'; sessionId: string }
-export interface ChatFileAttachment {
-  name: string;
-  mimeType: string;
-  sizeBytes: number;
-  dataBase64: string;
-}
 export interface SendChatRequest extends WSMessage { type: 'send_chat'; text: string; chatId?: string; mode?: 'normal' | 'skip-permissions'; files?: ChatFileAttachment[] }
 export interface GetFindingsRequest extends WSMessage { type: 'get_findings' }
 export interface GetBugsRequest extends WSMessage { type: 'get_bugs' }
@@ -310,38 +168,32 @@ export interface LicenseValidateRequest extends WSMessage { type: 'license_valid
 export interface LicenseStatusResponse extends WSMessage { type: 'license_status'; valid: boolean; plan: string; features: string[]; expiresAt: string }
 
 // --- Status Bar (CLI → Browser) ---
-export interface StatusBarInfo {
-  spiral: { l1: number; l2: number; l3: number; l4: number; l5: number; l6: number };
-  tokens: { thisMessage: number; thisSession: number; sessionTotal: number };
-  tools: { callsThisRound: number };
-  model: string;
-  git: { branch: string; uncommitted: number };
-  checkpoints: number;
-  permissionMode: 'safe' | 'skip' | 'yolo';
-  autonomous: boolean;
-  paused: boolean;
-}
-
 export interface GetStatusBarRequest extends WSMessage { type: 'get_status_bar' }
 export interface StatusBarUpdateEvent extends WSMessage { type: 'status_bar_update'; data: StatusBarInfo }
 
 // --- Checkpoints (CLI ↔ Browser) ---
-export interface CheckpointInfo {
-  id: number;
-  timestamp: number;
-  type: string;
-  label: string;
-  messageIndex: number;
-  hasFileSnapshots: boolean;
-  fileCount: number;
-  toolName?: string;
-}
-
 export interface ListCheckpointsRequest extends WSMessage { type: 'list_checkpoints' }
 export interface CheckpointsListResponse extends WSMessage { type: 'checkpoints_list'; checkpoints: CheckpointInfo[] }
 export interface RevertToCheckpointRequest extends WSMessage { type: 'revert_to_checkpoint'; checkpointId: number; mode: 'chat' | 'code' | 'both' }
 export interface CheckpointRevertedResponse extends WSMessage { type: 'checkpoint_reverted'; checkpointId: number; mode: string; filesReverted: number; messagesRemoved: number }
 export interface CheckpointCreatedEvent extends WSMessage { type: 'checkpoint_created'; checkpoint: CheckpointInfo }
+
+// --- Plan Mode Requests (Browser → CLI) ---
+export interface GetActivePlanRequest extends WSMessage { type: 'get_active_plan' }
+export interface ApprovePlanRequest extends WSMessage { type: 'approve_plan'; planId: string }
+export interface RejectPlanRequest extends WSMessage { type: 'reject_plan'; planId: string; reason: string }
+export interface SetPlanModeRequest extends WSMessage { type: 'set_plan_mode'; enabled: boolean }
+
+// --- Plan Mode Responses (CLI → Browser) ---
+export interface ActivePlanResponse extends WSMessage { type: 'active_plan'; plan: PlanInfo | null }
+export interface PlanApprovedResponse extends WSMessage { type: 'plan_approved_response'; planId: string }
+export interface PlanRejectedResponse extends WSMessage { type: 'plan_rejected_response'; planId: string }
+export interface PlanModeSetResponse extends WSMessage { type: 'plan_mode_set'; enabled: boolean }
+
+// --- Plan Events (CLI → Browser, async) ---
+export interface PlanCreatedEvent extends WSMessage { type: 'plan_created'; plan: PlanInfo }
+export interface PlanUpdatedEvent extends WSMessage { type: 'plan_updated'; plan: PlanInfo }
+export interface PlanStepUpdatedEvent extends WSMessage { type: 'plan_step_updated'; planId: string; step: PlanStepInfo }
 
 // --- Brain Management Requests (Browser → CLI) ---
 export interface GetBrainListRequest extends WSMessage { type: 'get_brain_list' }
@@ -362,18 +214,6 @@ export interface RemoteToolCallResult extends WSMessage { type: 'remote_tool_res
 export interface JarvisResultEvent extends WSMessage { type: 'jarvis_result'; taskId: number; result: string; steps: number }
 
 // --- Tool Permission Approval (CLI ↔ Browser/Telegram) ---
-export interface ToolPermissionRequest {
-  id: string;
-  toolName: string;
-  toolInput: Record<string, unknown>;
-  permissionLevel: 'ask' | 'dangerous';
-  detail: string;
-  sessionId: string;
-  timestamp: number;
-  expiresAt: number;
-  reminderAt: number;
-}
-
 export interface ToolPermissionResponseRequest extends WSMessage { type: 'tool_permission_response'; requestId: string; approved: boolean; mode?: 'once' | 'session' | 'yolo' }
 export interface ToolPermissionRequestEvent extends WSMessage { type: 'tool_permission_request'; request: ToolPermissionRequest }
 export interface ToolPermissionReminderEvent extends WSMessage { type: 'tool_permission_reminder'; request: ToolPermissionRequest }
@@ -387,6 +227,27 @@ export interface ChatToolEndEvent extends WSMessage { type: 'chat_tool_end'; cha
 export interface ChatCompleteEvent extends WSMessage { type: 'chat_complete'; chatId: string; text: string; steps: number; tokensUsed: { input: number; output: number } }
 export interface ChatErrorEvent extends WSMessage { type: 'chat_error'; chatId: string; error: string }
 export interface ChatFileEvent extends WSMessage { type: 'chat_file'; chatId: string; file: { name: string; mimeType: string; sizeBytes: number; dataBase64: string } }
+
+/** All valid control request type strings — derived from the ControlRequest union. */
+export const CONTROL_REQUEST_TYPES = new Set<string>([
+  'list_sessions', 'start_auto', 'start_security', 'start_monitor', 'stop_monitor',
+  'monitor_command', 'approval_response', 'abort_session', 'subscribe_output',
+  'unsubscribe_output', 'send_chat', 'get_findings', 'get_bugs', 'ping',
+  'start_jarvis', 'stop_jarvis', 'pause_jarvis', 'resume_jarvis',
+  'add_jarvis_task', 'list_jarvis_tasks', 'delete_jarvis_task', 'get_jarvis_status',
+  'clear_jarvis_completed',
+  'list_proposals', 'approve_proposal', 'deny_proposal',
+  'set_autonomy_level', 'get_identity', 'trigger_deep_think',
+  'add_schedule', 'remove_schedule', 'list_schedules',
+  'add_trigger', 'remove_trigger', 'list_triggers',
+  'list_projects', 'register_project', 'get_workers',
+  'get_brain_list', 'rename_brain', 'switch_brain', 'create_brain',
+  'get_config', 'switch_model',
+  'remote_tool_result', 'tool_permission_response',
+  'get_status_bar', 'list_checkpoints', 'revert_to_checkpoint',
+  'brain_sync_push', 'brain_sync_pull', 'license_validate',
+  'get_active_plan', 'approve_plan', 'reject_plan', 'set_plan_mode',
+]);
 
 // Union of all control request types
 export type ControlRequest =
@@ -441,7 +302,11 @@ export type ControlRequest =
   | RevertToCheckpointRequest
   | BrainSyncPushRequest
   | BrainSyncPullRequest
-  | LicenseValidateRequest;
+  | LicenseValidateRequest
+  | GetActivePlanRequest
+  | ApprovePlanRequest
+  | RejectPlanRequest
+  | SetPlanModeRequest;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts
@@ -500,6 +365,11 @@ export interface ControlHandlers {
   // Checkpoints
   listCheckpoints(): CheckpointInfo[];
   revertToCheckpoint(id: number, mode: 'chat' | 'code' | 'both'): { filesReverted: number; messagesRemoved: number };
+  // Plan Mode
+  getActivePlan(): PlanInfo | null;
+  approvePlan(planId: string): boolean;
+  rejectPlan(planId: string, reason: string): boolean;
+  setPlanMode(enabled: boolean): boolean;
 }
 
 // ---------------------------------------------------------------------------

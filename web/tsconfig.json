@@ -18,7 +18,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@/content/*": ["./content/*"]
+      "@/content/*": ["./content/*"],
+      "@helixmind/protocol": ["../src/shared/protocol-types"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

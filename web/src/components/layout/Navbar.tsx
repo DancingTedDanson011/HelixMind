@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/routing';
+import { Link, type AppHref } from '@/i18n/routing';
 import { LocaleSwitcher } from './LocaleSwitcher';
 import { UserMenu } from './UserMenu';
 import { NotificationBell } from './NotificationBell';
@@ -59,7 +59,7 @@ export function Navbar() {
             ))}
             {session?.user && (
               <Link
-                href={'/app' as any}
+                href={'/app' as AppHref}
                 className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 hover:border-cyan-400/50 hover:shadow-[0_0_16px_rgba(0,212,255,0.2)] transition-all duration-200"
               >
                 <Sparkles size={14} />
@@ -172,7 +172,7 @@ export function Navbar() {
                     }}
                   >
                     <Link
-                      href={'/app' as any}
+                      href={'/app' as AppHref}
                       className="group flex items-center justify-between py-4 border-b border-white/[0.04]"
                       onClick={() => setMobileOpen(false)}
                     >

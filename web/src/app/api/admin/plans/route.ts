@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/admin/plans', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await requireRole('ADMIN');
     if (!session) {
@@ -35,6 +39,9 @@ const updatePlanSchema = z.object({
 });
 
 export async function PUT(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/admin/plans', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await requireRole('ADMIN');
     if (!session) {

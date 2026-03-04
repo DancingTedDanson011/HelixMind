@@ -17,8 +17,8 @@ describe('Tab View', () => {
     bg.status = 'running';
 
     const result = renderTabBar([main, bg], 'main');
-    expect(result).toContain('Chat');
-    expect(result).toContain('Security');
+    expect(result).toContain('@main');
+    expect(result).toContain('@security');
   });
 
   it('should highlight the active tab', () => {

@@ -1,6 +1,8 @@
 import chalk from 'chalk';
 import { theme } from './theme.js';
 import { formatElapsed } from './activity.js';
+import type { AgentIdentity } from '../agent/plan-types.js';
+import { renderAgentPrefix } from './agent-display.js';
 
 const TOOL_ICONS: Record<string, string> = {
   read_file: '\u{1F4C4}',
@@ -34,12 +36,20 @@ export function isInsideToolBlock(): boolean {
 }
 
 /** Start a visual tool block — bordered section grouping tool calls */
-export function renderToolBlockStart(): void {
+export function renderToolBlockStart(agentIdentity?: AgentIdentity): void {
   toolBlockOpen = true;
   const termWidth = (process.stdout.columns || 80) - 4;
-  const headerText = '\u2500 Working ';
+  const agentTag = agentIdentity ? renderAgentPrefix(agentIdentity) : '';
+  const headerText = `\u2500 ${agentTag ? agentIdentity!.name + ' ' : ''}Working `;
   const line = headerText + '\u2500'.repeat(Math.max(10, termWidth - headerText.length - 1));
-  process.stdout.write(`\n  ${chalk.dim('\u250C' + line)}\n`);
+  if (agentIdentity) {
+    // Colored header with agent tag
+    const coloredHeader = `\u2500 ${renderAgentPrefix(agentIdentity)}Working `;
+    const fill = '\u2500'.repeat(Math.max(10, termWidth - headerText.length - 1));
+    process.stdout.write(`\n  ${chalk.dim('\u250C')}${chalk.dim('\u2500 ')}${renderAgentPrefix(agentIdentity)}${chalk.dim('Working ' + fill)}\n`);
+  } else {
+    process.stdout.write(`\n  ${chalk.dim('\u250C' + line)}\n`);
+  }
 }
 
 /** Close the visual tool block with a summary footer */
@@ -55,7 +65,7 @@ export function renderToolBlockEnd(stepCount: number, durationMs: number): void 
 /**
  * Display a tool call as a compact single-line that overwrites previous tool output.
  */
-export function renderToolCall(name: string, input: Record<string, unknown>): void {
+export function renderToolCall(name: string, input: Record<string, unknown>, _agentIdentity?: AgentIdentity): void {
   toolCallCount++;
   const icon = TOOL_ICONS[name] || '\u{1F527}';
   const summary = formatToolInput(name, input);

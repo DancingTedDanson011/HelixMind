@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createHash, randomBytes } from 'crypto';
 import { requireRole } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 function generateLicenseKey(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -17,7 +18,10 @@ function generateLicenseKey(): string {
   return `HM-${groups.join('-')}`;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/admin/licenses', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await requireRole('ADMIN');
     if (!session) {
@@ -45,6 +49,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/admin/licenses', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await requireRole('ADMIN');
     if (!session) {
@@ -105,6 +112,9 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/admin/licenses', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await requireRole('ADMIN');
     if (!session) {

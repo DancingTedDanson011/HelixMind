@@ -3,7 +3,7 @@
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import type { DemoNode, DemoEdge } from './brain-demo-data';
+import type { DemoNode, DemoEdge } from './brain-types';
 import { FORCE_LAYOUT } from '@/lib/constants';
 
 // ─── Constants ───────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { usePathname } from '@/i18n/routing';
-import { Link } from '@/i18n/routing';
+import { Link, type AppHref } from '@/i18n/routing';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { FLAT_DOC_ORDER } from './DocsSidebar';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,7 @@ export function DocsNavigation() {
     <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
       {prevDoc ? (
         <Link
-          href={`/docs/${prevDoc.slug}` as any}
+          href={`/docs/${prevDoc.slug}` as AppHref}
           className={cn(
             'group flex items-center gap-3 p-4 rounded-xl',
             'glass hover:border-primary/20 transition-all duration-200',
@@ -53,7 +53,7 @@ export function DocsNavigation() {
 
       {nextDoc ? (
         <Link
-          href={`/docs/${nextDoc.slug}` as any}
+          href={`/docs/${nextDoc.slug}` as AppHref}
           className={cn(
             'group flex items-center justify-end gap-3 p-4 rounded-xl text-right',
             'glass hover:border-primary/20 transition-all duration-200',

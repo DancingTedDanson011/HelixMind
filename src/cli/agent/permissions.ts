@@ -66,6 +66,7 @@ interface PermissionChoice {
 export class PermissionManager {
   private yoloMode = false;
   private skipPermissionsMode = false;
+  private _planMode = false;
   private rl: readline.Interface | null = null;
   private onPromptActive?: (active: boolean) => void;
 
@@ -106,8 +107,18 @@ export class PermissionManager {
     this.useSelectMenu = enabled;
   }
 
+  /** Enable/disable plan mode (read-only — blocks write/execute tools) */
+  setPlanMode(enabled: boolean): void {
+    this._planMode = enabled;
+  }
+
+  isPlanMode(): boolean {
+    return this._planMode;
+  }
+
   /** Get the current mode label for display */
-  getModeLabel(): 'safe' | 'skip' | 'yolo' {
+  getModeLabel(): 'safe' | 'skip' | 'yolo' | 'plan' {
+    if (this._planMode) return 'plan';
     if (this.yoloMode) return 'yolo';
     if (this.skipPermissionsMode) return 'skip';
     return 'safe';
@@ -175,6 +186,18 @@ export class PermissionManager {
     input: Record<string, unknown>,
     displayFn: (msg: string) => void,
   ): Promise<boolean> {
+    // Plan mode: only allow read-only tools, silently deny writes
+    if (this._planMode) {
+      const readOnlyTools = new Set([
+        'read_file', 'list_directory', 'search_files', 'find_files',
+        'git_status', 'git_log', 'git_diff', 'spiral_query', 'bug_list',
+      ]);
+      if (!readOnlyTools.has(toolName)) {
+        return false; // Silent deny — plan mode is read-only
+      }
+      return true;
+    }
+
     let level = TOOL_PERMISSIONS[toolName] ?? 'ask';
 
     // Upgrade run_command based on command content

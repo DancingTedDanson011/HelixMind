@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { NebulaNodes } from './NebulaNodes';
@@ -8,7 +9,7 @@ import { NebulaStars } from './NebulaStars';
 import { GoldenCore } from './GoldenCore';
 import { JarvisOrbits, type OrbitNodeData } from './JarvisOrbits';
 import { JarvisNeurons } from './JarvisNeurons';
-import { demoNodes, demoEdges } from '../brain-demo-data';
+import type { DemoNode, DemoEdge } from '../brain-types';
 
 interface BrainSceneV2Props {
   /** Jarvis thinking phase for dynamic effects */
@@ -30,6 +31,14 @@ export function BrainSceneV2({
   jarvisTasks = [],
   jarvisProposals = [],
 }: BrainSceneV2Props) {
+  const [data, setData] = useState<{ demoNodes: DemoNode[]; demoEdges: DemoEdge[] } | null>(null);
+
+  useEffect(() => {
+    import('../brain-demo-data').then((m) => {
+      setData({ demoNodes: m.demoNodes, demoEdges: m.demoEdges });
+    });
+  }, []);
+
   return (
     <Canvas
       camera={{ position: [900, 500, 900], fov: 50, near: 1, far: 8000 }}
@@ -42,8 +51,12 @@ export function BrainSceneV2({
       <fog attach="fog" args={['#030308', 1200, 5000]} />
 
       <NebulaStars />
-      <NebulaNodes nodes={demoNodes} edges={demoEdges} />
-      <NebulaEdges nodes={demoNodes} edges={demoEdges} />
+      {data && (
+        <>
+          <NebulaNodes nodes={data.demoNodes} edges={data.demoEdges} />
+          <NebulaEdges nodes={data.demoNodes} edges={data.demoEdges} />
+        </>
+      )}
 
       {/* Jarvis AGI visualization */}
       <GoldenCore radius={25} thinkingPhase={thinkingPhase} />

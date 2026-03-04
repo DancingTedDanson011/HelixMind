@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import type { TicketStatus } from '@prisma/client';
 import { z } from 'zod';
 
 const createTicketSchema = z.object({
@@ -11,6 +13,9 @@ const createTicketSchema = z.object({
 });
 
 export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/tickets', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -24,7 +29,7 @@ export async function GET(req: Request) {
     const tickets = await prisma.ticket.findMany({
       where: {
         ...(isAdmin ? {} : { userId: session.user.id }),
-        ...(status ? { status: status as any } : {}),
+        ...(status ? { status: status as TicketStatus } : {}),
       },
       include: {
         user: { select: { name: true, email: true } },
@@ -42,6 +47,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/tickets', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

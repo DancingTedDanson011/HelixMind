@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireTeamRole } from '@/lib/team-auth';
 import { createNotification } from '@/lib/notifications';
 import { sendTeamInviteEmail } from '@/lib/email';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const inviteSchema = z.object({
@@ -11,9 +12,12 @@ const inviteSchema = z.object({
 });
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/teams/invite', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const { id } = await params;
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');
@@ -45,6 +49,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/teams/invite', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const { id } = await params;
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');

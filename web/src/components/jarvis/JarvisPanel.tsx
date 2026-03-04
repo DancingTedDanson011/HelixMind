@@ -324,7 +324,7 @@ export function JarvisPanel({
                           : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300'
                       }`}
                     >
-                      {t(`jarvisTask${p.charAt(0).toUpperCase() + p.slice(1)}` as any)}
+                      {t({ high: 'jarvisTaskHigh' as const, medium: 'jarvisTaskMedium' as const, low: 'jarvisTaskLow' as const }[p])}
                     </button>
                   ))}
                 </div>

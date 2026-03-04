@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/routing';
+import { Link, type AppHref } from '@/i18n/routing';
 import { useCookieConsent } from '@/components/cookie-consent/CookieConsentProvider';
 
 export function Footer() {
@@ -58,7 +58,7 @@ export function Footer() {
                 {col.links.map((link) => (
                   <li key={link.href}>
                     <Link
-                      href={link.href as any}
+                      href={link.href as AppHref}
                       className="text-sm text-gray-500 hover:text-primary transition-colors"
                     >
                       {link.label}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { spawn } from 'child_process';
 import { existsSync, statSync } from 'fs';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const spawnSchema = z.object({
@@ -24,6 +25,9 @@ function cleanupDeadPids() {
 }
 
 export async function POST(req: NextRequest) {
+  const rateLimited = checkRateLimit(req, 'api/cli/spawn', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     // Auth check
     const session = await auth();

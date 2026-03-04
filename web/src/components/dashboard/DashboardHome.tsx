@@ -5,6 +5,7 @@ import { Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
+import { getPlanBadgeVariant } from '@/lib/plan-utils';
 import { Button } from '@/components/ui/Button';
 import {
   User,
@@ -57,15 +58,6 @@ function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toString();
-}
-
-function planBadgeVariant(plan: string): 'default' | 'primary' | 'spiral' | 'warning' {
-  switch (plan) {
-    case 'PRO': return 'primary';
-    case 'TEAM': return 'spiral';
-    case 'ENTERPRISE': return 'warning';
-    default: return 'default';
-  }
 }
 
 /* ─── Component ───────────────────────────────── */
@@ -144,7 +136,7 @@ export function DashboardHome({ user }: DashboardHomeProps) {
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-lg font-semibold text-white">{t('home.plan', { plan })}</p>
-                <Badge variant={planBadgeVariant(plan)}>{plan}</Badge>
+                <Badge variant={getPlanBadgeVariant(plan)}>{plan}</Badge>
               </div>
               <div className="flex items-center gap-3 mt-0.5">
                 <Badge variant={status === 'ACTIVE' ? 'success' : 'warning'} className="text-[10px]">

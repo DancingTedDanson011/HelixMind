@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createHash } from 'crypto';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/auth/cli/revoke', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const authHeader = req.headers.get('authorization');
     const apiKey = authHeader?.replace(/^Bearer\s+/i, '');

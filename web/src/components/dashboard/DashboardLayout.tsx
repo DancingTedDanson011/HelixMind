@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
+import { getPlanBadgeVariant } from '@/lib/plan-utils';
 import {
   LayoutDashboard,
   User,
@@ -67,17 +68,6 @@ const navItemDefs: NavItemDef[] = [
   // Always visible
   { key: 'support', labelKey: 'nav.support', href: '/support/tickets', icon: LifeBuoy },
 ];
-
-/* ─── Plan Badge Variant ──────────────────────── */
-
-function planBadgeVariant(plan: string): 'default' | 'primary' | 'spiral' | 'warning' {
-  switch (plan) {
-    case 'PRO': return 'primary';
-    case 'TEAM': return 'spiral';
-    case 'ENTERPRISE': return 'warning';
-    default: return 'default';
-  }
-}
 
 /* ─── Component ───────────────────────────────── */
 
@@ -170,7 +160,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                   </div>
                 </div>
                 <div className="mt-3">
-                  <Badge variant={planBadgeVariant(plan)}>{plan}</Badge>
+                  <Badge variant={getPlanBadgeVariant(plan)}>{plan}</Badge>
                 </div>
               </GlassPanel>
             </div>
@@ -230,7 +220,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white truncate">{user?.name || t('layout.userFallback')}</p>
                     </div>
-                    <Badge variant={planBadgeVariant(plan)} className="text-[10px]">{plan}</Badge>
+                    <Badge variant={getPlanBadgeVariant(plan)} className="text-[10px]">{plan}</Badge>
                   </div>
                 </GlassPanel>
               </motion.div>

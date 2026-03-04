@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
+import { getPlanBadgeVariant } from '@/lib/plan-utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import {
@@ -36,12 +37,7 @@ const AVAILABLE_FEATURES = [
   'unlimited-brains',
 ];
 
-const planBadgeVariant: Record<string, 'default' | 'primary' | 'spiral' | 'warning'> = {
-  FREE: 'default',
-  PRO: 'primary',
-  TEAM: 'spiral',
-  ENTERPRISE: 'warning',
-};
+
 
 const tableRowVariants = {
   hidden: { opacity: 0, x: -10 },
@@ -351,7 +347,7 @@ export function LicenseManager() {
                         <code className="text-xs text-gray-300 font-mono">{license.key}</code>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant={planBadgeVariant[license.plan] || 'default'}>
+                        <Badge variant={getPlanBadgeVariant(license.plan)}>
                           {license.plan}
                         </Badge>
                       </td>

@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTeamRole } from '@/lib/team-auth';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/teams/analytics', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const { id } = await params;
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');
@@ -51,7 +55,7 @@ export async function GET(
       const apiCalls = userLogs.filter((l) => l.action === 'api_call').length;
       const tokens = userLogs
         .filter((l) => l.action === 'token_usage')
-        .reduce((sum, l) => sum + ((l.metadata as any)?.tokens || 0), 0);
+        .reduce((sum, l) => sum + (((l.metadata as Record<string, unknown> | null)?.tokens as number) || 0), 0);
       const jarvisTasks = userLogs.filter((l) => l.action === 'jarvis_task').length;
       return {
         userId: m.userId,
@@ -76,7 +80,7 @@ export async function GET(
         apiCalls: dayLogs.filter((l) => l.action === 'api_call').length,
         tokens: dayLogs
           .filter((l) => l.action === 'token_usage')
-          .reduce((sum, l) => sum + ((l.metadata as any)?.tokens || 0), 0),
+          .reduce((sum, l) => sum + (((l.metadata as Record<string, unknown> | null)?.tokens as number) || 0), 0),
       });
     }
 

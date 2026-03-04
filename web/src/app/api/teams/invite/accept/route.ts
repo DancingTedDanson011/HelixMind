@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const acceptSchema = z.object({
@@ -9,6 +10,9 @@ const acceptSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/teams/invite/accept', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id || !session.user.email) {

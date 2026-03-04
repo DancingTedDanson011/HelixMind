@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
+import { getPlanBadgeVariant } from '@/lib/plan-utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { AdminUserDetail } from './AdminUserDetail';
@@ -30,12 +31,7 @@ const roleBadgeVariant: Record<string, 'default' | 'error' | 'warning' | 'primar
   SUPPORT: 'warning',
 };
 
-const planBadgeVariant: Record<string, 'default' | 'primary' | 'spiral' | 'warning'> = {
-  FREE: 'default',
-  PRO: 'primary',
-  TEAM: 'spiral',
-  ENTERPRISE: 'warning',
-};
+
 
 const tableRowVariants = {
   hidden: { opacity: 0, x: -10 },
@@ -192,7 +188,7 @@ export function AdminUsers({ userRole = 'ADMIN' }: AdminUsersProps) {
                       <Badge variant={roleBadgeVariant[user.role] || 'default'}>{user.role}</Badge>
                     </td>
                     <td className="py-3.5 px-5">
-                      <Badge variant={planBadgeVariant[user.subscription?.plan || 'FREE'] || 'default'}>
+                      <Badge variant={getPlanBadgeVariant(user.subscription?.plan || 'FREE')}>
                         {user.subscription?.plan || 'FREE'}
                       </Badge>
                     </td>

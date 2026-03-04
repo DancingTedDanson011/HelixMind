@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
@@ -83,7 +84,7 @@ export async function POST(
         chatId: id,
         role: parsed.data.role,
         content: parsed.data.content,
-        metadata: parsed.data.metadata as any ?? undefined,
+        metadata: (parsed.data.metadata as Prisma.InputJsonValue) ?? undefined,
       },
     });
 

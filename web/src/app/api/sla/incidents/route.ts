@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 interface Incident {
   startTime: string;
@@ -9,7 +10,10 @@ interface Incident {
   errors: string[];
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/sla/incidents', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 

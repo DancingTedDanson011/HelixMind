@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { requireTeamPlan } from '@/lib/team-auth';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const createSchema = z.object({
@@ -9,7 +10,10 @@ const createSchema = z.object({
   slug: z.string().min(2).max(50).regex(/^[a-z0-9-]+$/),
 });
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/teams', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -48,6 +52,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/teams', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, AUTH_RATE_LIMIT } from '@/lib/rate-limit';
 
-export async function POST() {
+export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/stripe/portal', AUTH_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

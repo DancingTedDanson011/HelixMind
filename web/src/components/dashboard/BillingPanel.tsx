@@ -6,6 +6,7 @@ import { Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
+import { getPlanBadgeVariant } from '@/lib/plan-utils';
 import { Button } from '@/components/ui/Button';
 import {
   CreditCard,
@@ -112,15 +113,6 @@ const item = {
 
 /* ─── Helpers ─────────────────────────────────── */
 
-function planBadgeVariant(plan: string): 'default' | 'primary' | 'spiral' | 'warning' {
-  switch (plan) {
-    case 'PRO': return 'primary';
-    case 'TEAM': return 'spiral';
-    case 'ENTERPRISE': return 'warning';
-    default: return 'default';
-  }
-}
-
 function statusBadgeVariant(status: string): 'success' | 'warning' | 'error' | 'default' {
   switch (status) {
     case 'paid': return 'success';
@@ -189,7 +181,7 @@ export function BillingPanel({ user, invoices = [] }: BillingPanelProps) {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-xl font-bold text-white">{t('billing.plan', { plan })}</h2>
-                  <Badge variant={planBadgeVariant(plan)}>{plan}</Badge>
+                  <Badge variant={getPlanBadgeVariant(plan)}>{plan}</Badge>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <Badge variant={status === 'ACTIVE' ? 'success' : 'warning'}>

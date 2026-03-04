@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTeamRole } from '@/lib/team-auth';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const patchSchema = z.object({
@@ -11,6 +12,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string; uid: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/teams/members/uid', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const { id, uid } = await params;
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');
@@ -47,9 +51,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string; uid: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'api/teams/members/uid', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const { id, uid } = await params;
     const authResult = await requireTeamRole(id, 'OWNER', 'ADMIN');

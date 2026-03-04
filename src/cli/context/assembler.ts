@@ -1,6 +1,7 @@
 import { platform } from 'node:os';
 import type { ProjectInfo } from './project.js';
 import type { SpiralQueryResult } from '../../types.js';
+import type { ExecutionPlan } from '../agent/plan-types.js';
 
 const BASE_INSTRUCTIONS = `You are HelixMind, an expert AI coding assistant with persistent spiral memory.
 You help developers write, debug, and understand code. You are direct, concise, and precise.
@@ -76,6 +77,8 @@ export function assembleSystemPrompt(
   bugSummary?: string | null,
   jarvisIdentity?: string | null,
   learningSummary?: string | null,
+  planModeActive?: boolean,
+  activePlan?: ExecutionPlan | null,
 ): string {
   const sections: string[] = [BASE_INSTRUCTIONS];
 
@@ -118,6 +121,11 @@ export function assembleSystemPrompt(
   // Jarvis identity + ethics context (injected when Jarvis daemon is active)
   if (jarvisIdentity) {
     sections.push(jarvisIdentity);
+  }
+
+  // Plan mode instructions
+  if (planModeActive) {
+    sections.push(buildPlanModeSection(activePlan));
   }
 
   return sections.join('\n\n---\n\n');
@@ -186,6 +194,68 @@ function buildSpiralSection(result: SpiralQueryResult): string | null {
       for (const node of nodes) {
         lines.push(`- [${node.type}] ${node.content}`);
       }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function buildPlanModeSection(activePlan?: ExecutionPlan | null): string {
+  const lines: string[] = ['## Plan Mode'];
+
+  if (!activePlan || activePlan.status === 'drafting' || activePlan.status === 'pending_approval') {
+    // Planning phase — read-only exploration
+    lines.push(`You are in PLAN MODE. Only read-only tools are available (read_file, list_directory, search_files, find_files, git_status, git_log, git_diff, spiral_query).
+
+Your task:
+1. Explore the codebase thoroughly to understand the relevant code.
+2. After exploration, produce a structured execution plan as a JSON code block.
+
+The plan must follow this exact format:
+\`\`\`json
+{
+  "title": "Short descriptive title",
+  "description": "Why this plan and what it achieves",
+  "steps": [
+    {
+      "title": "Step title",
+      "description": "What this step does and why",
+      "tools": ["edit_file", "write_file"],
+      "affectedFiles": ["src/path/to/file.ts"],
+      "dependencies": []
+    }
+  ]
+}
+\`\`\`
+
+Rules:
+- Each step should be a coherent unit of work (1-5 tool calls).
+- List ALL files that will be modified or created.
+- Use "dependencies" to reference step indices (0-based) that must complete first.
+- Do NOT execute any write operations — only explore and plan.`);
+  } else if (activePlan.status === 'executing') {
+    // Execution phase — show active plan context
+    const completed = activePlan.steps.filter(s => s.status === 'done');
+    const current = activePlan.steps.find(s => s.status === 'running');
+    const pending = activePlan.steps.filter(s => s.status === 'pending');
+
+    lines.push(`Executing plan: "${activePlan.title}"`);
+    lines.push(`Progress: ${completed.length}/${activePlan.steps.length} steps completed.`);
+
+    if (completed.length > 0) {
+      lines.push(`\nCompleted steps:`);
+      for (const step of completed) {
+        lines.push(`- [DONE] ${step.title}${step.result ? ': ' + step.result.slice(0, 100) : ''}`);
+      }
+    }
+
+    if (current) {
+      lines.push(`\nCurrent step: ${current.title}`);
+      lines.push(current.description);
+    }
+
+    if (pending.length > 0) {
+      lines.push(`\nRemaining: ${pending.length} steps`);
     }
   }
 

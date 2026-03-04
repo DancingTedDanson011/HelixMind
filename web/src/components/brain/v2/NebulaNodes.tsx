@@ -3,7 +3,7 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { DemoNode } from '../brain-demo-data';
+import type { DemoNode } from '../brain-types';
 import { LEVEL_COLORS, LEVEL_GLOW } from '@/lib/constants';
 import { nodeVertexShader, nodeFragmentShader } from './shaders';
 

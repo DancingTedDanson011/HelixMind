@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 interface TelemetryPayload {
   installId: string;
@@ -16,6 +17,9 @@ interface TelemetryPayload {
 }
 
 export async function POST(request: Request) {
+  const rateLimited = checkRateLimit(request, 'api/telemetry', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const payload = (await request.json()) as TelemetryPayload;
 

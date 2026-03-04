@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, AI_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const createChatSchema = z.object({
@@ -8,7 +9,10 @@ const createChatSchema = z.object({
   mode: z.enum(['normal', 'skip-permissions']).default('normal'),
 });
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/chats', AI_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -37,6 +41,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/chats', AI_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

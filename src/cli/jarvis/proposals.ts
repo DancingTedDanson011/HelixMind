@@ -9,6 +9,8 @@ import type {
   ProposalEntry, ProposalStatus, ProposalCategory, ProposalSource,
   ProposalEvidence, ProposalJournalData, DenialPattern, JarvisTask,
 } from './types.js';
+import type { ExecutionPlan } from '../agent/plan-types.js';
+import type { PlanEngine } from '../agent/plan-engine.js';
 
 const EMPTY_DATA: ProposalJournalData = {
   version: 1, nextId: 1, proposals: [], denialPatterns: [],
@@ -293,6 +295,20 @@ export class ProposalJournal {
   }
 
   // ─── Internal ───────────────────────────────────────────────────────
+
+  /**
+   * Convert a proposal to an ExecutionPlan via the PlanEngine.
+   * Used when a proposal is approved and should be executed step-by-step.
+   */
+  toExecutionPlan(proposal: ProposalEntry, planEngine: PlanEngine): ExecutionPlan {
+    return planEngine.createFromProposal({
+      id: proposal.id,
+      title: proposal.title,
+      description: proposal.description,
+      affectedFiles: proposal.affectedFiles,
+      steps: proposal.steps,
+    });
+  }
 
   private recordDenialPattern(proposal: ProposalEntry, reason: string): void {
     // Extract directory-level patterns from affected files

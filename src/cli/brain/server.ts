@@ -4,6 +4,9 @@ import { spawn } from 'node:child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { BrainExport } from './exporter.js';
 import { generateBrainHTML } from './template.js';
+import {
+  CONTROL_REQUEST_TYPES,
+} from './control-protocol.js';
 import type {
   ControlHandlers,
   ControlRequest,
@@ -16,6 +19,9 @@ export type VoiceInputHandler = (text: string) => void;
 export type ScopeSwitchHandler = (scope: 'project' | 'global') => void;
 export type ModelActivateHandler = (model: string) => void;
 
+export type BrainServerEventType = 'event' | 'control';
+export type BrainServerEventHandler = (event: Record<string, unknown>) => void;
+
 export interface BrainServer {
   port: number;
   url: string;
@@ -26,6 +32,10 @@ export interface BrainServer {
   pushEvent(event: Record<string, unknown>): void;
   /** Push event only to authenticated control clients */
   pushControlEvent(event: Record<string, unknown>): void;
+  /** Subscribe to pushed events (for relay forwarding) */
+  on(event: BrainServerEventType, handler: BrainServerEventHandler): void;
+  /** Unsubscribe from pushed events */
+  off(event: BrainServerEventType, handler: BrainServerEventHandler): void;
   /** Register handler for voice input from browser */
   onVoiceInput(handler: VoiceInputHandler): void;
   /** Register handler for scope switch from browser */
@@ -345,6 +355,31 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             break;
           }
 
+          // --- Monitor ---
+          case 'start_monitor': {
+            const sessionId = controlHandlers.startMonitor((msg as any).mode);
+            sendTo(ws, { type: 'monitor_started', sessionId, mode: (msg as any).mode, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'stop_monitor': {
+            const success = controlHandlers.stopMonitor();
+            sendTo(ws, { type: 'monitor_stopped', success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'monitor_command': {
+            controlHandlers.handleMonitorCommand((msg as any).command, (msg as any).params);
+            sendTo(ws, { type: 'monitor_command_ack', requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'approval_response': {
+            controlHandlers.handleApprovalResponse((msg as any).requestId, (msg as any).approved);
+            sendTo(ws, { type: 'approval_response_ack', requestId, timestamp: Date.now() });
+            break;
+          }
+
           // --- Jarvis ---
           case 'start_jarvis': {
             const sessionId = controlHandlers.startJarvis();
@@ -501,7 +536,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
           case 'get_config': {
             const cfg = controlHandlers.getConfig();
-            sendTo(ws, { type: 'config_response', provider: cfg.provider, apiKey: cfg.apiKey, model: cfg.model, requestId, timestamp: Date.now() });
+            sendTo(ws, { type: 'config_response', provider: cfg.provider, apiKey: cfg.apiKey ? cfg.apiKey.slice(0, 4) + '****' : '', model: cfg.model, requestId, timestamp: Date.now() });
             break;
           }
 
@@ -601,6 +636,23 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             sendTo(ws, { type: 'tool_permission_response_ack', requestId: (msg as any).requestId, timestamp: Date.now() });
             break;
           }
+
+          // --- Brain Sync (stub — no real sync backend yet) ---
+          case 'brain_sync_push': {
+            sendTo(ws, { type: 'brain_sync_status', brainId: (msg as any).brainId, synced: true, version: (msg as any).version, lastSyncedAt: Date.now(), requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'brain_sync_pull': {
+            sendTo(ws, { type: 'brain_sync_data', brainId: (msg as any).brainId, version: 0, nodesJson: '[]', requestId, timestamp: Date.now() });
+            break;
+          }
+
+          // --- License (stub) ---
+          case 'license_validate': {
+            sendTo(ws, { type: 'license_status', valid: false, plan: 'FREE', features: [], expiresAt: '', requestId, timestamp: Date.now() });
+            break;
+          }
         }
       }
 
@@ -691,6 +743,10 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
       const addr = httpServer.address();
       const actualPort = typeof addr === 'object' && addr ? addr.port : port;
 
+      // Event listener registry for relay forwarding
+      const eventListeners = new Set<BrainServerEventHandler>();
+      const controlListeners = new Set<BrainServerEventHandler>();
+
       resolve({
         port: actualPort,
         url: `http://127.0.0.1:${actualPort}`,
@@ -712,6 +768,10 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
               ws.send(msg);
             }
           }
+          // Notify subscribers (e.g. relay client)
+          for (const handler of eventListeners) {
+            try { handler(event); } catch { /* non-fatal */ }
+          }
         },
         pushControlEvent(event: Record<string, unknown>) {
           const msg = JSON.stringify(event);
@@ -731,6 +791,18 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
               }
             }
           }
+          // Notify subscribers (e.g. relay client)
+          for (const handler of controlListeners) {
+            try { handler(event); } catch { /* non-fatal */ }
+          }
+        },
+        on(type: BrainServerEventType, handler: BrainServerEventHandler) {
+          if (type === 'event') eventListeners.add(handler);
+          else if (type === 'control') controlListeners.add(handler);
+        },
+        off(type: BrainServerEventType, handler: BrainServerEventHandler) {
+          if (type === 'event') eventListeners.delete(handler);
+          else if (type === 'control') controlListeners.delete(handler);
         },
         onVoiceInput(handler: VoiceInputHandler) {
           voiceHandler = handler;
@@ -752,6 +824,8 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           scopeSwitchHandler = null;
           modelActivateHandler = null;
           controlHandlers = null;
+          eventListeners.clear();
+          controlListeners.clear();
           for (const ws of brainClients) ws.close();
           for (const ws of controlClients) ws.close();
           wss.close();
@@ -764,29 +838,5 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
 /** Check if a message type is a control request */
 function isControlRequest(type: string): boolean {
-  return [
-    'list_sessions', 'start_auto', 'start_security',
-    'abort_session', 'subscribe_output', 'unsubscribe_output',
-    'send_chat', 'get_findings', 'get_bugs', 'ping',
-    'start_monitor', 'stop_monitor', 'monitor_command', 'approval_response',
-    'start_jarvis', 'stop_jarvis', 'pause_jarvis', 'resume_jarvis',
-    'add_jarvis_task', 'list_jarvis_tasks', 'delete_jarvis_task', 'get_jarvis_status',
-    'clear_jarvis_completed',
-    // Jarvis AGI
-    'list_proposals', 'approve_proposal', 'deny_proposal',
-    'set_autonomy_level', 'get_identity', 'trigger_deep_think',
-    'add_schedule', 'remove_schedule', 'list_schedules',
-    'add_trigger', 'remove_trigger', 'list_triggers',
-    'list_projects', 'register_project', 'get_workers',
-    // Brain management
-    'get_brain_list', 'rename_brain', 'switch_brain', 'create_brain',
-    // Config & model
-    'get_config', 'switch_model',
-    // Status bar & checkpoints
-    'get_status_bar', 'list_checkpoints', 'revert_to_checkpoint',
-    // Remote tool execution
-    'remote_tool_result',
-    // Tool permission approval
-    'tool_permission_response',
-  ].includes(type);
+  return CONTROL_REQUEST_TYPES.has(type);
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { HelixNodes } from './HelixNodes';
 import { HelixEdges } from './HelixEdges';
@@ -8,24 +8,51 @@ import { BackgroundStars } from './BackgroundStars';
 import { EnergyCore } from './EnergyCore';
 import { OrbitStreams } from './OrbitStreams';
 import { SignalParticles } from './SignalParticles';
-import { demoNodes, demoEdges, demoPositions } from './brain-demo-data';
+import type { DemoNode, DemoEdge } from './brain-types';
 import { LEVEL_COLORS, FORCE_LAYOUT } from '@/lib/constants';
 import { srand } from './brain-utils';
 
-const nC = demoNodes.length;
-const spread = FORCE_LAYOUT.BASE_SPREAD + Math.sqrt(nC) * 25;
+interface DemoData {
+  demoNodes: DemoNode[];
+  demoEdges: DemoEdge[];
+  demoPositions: [number, number, number][];
+}
 
 /** Shared inner Three.js scene — used by BrainScene (demo) and InteractiveBrainCanvas (landing) */
 export function BrainInner() {
+  const [data, setData] = useState<DemoData | null>(null);
+
+  useEffect(() => {
+    import('./brain-demo-data').then((m) => {
+      setData({
+        demoNodes: m.demoNodes,
+        demoEdges: m.demoEdges,
+        demoPositions: m.demoPositions,
+      });
+    });
+  }, []);
+
+  if (!data) {
+    return <BackgroundStars />;
+  }
+
+  return <BrainInnerLoaded data={data} />;
+}
+
+function BrainInnerLoaded({ data }: { data: DemoData }) {
+  const { demoNodes, demoEdges, demoPositions } = data;
+  const nC = demoNodes.length;
+  const spread = FORCE_LAYOUT.BASE_SPREAD + Math.sqrt(nC) * 25;
+
   const positions = useMemo(() =>
     demoPositions.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
-  []);
+  [demoPositions]);
 
   const centroid = useMemo(() => {
     let cx = 0, cy = 0, cz = 0;
     for (const p of positions) { cx += p.x; cy += p.y; cz += p.z; }
     return new THREE.Vector3(cx / nC, cy / nC, cz / nC);
-  }, [positions]);
+  }, [positions, nC]);
 
   const nodeColors = useMemo(() => {
     const colArr = new Float32Array(nC * 3);
@@ -57,7 +84,7 @@ export function BrainInner() {
       colArr[i * 3 + 2] = tc.b;
     }
     return colArr;
-  }, [positions, centroid]);
+  }, [demoNodes, positions, centroid, nC, spread]);
 
   return (
     <>

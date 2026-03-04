@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { randomBytes, createHash } from 'crypto';
+import { checkRateLimit, DEVICE_CODE_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const confirmSchema = z.object({
@@ -9,6 +10,9 @@ const confirmSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'api/auth/device/confirm', DEVICE_CODE_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

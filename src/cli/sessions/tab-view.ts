@@ -4,6 +4,7 @@
  */
 import chalk from 'chalk';
 import type { Session } from './session.js';
+import { getAgentIdentity, renderAgentTag } from '../ui/agent-display.js';
 
 /**
  * Render a tab bar showing all sessions.
@@ -20,17 +21,19 @@ export function renderTabBar(sessions: Session[], activeId: string): string {
   for (const session of sessions) {
     const isActive = session.id === activeId;
     const statusIcon = getStatusIcon(session.status);
-    const label = `${session.icon} ${session.name}`;
+    const identity = getAgentIdentity(session.name);
+    const label = `${session.icon} ${identity.name}`;
 
     if (isActive) {
-      // Active tab — highlighted with box
+      // Active tab — highlighted with box, colored by agent identity
+      const color = chalk.hex(identity.color);
       parts.push(
-        chalk.hex('#00d4ff')('\u250C\u2500 ') +
-        chalk.hex('#00d4ff').bold(label) +
-        chalk.hex('#00d4ff')(' \u2500\u2510'),
+        color('\u250C\u2500 ') +
+        color.bold(label) +
+        color(' \u2500\u2510'),
       );
     } else {
-      // Background tab — dim with status indicator
+      // Background tab — colored by status with agent @name
       const statusColor = session.status === 'running' ? chalk.yellow
         : session.status === 'done' ? chalk.green
         : session.status === 'error' ? chalk.red
