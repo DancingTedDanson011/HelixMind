@@ -5,7 +5,7 @@ import type { BrainExport } from './exporter.js';
 import type { BrainScope } from '../../utils/config.js';
 import { generateBrainHTML } from './template.js';
 import { startBrainServer, type BrainServer } from './server.js';
-import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo, TriggerInfo, WorkerInfo, ToolPermissionRequest, PlanInfo, PlanStepInfo } from './control-protocol.js';
+import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo, TriggerInfo, WorkerInfo, ToolPermissionRequest, PlanInfo, PlanStepInfo, SwarmInfo } from './control-protocol.js';
 
 /** Generate a static HTML file (fallback / export) */
 export function generateBrainFile(data: BrainExport): string {
@@ -498,6 +498,34 @@ export function pushWorkerStarted(worker: WorkerInfo): void {
 export function pushWorkerCompleted(worker: WorkerInfo): void {
   if (!activeBrainServer) return;
   const event = { type: 'worker_completed', worker, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+// ---------------------------------------------------------------------------
+// Swarm Events — Push Functions
+// ---------------------------------------------------------------------------
+
+/** Push a swarm-created event to all clients */
+export function pushSwarmCreated(swarm: SwarmInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'swarm_created', swarm, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a swarm-updated event to all clients */
+export function pushSwarmUpdated(swarm: SwarmInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'swarm_updated', swarm, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a swarm-completed event to all clients */
+export function pushSwarmCompleted(swarm: SwarmInfo): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'swarm_completed', swarm, timestamp: Date.now() };
   activeBrainServer.pushEvent(event);
   activeBrainServer.pushControlEvent(event);
 }

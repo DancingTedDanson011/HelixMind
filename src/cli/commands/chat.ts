@@ -76,8 +76,11 @@ import { isFeatureAvailable, getLoginCTA, getJarvisLimitsForPlan, getBrainLimits
 import { PlanEngine } from '../agent/plan-engine.js';
 import { executePlan } from '../agent/plan-executor.js';
 import { renderPlanReview, runPlanBrowser, renderPlanStepStart, renderPlanStepEnd, renderPlanComplete } from '../ui/plan-display.js';
-import { AGENT_IDENTITIES, type PlanModeState } from '../agent/plan-types.js';
-import type { PlanInfo, PlanStepInfo } from '@helixmind/protocol';
+import { AGENT_IDENTITIES, resolveAgentIdentity, type PlanModeState } from '../agent/plan-types.js';
+import type { PlanInfo, PlanStepInfo, SwarmInfo } from '@helixmind/protocol';
+import { SwarmController } from '../agent/swarm.js';
+import { TaskOrchestrator } from '../jarvis/orchestrator.js';
+import { ParallelExecutor } from '../jarvis/parallel.js';
 import chalk from 'chalk';
 
 interface ChatOptions {
@@ -481,6 +484,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       updateStatusBar();
     },
   });
+
+  // Swarm orchestration — auto-splits multi-task requests into parallel workers
+  const swarmOrchestrator = new TaskOrchestrator();
+  const swarmExecutor = new ParallelExecutor({ maxWorkers: 3 });
+  let activeSwarm: SwarmController | null = null;
 
   // Validation Matrix state — requires login (FREE_PLUS+)
   let validationEnabled = (options.validation !== false) && isFeatureAvailable(store, 'validation_basic');
@@ -1577,6 +1585,61 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           updateStatusBar();
           return true;
         },
+        // Swarm
+        startSwarm: (message: string): string => {
+          // Trigger swarm via web — treated like /swarm command
+          const id = `swarm-${Date.now()}`;
+          // Fire and forget — swarm runs async
+          (async () => {
+            const { pushSwarmCreated, pushSwarmUpdated, pushSwarmCompleted, pushWorkerStarted, pushWorkerCompleted } = await import('../brain/generator.js');
+            const swarm = new SwarmController(swarmOrchestrator, swarmExecutor, sessionMgr, {
+              provider, project, spiralEngine, config, permissions, checkpointStore,
+              onTokens: (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+              onToolCall: () => { sessionToolCalls++; roundToolCalls++; },
+              onStatusChange: () => { updateStatusBar(); },
+              runWorkerSession: async (session, prompt, agentIdentity) => {
+                const bgActivity = new ActivityIndicator();
+                session.onCapture = (line, index) => { pushOutputLine(session.id, line, index); };
+                pushSessionCreated(serializeSession(session));
+                await sendAgentMessage(
+                  prompt, session.history, provider, project, spiralEngine, config,
+                  permissions, session.undoStack, checkpointStore,
+                  session.controller, bgActivity, session.buffer,
+                  (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                  () => { sessionToolCalls++; roundToolCalls++; },
+                  undefined,
+                  { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+                );
+                const text = session.buffer.buildContext();
+                const errors = session.buffer.getRecentErrors().map(e => e.summary);
+                return { text, errors };
+              },
+              sendPlanMessage: async (prompt) => {
+                let text = '';
+                for await (const event of provider.stream([{ role: 'user', content: prompt }], '')) {
+                  if (event.type === 'text') text += event.content;
+                }
+                return text;
+              },
+              pushSwarmCreated, pushSwarmUpdated, pushSwarmCompleted, pushWorkerStarted, pushWorkerCompleted,
+            });
+            activeSwarm = swarm;
+            await swarm.run(message);
+            activeSwarm = null;
+          })();
+          return id;
+        },
+        abortSwarm: (swarmId: string): boolean => {
+          if (activeSwarm) {
+            activeSwarm.abort();
+            activeSwarm = null;
+            return true;
+          }
+          return false;
+        },
+        getSwarmStatus: (): SwarmInfo | null => {
+          return activeSwarm?.getStatus() ?? null;
+        },
       };
       registerControlHandlers(controlHandlerImpl);
 
@@ -2190,6 +2253,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           activity.stop('Stopped');
           agentController.abort();
           sessionMgr.abortAll();
+          if (activeSwarm) { activeSwarm.abort(); activeSwarm = null; }
           autonomousMode = false;
 
           // Stop Jarvis daemon if running
@@ -3133,6 +3197,94 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       updateStatusBar();
     } else {
       // ═══ NORMAL MODE ═══
+
+      // --- Swarm auto-detection: check if multi-task request ---
+      const forceSwarm = input.startsWith('/swarm ');
+      const swarmInput = forceSwarm ? input.slice(7).trim() : input;
+      if (!activeSwarm && (forceSwarm || swarmOrchestrator.shouldOrchestrate(swarmInput))) {
+        const { pushSwarmCreated, pushSwarmUpdated, pushSwarmCompleted, pushWorkerStarted, pushWorkerCompleted, pushOutputLine: _pushOutputLine, pushSessionCreated: _pushSessionCreated } = await import('../brain/generator.js');
+        const { serializeSession: _serializeSession } = await import('../brain/control-protocol.js');
+        const swarm = new SwarmController(swarmOrchestrator, swarmExecutor, sessionMgr, {
+          provider,
+          project,
+          spiralEngine,
+          config,
+          permissions,
+          checkpointStore,
+          onTokens: (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+          onToolCall: () => { sessionToolCalls++; roundToolCalls++; },
+          onStatusChange: (_active, _total) => { updateStatusBar(); },
+          runWorkerSession: async (session, prompt, agentIdentity) => {
+            const bgActivity = new ActivityIndicator();
+            // Wire output streaming to brain
+            session.onCapture = (line, index) => {
+              _pushOutputLine(session.id, line, index);
+            };
+            _pushSessionCreated(_serializeSession(session));
+
+            await sendAgentMessage(
+              prompt, session.history, provider, project, spiralEngine, config,
+              permissions, session.undoStack, checkpointStore,
+              session.controller, bgActivity, session.buffer,
+              (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+              () => { sessionToolCalls++; roundToolCalls++; },
+              undefined,
+              { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+              bugJournal, undefined, undefined, undefined,
+              null,
+              undefined,
+              undefined,
+            );
+
+            const text = session.buffer.buildContext();
+            const errors = session.buffer.getRecentErrors().map(e => e.summary);
+            return { text, errors };
+          },
+          sendPlanMessage: async (prompt) => {
+            // Use the LLM provider stream for plan decomposition
+            let text = '';
+            for await (const event of provider.stream([{ role: 'user', content: prompt }], '')) {
+              if (event.type === 'text') text += event.content;
+            }
+            return text;
+          },
+          pushSwarmCreated,
+          pushSwarmUpdated,
+          pushSwarmCompleted,
+          pushWorkerStarted,
+          pushWorkerCompleted,
+        });
+
+        activeSwarm = swarm;
+        renderInfo(chalk.hex('#ffd700')('\u{1F41D} Swarm detected — decomposing into parallel tasks...'));
+
+        const summary = await swarm.run(swarmInput);
+        activeSwarm = null;
+
+        if (summary) {
+          // Swarm completed — render summary
+          process.stdout.write('\n');
+          renderMarkdown(summary);
+        } else {
+          // Swarm decided single task — fall through to normal agent
+          await sendAgentMessage(
+            input, agentHistory, provider, project, spiralEngine, config,
+            permissions, undoStack, checkpointStore, agentController, activity, sessionBuffer,
+            (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+            () => { sessionToolCalls++; roundToolCalls++; },
+            () => { isAtPrompt = false; },
+            { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+            bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
+            getJarvisContextForPrompt(),
+            (label, tool) => {
+              currentStepLabel = label;
+              const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
+              currentStepFile = fileTools.has(tool) ? label.replace(/^(reading|writing|editing)\s+/, '') : '';
+            },
+            jarvisLearning,
+          );
+        }
+      } else {
       await sendAgentMessage(
         input, agentHistory, provider, project, spiralEngine, config,
         permissions, undoStack, checkpointStore, agentController, activity, sessionBuffer,
@@ -3160,6 +3312,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
         jarvisLearning,
       );
+      }
     }
 
     agentRunning = false;

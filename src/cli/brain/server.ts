@@ -653,6 +653,25 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             sendTo(ws, { type: 'license_status', valid: false, plan: 'FREE', features: [], expiresAt: '', requestId, timestamp: Date.now() });
             break;
           }
+
+          // --- Swarm ---
+          case 'start_swarm': {
+            const swarmId = controlHandlers.startSwarm((msg as any).message);
+            sendTo(ws, { type: 'swarm_started', swarmId, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'abort_swarm': {
+            const success = controlHandlers.abortSwarm((msg as any).swarmId);
+            sendTo(ws, { type: 'swarm_aborted', swarmId: (msg as any).swarmId, success, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'get_swarm_status': {
+            const swarm = controlHandlers.getSwarmStatus();
+            sendTo(ws, { type: 'swarm_status', swarm, requestId, timestamp: Date.now() });
+            break;
+          }
         }
       }
 

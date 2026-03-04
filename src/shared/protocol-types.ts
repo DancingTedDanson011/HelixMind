@@ -27,6 +27,10 @@ export interface SessionInfo {
   agentName?: string;
   /** Agent identity color hex (e.g. "#00d4ff") */
   agentColor?: string;
+  /** Swarm ID if this session is a swarm worker */
+  swarmId?: string;
+  /** Sub-task ID within the swarm */
+  swarmTaskId?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,6 +183,39 @@ export interface WorkerInfo {
   status: 'running' | 'completed' | 'failed';
   startedAt: number;
   completedAt?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Swarm Orchestration
+// ---------------------------------------------------------------------------
+
+export type SwarmStatus = 'idle' | 'planning' | 'executing' | 'completed' | 'failed' | 'aborted';
+
+export interface SwarmInfo {
+  id: string;
+  originalRequest: string;
+  status: SwarmStatus;
+  reason: string;
+  subTasks: SwarmSubTaskInfo[];
+  parallelGroups: number[][];
+  startedAt: number;
+  completedAt?: number;
+  totalCompleted: number;
+  totalFailed: number;
+}
+
+export interface SwarmSubTaskInfo {
+  id: number;
+  title: string;
+  description: string;
+  affectedFiles: string[];
+  dependencies: number[];
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  sessionId?: string;
+  workerId?: number;
+  startedAt?: number;
+  completedAt?: number;
+  result?: string;
 }
 
 // ---------------------------------------------------------------------------

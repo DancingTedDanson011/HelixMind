@@ -16,6 +16,7 @@ import type {
   TriggerInfo, WorkerInfo, ChatFileAttachment, ToolPermissionRequest, StatusBarInfo,
   CheckpointInfo, WSMessage,
   PlanInfo, PlanStepInfo, PlanStatusInfo, PlanStepStatusInfo,
+  SwarmStatus, SwarmInfo, SwarmSubTaskInfo,
 } from '@helixmind/protocol';
 
 // Re-export all shared wire types for backwards compatibility
@@ -26,6 +27,7 @@ export type {
   TriggerInfo, WorkerInfo, ChatFileAttachment, ToolPermissionRequest, StatusBarInfo,
   CheckpointInfo, WSMessage,
   PlanInfo, PlanStepInfo, PlanStatusInfo, PlanStepStatusInfo,
+  SwarmStatus, SwarmInfo, SwarmSubTaskInfo,
 };
 
 // --- Auth ---
@@ -195,6 +197,21 @@ export interface PlanCreatedEvent extends WSMessage { type: 'plan_created'; plan
 export interface PlanUpdatedEvent extends WSMessage { type: 'plan_updated'; plan: PlanInfo }
 export interface PlanStepUpdatedEvent extends WSMessage { type: 'plan_step_updated'; planId: string; step: PlanStepInfo }
 
+// --- Swarm Requests (Browser → CLI) ---
+export interface StartSwarmRequest extends WSMessage { type: 'start_swarm'; message: string }
+export interface AbortSwarmRequest extends WSMessage { type: 'abort_swarm'; swarmId: string }
+export interface GetSwarmStatusRequest extends WSMessage { type: 'get_swarm_status' }
+
+// --- Swarm Responses (CLI → Browser) ---
+export interface SwarmStartedResponse extends WSMessage { type: 'swarm_started'; swarmId: string }
+export interface SwarmAbortedResponse extends WSMessage { type: 'swarm_aborted'; swarmId: string }
+export interface SwarmStatusResponse extends WSMessage { type: 'swarm_status'; swarm: SwarmInfo | null }
+
+// --- Swarm Events (CLI → Browser, async) ---
+export interface SwarmCreatedEvent extends WSMessage { type: 'swarm_created'; swarm: SwarmInfo }
+export interface SwarmUpdatedEvent extends WSMessage { type: 'swarm_updated'; swarm: SwarmInfo }
+export interface SwarmCompletedEvent extends WSMessage { type: 'swarm_completed'; swarm: SwarmInfo }
+
 // --- Brain Management Requests (Browser → CLI) ---
 export interface GetBrainListRequest extends WSMessage { type: 'get_brain_list' }
 export interface RenameBrainRequest extends WSMessage { type: 'rename_brain'; brainId: string; newName: string }
@@ -247,6 +264,7 @@ export const CONTROL_REQUEST_TYPES = new Set<string>([
   'get_status_bar', 'list_checkpoints', 'revert_to_checkpoint',
   'brain_sync_push', 'brain_sync_pull', 'license_validate',
   'get_active_plan', 'approve_plan', 'reject_plan', 'set_plan_mode',
+  'start_swarm', 'abort_swarm', 'get_swarm_status',
 ]);
 
 // Union of all control request types
@@ -306,7 +324,10 @@ export type ControlRequest =
   | GetActivePlanRequest
   | ApprovePlanRequest
   | RejectPlanRequest
-  | SetPlanModeRequest;
+  | SetPlanModeRequest
+  | StartSwarmRequest
+  | AbortSwarmRequest
+  | GetSwarmStatusRequest;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts
@@ -370,6 +391,10 @@ export interface ControlHandlers {
   approvePlan(planId: string): boolean;
   rejectPlan(planId: string, reason: string): boolean;
   setPlanMode(enabled: boolean): boolean;
+  // Swarm
+  startSwarm(message: string): string;          // returns swarmId
+  abortSwarm(swarmId: string): boolean;
+  getSwarmStatus(): SwarmInfo | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -395,6 +420,8 @@ export function serializeSession(session: Session): SessionInfo {
           errorsCount: session.result.errors.length,
         }
       : null,
+    swarmId: session.swarmId,
+    swarmTaskId: session.swarmTaskId,
   };
 }
 

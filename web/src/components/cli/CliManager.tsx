@@ -13,6 +13,7 @@ import { LocalConnectionView } from './LocalConnectionView';
 import { RelayConnectionView } from './RelayConnectionView';
 import { TokenDialog } from './TokenDialog';
 import { AlertCircle } from 'lucide-react';
+import { SwarmPanel } from './SwarmPanel';
 import type { ConnectionMode, DiscoveredInstance } from '@/lib/cli-types';
 
 /* ─── Animation Variants ──────────────────────── */
@@ -174,6 +175,13 @@ export function CliManager() {
     [connection],
   );
 
+  const handleAbortSwarm = useCallback(
+    (swarmId: string) => {
+      connection.abortSwarm(swarmId).catch(() => {});
+    },
+    [connection],
+  );
+
   // ── Render ──────────────────────────────────────
 
   return (
@@ -213,6 +221,17 @@ export function CliManager() {
               <span>{connection.error}</span>
             </div>
           </GlassPanel>
+        </motion.div>
+      )}
+
+      {/* ── Swarm Panel ── */}
+      {connection.swarm && (
+        <motion.div variants={item}>
+          <SwarmPanel
+            swarm={connection.swarm}
+            onAbort={handleAbortSwarm}
+            onSelectSession={handleSelectSession}
+          />
         </motion.div>
       )}
 

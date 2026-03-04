@@ -451,6 +451,25 @@ export function createRelayClient(
         sendRelay({ type: 'license_status', valid: false, plan: 'FREE', features: [], expiresAt: '', requestId, timestamp: Date.now() });
         break;
       }
+
+      // --- Swarm ---
+      case 'start_swarm': {
+        const swarmId = handlers.startSwarm((msg as any).message);
+        sendRelay({ type: 'swarm_started', swarmId, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'abort_swarm': {
+        const success = handlers.abortSwarm((msg as any).swarmId);
+        sendRelay({ type: 'swarm_aborted', swarmId: (msg as any).swarmId, success, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'get_swarm_status': {
+        const swarm = handlers.getSwarmStatus();
+        sendRelay({ type: 'swarm_status', swarm, requestId, timestamp: Date.now() });
+        break;
+      }
     }
   }
 

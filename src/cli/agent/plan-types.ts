@@ -88,13 +88,28 @@ export const AGENT_IDENTITIES: Record<string, AgentIdentity> = {
   security: { name: '@security', displayName: 'Security',  color: '#ff4444', icon: '\u{1F512}' },
   auto:     { name: '@auto',     displayName: 'Auto',      color: '#00ff88', icon: '\u{1F504}' },
   monitor:  { name: '@monitor',  displayName: 'Monitor',   color: '#ff6600', icon: '\u{1F6E1}' },
+  swarm:    { name: '@swarm',    displayName: 'Swarm',     color: '#ffd700', icon: '\u{1F41D}' },
 };
+
+/** Colors for swarm worker identities (cycled for workers 1-N) */
+const WORKER_COLORS = ['#00d4ff', '#ff6b9d', '#00ff88', '#ffd700', '#c084fc', '#f97316'];
 
 /** Resolve a session name to its AgentIdentity (case-insensitive, partial match) */
 export function resolveAgentIdentity(sessionName: string): AgentIdentity | undefined {
   const lower = sessionName.toLowerCase();
   // Direct key match
   if (AGENT_IDENTITIES[lower]) return AGENT_IDENTITIES[lower];
+  // Dynamic worker-N match: "Worker-1", "worker-3", "Worker 2"
+  const workerMatch = lower.match(/worker[- ]?(\d+)/);
+  if (workerMatch) {
+    const idx = parseInt(workerMatch[1], 10) - 1;
+    return {
+      name: `@worker-${idx + 1}`,
+      displayName: `Worker-${idx + 1}`,
+      color: WORKER_COLORS[idx % WORKER_COLORS.length],
+      icon: '\u{1F41D}',
+    };
+  }
   // Partial match: "Security Audit" → security, "Auto: fix lint" → auto
   for (const [key, identity] of Object.entries(AGENT_IDENTITIES)) {
     if (lower.includes(key) || lower.includes(identity.displayName.toLowerCase())) {

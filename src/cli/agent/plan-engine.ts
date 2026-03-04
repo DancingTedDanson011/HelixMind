@@ -212,6 +212,19 @@ export class PlanEngine {
     return undefined;
   }
 
+  /** Get ALL steps that are ready to execute (all dependencies met) — used by swarm */
+  getAllReadySteps(planId: string): PlanStep[] {
+    const plan = this.plans.get(planId);
+    if (!plan) return [];
+    return plan.steps.filter(step => {
+      if (step.status !== 'pending') return false;
+      return step.dependencies.every(depId => {
+        const dep = plan.steps.find(s => s.id === depId);
+        return dep && dep.status === 'done';
+      });
+    });
+  }
+
   /** Mark a step as running */
   startStep(planId: string, stepId: number): void {
     const plan = this.plans.get(planId);

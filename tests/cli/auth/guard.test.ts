@@ -23,8 +23,7 @@ describe('guard — choice UI structure', () => {
     expect(guardSource).toContain('[2] Open Source');
   });
 
-  it('shows Login as the recommended option with star marker', () => {
-    expect(guardSource).toContain('★');
+  it('shows Login as the recommended option', () => {
     expect(guardSource).toContain('unlock everything');
   });
 

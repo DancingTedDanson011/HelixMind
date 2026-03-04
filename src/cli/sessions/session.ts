@@ -49,6 +49,11 @@ export class Session {
   /** Optional callback for output streaming (CLI ↔ Web protocol) */
   onCapture?: (line: string, index: number) => void;
 
+  /** Swarm ID if this session is a swarm worker */
+  swarmId?: string;
+  /** Sub-task ID within the swarm */
+  swarmTaskId?: number;
+
   constructor(
     id: string,
     name: string,

@@ -25,6 +25,7 @@ import type {
   ToolPermissionRequest,
   StatusBarInfo,
   CheckpointInfo,
+  SwarmInfo,
 } from '@/lib/cli-types';
 import { registerConnectionWs, unregisterConnectionWs } from '@/lib/cli-ws-registry';
 
@@ -149,6 +150,12 @@ export interface UseCliConnectionReturn {
   checkpoints: CheckpointInfo[];
   listCheckpoints: () => Promise<CheckpointInfo[]>;
   revertToCheckpoint: (id: number, mode: 'chat' | 'code' | 'both') => Promise<void>;
+
+  // Swarm
+  swarm: SwarmInfo | null;
+  startSwarm: (message: string) => Promise<string>;
+  abortSwarm: (swarmId: string) => Promise<void>;
+  getSwarmStatus: () => Promise<SwarmInfo | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +199,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [pendingPermissions, setPendingPermissions] = useState<ToolPermissionRequest[]>([]);
   const [statusBar, setStatusBar] = useState<StatusBarInfo | null>(null);
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
+  const [swarm, setSwarm] = useState<SwarmInfo | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const connectionStateRef = useRef<ConnectionState>('disconnected');
@@ -586,6 +594,31 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
 
     if (msg.type === 'checkpoint_reverted') {
       // Re-fetch checkpoints after revert
+      return;
+    }
+
+    // Swarm events
+    if (msg.type === 'swarm_created') {
+      const s = msg.swarm as SwarmInfo;
+      if (mountedRef.current) setSwarm(s);
+      return;
+    }
+
+    if (msg.type === 'swarm_updated') {
+      const s = msg.swarm as SwarmInfo;
+      if (mountedRef.current) setSwarm(s);
+      return;
+    }
+
+    if (msg.type === 'swarm_completed') {
+      const s = msg.swarm as SwarmInfo;
+      if (mountedRef.current) {
+        setSwarm(s);
+        // Auto-clear after 30s
+        setTimeout(() => {
+          if (mountedRef.current) setSwarm(null);
+        }, 30_000);
+      }
       return;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1010,6 +1043,24 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   }, [sendRequest, listCheckpoints]);
 
   // ---------------------------------------------------------------------------
+  // Swarm
+  // ---------------------------------------------------------------------------
+  const startSwarm = useCallback(async (message: string): Promise<string> => {
+    const res = (await sendRequest('start_swarm', { message })) as { swarmId: string };
+    return res.swarmId;
+  }, [sendRequest]);
+
+  const abortSwarm = useCallback(async (swarmId: string): Promise<void> => {
+    await sendRequest('abort_swarm', { swarmId });
+  }, [sendRequest]);
+
+  const getSwarmStatus = useCallback(async (): Promise<SwarmInfo | null> => {
+    const res = (await sendRequest('get_swarm_status')) as { swarm: SwarmInfo | null };
+    if (mountedRef.current && res.swarm) setSwarm(res.swarm);
+    return res.swarm ?? null;
+  }, [sendRequest]);
+
+  // ---------------------------------------------------------------------------
   // Cleanup on unmount
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -1107,5 +1158,11 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     checkpoints,
     listCheckpoints,
     revertToCheckpoint,
+
+    // Swarm
+    swarm,
+    startSwarm,
+    abortSwarm,
+    getSwarmStatus,
   };
 }

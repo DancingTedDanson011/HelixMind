@@ -32,6 +32,9 @@ export type {
   PlanStepInfo,
   PlanStatusInfo,
   PlanStepStatusInfo,
+  SwarmStatus,
+  SwarmInfo,
+  SwarmSubTaskInfo,
 } from '@helixmind/protocol';
 
 // ---------------------------------------------------------------------------
