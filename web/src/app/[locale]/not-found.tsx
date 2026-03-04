@@ -1,10 +1,13 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { motion } from 'framer-motion';
 import { Home, ArrowLeft } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function NotFound() {
+  const t = useTranslations('notFound');
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       {/* Background glow effects */}
@@ -33,7 +36,7 @@ export default function NotFound() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="text-3xl sm:text-4xl font-bold mb-4"
         >
-          <span className="gradient-text-glow">Lost in the spiral?</span>
+          <span className="gradient-text-glow">{t('title')}</span>
         </motion.h1>
 
         {/* Description */}
@@ -43,8 +46,7 @@ export default function NotFound() {
           transition={{ duration: 0.5, delay: 0.35 }}
           className="text-gray-400 text-lg mb-10 leading-relaxed"
         >
-          The page you are looking for does not exist or has been moved
-          to another dimension.
+          {t('description')}
         </motion.p>
 
         {/* Action buttons */}
@@ -59,7 +61,7 @@ export default function NotFound() {
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary/10 border border-primary/30 text-primary font-medium transition-all duration-200 hover:bg-primary/20 hover:border-primary/50 hover:shadow-[0_0_20px_rgba(0,212,255,0.15)]"
           >
             <Home className="w-4 h-4" />
-            Back to Home
+            {t('backHome')}
           </Link>
 
           <button
@@ -67,7 +69,7 @@ export default function NotFound() {
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-transparent border border-white/10 text-gray-300 font-medium transition-all duration-200 hover:bg-white/5 hover:border-white/20"
           >
             <ArrowLeft className="w-4 h-4" />
-            Go Back
+            {t('goBack')}
           </button>
         </motion.div>
 

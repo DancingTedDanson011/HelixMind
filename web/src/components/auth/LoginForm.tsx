@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -23,6 +23,7 @@ function GoogleIcon() {
 
 export function LoginForm() {
   const t = useTranslations('auth');
+  const locale = useLocale();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,7 +58,7 @@ export function LoginForm() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+          onClick={() => signIn('google', { callbackUrl: `/${locale}/dashboard` })}
         >
           <GoogleIcon />
           {t('google')}
@@ -65,7 +66,7 @@ export function LoginForm() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => signIn('github', { callbackUrl: '/dashboard' })}
+          onClick={() => signIn('github', { callbackUrl: `/${locale}/dashboard` })}
         >
           <Github size={16} />
           {t('github')}

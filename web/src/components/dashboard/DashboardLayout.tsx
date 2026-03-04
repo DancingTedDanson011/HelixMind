@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, usePathname } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
@@ -125,7 +124,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
               aria-expanded={mobileOpen}
             >
               {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-              <span>Menu</span>
+              <span>{t('layout.menu')}</span>
             </button>
           </div>
 
@@ -163,7 +162,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white font-medium truncate">
-                      {user?.name || 'User'}
+                      {user?.name || t('layout.userFallback')}
                     </p>
                     <p className="text-xs text-gray-500 truncate">
                       {user?.email || ''}
@@ -229,7 +228,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">{user?.name || 'User'}</p>
+                      <p className="text-sm text-white truncate">{user?.name || t('layout.userFallback')}</p>
                     </div>
                     <Badge variant={planBadgeVariant(plan)} className="text-[10px]">{plan}</Badge>
                   </div>

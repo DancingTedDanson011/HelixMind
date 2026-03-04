@@ -43,7 +43,7 @@ import { runAutonomousLoop, SECURITY_PROMPT } from '../agent/autonomous.js';
 import { SessionManager } from '../sessions/manager.js';
 import { renderSessionNotification, renderSessionList } from '../sessions/tab-view.js';
 import { getSuggestions, getBestCompletion, writeSuggestions, clearSuggestions, setBlockedCommands } from '../ui/command-suggest.js';
-import { selectMenu, type MenuItem } from '../ui/select-menu.js';
+import { selectMenu, type MenuItem, type SelectMenuOptions } from '../ui/select-menu.js';
 import { BugJournal } from '../bugs/journal.js';
 import { detectBugReport } from '../bugs/detector.js';
 import { JarvisQueue } from '../jarvis/queue.js';
@@ -3028,6 +3028,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           },
         },
         () => updateMetaFn?.(),
+        chrome,
       );
       if (handled === 'exit') {
         spiralEngine?.close();
@@ -3807,9 +3808,22 @@ async function handleSlashCommand(
     startTelegramBot: () => void;
   },
   onModeChange?: () => void,
+  chrome?: BottomChrome,
 ): Promise<string | void> {
   const parts = input.split(/\s+/);
   let cmd = parts[0].toLowerCase();
+
+  // ─── Chrome-aware selectMenu ───────────────────────────
+  // Deactivates BottomChrome during interactive menus to prevent
+  // stdout hook interference (menu stacking on Windows Terminal).
+  const chromeSelect = async (items: MenuItem[], menuOpts?: SelectMenuOptions): Promise<number> => {
+    chrome?.deactivate();
+    try {
+      return await selectMenu(items, menuOpts);
+    } finally {
+      chrome?.activate();
+    }
+  };
 
   // ─── Feature Gate Helper ─────────────────────────────────
   // Shows a login prompt when a gated feature is used.
@@ -3893,7 +3907,7 @@ async function handleSlashCommand(
       rl.pause();
       process.stdout.write('\n');
       const { items: helpItems, commands: helpCmds } = buildHelpMenuItems(store);
-      const helpIdx = await selectMenu(helpItems, {
+      const helpIdx = await chromeSelect(helpItems, {
         title: chalk.hex('#00d4ff').bold('HelixMind Commands'),
         cancelLabel: 'Close',
         pageSize: 15,
@@ -3907,7 +3921,7 @@ async function handleSlashCommand(
           sessionTokens, sessionToolCalls,
           onProviderSwitch, onBrainSwitch, currentBrainScope, onAutonomous, onValidation,
           sessionManager, onRegisterBrainHandlers, onSubPrompt, bugJournal, jarvisCtx,
-          onModeChange,
+          onModeChange, chrome,
         );
       }
       break;
@@ -4476,7 +4490,7 @@ async function handleSlashCommand(
         // No goal — show confirmation menu
         rl.pause();
         process.stdout.write('\n');
-        const autoConfirm = await selectMenu(
+        const autoConfirm = await chromeSelect(
           [
             { label: chalk.hex('#ff6600').bold('Start autonomous mode'), description: 'HelixMind will continuously scan and fix issues' },
             { label: 'Cancel', description: 'Go back' },
@@ -4577,7 +4591,7 @@ async function handleSlashCommand(
           ];
           rl.pause();
           process.stdout.write(`\n  ${chalk.hex('#ff00ff').bold('\u{1F916}')} ${chalk.white.bold('Autonomy Level')}\n`);
-          const levelIdx = await selectMenu(autonomyItems, { cancelLabel: 'Default (L2)', pageSize: 6 });
+          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: 'Default (L2)', pageSize: 6 });
           rl.resume();
           const chosenLevel = (levelIdx >= 0 ? levelIdx : 2) as import('../jarvis/types.js').AutonomyLevel;
           jarvisCtx.autonomy.setLevel(chosenLevel);
@@ -4613,7 +4627,7 @@ async function handleSlashCommand(
           autonomyItems[currentLevel].marker = '\u25C0 current';
           rl.pause();
           process.stdout.write(`\n  ${chalk.hex('#ff00ff').bold('\u{1F916}')} ${chalk.white.bold('Autonomy Level')}\n`);
-          const levelIdx = await selectMenu(autonomyItems, { cancelLabel: `Keep L${currentLevel}`, pageSize: 6 });
+          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: `Keep L${currentLevel}`, pageSize: 6 });
           rl.resume();
           const chosenLevel = (levelIdx >= 0 ? levelIdx : currentLevel) as import('../jarvis/types.js').AutonomyLevel;
           jarvisCtx.autonomy.setLevel(chosenLevel);
@@ -4908,7 +4922,7 @@ async function handleSlashCommand(
       let modeIdx: number;
       // Loop so "Docs" re-shows the menu after opening the browser
       while (true) {
-        modeIdx = await selectMenu(monitorMenuItems, {
+        modeIdx = await chromeSelect(monitorMenuItems, {
           title: chalk.hex('#ff6600').bold('\u{1F6E1}\uFE0F MONITOR MODE'),
           cancelLabel: 'Cancel',
         });
@@ -4945,7 +4959,7 @@ async function handleSlashCommand(
         }
         process.stdout.write('\n');
 
-        const confirmIdx = await selectMenu(
+        const confirmIdx = await chromeSelect(
           [
             { label: chalk.hex('#ff6600').bold('Yes, activate'), description: `Start ${selectedMode} monitor` },
             { label: 'No, go back', description: 'Cancel' },
@@ -5097,7 +5111,7 @@ async function handleSlashCommand(
       });
       menuActions.push({ action: 'use', model: '' });
 
-      const idx = await selectMenu(menuItems, {
+      const idx = await chromeSelect(menuItems, {
         title: c.bold('\u{1F916} Local LLM Setup (Ollama)'),
         cancelLabel: 'Back',
         pageSize: 14,

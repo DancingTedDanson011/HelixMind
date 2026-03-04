@@ -83,9 +83,9 @@ export default function PricingPage() {
             const features = t.raw(`${key}.features`) as string[];
 
             const displayPrice = (() => {
-              if (key === 'free' || key === 'freePlus') return '$0';
-              if (isPaid && yearly) return `$${yearlyMonthlyRate[key as PaidTier]}`;
-              return `$${t(`${key}.price`)}`;
+              if (key === 'free' || key === 'freePlus') return '€0';
+              if (isPaid && yearly) return `€${yearlyMonthlyRate[key as PaidTier]}`;
+              return `€${t(`${key}.price`)}`;
             })();
 
             return (
@@ -136,7 +136,7 @@ export default function PricingPage() {
                       return;
                     }
                     if (key === 'freePlus') {
-                      window.location.href = '/login';
+                      window.location.href = '/auth/login';
                       return;
                     }
                     handleCheckout(key as PaidTier);

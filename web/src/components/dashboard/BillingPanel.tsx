@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -29,17 +30,18 @@ interface BillingPanelProps {
     currentPeriodEnd?: string | null;
     cancelAtPeriodEnd?: boolean;
   };
+  invoices?: Invoice[];
 }
 
-/* ─── Mock Invoice Data ───────────────────────── */
+/* ─── Types ──────────────────────────────────── */
 
-const mockInvoices = [
-  { id: 'inv_001', date: '2026-02-01', amount: 19.00, status: 'paid' as const, description: 'Pro Plan — February 2026' },
-  { id: 'inv_002', date: '2026-01-01', amount: 19.00, status: 'paid' as const, description: 'Pro Plan — January 2026' },
-  { id: 'inv_003', date: '2025-12-01', amount: 19.00, status: 'paid' as const, description: 'Pro Plan — December 2025' },
-  { id: 'inv_004', date: '2025-11-01', amount: 19.00, status: 'paid' as const, description: 'Pro Plan — November 2025' },
-  { id: 'inv_005', date: '2025-10-01', amount: 0.00, status: 'paid' as const, description: 'Free Plan — October 2025' },
-];
+interface Invoice {
+  id: string;
+  date: string;
+  amount: number;
+  status: 'paid' | 'pending' | 'failed';
+  description: string;
+}
 
 /* ─── Plan Features ───────────────────────────── */
 
@@ -130,7 +132,8 @@ function statusBadgeVariant(status: string): 'success' | 'warning' | 'error' | '
 
 /* ─── Component ───────────────────────────────── */
 
-export function BillingPanel({ user }: BillingPanelProps) {
+export function BillingPanel({ user, invoices = [] }: BillingPanelProps) {
+  const t = useTranslations('dashboard');
   const [portalLoading, setPortalLoading] = useState(false);
 
   const plan = user?.plan || 'FREE';
@@ -141,7 +144,7 @@ export function BillingPanel({ user }: BillingPanelProps) {
   const PlanIcon = features.icon;
 
   const nextBillingDate = user?.currentPeriodEnd
-    ? new Date(user.currentPeriodEnd).toLocaleDateString('en-US', {
+    ? new Date(user.currentPeriodEnd).toLocaleDateString(undefined, {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -169,9 +172,9 @@ export function BillingPanel({ user }: BillingPanelProps) {
     >
       {/* ── Header ── */}
       <motion.div variants={item}>
-        <h1 className="text-2xl font-bold text-white">Billing & Subscription</h1>
+        <h1 className="text-2xl font-bold text-white">{t('billing.title')}</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Manage your plan, view invoices, and update payment methods.
+          {t('billing.subtitle')}
         </p>
       </motion.div>
 
@@ -185,7 +188,7 @@ export function BillingPanel({ user }: BillingPanelProps) {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-bold text-white">{plan} Plan</h2>
+                  <h2 className="text-xl font-bold text-white">{t('billing.plan', { plan })}</h2>
                   <Badge variant={planBadgeVariant(plan)}>{plan}</Badge>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -194,11 +197,11 @@ export function BillingPanel({ user }: BillingPanelProps) {
                   </Badge>
                   {plan !== 'FREE' && (
                     <span className="text-xs text-gray-500">
-                      Billed {billingPeriod.toLowerCase()}
+                      {t('billing.billed', { period: billingPeriod.toLowerCase() })}
                     </span>
                   )}
                   {cancelAtPeriodEnd && (
-                    <Badge variant="warning">Cancels at period end</Badge>
+                    <Badge variant="warning">{t('billing.cancelsAtEnd')}</Badge>
                   )}
                 </div>
 
@@ -219,7 +222,7 @@ export function BillingPanel({ user }: BillingPanelProps) {
               {plan === 'FREE' ? (
                 <Link href="/pricing">
                   <Button className="w-full">
-                    Upgrade Plan
+                    {t('billing.upgradePlan')}
                     <ArrowUpRight size={14} />
                   </Button>
                 </Link>
@@ -227,11 +230,11 @@ export function BillingPanel({ user }: BillingPanelProps) {
                 <>
                   <Button variant="outline" onClick={openPortal} loading={portalLoading}>
                     <ExternalLink size={14} />
-                    Manage Subscription
+                    {t('billing.manageSub')}
                   </Button>
                   <Link href="/pricing">
                     <Button variant="ghost" size="sm" className="w-full">
-                      Change Plan
+                      {t('billing.changePlan')}
                     </Button>
                   </Link>
                 </>
@@ -243,9 +246,7 @@ export function BillingPanel({ user }: BillingPanelProps) {
           {nextBillingDate && (
             <div className="mt-6 pt-4 border-t border-white/5 flex items-center gap-2 text-sm text-gray-500">
               <Calendar size={14} />
-              <span>
-                Next billing date: <span className="text-gray-300">{nextBillingDate}</span>
-              </span>
+              <span>{t('billing.nextBilling', { date: nextBillingDate })}</span>
             </div>
           )}
         </GlassPanel>
@@ -257,53 +258,62 @@ export function BillingPanel({ user }: BillingPanelProps) {
           <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-white flex items-center gap-2">
               <CreditCard size={14} className="text-primary" />
-              Invoice History
+              {t('billing.invoiceHistory')}
             </h2>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5 text-gray-500 text-xs uppercase tracking-wider">
-                  <th className="px-6 py-3 text-left font-medium">Date</th>
-                  <th className="px-6 py-3 text-left font-medium">Description</th>
-                  <th className="px-6 py-3 text-right font-medium">Amount</th>
-                  <th className="px-6 py-3 text-center font-medium">Status</th>
-                  <th className="px-6 py-3 text-right font-medium"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.03]">
-                {mockInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="px-6 py-3 text-gray-400 whitespace-nowrap">
-                      {new Date(inv.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </td>
-                    <td className="px-6 py-3 text-white">{inv.description}</td>
-                    <td className="px-6 py-3 text-right text-white font-mono">
-                      {inv.amount > 0 ? `$${inv.amount.toFixed(2)}` : 'Free'}
-                    </td>
-                    <td className="px-6 py-3 text-center">
-                      <Badge variant={statusBadgeVariant(inv.status)}>
-                        {inv.status}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-3 text-right">
-                      {inv.amount > 0 && (
-                        <Button variant="ghost" size="sm">
-                          <Download size={13} />
-                        </Button>
-                      )}
-                    </td>
+          {invoices.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left font-medium">{t('billing.date')}</th>
+                    <th className="px-6 py-3 text-left font-medium">{t('billing.description')}</th>
+                    <th className="px-6 py-3 text-right font-medium">{t('billing.amount')}</th>
+                    <th className="px-6 py-3 text-center font-medium">{t('billing.status')}</th>
+                    <th className="px-6 py-3 text-right font-medium"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-white/[0.03]">
+                  {invoices.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-6 py-3 text-gray-400 whitespace-nowrap">
+                        {new Date(inv.date).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </td>
+                      <td className="px-6 py-3 text-white">{inv.description}</td>
+                      <td className="px-6 py-3 text-right text-white font-mono">
+                        {inv.amount > 0 ? `€${inv.amount.toFixed(2)}` : 'Free'}
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        <Badge variant={statusBadgeVariant(inv.status)}>
+                          {inv.status}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-3 text-right">
+                        {inv.amount > 0 && (
+                          <Button variant="ghost" size="sm">
+                            <Download size={13} />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-6 py-10 text-center">
+              <CreditCard size={24} className="mx-auto text-gray-600 mb-3" />
+              <p className="text-sm text-gray-500">{t('billing.noInvoices')}</p>
+              <p className="text-xs text-gray-600 mt-1">
+                {t('billing.noInvoicesHint')}
+              </p>
+            </div>
+          )}
         </GlassPanel>
       </motion.div>
     </motion.div>

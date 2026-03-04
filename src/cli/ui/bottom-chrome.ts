@@ -108,12 +108,12 @@ export class BottomChrome {
 
     write(
       '\x1b[?25l' +                                     // hide cursor
-      '\x1b7' +                                          // save cursor
+      '\x1b[s' +                                          // save cursor
       `\x1b[${rows - 3};1H` + '\x1b[2K' + ` ${this._rowContent[0]}` +  // row N-3 (separator)
       `\x1b[${rows - 2};1H` + '\x1b[2K' + ` ${this._rowContent[1]}` +  // row N-2 (hints)
       `\x1b[${rows - 1};1H` + '\x1b[2K' + ` ${this._rowContent[2]}` +  // row N-1 (statusbar line 1)
       `\x1b[${rows};1H`     + '\x1b[2K' + ` ${this._rowContent[3]}` +  // row N   (statusbar line 2)
-      '\x1b8' +                                          // restore cursor
+      '\x1b[u' +                                          // restore cursor
       '\x1b[?25h',                                       // show cursor
     );
   }
@@ -155,11 +155,11 @@ export class BottomChrome {
     if (this._inlineMode || !this._active) return;
     this._rawWrite(
       '\x1b[?25l' +                           // hide cursor
-      '\x1b7' +                                 // save cursor
+      '\x1b[s' +                                 // save cursor
       `\x1b[${this.promptRow};1H` +            // move to prompt row
       '\x1b[2K' +                              // clear entire line
       content +                                // write content
-      '\x1b8' +                                 // restore cursor
+      '\x1b[u' +                                 // restore cursor
       '\x1b[?25h',                             // show cursor
     );
   }
@@ -243,11 +243,11 @@ export class BottomChrome {
 
     this._rawWrite(
       '\x1b[?25l' +
-      '\x1b7' +
+      '\x1b[s' +
       `\x1b[${row};1H` +
       '\x1b[2K' +
       ` ${content}` +
-      '\x1b8' +
+      '\x1b[u' +
       '\x1b[?25h',
     );
   }
@@ -256,12 +256,12 @@ export class BottomChrome {
   private _clearFixedRows(): void {
     const rows = process.stdout.rows || 24;
     this._rawWrite(
-      '\x1b7' +
+      '\x1b[s' +
       `\x1b[${rows - 3};1H\x1b[2K` +
       `\x1b[${rows - 2};1H\x1b[2K` +
       `\x1b[${rows - 1};1H\x1b[2K` +
       `\x1b[${rows};1H\x1b[2K` +
-      '\x1b8',
+      '\x1b[u',
     );
   }
 }

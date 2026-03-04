@@ -12,7 +12,8 @@
     "support": "Support",
     "login": "Anmelden",
     "getStarted": "Jetzt starten",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "enterprise": "Enterprise"
   },
   "hero": {
     "badge": "Open Source AI Coding CLI",
@@ -25,7 +26,7 @@
     "cta": "App installieren",
     "ctaUpdate": "App aktualisieren",
     "ctaInstall": "App installieren",
-    "ctaOpen": "Dashboard \u00f6ffnen",
+    "ctaOpen": "Dashboard öffnen",
     "ctaFallback": "Install-Befehl kopieren",
     "ctaSecondary": "In Aktion sehen",
     "installCommand": "npm install -g helixmind",
@@ -50,12 +51,30 @@
     "sectionLabel": "Memory-Architektur",
     "subtitle": "Sechs Ebenen intelligentes Memory, das mit deinem Projekt wächst, altert und sich anpasst.",
     "levels": {
-      "l1": { "name": "Focus", "desc": "Heißer Kontext: woran du gerade arbeitest" },
-      "l2": { "name": "Active", "desc": "Aktuelle Patterns und Entscheidungen" },
-      "l3": { "name": "Reference", "desc": "Stabiles Wissen: Architektur, Konventionen" },
-      "l4": { "name": "Archive", "desc": "Historischer Kontext, bei Bedarf abrufbar" },
-      "l5": { "name": "Deep Archive", "desc": "Komprimierte Zusammenfassungen alten Wissens" },
-      "l6": { "name": "Web Knowledge", "desc": "Automatisch geholte Dokumentation und Web-Insights, immer aktuell" }
+      "l1": {
+        "name": "Focus",
+        "desc": "Heißer Kontext: woran du gerade arbeitest"
+      },
+      "l2": {
+        "name": "Active",
+        "desc": "Aktuelle Patterns und Entscheidungen"
+      },
+      "l3": {
+        "name": "Reference",
+        "desc": "Stabiles Wissen: Architektur, Konventionen"
+      },
+      "l4": {
+        "name": "Archive",
+        "desc": "Historischer Kontext, bei Bedarf abrufbar"
+      },
+      "l5": {
+        "name": "Deep Archive",
+        "desc": "Komprimierte Zusammenfassungen alten Wissens"
+      },
+      "l6": {
+        "name": "Web Knowledge",
+        "desc": "Automatisch geholte Dokumentation und Web-Insights, immer aktuell"
+      }
     }
   },
   "modes": {
@@ -114,25 +133,25 @@
     "subtitle": "Alles was du brauchst, um schneller mit persistentem AI-Kontext zu coden.",
     "memory": {
       "title": "Spiral Memory",
-      "desc": "5-Level-Memory-System das sich entwickelt. Kontext steigt bei Nutzung auf, verf\u00e4llt wenn veraltet.",
-      "modalTitle": "Spiral Memory \u2014 Kontext der sich entwickelt",
-      "modalDesc": "Ein 5-Level-Memory-System inspiriert von menschlichem Ged\u00e4chtnis. Wissen wird automatisch bef\u00f6rdert bei h\u00e4ufiger Referenzierung und verf\u00e4llt sanft wenn nicht mehr relevant.",
+      "desc": "5-Level-Memory-System das sich entwickelt. Kontext steigt bei Nutzung auf, verfällt wenn veraltet.",
+      "modalTitle": "Spiral Memory — Kontext der sich entwickelt",
+      "modalDesc": "Ein 5-Level-Memory-System inspiriert von menschlichem Gedächtnis. Wissen wird automatisch befördert bei häufiger Referenzierung und verfällt sanft wenn nicht mehr relevant.",
       "capabilities": [
-        "Automatische Bef\u00f6rderung bei wiederholter Nutzung",
+        "Automatische Beförderung bei wiederholter Nutzung",
         "Sanfter Verfall veralteten Kontexts",
-        "Session-\u00fcbergreifende Wissenspersistenz",
-        "Semantische Suche \u00fcber alle Ebenen"
+        "Session-übergreifende Wissenspersistenz",
+        "Semantische Suche über alle Ebenen"
       ],
       "docsLink": "/docs/spiral-memory"
     },
     "brain": {
       "title": "3D Brain Visualisierung",
       "desc": "Sieh das Wissen deiner AI als lebendige 3D-Helix. Beobachte Verbindungen in Echtzeit.",
-      "modalTitle": "3D Brain \u2014 Dein Wissen, visualisiert",
-      "modalDesc": "Eine Echtzeit-3D-Helix-Visualisierung deines Spiral-Memory. Beobachte wie Nodes aufleuchten w\u00e4hrend Wissen zwischen Ebenen flie\u00dft, mit Verbindungen die live entstehen.",
+      "modalTitle": "3D Brain — Dein Wissen, visualisiert",
+      "modalDesc": "Eine Echtzeit-3D-Helix-Visualisierung deines Spiral-Memory. Beobachte wie Nodes aufleuchten während Wissen zwischen Ebenen fließt, mit Verbindungen die live entstehen.",
       "capabilities": [
-        "Echtzeit-Node-Aktivit\u00e4ts-Visualisierung",
-        "Level-gef\u00e4rbte Verbindungen und Kanten",
+        "Echtzeit-Node-Aktivitäts-Visualisierung",
+        "Level-gefärbte Verbindungen und Kanten",
         "Live-Wissensfluss-Partikel",
         "Interaktives Drehen, Zoomen und Schwenken"
       ],
@@ -140,8 +159,8 @@
     },
     "validation": {
       "title": "Validation Matrix",
-      "desc": "3-Phasen-Validierung f\u00e4ngt Bugs bevor sie entstehen. Statische, dynamische und wissensbasierte Checks.",
-      "modalTitle": "Validation Matrix \u2014 Null Bugs ausgeliefert",
+      "desc": "3-Phasen-Validierung fängt Bugs bevor sie entstehen. Statische, dynamische und wissensbasierte Checks.",
+      "modalTitle": "Validation Matrix — Null Bugs ausgeliefert",
       "modalDesc": "Eine 3-Phasen-Validierungs-Pipeline die jede Aufgabe klassifiziert, statische und dynamische Checks anwendet, und gegen dein Spiral-Wissen validiert.",
       "capabilities": [
         "15+ statische Checks (HTML, SQL, Imports, Secrets)",
@@ -154,21 +173,21 @@
     "web": {
       "title": "Web Knowledge Enricher",
       "desc": "Holt automatisch relevante Dokumentation und speichert sie in deinem Brain. Immer aktuell.",
-      "modalTitle": "Web Knowledge \u2014 Immer aktuell",
-      "modalDesc": "Erkennt automatisch Themen im Gespr\u00e4ch, durchsucht das Web nach relevanter Dokumentation und Best Practices, und speichert extrahiertes Wissen als L6-Nodes in deinem Spiral-Brain.",
+      "modalTitle": "Web Knowledge — Immer aktuell",
+      "modalDesc": "Erkennt automatisch Themen im Gespräch, durchsucht das Web nach relevanter Dokumentation und Best Practices, und speichert extrahiertes Wissen als L6-Nodes in deinem Spiral-Brain.",
       "capabilities": [
-        "Automatische Themenerkennung aus dem Gespr\u00e4ch",
+        "Automatische Themenerkennung aus dem Gespräch",
         "DuckDuckGo-Suche mit Inhaltsextraktion",
         "Strukturierte Wissensspeicherung in L6",
-        "Explizites web_research Tool f\u00fcr Deep Dives"
+        "Explizites web_research Tool für Deep Dives"
       ],
       "docsLink": "/docs/web-knowledge"
     },
     "offline": {
-      "title": "Vollst\u00e4ndig offline nutzbar",
-      "desc": "L\u00e4uft mit Ollama lokal. Deine Daten verlassen nie deinen Rechner. Null Cloud-Abh\u00e4ngigkeit.",
-      "modalTitle": "Offline-Modus \u2014 Dein Rechner, deine Daten",
-      "modalDesc": "Betreibe HelixMind komplett auf deinem lokalen Rechner mit Ollama. Erkennt lokale Modelle automatisch, l\u00e4dt neue auf Anfrage und h\u00e4lt jedes Byte deiner Daten privat.",
+      "title": "Vollständig offline nutzbar",
+      "desc": "Läuft mit Ollama lokal. Deine Daten verlassen nie deinen Rechner. Null Cloud-Abhängigkeit.",
+      "modalTitle": "Offline-Modus — Dein Rechner, deine Daten",
+      "modalDesc": "Betreibe HelixMind komplett auf deinem lokalen Rechner mit Ollama. Erkennt lokale Modelle automatisch, lädt neue auf Anfrage und hält jedes Byte deiner Daten privat.",
       "capabilities": [
         "Ollama Auto-Erkennung und Modell-Liste",
         "Ein-Befehl Modell-Download und Setup",
@@ -180,26 +199,26 @@
     "sessions": {
       "title": "Multi-Session Agent",
       "desc": "Hintergrund-Security-Audits, parallele Code-Analyse. Jede mit eigenem Kontext.",
-      "modalTitle": "Multi-Session \u2014 Parallele Intelligenz",
-      "modalDesc": "F\u00fchre mehrere Agent-Sessions gleichzeitig aus. Jede Session erh\u00e4lt eigenen Kontext, History, Undo-Stack und Agent-Controller. Wechsle zwischen Sessions mit Tastaturk\u00fcrzeln.",
+      "modalTitle": "Multi-Session — Parallele Intelligenz",
+      "modalDesc": "Führe mehrere Agent-Sessions gleichzeitig aus. Jede Session erhält eigenen Kontext, History, Undo-Stack und Agent-Controller. Wechsle zwischen Sessions mit Tastaturkürzeln.",
       "capabilities": [
-        "Unabh\u00e4ngiger Kontext pro Session",
+        "Unabhängiger Kontext pro Session",
         "Hintergrund-Security- und Auto-Sessions",
-        "Tastaturk\u00fcrzel zum Tab-Wechsel",
-        "Findings-Panel f\u00fcr Session-Ergebnisse"
+        "Tastaturkürzel zum Tab-Wechsel",
+        "Findings-Panel für Session-Ergebnisse"
       ],
       "docsLink": "/docs/multi-session"
     },
     "monitor": {
       "title": "Security Monitor",
-      "desc": "Autonomer System-W\u00e4chter. Erkennt Bedrohungen, blockiert Angriffe und rotiert Secrets \u2014 passiv, defensiv oder aktiv.",
-      "modalTitle": "Security Monitor \u2014 Autonomer W\u00e4chter",
-      "modalDesc": "Ein autonomes Sicherheitssystem das dein Projekt kontinuierlich auf Bedrohungen \u00fcberwacht. Drei Modi lassen dich dein Schutzniveau w\u00e4hlen: passive Beobachtung, defensive Blockierung oder aktive Reaktion.",
+      "desc": "Autonomer System-Wächter. Erkennt Bedrohungen, blockiert Angriffe und rotiert Secrets — passiv, defensiv oder aktiv.",
+      "modalTitle": "Security Monitor — Autonomer Wächter",
+      "modalDesc": "Ein autonomes Sicherheitssystem das dein Projekt kontinuierlich auf Bedrohungen überwacht. Drei Modi lassen dich dein Schutzniveau wählen: passive Beobachtung, defensive Blockierung oder aktive Reaktion.",
       "capabilities": [
         "Echtzeit-Bedrohungserkennung und Alarmierung",
         "Automatische Secret-Rotation bei Exposition",
         "Drei Modi: passiv, defensiv, aktiv",
-        "Genehmigungs-Workflow f\u00fcr sensible Aktionen"
+        "Genehmigungs-Workflow für sensible Aktionen"
       ],
       "docsLink": "/docs/security-monitor"
     },
@@ -212,17 +231,47 @@
     "viewPricing": "Preise ansehen",
     "learnMore": "Mehr erfahren",
     "more": {
-      "checkpoints": { "title": "Checkpoint-System", "desc": "Automatisch bei jedem Tool-Aufruf erstellt. Doppel-ESC zum Browsen und Zurücksetzen auf jeden vorherigen Zustand." },
-      "tools": { "title": "22 Agent-Tools", "desc": "Dateien lesen, schreiben, bearbeiten, suchen, Git, Befehle ausführen, Spiral Memory, Web-Recherche, Browser-Automatisierung." },
-      "mcp": { "title": "MCP Server", "desc": "Funktioniert mit Claude Code, Cursor, VS Code, Windsurf, Codex, JetBrains und mehr." },
-      "search": { "title": "Semantische Suche", "desc": "Embedding-basierte KNN-Suche über alle Spiral-Ebenen. Finde Konzepte, nicht nur Keywords." },
-      "cli": { "title": "Rich CLI", "desc": "Figlet-Banner, Syntax-Highlighting, animierte Statusleiste, Slash-Commands, Tab-basierte Sessions." },
-      "permissions": { "title": "Berechtigungssystem", "desc": "3 Stufen: auto, ask, dangerous. YOLO-Modus für Mutige. Volle Kontrolle über den Agenten." }
+      "checkpoints": {
+        "title": "Checkpoint-System",
+        "desc": "Automatisch bei jedem Tool-Aufruf erstellt. Doppel-ESC zum Browsen und Zurücksetzen auf jeden vorherigen Zustand."
+      },
+      "tools": {
+        "title": "22 Agent-Tools",
+        "desc": "Dateien lesen, schreiben, bearbeiten, suchen, Git, Befehle ausführen, Spiral Memory, Web-Recherche, Browser-Automatisierung."
+      },
+      "mcp": {
+        "title": "MCP Server",
+        "desc": "Funktioniert mit Claude Code, Cursor, VS Code, Windsurf, Codex, JetBrains und mehr."
+      },
+      "search": {
+        "title": "Semantische Suche",
+        "desc": "Embedding-basierte KNN-Suche über alle Spiral-Ebenen. Finde Konzepte, nicht nur Keywords."
+      },
+      "cli": {
+        "title": "Rich CLI",
+        "desc": "Figlet-Banner, Syntax-Highlighting, animierte Statusleiste, Slash-Commands, Tab-basierte Sessions."
+      },
+      "permissions": {
+        "title": "Berechtigungssystem",
+        "desc": "3 Stufen: auto, ask, dangerous. YOLO-Modus für Mutige. Volle Kontrolle über den Agenten."
+      }
     },
     "modeCards": {
-      "jarvis": { "title": "Jarvis", "desc": "Autonomer Assistent. Plant, analysiert und bearbeitet Aufgaben aus einer Queue. Mehrstufiges Denken mit Genehmigungs-Workflow.", "link": "/docs/jarvis" },
-      "agent": { "title": "Coding Agent", "desc": "22 Tools zum Lesen, Schreiben, Testen und Committen von Code. Terminal oder Browser. Persistenter Spiral Memory.", "link": "/docs/agent-tools" },
-      "monitor": { "title": "Sicherheits-Monitor", "desc": "Autonomer Wächter. Scannt nach Schwachstellen, blockt Bedrohungen, rotiert Secrets. Passiv, defensiv oder aktiv.", "link": "/docs/security-monitor" }
+      "jarvis": {
+        "title": "Jarvis",
+        "desc": "Autonomer Assistent. Plant, analysiert und bearbeitet Aufgaben aus einer Queue. Mehrstufiges Denken mit Genehmigungs-Workflow.",
+        "link": "/docs/jarvis"
+      },
+      "agent": {
+        "title": "Coding Agent",
+        "desc": "22 Tools zum Lesen, Schreiben, Testen und Committen von Code. Terminal oder Browser. Persistenter Spiral Memory.",
+        "link": "/docs/agent-tools"
+      },
+      "monitor": {
+        "title": "Sicherheits-Monitor",
+        "desc": "Autonomer Wächter. Scannt nach Schwachstellen, blockt Bedrohungen, rotiert Secrets. Passiv, defensiv oder aktiv.",
+        "link": "/docs/security-monitor"
+      }
     }
   },
   "comparison": {
@@ -354,7 +403,7 @@
     "subtitle": "Installiere HelixMind in 30 Sekunden. Jarvis, Coding Agent und Sicherheits-Monitor. Für immer kostenlos für Einzelnutzer.",
     "button": "App installieren",
     "buttonUpdate": "App aktualisieren",
-    "buttonOpen": "Dashboard \u00f6ffnen",
+    "buttonOpen": "Dashboard öffnen",
     "github": "Auf GitHub staren",
     "readyToInstall": "Bereit zur Installation",
     "copied": "Kopiert!"
@@ -449,24 +498,24 @@
     "copyright": "HelixMind. Alle Rechte vorbehalten."
   },
   "cookieConsent": {
-    "title": "Wir respektieren deine Privatsph\u00e4re",
-    "description": "Wir verwenden Cookies, um die Funktion unserer Website sicherzustellen. Essentielle Cookies sind f\u00fcr die Kernfunktionalit\u00e4t erforderlich. Du kannst zus\u00e4tzliche Cookies unten aktivieren.",
+    "title": "Wir respektieren deine Privatsphäre",
+    "description": "Wir verwenden Cookies, um die Funktion unserer Website sicherzustellen. Essentielle Cookies sind für die Kernfunktionalität erforderlich. Du kannst zusätzliche Cookies unten aktivieren.",
     "acceptAll": "Alle akzeptieren",
     "rejectAll": "Alle ablehnen",
     "customize": "Anpassen",
     "savePreferences": "Einstellungen speichern",
     "settingsTitle": "Cookie-Einstellungen",
-    "settingsDescription": "W\u00e4hle aus, welche Cookies du zulassen m\u00f6chtest. Du kannst diese Einstellungen jederzeit \u00e4ndern.",
+    "settingsDescription": "Wähle aus, welche Cookies du zulassen möchtest. Du kannst diese Einstellungen jederzeit ändern.",
     "essential": "Essentiell",
-    "essentialDesc": "Erforderlich f\u00fcr die Funktion der Website. Diese Cookies erm\u00f6glichen Kernfunktionen wie Authentifizierung und Sitzungsverwaltung.",
+    "essentialDesc": "Erforderlich für die Funktion der Website. Diese Cookies ermöglichen Kernfunktionen wie Authentifizierung und Sitzungsverwaltung.",
     "alwaysOn": "Immer aktiv",
     "analytics": "Analyse",
     "analyticsDesc": "Helfen uns zu verstehen, wie Besucher mit unserer Website interagieren. Alle Daten sind anonymisiert.",
     "marketing": "Marketing",
-    "marketingDesc": "Werden verwendet, um relevante Werbung zu zeigen und die Kampagneneffektivit\u00e4t zu messen.",
+    "marketingDesc": "Werden verwendet, um relevante Werbung zu zeigen und die Kampagneneffektivität zu messen.",
     "optional": "Optional",
     "learnMore": "Mehr erfahren in unserer",
-    "privacyPolicyLink": "Datenschutzerkl\u00e4rung"
+    "privacyPolicyLink": "Datenschutzerklärung"
   },
   "auth": {
     "login": "Anmelden",
@@ -510,6 +559,64 @@
       "saml": "SSO / SAML",
       "status": "Systemstatus",
       "support": "Support"
+    },
+    "home": {
+      "welcome": "Willkommen zurück, <highlight>{name}</highlight>",
+      "subtitle": "Hier ist, was in deinem HelixMind-Konto passiert.",
+      "apiKeys": "API-Schlüssel",
+      "tickets": "Tickets",
+      "usageEvents": "Nutzungs-Events",
+      "active": "Aktiv",
+      "total": "Gesamt",
+      "plan": "{plan}-Plan",
+      "renews": "Verlängert sich am {date}",
+      "upgrade": "Upgrade",
+      "recentActivity": "Letzte Aktivität",
+      "noActivity": "Noch keine Aktivität.",
+      "noActivityHint": "Aktivitäten erscheinen hier, sobald du HelixMind nutzt.",
+      "quickLinks": "Schnellzugriff",
+      "linkApp": "App öffnen",
+      "linkProfile": "Profil",
+      "linkBilling": "Abrechnung",
+      "linkApiKeys": "API-Schlüssel",
+      "linkSupport": "Support"
+    },
+    "billing": {
+      "title": "Abrechnung & Abonnement",
+      "subtitle": "Verwalte deinen Plan, sieh Rechnungen ein und aktualisiere Zahlungsmethoden.",
+      "plan": "{plan}-Plan",
+      "billed": "Abgerechnet {period}",
+      "cancelsAtEnd": "Kündigung zum Periodenende",
+      "upgradePlan": "Plan upgraden",
+      "manageSub": "Abonnement verwalten",
+      "changePlan": "Plan wechseln",
+      "nextBilling": "Nächste Abrechnung: {date}",
+      "invoiceHistory": "Rechnungsverlauf",
+      "noInvoices": "Noch keine Rechnungen.",
+      "noInvoicesHint": "Rechnungen erscheinen hier, sobald du einen bezahlten Plan abonnierst.",
+      "date": "Datum",
+      "description": "Beschreibung",
+      "amount": "Betrag",
+      "status": "Status"
+    },
+    "profile": {
+      "title": "Profil-Einstellungen",
+      "subtitle": "Verwalte deine Kontoinformationen und Präferenzen.",
+      "yourName": "Dein Name",
+      "personalInfo": "Persönliche Informationen",
+      "displayName": "Anzeigename",
+      "enterName": "Name eingeben",
+      "emailAddress": "E-Mail-Adresse",
+      "emailChangeHint": "Kontaktiere den Support, um deine E-Mail zu ändern.",
+      "language": "Sprachpräferenz",
+      "saveChanges": "Änderungen speichern",
+      "memberSince": "Mitglied seit {date}",
+      "saveSuccess": "Profil erfolgreich aktualisiert.",
+      "saveError": "Profil konnte nicht gespeichert werden."
+    },
+    "layout": {
+      "menu": "Menü",
+      "userFallback": "Benutzer"
     }
   },
   "support": {
@@ -668,14 +775,14 @@
   },
   "pwa": {
     "installTitle": "HelixMind installieren",
-    "installDescription": "F\u00fcge HelixMind zu deinem Startbildschirm hinzu f\u00fcr schnellen Zugriff und ein App-Erlebnis.",
+    "installDescription": "Füge HelixMind zu deinem Startbildschirm hinzu für schnellen Zugriff und ein App-Erlebnis.",
     "iosInstructions": "Tippe auf \"Teilen\" und dann \"Zum Home-Bildschirm\", um HelixMind zu installieren.",
     "install": "Installieren",
     "notNow": "Nicht jetzt"
   },
   "offline": {
     "title": "Du bist offline",
-    "description": "HelixMind braucht eine Internetverbindung. Bitte pr\u00fcfe deine Netzwerkverbindung und versuche es erneut.",
+    "description": "HelixMind braucht eine Internetverbindung. Bitte prüfe deine Netzwerkverbindung und versuche es erneut.",
     "retry": "Erneut versuchen"
   },
   "common": {
@@ -1176,5 +1283,505 @@
     "minutesAgo": "vor {count} Min.",
     "hoursAgo": "vor {count} Std.",
     "daysAgo": "vor {count} T."
+  },
+  "enterprise": {
+    "hero": {
+      "badge": "Für AI Provider",
+      "title": "Ihre Modelle vergessen.",
+      "titleHighlight": "Wir haben das behoben.",
+      "subtitle": "Die fehlende Memory-Layer für jedes AI-Modell. 6-stufiges hierarchisches Gedächtnis, das persistiert, evolviert und proaktiv relevanten Kontext liefert.",
+      "pill1": "6-Level Memory",
+      "pill2": "Modell-Agnostisch",
+      "pill3": "Produktionsbereit",
+      "cta": "Integration besprechen",
+      "secondary": "Integrations-Optionen ansehen",
+      "trust": "Vertraut von Entwicklern, die bauen"
+    },
+    "problem": {
+      "label": "Das Problem",
+      "title": "Jede AI-Session startet bei null",
+      "subtitle": "Ohne persistentes Memory verschwendet jedes Modell Tokens, verliert Kontext und frustriert Benutzer.",
+      "without": {
+        "title": "Ohne Memory",
+        "desc": "Jede Session löscht alles. Ihr Modell lernt denselben Kontext immer wieder neu.",
+        "item1": "40% der Tokens für Re-Explaining verschwendet",
+        "item2": "Context-Explosion bei großen Codebases",
+        "item3": "Kein Lernen aus vergangenen Interaktionen"
+      },
+      "with": {
+        "title": "Mit HelixMind",
+        "desc": "Kontext persistiert über Sessions. Wissen kristallisiert sich über Zeit.",
+        "item1": "15-30K fokussierte Tokens vs 120K flach",
+        "item2": "Proaktive Injektion von benötigtem Kontext",
+        "item3": "Lernen, das sich über Monate verstärkt"
+      },
+      "items": {
+        "reexplain": "Benutzer erklären Architektur jede Session neu",
+        "time": "Stunden verloren durch Context-Rebuilding",
+        "quality": "Niedrigere Output-Qualität ohne Projekt-Kenntnis",
+        "frustration": "Benutzer-Frustration durch wiederholte Erklärungen"
+      }
+    },
+    "solution": {
+      "label": "Die Lösung",
+      "title": "6-Level Spiral Memory",
+      "subtitle": "Wissen evolviert durch Ebenen — von instant context zu kristallisierter Weisheit. Nichts wird gelöscht, nur verfeinert.",
+      "levels": {
+        "l1": {
+          "name": "Focus",
+          "desc": "Woran Sie gerade arbeiten. Sekundenalter Kontext, höchste Relevanz."
+        },
+        "l2": {
+          "name": "Active",
+          "desc": "Verwandte Dateien und Dependencies. Stunden Arbeit, noch verbunden."
+        },
+        "l3": {
+          "name": "Reference",
+          "desc": "Architektur-Entscheidungen, Patterns, Konventionen. Proaktiv injiziert wenn relevant."
+        },
+        "l4": {
+          "name": "Archive",
+          "desc": "Komprimierte Zusammenfassungen älterer Sessions. Abrufbar wenn benötigt."
+        },
+        "l5": {
+          "name": "Deep Archive",
+          "desc": "Projekt-DNA. Fundamentale Prinzipien die Ihre Codebase definieren."
+        },
+        "l6": {
+          "name": "Web Knowledge",
+          "desc": "Echtzeit-externes Wissen. Dokumentation on-demand abgerufen."
+        }
+      },
+      "evolution": "Wissen fördert automatisch bei Nutzung, verfällt bei Nicht-Nutzung",
+      "notRag": "Das ist nicht RAG. Das ist Wissens-Evolution.",
+      "notRagDesc": "RAG retrieves flache Dokumente. Spiral Memory versteht Beziehungen, evolviert Relevanz, und liefert Kontext den Benutzer nicht angefragt haben aber brauchen."
+    },
+    "modes": {
+      "label": "Drei Modi",
+      "title": "Chat, Monitor, Auto",
+      "subtitle": "Drei Wege, Spiral Memory zu nutzen. Jeder Modus greift auf dasselbe persistente Wissen zu.",
+      "items": {
+        "chat": {
+          "title": "Interaktiver Chat",
+          "desc": "Arbeiten Sie mit Ihrer AI — sie kennt Ihr Projekt bereits. Spiral liefert Kontext automatisch."
+        },
+        "monitor": {
+          "title": "Security Monitor",
+          "desc": "Autonomer Wächter, der nach Threats scannt, Vulnerabilities überwacht, und Ihre Security-Patterns lernt."
+        },
+        "auto": {
+          "title": "Auto Modus",
+          "desc": "10 parallele Worker führen komplexe Tasks aus. Hintergrund-Intelligenz powered by Spiral Context."
+        }
+      }
+    },
+    "why": {
+      "label": "Warum Jetzt",
+      "title": "Die Memory-Lücke ist Ihre Opportunity",
+      "subtitle": "47 Millionen Entwickler nutzen AI-Tools. Null haben persistentes Memory. First Mover gewinnt.",
+      "stats": {
+        "developers": "Entwickler mit AI-Tools",
+        "memory": "AI-Tools mit persistentem Memory",
+        "context": "Context Windows und wachsend",
+        "opportunity": "Mover Vorteil"
+      },
+      "context": {
+        "title": "Markt-Kontext",
+        "point1": {
+          "title": "Context Windows wachsen",
+          "desc": "Aber größerer Context = mehr Noise, nicht besseres Signal"
+        },
+        "point2": {
+          "title": "\"Lost in the Middle\" Problem",
+          "desc": "Modelle vergessen Informationen in der Mitte langer Contexts"
+        },
+        "point3": {
+          "title": "Erste Memory-Architektur",
+          "desc": "HelixMind ist die erste produktionsreife Memory-Layer"
+        }
+      }
+    },
+    "integration": {
+      "label": "Integrations-Pfade",
+      "title": "Drei Wege zur Integration",
+      "subtitle": "Vom MCP-Server zum Native Feature — wählen Sie Ihre Integrationstiefe.",
+      "paths": {
+        "native": {
+          "title": "Native Feature",
+          "effort": "2-3 Monate Integration",
+          "desc": "Betten Sie die Spiral Engine direkt in Ihren Context-Pipeline ein. Jeder User erhält persistentes Memory out of the box.",
+          "benefit1": "Token-Verschwendung um 40-75% reduziert",
+          "benefit2": "Switching Costs schaffen (Memory = Lock-in)",
+          "benefit3": "Competitive Differentiation"
+        },
+        "mcp": {
+          "title": "MCP Server",
+          "effort": "Bereits gebaut — nur listen",
+          "desc": "Bieten Sie Spiral als First-Party MCP-Integration an. Funktioniert mit Claude Code, Cursor, Windsurf und mehr.",
+          "benefit1": "Zero Engineering-Aufwand",
+          "benefit2": "User Opt-in (nicht gezwungen)",
+          "benefit3": "Funktioniert mit existierender Infrastruktur"
+        },
+        "license": {
+          "title": "Technologie-Lizenz",
+          "effort": "Sofortiger Zugang",
+          "desc": "Lizenzieren Sie die Algorithmen und Architektur-Patterns. Wir bringen 6 Monate produktionsgetuntes Relevance Scoring.",
+          "benefit1": "Lernen von bewährter Architektur",
+          "benefit2": "Keine laufende Abhängigkeit",
+          "benefit3": "Optionale Consulting-Unterstützung"
+        }
+      },
+      "mcpLive": "MCP Server bereits live und getestet mit Claude Code, Cursor und Windsurf"
+    },
+    "roi": {
+      "label": "Provider ROI",
+      "title": "Warum Memory Ihr Produkt besser macht",
+      "subtitle": "Persistentes Memory ist nicht nur ein Feature — es's ein competitiver Burggraben.",
+      "benefits": {
+        "tokens": {
+          "title": "Niedrigere Token-Kosten",
+          "desc": "Spiral liefert 15-30K fokussierte Tokens statt 120K flach. 75% Reduktion verschwendeter Tokens."
+        },
+        "quality": {
+          "title": "Bessere Output-Qualität",
+          "desc": "Modelle mit dem richtigen Kontext produzieren besseren Code. Weniger Halluzination, mehr Präzision."
+        },
+        "retention": {
+          "title": "User Retention",
+          "desc": "Memory erzeugt Switching Costs. User die gehen, verlieren ihr akkumuliertes Wissen."
+        },
+        "competitive": {
+          "title": "Competitive Edge",
+          "desc": "Erster Provider mit nativem Memory gewinnt. Ihre Konkurrenten schauen sich das bereits an."
+        },
+        "cost": {
+          "title": "Niedrigere Compute-Kosten",
+          "desc": "Weniger Tokens = weniger Compute pro Query. Direkter Impact auf Ihre Infrastruktur-Rechnung."
+        }
+      },
+      "comparison": {
+        "title": "Flacher Context vs. Spiral Context",
+        "flat": "Flacher Context",
+        "flatDesc": "Alle Context in das Modell gekippt. Lost in the Middle. Teuer.",
+        "spiral": "Spiral Context",
+        "spiralDesc": "Fokussiert, relevant, evolviert. Liefert was benötigt wird.",
+        "lost": "Löst das \"Lost in the Middle\" Problem durch Priorisierung relevanten Contexts"
+      }
+    },
+    "traction": {
+      "label": "Open Source",
+      "title": "Produktionsbereit. Open Source.",
+      "subtitle": "HelixMind ist AGPL-3.0 lizenziert. Keine Black Boxes. Auditieren Sie den Code, forken Sie, contribute Sie.",
+      "metrics": {
+        "stars": "GitHub Stars",
+        "forks": "Forks",
+        "downloads": "npm Downloads",
+        "contributors": "Contributors"
+      },
+      "momentum": "Wachsendes Momentum",
+      "proof": {
+        "point1": {
+          "title": "Produktions-getestet",
+          "desc": "Läuft in echten Development-Workflows"
+        },
+        "point2": {
+          "title": "Multi-Provider-Support",
+          "desc": "Claude, GPT-4, Ollama, DeepSeek, Kimi, Groq"
+        },
+        "point3": {
+          "title": "Voller Feature-Set",
+          "desc": "22 Agent-Tools, 3D Brain Viz, Validation Matrix"
+        }
+      }
+    },
+    "cta": {
+      "title": "Bereit, Ihrem Modell Memory zu geben?",
+      "subtitle": "Sprechen Sie mit unserem Team über Integration. Wir zeigen Ihnen, wie Spiral Memory in Ihr Produkt passt.",
+      "email": "Arbeits-E-Mail",
+      "message": "Nachricht",
+      "messagePlaceholder": "Erzählen Sie uns über Ihre Integration-Interessen...",
+      "submit": "Integration anfragen",
+      "success": "Anfrage gesendet!",
+      "successDesc": "Unser Team wird Sie innerhalb von 24 Stunden kontaktieren.",
+      "direct": "Oder kontaktieren Sie uns direkt:",
+      "trust1": "AGPL-3.0 Lizenziert",
+      "trust2": "Keine Vendor Lock-in",
+      "trust3": "Self-Hostable"
+    }
+  },
+  "errors": {
+    "somethingWrong": "Etwas ist schiefgelaufen",
+    "unexpectedError": "Bei der Verarbeitung deiner Anfrage ist ein unerwarteter Fehler aufgetreten.",
+    "errorDetails": "Fehlerdetails",
+    "tryAgain": "Erneut versuchen",
+    "backHome": "Zurück zur Startseite"
+  },
+  "notFound": {
+    "title": "Im Spiral verloren?",
+    "description": "Die Seite, die du suchst, existiert nicht oder wurde in eine andere Dimension verschoben.",
+    "backHome": "Zurück zur Startseite",
+    "goBack": "Zurück"
+  },
+  "legal": {
+    "terms": {
+      "title": "Nutzungsbedingungen",
+      "lastUpdated": "Zuletzt aktualisiert: 1. März 2026",
+      "intro": "Diese Nutzungsbedingungen („Bedingungen“) regeln die Nutzung der HelixMind-Plattform, einschließlich des CLI-Tools, des Web-Dashboards, der API und aller zugehörigen Dienste („Dienste“), die von HelixMind („wir“, „unser“, „uns“) bereitgestellt werden. Durch den Zugriff auf oder die Nutzung unserer Dienste stimmst du zu, an diese Bedingungen gebunden zu sein.",
+      "sections": [
+        {
+          "heading": "1. Annahme der Bedingungen",
+          "content": "Durch die Erstellung eines Kontos, die Installation des CLI oder den anderweitigen Zugriff auf unsere Dienste bestätigst du, dass du mindestens 16 Jahre alt bist und zustimmst, diese Bedingungen einzuhalten. Wenn du die Dienste im Namen einer Organisation nutzt, erklärst du, dass du die Befugnis hast, diese Organisation an diese Bedingungen zu binden."
+        },
+        {
+          "heading": "2. Beschreibung der Dienste",
+          "contentPre": "HelixMind bietet:",
+          "items": [
+            "Ein KI-Coding-CLI-Tool mit persistentem Spiral-Kontext-Memory",
+            "Ein Web-Dashboard für Kontoverwaltung, Abonnement-Abrechnung und Support",
+            "API-Zugriff für die Integration mit Drittanbieter-Tools (bei entsprechenden Tarifen)",
+            "Dokumentation, Blog-Inhalte und Community-Ressourcen"
+          ],
+          "contentPost": "Wir behalten uns das Recht vor, Teile der Dienste jederzeit mit angemessener Vorankündigung zu ändern, auszusetzen oder einzustellen."
+        },
+        {
+          "heading": "3. Konten",
+          "contentPre": "Du bist für die Vertraulichkeit deiner Anmeldedaten und alle Aktivitäten unter deinem Konto verantwortlich. Du stimmst zu:",
+          "items": [
+            "Genaue und vollständige Registrierungsdaten anzugeben",
+            "Dein Passwort sicher aufzubewahren und nicht mit anderen zu teilen",
+            "Uns unverzüglich über jeden unbefugten Zugriff auf dein Konto zu informieren",
+            "Keine mehreren Konten zu erstellen, um Plantarife zu umgehen"
+          ],
+          "contentPost": "Wir können Konten sperren oder kündigen, die gegen diese Bedingungen verstoßen oder Anzeichen von betrügerischen Aktivitäten aufweisen."
+        },
+        {
+          "heading": "4. Zahlung und Abonnements",
+          "subSections": [
+            {
+              "heading": "4.1 Kostenloser Tarif",
+              "content": "Das HelixMind CLI ist kostenlos und Open Source unter der AGPL-3.0-Lizenz. Für die lokale Nutzung mit eigenen API-Schlüsseln oder lokalen Modellen (z. B. Ollama) ist kein Konto oder keine Zahlung erforderlich."
+            },
+            {
+              "heading": "4.2 Kostenpflichtige Tarife",
+              "content": "Pro (19 EUR/Monat) und Team (39 EUR/Nutzer/Monat) werden monatlich oder jährlich über Stripe abgerechnet. Enterprise-Tarife sind auf Anfrage mit individueller Preisgestaltung verfügbar."
+            },
+            {
+              "heading": "4.3 Abrechnung",
+              "content": "Abonnements verlängern sich automatisch am Ende jedes Abrechnungszeitraums, sofern sie nicht gekündigt werden. Du kannst dein Abonnement jederzeit über das Stripe-Kundenportal kündigen. Die Kündigung tritt am Ende des laufenden Abrechnungszeitraums in Kraft."
+            },
+            {
+              "heading": "4.4 Rückerstattungen",
+              "content": "Wir bieten im Allgemeinen keine Rückerstattungen für anteilige Abrechnungszeiträume an. Wenn du der Meinung bist, dass dir ein falscher Betrag berechnet wurde, kontaktiere uns unter legal@helixmind.dev innerhalb von 14 Tagen nach der Belastung."
+            }
+          ]
+        },
+        {
+          "heading": "5. Geistiges Eigentum",
+          "subSections": [
+            {
+              "heading": "5.1 CLI-Tool",
+              "content": "Das HelixMind CLI ist unter der GNU Affero General Public License v3.0 (AGPL-3.0) lizenziert. Du darfst das CLI gemäß dieser Lizenz verwenden, ändern und weitergeben. Der vollständige Lizenztext ist im Projekt-Repository verfügbar."
+            },
+            {
+              "heading": "5.2 Webplattform",
+              "content": "Die HelixMind-Webplattform, das Dashboard, die API und die zugehörigen proprietären Funktionen sind proprietäre Software. Dir wird eine eingeschränkte, nicht exklusive, nicht übertragbare Lizenz zur Nutzung der Webplattform für den vorgesehenen Zweck während deines aktiven Abonnements gewährt."
+            },
+            {
+              "heading": "5.3 Deine Inhalte",
+              "content": "Du behältst das Eigentum an allen Codes, Daten und Inhalten, die du mit HelixMind erstellst oder speicherst. Wir beanspruchen keine Rechte am geistigen Eigentum deiner Inhalte. Spiral-Memory-Daten, die lokal auf deinem Gerät gespeichert sind, gehören vollständig dir."
+            }
+          ]
+        },
+        {
+          "heading": "6. Akzeptable Nutzung",
+          "contentPre": "Du stimmst zu, die Dienste nicht zu nutzen, um:",
+          "items": [
+            "Anwendbare Gesetze oder Vorschriften zu verletzen",
+            "Bezahlte/proprietäre Funktionen zu dekompilieren, zu reverse-engineeren oder weiterzugeben",
+            "API-Schlüssel oder Kontodaten mit unbefugten Parteien zu teilen",
+            "Unbefugten Zugriff auf unsere Systeme oder Konten anderer Nutzer zu erlangen",
+            "Die Dienste für automatisiertes Scraping, Spam oder Denial-of-Service-Angriffe zu nutzen",
+            "Die Integrität oder Leistung der Dienste zu beeinträchtigen oder zu stören"
+          ]
+        },
+        {
+          "heading": "7. Kündigung",
+          "contentPre": "Du kannst dein Konto jederzeit über deine Dashboard-Einstellungen kündigen. Wir können dein Konto kündigen oder sperren, wenn:",
+          "items": [
+            "Du gegen diese Bedingungen oder unsere Richtlinie zur akzeptablen Nutzung verstößt",
+            "Dein Konto Anzeichen von betrügerischen oder illegalen Aktivitäten zeigt",
+            "Wir dazu gesetzlich verpflichtet sind"
+          ],
+          "contentPost": "Nach der Kündigung erlischt dein Recht auf Zugriff auf kostenpflichtige Funktionen sofort. Du kannst deine Daten vor der Kontoöschung exportieren. Wir behalten Abrechnungsunterlagen so lange auf, wie es gesetzlich vorgeschrieben ist."
+        },
+        {
+          "heading": "8. Haftungsbeschränkung",
+          "content": "Im maximal gesetzlich zulässigen Umfang haften HelixMind und seine Betreiber nicht für indirekte, zufällige, besondere, Folge- oder Strafschäden, einschließlich, aber nicht beschränkt auf Verlust von Gewinnen, Daten oder Geschäftsmöglichkeiten, die sich aus der Nutzung oder Unmöglichkeit der Nutzung der Dienste ergeben. Die Dienste werden „wie besehen“ und „wie verfügbar“ ohne jegliche Gewährleistung bereitgestellt. Unsere Gesamthaftung gegenüber dir für Ansprüche im Zusammenhang mit diesen Bedingungen oder den Diensten ist auf den Betrag begrenzt, den du uns in den 12 Monaten vor dem Anspruch gezahlt hast."
+        },
+        {
+          "heading": "9. Schadloshaltung",
+          "content": "Du stimmst zu, HelixMind und seine Betreiber von Ansprüchen, Schäden, Verlusten oder Ausgaben (einschließlich angemessener Anwaltskosten) schadlos zu halten, die sich aus deiner Nutzung der Dienste oder Verletzung dieser Bedingungen ergeben."
+        },
+        {
+          "heading": "10. Änderungen dieser Bedingungen",
+          "content": "Wir können diese Bedingungen von Zeit zu Zeit aktualisieren. Wesentliche Änderungen werden mindestens 30 Tage im Voraus per E-Mail oder durch einen Hinweis auf unserer Plattform mitgeteilt. Die weitere Nutzung der Dienste nach dem Inkrafttreten von Änderungen gilt als Annahme der aktualisierten Bedingungen."
+        },
+        {
+          "heading": "11. Anwendbares Recht",
+          "content": "Diese Bedingungen unterliegen den Gesetzen der Bundesrepublik Deutschland und werden nach diesen ausgelegt, ohne Rücksicht auf Kollisionsnormen. Streitigkeiten aus diesen Bedingungen unterliegen der ausschließlichen Zuständigkeit der deutschen Gerichte."
+        },
+        {
+          "heading": "12. Kontakt",
+          "contentPre": "Bei Fragen zu diesen Bedingungen kontaktiere uns unter:",
+          "emailLabel": "E-Mail",
+          "addressLabel": "Adresse",
+          "address": "HelixMind\n[Straße und Hausnummer]\n[PLZ und Ort]\nDeutschland"
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Datenschutzerklärung",
+      "lastUpdated": "Zuletzt aktualisiert: 1. März 2026",
+      "intro": "HelixMind („wir“, „unser“, „uns“) setzt sich für den Schutz deiner Privatsphäre ein. Diese Datenschutzerklärung erläutert, wie wir deine personenbezogenen Daten bei der Nutzung unserer Webplattform und des CLI-Tools gemäß der Datenschutz-Grundverordnung (DSGVO) und den geltenden Datenschutzgesetzen erheben, verwenden, speichern und schützen.",
+      "sections": [
+        {
+          "heading": "1. Datenerhebung",
+          "subSections": [
+            {
+              "heading": "1.1 Kontodaten",
+              "contentPre": "Wenn du ein Konto auf der HelixMind-Webplattform erstellst, erheben wir folgende Informationen:",
+              "items": [
+                "E-Mail-Adresse",
+                "Name (sofern angegeben)",
+                "Profilinformationen von OAuth-Anbietern (GitHub), wenn du dich über Drittanbieter-Dienste authentifizierst"
+              ]
+            },
+            {
+              "heading": "1.2 Zahlungsdaten",
+              "content": "Zahlungsinformationen (Kreditkartennummern, Rechnungsadressen) werden ausschließlich von unserem Zahlungsanbieter Stripe verarbeitet. Wir speichern keine vollständigen Kreditkartendaten auf unseren Servern. Wir behalten nur eine Referenz-ID, die Kartenmarke und die letzten vier Ziffern für Anzeigezwecke in deinem Dashboard."
+            },
+            {
+              "heading": "1.3 Nutzungsdaten",
+              "content": "Wir erheben anonymisierte Nutzungsdaten zur Verbesserung unserer Dienste, einschließlich API-Aufrufzähler, Funktionsnutzungsstatistiken und Fehlerberichte. Diese Daten enthalten keine personenbezogenen Informationen."
+            },
+            {
+              "heading": "1.4 CLI-Daten",
+              "content": "Das HelixMind CLI-Tool speichert alle Daten standardmäßig lokal auf deinem Gerät. Spiral-Memory, Projektkontexte und Konfigurationsdateien verbleiben auf deinem lokalen Dateisystem und werden niemals an unsere Server übertragen, es sei denn, du aktivierst ausdrücklich Cloud Brain Sync (verfügbar bei Pro- und Team-Tarifen)."
+            },
+            {
+              "heading": "1.5 Cookies",
+              "content": "Wir verwenden essentielle Cookies, die für Authentifizierung und Sitzungsverwaltung erforderlich sind. Wir verwenden keine Tracking-Cookies von Drittanbietern oder Werbe-Cookies. Wenn wir in Zukunft Analysen einführen, werden wir diese Richtlinie aktualisieren und deine Einwilligung einholen."
+            }
+          ]
+        },
+        {
+          "heading": "2. Wie wir deine Daten verwenden",
+          "contentPre": "Wir verarbeiten deine personenbezogenen Daten für folgende Zwecke:",
+          "items": [
+            "Bereitstellung und Verwaltung deines Kontos und des Zugriffs auf unsere Dienste",
+            "Verarbeitung von Abonnementzahlungen über Stripe",
+            "Versand von Transaktions-E-Mails (Kontoverižizierung, Passwort-Zurücksetzen, Abrechnungsbenachrichtigungen) über Resend",
+            "Bereitstellung von Kundensupport über unser Ticket-System",
+            "Verbesserung unserer Dienste auf Basis anonymisierter Nutzungsmuster",
+            "Sicherstellung der Plattformsicherheit und Verhinderung von Missbrauch"
+          ],
+          "legalBasisLabel": "Rechtsgrundlage",
+          "legalBasis": "Wir verarbeiten deine Daten auf Basis der Vertragserfüllung (Bereitstellung des Dienstes, für den du dich angemeldet hast), des berechtigten Interesses (Verbesserung unserer Dienste und Verhinderung von Missbrauch) und der Einwilligung (wo ausdrücklich erteilt)."
+        },
+        {
+          "heading": "3. Datenspeicherung und Sicherheit",
+          "contentPre": "Deine Kontodaten werden in einer PostgreSQL-Datenbank gespeichert, die auf sicherer, verschlüsselter Infrastruktur gehostet wird. Wir implementieren branchenstandard Sicherheitsmaßnahmen, darunter:",
+          "items": [
+            "Verschlüsselung im Ruhezustand und bei der Übertragung (TLS 1.3)",
+            "Sicheres Passwort-Hashing (bcrypt)",
+            "JWT-basierte Authentifizierung mit angemessener Ablaufzeit",
+            "Regelmäßige Sicherheitsprüfungen und Abhängigkeits-Updates"
+          ],
+          "contentPost": "Daten werden für die Dauer deiner Konto-Aktivität gespeichert. Nach der Kontoöschung werden deine personenbezogenen Daten innerhalb von 30 Tagen dauerhaft gelöscht, sofern keine gesetzliche Aufbewahrungspflicht besteht (z. B. Abrechnungsunterlagen für Steuerzwecke)."
+        },
+        {
+          "heading": "4. Drittanbieter-Dienste",
+          "contentPre": "Wir geben Daten an folgende Drittanbieter-Auftragsverarbeiter weiter, ausschließlich für die beschriebenen Zwecke:",
+          "items": [
+            "Stripe — Zahlungsabwicklung und Abonnementverwaltung",
+            "Resend — Transaktions-E-Mail-Zustellung",
+            "GitHub — OAuth-Authentifizierung (nur wenn du GitHub-Login wählst)"
+          ],
+          "contentPost": "Jeder Drittanbieter-Auftragsverarbeiter handelt nach seiner eigenen Datenschutzrichtlinie und ist durch Datenverarbeitungsverträge gebunden. Wir verkaufen deine personenbezogenen Daten nicht an Dritte."
+        },
+        {
+          "heading": "5. Deine Rechte (DSGVO)",
+          "contentPre": "Gemäß der DSGVO hast du folgende Rechte in Bezug auf deine personenbezogenen Daten:",
+          "items": [
+            "Auskunftsrecht — Anforderung einer Kopie aller personenbezogenen Daten, die wir über dich speichern",
+            "Recht auf Berichtigung — Anforderung der Korrektur unrichtiger Daten",
+            "Recht auf Löschung — Anforderung der Löschung deiner personenbezogenen Daten („Recht auf Vergessenwerden“)",
+            "Recht auf Einschränkung — Anforderung der Einschränkung der Datenverarbeitung",
+            "Recht auf Datenübertragbarkeit — Erhalt deiner Daten in einem strukturierten, maschinenlesbaren Format",
+            "Widerspruchsrecht — Widerspruch gegen die Verarbeitung auf Basis berechtigter Interessen",
+            "Recht auf Widerruf der Einwilligung — Widerruf einer zuvor erteilten Einwilligung jederzeit"
+          ],
+          "contentPost": "Du kannst die meisten dieser Rechte direkt über deine Dashboard-Einstellungen ausüben (Datenexport, Kontoöschung). Für andere Anfragen kontaktiere uns bitte unter der unten angegebenen Adresse."
+        },
+        {
+          "heading": "6. Datenübertragungen",
+          "content": "Wenn deine Daten außerhalb des Europäischen Wirtschaftsraums (EWR) übertragen werden, stellen wir sicher, dass geeignete Schutzmaßnahmen vorhanden sind, wie z. B. Standardvertragsklauseln (SCC), die von der Europäischen Kommission genehmigt wurden."
+        },
+        {
+          "heading": "7. Änderungen dieser Richtlinie",
+          "content": "Wir können diese Datenschutzerklärung von Zeit zu Zeit aktualisieren. Wesentliche Änderungen werden per E-Mail oder durch einen Hinweis auf unserer Plattform mitgeteilt. Das Datum „Zuletzt aktualisiert“ oben auf dieser Seite gibt die jüngste Überarbeitung an."
+        },
+        {
+          "heading": "8. Kontakt",
+          "contentPre": "Für Datenschutzanfragen, Datenauskunftsersuchen oder Beschwerden kontaktiere uns unter:",
+          "emailLabel": "E-Mail",
+          "addressLabel": "Adresse",
+          "address": "HelixMind\n[Straße und Hausnummer]\n[PLZ und Ort]\nDeutschland",
+          "contentPost": "Wenn du der Meinung bist, dass deine Datenschutzrechte verletzt wurden, hast du das Recht, eine Beschwerde bei einer Aufsichtsbehörde in deinem EU-Mitgliedstaat einzureichen."
+        }
+      ]
+    },
+    "imprint": {
+      "title": "Impressum",
+      "sections": [
+        {
+          "heading": "Angaben gemäß § 5 TMG",
+          "content": "HelixMind\n[Straße und Hausnummer]\n[PLZ und Ort]\nDeutschland"
+        },
+        {
+          "heading": "Kontakt",
+          "emailLabel": "E-Mail",
+          "webLabel": "Web"
+        },
+        {
+          "heading": "Vertreten durch",
+          "content": "[Name des Vertretungsberechtigten]"
+        },
+        {
+          "heading": "Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV",
+          "content": "[Name]\n[Straße und Hausnummer]\n[PLZ und Ort]\nDeutschland"
+        },
+        {
+          "heading": "EU-Streitschlichtung",
+          "content": "Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:",
+          "contentPost": "Unsere E-Mail-Adresse finden Sie oben im Impressum. Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen."
+        },
+        {
+          "heading": "Haftung für Inhalte",
+          "content": "Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.",
+          "contentPost": "Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden wir diese Inhalte umgehend entfernen."
+        },
+        {
+          "heading": "Haftung für Links",
+          "content": "Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar.",
+          "contentPost": "Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist jedoch ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend entfernen."
+        },
+        {
+          "heading": "Urheberrecht",
+          "content": "Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten, nicht kommerziellen Gebrauch gestattet.",
+          "contentPost": "Die HelixMind CLI-Software ist unter der AGPL-3.0-Lizenz veröffentlicht. Die Nutzungsbedingungen der CLI-Software richten sich nach den Bestimmungen dieser Lizenz."
+        }
+      ]
+    }
   }
 }

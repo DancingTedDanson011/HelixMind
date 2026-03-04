@@ -12,7 +12,8 @@
     "support": "Support",
     "login": "Log in",
     "getStarted": "Get Started",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "enterprise": "Enterprise"
   },
   "hero": {
     "badge": "Open Source AI Coding CLI",
@@ -50,12 +51,30 @@
     "sectionLabel": "Memory Architecture",
     "subtitle": "Six levels of intelligent memory that grows, decays, and adapts with your project.",
     "levels": {
-      "l1": { "name": "Focus", "desc": "Hot context. what you're working on right now" },
-      "l2": { "name": "Active", "desc": "Recent patterns and decisions still in play" },
-      "l3": { "name": "Reference", "desc": "Stable knowledge. architecture, conventions" },
-      "l4": { "name": "Archive", "desc": "Historical context, accessible when needed" },
-      "l5": { "name": "Deep Archive", "desc": "Compressed summaries of old knowledge" },
-      "l6": { "name": "Web Knowledge", "desc": "Auto-fetched documentation and web insights, always up to date" }
+      "l1": {
+        "name": "Focus",
+        "desc": "Hot context. what you're working on right now"
+      },
+      "l2": {
+        "name": "Active",
+        "desc": "Recent patterns and decisions still in play"
+      },
+      "l3": {
+        "name": "Reference",
+        "desc": "Stable knowledge. architecture, conventions"
+      },
+      "l4": {
+        "name": "Archive",
+        "desc": "Historical context, accessible when needed"
+      },
+      "l5": {
+        "name": "Deep Archive",
+        "desc": "Compressed summaries of old knowledge"
+      },
+      "l6": {
+        "name": "Web Knowledge",
+        "desc": "Auto-fetched documentation and web insights, always up to date"
+      }
     }
   },
   "modes": {
@@ -212,17 +231,47 @@
     "viewPricing": "See Pricing",
     "learnMore": "Learn more",
     "more": {
-      "checkpoints": { "title": "Checkpoint System", "desc": "Auto-created at every tool call. Double-ESC to browse and revert to any previous state." },
-      "tools": { "title": "22 Agent Tools", "desc": "Read, write, edit files, search, git, run commands, spiral memory, web research, browser automation." },
-      "mcp": { "title": "MCP Server", "desc": "Works with Claude Code, Cursor, VS Code, Windsurf, Codex, JetBrains, and more." },
-      "search": { "title": "Semantic Search", "desc": "Embedding-based KNN search across all spiral levels. Find concepts, not just keywords." },
-      "cli": { "title": "Rich CLI", "desc": "Figlet banners, syntax highlighting, animated status bar, slash commands, tab-based sessions." },
-      "permissions": { "title": "Permission System", "desc": "3-tier: auto, ask, dangerous. YOLO mode for the brave. Full control over what the agent can do." }
+      "checkpoints": {
+        "title": "Checkpoint System",
+        "desc": "Auto-created at every tool call. Double-ESC to browse and revert to any previous state."
+      },
+      "tools": {
+        "title": "22 Agent Tools",
+        "desc": "Read, write, edit files, search, git, run commands, spiral memory, web research, browser automation."
+      },
+      "mcp": {
+        "title": "MCP Server",
+        "desc": "Works with Claude Code, Cursor, VS Code, Windsurf, Codex, JetBrains, and more."
+      },
+      "search": {
+        "title": "Semantic Search",
+        "desc": "Embedding-based KNN search across all spiral levels. Find concepts, not just keywords."
+      },
+      "cli": {
+        "title": "Rich CLI",
+        "desc": "Figlet banners, syntax highlighting, animated status bar, slash commands, tab-based sessions."
+      },
+      "permissions": {
+        "title": "Permission System",
+        "desc": "3-tier: auto, ask, dangerous. YOLO mode for the brave. Full control over what the agent can do."
+      }
     },
     "modeCards": {
-      "jarvis": { "title": "Jarvis", "desc": "Autonomous assistant. Plans, analyzes, and executes tasks from a queue. Multi-phase thinking with approval workflow.", "link": "/docs/jarvis" },
-      "agent": { "title": "Coding Agent", "desc": "22 tools for reading, writing, testing, and committing code. Terminal or browser. Persistent spiral memory.", "link": "/docs/agent-tools" },
-      "monitor": { "title": "Security Monitor", "desc": "Autonomous guardian. Scans for vulnerabilities, blocks threats, rotates secrets. Passive, defensive, or active.", "link": "/docs/security-monitor" }
+      "jarvis": {
+        "title": "Jarvis",
+        "desc": "Autonomous assistant. Plans, analyzes, and executes tasks from a queue. Multi-phase thinking with approval workflow.",
+        "link": "/docs/jarvis"
+      },
+      "agent": {
+        "title": "Coding Agent",
+        "desc": "22 tools for reading, writing, testing, and committing code. Terminal or browser. Persistent spiral memory.",
+        "link": "/docs/agent-tools"
+      },
+      "monitor": {
+        "title": "Security Monitor",
+        "desc": "Autonomous guardian. Scans for vulnerabilities, blocks threats, rotates secrets. Passive, defensive, or active.",
+        "link": "/docs/security-monitor"
+      }
     }
   },
   "comparison": {
@@ -510,6 +559,64 @@
       "saml": "SSO / SAML",
       "status": "System Status",
       "support": "Support"
+    },
+    "home": {
+      "welcome": "Welcome back, <highlight>{name}</highlight>",
+      "subtitle": "Here is what is happening with your HelixMind account.",
+      "apiKeys": "API Keys",
+      "tickets": "Tickets",
+      "usageEvents": "Usage Events",
+      "active": "Active",
+      "total": "Total",
+      "plan": "{plan} Plan",
+      "renews": "Renews {date}",
+      "upgrade": "Upgrade",
+      "recentActivity": "Recent Activity",
+      "noActivity": "No recent activity yet.",
+      "noActivityHint": "Activity will appear here as you use HelixMind.",
+      "quickLinks": "Quick Links",
+      "linkApp": "Open App",
+      "linkProfile": "Profile",
+      "linkBilling": "Billing",
+      "linkApiKeys": "API Keys",
+      "linkSupport": "Support"
+    },
+    "billing": {
+      "title": "Billing & Subscription",
+      "subtitle": "Manage your plan, view invoices, and update payment methods.",
+      "plan": "{plan} Plan",
+      "billed": "Billed {period}",
+      "cancelsAtEnd": "Cancels at period end",
+      "upgradePlan": "Upgrade Plan",
+      "manageSub": "Manage Subscription",
+      "changePlan": "Change Plan",
+      "nextBilling": "Next billing date: {date}",
+      "invoiceHistory": "Invoice History",
+      "noInvoices": "No invoices yet.",
+      "noInvoicesHint": "Invoices will appear here once you subscribe to a paid plan.",
+      "date": "Date",
+      "description": "Description",
+      "amount": "Amount",
+      "status": "Status"
+    },
+    "profile": {
+      "title": "Profile Settings",
+      "subtitle": "Manage your account information and preferences.",
+      "yourName": "Your Name",
+      "personalInfo": "Personal Information",
+      "displayName": "Display Name",
+      "enterName": "Enter your name",
+      "emailAddress": "Email Address",
+      "emailChangeHint": "To change your email, contact support.",
+      "language": "Language Preference",
+      "saveChanges": "Save Changes",
+      "memberSince": "Member since {date}",
+      "saveSuccess": "Profile updated successfully.",
+      "saveError": "Failed to save profile."
+    },
+    "layout": {
+      "menu": "Menu",
+      "userFallback": "User"
     }
   },
   "support": {
@@ -1176,5 +1283,505 @@
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
     "daysAgo": "{count}d ago"
+  },
+  "enterprise": {
+    "hero": {
+      "badge": "For AI Providers",
+      "title": "Your models forget.",
+      "titleHighlight": "We fixed that.",
+      "subtitle": "The missing memory layer for every AI. 6-level hierarchical memory that persists, evolves, and proactively delivers context your users need.",
+      "pill1": "6-Level Memory",
+      "pill2": "Model-Agnostic",
+      "pill3": "Production-Ready",
+      "cta": "Talk to us",
+      "secondary": "See integration options →",
+      "trust": "Trusted by developers building the future of AI"
+    },
+    "problem": {
+      "label": "The Problem",
+      "title": "Every AI session starts at zero",
+      "subtitle": "Without persistent memory, your AI wastes tokens, loses context, and frustrates users.",
+      "without": {
+        "title": "Without Memory",
+        "desc": "Each session erases everything. Your model re-learns the same context repeatedly.",
+        "item1": "40% of tokens wasted on re-explaining",
+        "item2": "Context explosion with large codebases",
+        "item3": "No learning from past interactions"
+      },
+      "with": {
+        "title": "With HelixMind",
+        "desc": "Context persists across sessions. Knowledge crystallizes over time.",
+        "item1": "15-30K focused tokens vs 120K flat",
+        "item2": "Proactive injection of needed context",
+        "item3": "Learning that compounds over months"
+      },
+      "items": {
+        "reexplain": "Users re-explain architecture every session",
+        "time": "Hours lost to context rebuilding",
+        "quality": "Lower output quality without project knowledge",
+        "frustration": "User frustration from repetitive explanations"
+      }
+    },
+    "solution": {
+      "label": "The Solution",
+      "title": "6-Level Spiral Memory",
+      "subtitle": "Knowledge evolves through levels — from instant context to crystallized wisdom. Nothing is deleted, only refined.",
+      "levels": {
+        "l1": {
+          "name": "Focus",
+          "desc": "What you're working on right now. Seconds-old context, highest relevance."
+        },
+        "l2": {
+          "name": "Active",
+          "desc": "Related files and dependencies. Hours of work, still connected."
+        },
+        "l3": {
+          "name": "Reference",
+          "desc": "Architecture decisions, patterns, conventions. Proactively injected when relevant."
+        },
+        "l4": {
+          "name": "Archive",
+          "desc": "Compressed summaries of older sessions. Accessible when needed."
+        },
+        "l5": {
+          "name": "Deep Archive",
+          "desc": "Project DNA. Fundamental principles that define your codebase."
+        },
+        "l6": {
+          "name": "Web Knowledge",
+          "desc": "Real-time external knowledge. Documentation fetched on demand."
+        }
+      },
+      "evolution": "Knowledge automatically promotes on use, decays when stale",
+      "notRag": "This is not RAG. This is knowledge evolution.",
+      "notRagDesc": "RAG retrieves flat documents. Spiral Memory understands relationships, evolves relevance, and delivers context users didn't ask for but need."
+    },
+    "modes": {
+      "label": "Three Modes",
+      "title": "Chat, Monitor, Auto",
+      "subtitle": "Three ways to leverage spiral memory. Each mode accesses the same persistent knowledge.",
+      "items": {
+        "chat": {
+          "title": "Interactive Chat",
+          "desc": "Work with your AI — it already knows your project. Spiral delivers context automatically."
+        },
+        "monitor": {
+          "title": "Security Monitor",
+          "desc": "Autonomous guardian that scans for threats, watches for vulnerabilities, and learns your security patterns."
+        },
+        "auto": {
+          "title": "Auto Mode",
+          "desc": "10 parallel workers executing complex tasks. Background intelligence powered by spiral context."
+        }
+      }
+    },
+    "why": {
+      "label": "Why Now",
+      "title": "The memory gap is your opportunity",
+      "subtitle": "47 million developers use AI tools. Zero have persistent memory. First mover wins.",
+      "stats": {
+        "developers": "Developers using AI tools",
+        "memory": "AI tools with persistent memory",
+        "context": "Context windows and growing",
+        "opportunity": "mover advantage"
+      },
+      "context": {
+        "title": "Market Context",
+        "point1": {
+          "title": "Context windows are growing",
+          "desc": "But bigger context = more noise, not better signal"
+        },
+        "point2": {
+          "title": "\"Lost in the Middle\" problem",
+          "desc": "Models forget information in the middle of long contexts"
+        },
+        "point3": {
+          "title": "First memory architecture",
+          "desc": "HelixMind is the first production-ready memory layer"
+        }
+      }
+    },
+    "integration": {
+      "label": "Integration Paths",
+      "title": "Three ways to integrate",
+      "subtitle": "From MCP server to native feature — choose your integration depth.",
+      "paths": {
+        "native": {
+          "title": "Native Feature",
+          "effort": "2-3 months integration",
+          "desc": "Embed the Spiral Engine directly into your model's context pipeline. Every user gets persistent memory out of the box.",
+          "benefit1": "Reduce token waste by 40-75%",
+          "benefit2": "Create switching costs (memory = lock-in)",
+          "benefit3": "Competitive differentiation"
+        },
+        "mcp": {
+          "title": "MCP Server",
+          "effort": "Already built — just list it",
+          "desc": "Ship the Spiral as a first-party MCP integration. Works with Claude Code, Cursor, Windsurf, and more.",
+          "benefit1": "Zero engineering effort",
+          "benefit2": "User opt-in (not forced)",
+          "benefit3": "Works with existing infrastructure"
+        },
+        "license": {
+          "title": "Technology License",
+          "effort": "Immediate access",
+          "desc": "License the algorithms and architecture patterns. We bring 6 months of production-tuned relevance scoring.",
+          "benefit1": "Learn from proven architecture",
+          "benefit2": "No ongoing dependency",
+          "benefit3": "Optional consulting support"
+        }
+      },
+      "mcpLive": "MCP Server already live and tested with Claude Code, Cursor, and Windsurf"
+    },
+    "roi": {
+      "label": "Provider ROI",
+      "title": "Why memory makes your product better",
+      "subtitle": "Persistent memory isn't just a feature — it's a competitive moat.",
+      "benefits": {
+        "tokens": {
+          "title": "Lower Token Costs",
+          "desc": "Spiral delivers 15-30K focused tokens instead of 120K flat context. 75% reduction in wasted tokens."
+        },
+        "quality": {
+          "title": "Better Output Quality",
+          "desc": "Models with the right context produce better code. Less hallucination, more precision."
+        },
+        "retention": {
+          "title": "User Retention",
+          "desc": "Memory creates switching costs. Users who leave lose their accumulated knowledge."
+        },
+        "competitive": {
+          "title": "Competitive Edge",
+          "desc": "First provider with native memory wins. Your competitors are already looking at this."
+        },
+        "cost": {
+          "title": "Lower Compute Costs",
+          "desc": "Fewer tokens = less compute per query. Direct impact on your infrastructure bill."
+        }
+      },
+      "comparison": {
+        "title": "Flat Context vs. Spiral Context",
+        "flat": "Flat Context",
+        "flatDesc": "All context dumped into the model. Lost in the middle. Expensive.",
+        "spiral": "Spiral Context",
+        "spiralDesc": "Focused, relevant, evolved. Delivers what's needed.",
+        "lost": "Solves the \"Lost in the Middle\" problem by prioritizing relevant context"
+      }
+    },
+    "traction": {
+      "label": "Open Source",
+      "title": "Production-ready. Open source.",
+      "subtitle": "HelixMind is AGPL-3.0 licensed. No black boxes. Audit the code, fork it, contribute.",
+      "metrics": {
+        "stars": "GitHub Stars",
+        "forks": "Forks",
+        "downloads": "npm Downloads",
+        "contributors": "Contributors"
+      },
+      "momentum": "Growing momentum",
+      "proof": {
+        "point1": {
+          "title": "Production-tested",
+          "desc": "Running in real development workflows"
+        },
+        "point2": {
+          "title": "Multi-provider support",
+          "desc": "Claude, GPT-4, Ollama, DeepSeek, Kimi, Groq"
+        },
+        "point3": {
+          "title": "Full feature set",
+          "desc": "22 agent tools, 3D brain viz, validation matrix"
+        }
+      }
+    },
+    "cta": {
+      "title": "Ready to give your model memory?",
+      "subtitle": "Talk to our team about integration. We'll show you how Spiral Memory fits into your product.",
+      "email": "Work email",
+      "message": "Tell us about your use case",
+      "messagePlaceholder": "We're building X and want to integrate memory for Y reason...",
+      "submit": "Request Integration",
+      "success": "Request received",
+      "successDesc": "We'll get back to you within 24 hours.",
+      "direct": "Or reach out directly:",
+      "trust1": "AGPL-3.0 licensed",
+      "trust2": "No vendor lock-in",
+      "trust3": "Self-hostable"
+    }
+  },
+  "errors": {
+    "somethingWrong": "Something went wrong",
+    "unexpectedError": "An unexpected error occurred while processing your request.",
+    "errorDetails": "Error details",
+    "tryAgain": "Try Again",
+    "backHome": "Back to Home"
+  },
+  "notFound": {
+    "title": "Lost in the spiral?",
+    "description": "The page you are looking for does not exist or has been moved to another dimension.",
+    "backHome": "Back to Home",
+    "goBack": "Go Back"
+  },
+  "legal": {
+    "terms": {
+      "title": "Terms of Service",
+      "lastUpdated": "Last updated: March 1, 2026",
+      "intro": "These Terms of Service (\"Terms\") govern your use of the HelixMind platform, including the CLI tool, web dashboard, API, and all related services (\"Services\") provided by HelixMind (\"we\", \"our\", \"us\"). By accessing or using our Services, you agree to be bound by these Terms.",
+      "sections": [
+        {
+          "heading": "1. Acceptance of Terms",
+          "content": "By creating an account, installing the CLI, or otherwise accessing our Services, you confirm that you are at least 16 years of age and agree to comply with these Terms. If you are using the Services on behalf of an organization, you represent that you have the authority to bind that organization to these Terms."
+        },
+        {
+          "heading": "2. Description of Services",
+          "contentPre": "HelixMind provides:",
+          "items": [
+            "An AI coding CLI tool with persistent spiral context memory",
+            "A web dashboard for account management, subscription billing, and support",
+            "API access for integration with third-party tools (on applicable plans)",
+            "Documentation, blog content, and community resources"
+          ],
+          "contentPost": "We reserve the right to modify, suspend, or discontinue any part of the Services at any time with reasonable notice."
+        },
+        {
+          "heading": "3. Accounts",
+          "contentPre": "You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to:",
+          "items": [
+            "Provide accurate and complete registration information",
+            "Keep your password secure and not share it with others",
+            "Notify us immediately of any unauthorized access to your account",
+            "Not create multiple accounts to circumvent plan limitations"
+          ],
+          "contentPost": "We may suspend or terminate accounts that violate these Terms or that show signs of fraudulent activity."
+        },
+        {
+          "heading": "4. Payment and Subscriptions",
+          "subSections": [
+            {
+              "heading": "4.1 Free Tier",
+              "content": "The HelixMind CLI is free and open source under the AGPL-3.0 license. No account or payment is required for local usage with your own API keys or local models (e.g., Ollama)."
+            },
+            {
+              "heading": "4.2 Paid Plans",
+              "content": "Pro (19 EUR/month) and Team (39 EUR/user/month) plans are billed monthly or annually through Stripe. Enterprise plans are available with custom pricing upon request."
+            },
+            {
+              "heading": "4.3 Billing",
+              "content": "Subscriptions automatically renew at the end of each billing cycle unless cancelled. You may cancel your subscription at any time through the Stripe customer portal. Cancellation takes effect at the end of your current billing period."
+            },
+            {
+              "heading": "4.4 Refunds",
+              "content": "We generally do not offer refunds for partial billing periods. If you believe you have been incorrectly charged, contact us at legal@helixmind.dev within 14 days of the charge."
+            }
+          ]
+        },
+        {
+          "heading": "5. Intellectual Property",
+          "subSections": [
+            {
+              "heading": "5.1 CLI Tool",
+              "content": "The HelixMind CLI is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). You may use, modify, and redistribute the CLI in accordance with that license. The full license text is available in the project repository."
+            },
+            {
+              "heading": "5.2 Web Platform",
+              "content": "The HelixMind web platform, dashboard, API, and associated proprietary features are proprietary software. You are granted a limited, non-exclusive, non-transferable license to use the web platform for its intended purpose during your active subscription."
+            },
+            {
+              "heading": "5.3 Your Content",
+              "content": "You retain ownership of all code, data, and content you create or store using HelixMind. We do not claim any intellectual property rights over your content. Spiral memory data stored locally on your machine remains entirely yours."
+            }
+          ]
+        },
+        {
+          "heading": "6. Acceptable Use",
+          "contentPre": "You agree not to use the Services to:",
+          "items": [
+            "Violate any applicable laws or regulations",
+            "Reverse engineer, decompile, or redistribute paid/proprietary features",
+            "Share API keys or account credentials with unauthorized parties",
+            "Attempt to gain unauthorized access to our systems or other users' accounts",
+            "Use the Services for automated scraping, spamming, or denial-of-service attacks",
+            "Interfere with or disrupt the integrity or performance of the Services"
+          ]
+        },
+        {
+          "heading": "7. Termination",
+          "contentPre": "You may terminate your account at any time through your dashboard settings. We may terminate or suspend your account if:",
+          "items": [
+            "You violate these Terms or our Acceptable Use policy",
+            "Your account shows signs of fraudulent or illegal activity",
+            "We are required to do so by law"
+          ],
+          "contentPost": "Upon termination, your right to access paid features ceases immediately. You may export your data before account deletion. We will retain billing records as required by law."
+        },
+        {
+          "heading": "8. Limitation of Liability",
+          "content": "To the maximum extent permitted by applicable law, HelixMind and its maintainers shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or business opportunities, arising from your use of or inability to use the Services. The Services are provided \"as is\" and \"as available\" without warranties of any kind, either express or implied, including but not limited to implied warranties of merchantability, fitness for a particular purpose, and non-infringement. Our total liability to you for any claims arising from or related to these Terms or the Services shall not exceed the amount you paid us in the 12 months preceding the claim."
+        },
+        {
+          "heading": "9. Indemnification",
+          "content": "You agree to indemnify and hold harmless HelixMind and its maintainers from any claims, damages, losses, or expenses (including reasonable legal fees) arising from your use of the Services or violation of these Terms."
+        },
+        {
+          "heading": "10. Changes to These Terms",
+          "content": "We may update these Terms from time to time. Material changes will be communicated at least 30 days in advance via email or through a notice on our platform. Continued use of the Services after the effective date of changes constitutes acceptance of the updated Terms."
+        },
+        {
+          "heading": "11. Governing Law",
+          "content": "These Terms are governed by and construed in accordance with the laws of the Federal Republic of Germany, without regard to conflict of law provisions. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the courts located in Germany."
+        },
+        {
+          "heading": "12. Contact",
+          "contentPre": "For questions about these Terms, contact us at:",
+          "emailLabel": "Email",
+          "addressLabel": "Address",
+          "address": "HelixMind\n[Street Address]\n[City, Postal Code]\nGermany"
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "lastUpdated": "Last updated: March 1, 2026",
+      "intro": "HelixMind (\"we\", \"our\", \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and protect your personal data when you use our web platform and CLI tool, in accordance with the General Data Protection Regulation (GDPR) and applicable data protection laws.",
+      "sections": [
+        {
+          "heading": "1. Data Collection",
+          "subSections": [
+            {
+              "heading": "1.1 Account Data",
+              "contentPre": "When you create an account on the HelixMind web platform, we collect the following information:",
+              "items": [
+                "Email address",
+                "Name (if provided)",
+                "Profile information from OAuth providers (GitHub) if you choose to authenticate via third-party services"
+              ]
+            },
+            {
+              "heading": "1.2 Payment Data",
+              "content": "Payment information (credit card numbers, billing addresses) is processed exclusively by our payment provider, Stripe. We do not store your full credit card details on our servers. We retain only a reference ID, card brand, and last four digits for display purposes in your dashboard."
+            },
+            {
+              "heading": "1.3 Usage Data",
+              "content": "We collect anonymized usage data to improve our services, including API call counts, feature usage statistics, and error reports. This data does not contain personally identifiable information."
+            },
+            {
+              "heading": "1.4 CLI Data",
+              "content": "The HelixMind CLI tool stores all data locally on your machine by default. Spiral memory, project context, and configuration files remain on your local file system and are never transmitted to our servers unless you explicitly enable Cloud Brain Sync (available on Pro and Team plans)."
+            },
+            {
+              "heading": "1.5 Cookies",
+              "content": "We use essential cookies required for authentication and session management. We do not use third-party tracking cookies or advertising cookies. If we introduce analytics in the future, we will update this policy and request your consent."
+            }
+          ]
+        },
+        {
+          "heading": "2. How We Use Your Data",
+          "contentPre": "We process your personal data for the following purposes:",
+          "items": [
+            "Providing and maintaining your account and access to our services",
+            "Processing subscription payments via Stripe",
+            "Sending transactional emails (account verification, password resets, billing notifications) via Resend",
+            "Providing customer support through our ticket system",
+            "Improving our services based on anonymized usage patterns",
+            "Ensuring platform security and preventing abuse"
+          ],
+          "legalBasisLabel": "Legal basis",
+          "legalBasis": "We process your data based on contractual necessity (providing the service you signed up for), legitimate interest (improving our services and preventing abuse), and consent (where explicitly given)."
+        },
+        {
+          "heading": "3. Data Storage and Security",
+          "contentPre": "Your account data is stored in a PostgreSQL database hosted on secure, encrypted infrastructure. We implement industry-standard security measures including:",
+          "items": [
+            "Encryption at rest and in transit (TLS 1.3)",
+            "Secure password hashing (bcrypt)",
+            "JWT-based authentication with appropriate expiration",
+            "Regular security audits and dependency updates"
+          ],
+          "contentPost": "Data is retained for as long as your account is active. Upon account deletion, your personal data is permanently removed within 30 days, except where retention is required by law (e.g., billing records for tax purposes)."
+        },
+        {
+          "heading": "4. Third-Party Services",
+          "contentPre": "We share data with the following third-party processors, solely for the purposes described:",
+          "items": [
+            "Stripe — Payment processing and subscription management",
+            "Resend — Transactional email delivery",
+            "GitHub — OAuth authentication (only if you choose GitHub login)"
+          ],
+          "contentPost": "Each third-party processor operates under their own privacy policy and is bound by data processing agreements. We do not sell your personal data to any third party."
+        },
+        {
+          "heading": "5. Your Rights (GDPR)",
+          "contentPre": "Under the GDPR, you have the following rights regarding your personal data:",
+          "items": [
+            "Right of Access — Request a copy of all personal data we hold about you",
+            "Right to Rectification — Request correction of inaccurate data",
+            "Right to Erasure — Request deletion of your personal data (\"right to be forgotten\")",
+            "Right to Restriction — Request limitation of data processing",
+            "Right to Data Portability — Receive your data in a structured, machine-readable format",
+            "Right to Object — Object to processing based on legitimate interest",
+            "Right to Withdraw Consent — Withdraw previously given consent at any time"
+          ],
+          "contentPost": "You can exercise most of these rights directly through your dashboard settings (account export, account deletion). For other requests, please contact us at the address below."
+        },
+        {
+          "heading": "6. Data Transfers",
+          "content": "If your data is transferred outside the European Economic Area (EEA), we ensure appropriate safeguards are in place, such as Standard Contractual Clauses (SCCs) approved by the European Commission."
+        },
+        {
+          "heading": "7. Changes to This Policy",
+          "content": "We may update this Privacy Policy from time to time. Material changes will be communicated via email or through a notice on our platform. The \"Last updated\" date at the top of this page indicates the most recent revision."
+        },
+        {
+          "heading": "8. Contact",
+          "contentPre": "For privacy inquiries, data access requests, or complaints, contact us at:",
+          "emailLabel": "Email",
+          "addressLabel": "Address",
+          "address": "HelixMind\n[Street Address]\n[City, Postal Code]\nGermany",
+          "contentPost": "If you believe your data protection rights have been violated, you have the right to lodge a complaint with a supervisory authority in your EU member state of residence."
+        }
+      ]
+    },
+    "imprint": {
+      "title": "Imprint",
+      "sections": [
+        {
+          "heading": "Information pursuant to § 5 TMG",
+          "content": "HelixMind\n[Street Address]\n[Postal Code and City]\nGermany"
+        },
+        {
+          "heading": "Contact",
+          "emailLabel": "Email",
+          "webLabel": "Web"
+        },
+        {
+          "heading": "Represented by",
+          "content": "[Name of Authorized Representative]"
+        },
+        {
+          "heading": "Responsible for content pursuant to § 55 para. 2 RStV",
+          "content": "[Name]\n[Street Address]\n[Postal Code and City]\nGermany"
+        },
+        {
+          "heading": "EU Dispute Resolution",
+          "content": "The European Commission provides a platform for online dispute resolution (ODR):",
+          "contentPost": "Our email address can be found above in the imprint. We are not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board."
+        },
+        {
+          "heading": "Liability for Content",
+          "content": "As a service provider, we are responsible for our own content on these pages in accordance with general law pursuant to § 7 para. 1 TMG. According to §§ 8 to 10 TMG, however, we are not obligated as a service provider to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity.",
+          "contentPost": "Obligations to remove or block the use of information under general law remain unaffected. However, liability in this regard is only possible from the time of knowledge of a specific infringement. Upon becoming aware of such infringements, we will remove this content immediately."
+        },
+        {
+          "heading": "Liability for Links",
+          "content": "Our website contains links to external websites of third parties, over whose content we have no influence. Therefore, we cannot assume any liability for this external content. The respective provider or operator of the linked pages is always responsible for the content of the linked pages. The linked pages were checked for possible legal violations at the time of linking. Illegal content was not recognizable at the time of linking.",
+          "contentPost": "A permanent content check of the linked pages is, however, not reasonable without concrete indications of an infringement. Upon becoming aware of infringements, we will remove such links immediately."
+        },
+        {
+          "heading": "Copyright",
+          "content": "The content and works created by the site operators on these pages are subject to German copyright law. Reproduction, editing, distribution, and any kind of exploitation outside the limits of copyright law require the written consent of the respective author or creator. Downloads and copies of this page are only permitted for private, non-commercial use.",
+          "contentPost": "The HelixMind CLI software is published under the AGPL-3.0 license. The terms of use of the CLI software are governed by the provisions of this license."
+        }
+      ]
+    }
   }
 }

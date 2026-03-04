@@ -151,14 +151,14 @@ export function writeSuggestions(suggestions: CommandDef[], chromeRows: number =
   // Suggestions go above the chrome + prompt line (which sits at termHeight - chromeRows)
   const startRow = termHeight - chromeRows - items.length;
 
-  process.stdout.write('\x1b7'); // Save cursor
+  process.stdout.write('\x1b[s'); // Save cursor
   for (let i = 0; i < items.length; i++) {
     const row = startRow + i;
     const s = items[i];
     const text = `  ${chalk.cyan(s.cmd)} ${chalk.dim('\u2014')} ${chalk.dim(s.description)}`;
     process.stdout.write(`\x1b[${row};0H\x1b[2K${text}`);
   }
-  process.stdout.write('\x1b8'); // Restore cursor
+  process.stdout.write('\x1b[u'); // Restore cursor
 }
 
 /**
@@ -172,9 +172,9 @@ export function clearSuggestions(count: number, chromeRows: number = 4): void {
   const termHeight = process.stdout.rows || 24;
   const startRow = termHeight - chromeRows - count;
 
-  process.stdout.write('\x1b7'); // Save cursor
+  process.stdout.write('\x1b[s'); // Save cursor
   for (let i = 0; i < count; i++) {
     process.stdout.write(`\x1b[${startRow + i};0H\x1b[2K`);
   }
-  process.stdout.write('\x1b8'); // Restore cursor
+  process.stdout.write('\x1b[u'); // Restore cursor
 }

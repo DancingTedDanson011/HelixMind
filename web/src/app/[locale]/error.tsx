@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCcw, AlertTriangle, Home } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 export default function Error({
   error,
@@ -12,6 +13,8 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations('errors');
+
   useEffect(() => {
     console.error('[HelixMind] Route error:', error);
   }, [error]);
@@ -43,7 +46,7 @@ export default function Error({
           transition={{ duration: 0.5, delay: 0.15 }}
           className="text-3xl sm:text-4xl font-bold mb-4 text-white"
         >
-          Something went wrong
+          {t('somethingWrong')}
         </motion.h1>
 
         {/* Error message */}
@@ -53,11 +56,11 @@ export default function Error({
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <p className="text-gray-400 text-lg mb-3">
-            An unexpected error occurred while processing your request.
+            {t('unexpectedError')}
           </p>
           {error.message && (
             <div className="glass rounded-xl px-4 py-3 mb-8 text-left">
-              <p className="text-xs text-gray-500 font-mono mb-1">Error details</p>
+              <p className="text-xs text-gray-500 font-mono mb-1">{t('errorDetails')}</p>
               <p className="text-sm text-error/80 font-mono break-all">
                 {error.message}
               </p>
@@ -82,7 +85,7 @@ export default function Error({
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary/10 border border-primary/30 text-primary font-medium transition-all duration-200 hover:bg-primary/20 hover:border-primary/50 hover:shadow-[0_0_20px_rgba(0,212,255,0.15)]"
           >
             <RefreshCcw className="w-4 h-4" />
-            Try Again
+            {t('tryAgain')}
           </button>
 
           <Link
@@ -90,7 +93,7 @@ export default function Error({
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-transparent border border-white/10 text-gray-300 font-medium transition-all duration-200 hover:bg-white/5 hover:border-white/20"
           >
             <Home className="w-4 h-4" />
-            Back to Home
+            {t('backHome')}
           </Link>
         </motion.div>
 

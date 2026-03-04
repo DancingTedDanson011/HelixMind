@@ -354,7 +354,9 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     if (msg.type === 'session_created') {
       const session = msg.session as SessionInfo;
       if (mountedRef.current) {
-        setSessions((prev) => [...prev, session]);
+        setSessions((prev) =>
+          prev.some((s) => s.id === session.id) ? prev : [...prev, session],
+        );
       }
       return;
     }

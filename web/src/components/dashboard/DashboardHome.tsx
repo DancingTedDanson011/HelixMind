@@ -1,7 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -10,13 +11,10 @@ import {
   CreditCard,
   Key,
   LifeBuoy,
-  Zap,
   Activity,
   Layers,
   ArrowUpRight,
   Clock,
-  FileText,
-  Settings,
   Shield,
   Terminal,
 } from 'lucide-react';
@@ -35,30 +33,6 @@ interface DashboardHomeProps {
     usageCount?: number;
   };
 }
-
-/* ─── Mock Data ───────────────────────────────── */
-
-const mockStats = {
-  apiCalls: 12_847,
-  tokensUsed: 2_340_000,
-  activeSessions: 3,
-};
-
-const mockActivity = [
-  { id: '1', action: 'API call', detail: 'spiral.search endpoint', time: '2 min ago', icon: Zap },
-  { id: '2', action: 'Key created', detail: 'production-v2', time: '1 hour ago', icon: Key },
-  { id: '3', action: 'Session started', detail: 'CLI agent session', time: '3 hours ago', icon: Activity },
-  { id: '4', action: 'Export completed', detail: 'spiral-backup.zip', time: '5 hours ago', icon: FileText },
-  { id: '5', action: 'Settings updated', detail: 'Locale changed to EN', time: '1 day ago', icon: Settings },
-];
-
-const quickLinks = [
-  { label: 'Open App', href: '/app', icon: Terminal, color: 'text-cyan-400' },
-  { label: 'Profile', href: '/dashboard/profile', icon: User, color: 'text-primary' },
-  { label: 'Billing', href: '/dashboard/billing', icon: CreditCard, color: 'text-success' },
-  { label: 'API Keys', href: '/dashboard/api-keys', icon: Key, color: 'text-warning' },
-  { label: 'Support', href: '/support/tickets', icon: LifeBuoy, color: 'text-accent' },
-];
 
 /* ─── Animation Variants ──────────────────────── */
 
@@ -95,16 +69,26 @@ function planBadgeVariant(plan: string): 'default' | 'primary' | 'spiral' | 'war
 /* ─── Component ───────────────────────────────── */
 
 export function DashboardHome({ user }: DashboardHomeProps) {
+  const t = useTranslations('dashboard');
+
   const plan = user?.plan || 'FREE';
   const status = user?.status || 'ACTIVE';
   const name = user?.name || 'there';
   const renewalDate = user?.currentPeriodEnd
-    ? new Date(user.currentPeriodEnd).toLocaleDateString('en-US', {
+    ? new Date(user.currentPeriodEnd).toLocaleDateString(undefined, {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
       })
     : null;
+
+  const quickLinks = [
+    { labelKey: 'home.linkApp' as const, href: '/app', icon: Terminal, color: 'text-cyan-400' },
+    { labelKey: 'home.linkProfile' as const, href: '/dashboard/profile', icon: User, color: 'text-primary' },
+    { labelKey: 'home.linkBilling' as const, href: '/dashboard/billing', icon: CreditCard, color: 'text-success' },
+    { labelKey: 'home.linkApiKeys' as const, href: '/dashboard/api-keys', icon: Key, color: 'text-warning' },
+    { labelKey: 'home.linkSupport' as const, href: '/support/tickets', icon: LifeBuoy, color: 'text-accent' },
+  ];
 
   return (
     <motion.div
@@ -116,10 +100,13 @@ export function DashboardHome({ user }: DashboardHomeProps) {
       {/* ── Welcome ── */}
       <motion.div variants={item}>
         <h1 className="text-2xl font-bold text-white">
-          Welcome back, <span className="gradient-text">{name}</span>
+          {t.rich('home.welcome', {
+            name,
+            highlight: (chunks) => <span className="gradient-text">{chunks}</span>,
+          })}
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Here is what is happening with your HelixMind account.
+          {t('home.subtitle')}
         </p>
       </motion.div>
 
@@ -132,7 +119,7 @@ export function DashboardHome({ user }: DashboardHomeProps) {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-lg font-semibold text-white">{plan} Plan</p>
+                <p className="text-lg font-semibold text-white">{t('home.plan', { plan })}</p>
                 <Badge variant={planBadgeVariant(plan)}>{plan}</Badge>
               </div>
               <div className="flex items-center gap-3 mt-0.5">
@@ -141,7 +128,7 @@ export function DashboardHome({ user }: DashboardHomeProps) {
                 </Badge>
                 {renewalDate && (
                   <span className="text-xs text-gray-500">
-                    Renews {renewalDate}
+                    {t('home.renews', { date: renewalDate })}
                   </span>
                 )}
               </div>
@@ -150,7 +137,7 @@ export function DashboardHome({ user }: DashboardHomeProps) {
           {plan === 'FREE' && (
             <Link href="/pricing">
               <Button size="sm">
-                Upgrade
+                {t('home.upgrade')}
                 <ArrowUpRight size={14} />
               </Button>
             </Link>
@@ -162,29 +149,29 @@ export function DashboardHome({ user }: DashboardHomeProps) {
       <motion.div variants={item} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <GlassPanel intensity="subtle" className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wider">API Calls</p>
-            <Zap size={14} className="text-primary" />
+            <p className="text-xs text-gray-500 uppercase tracking-wider">{t('home.apiKeys')}</p>
+            <Key size={14} className="text-primary" />
           </div>
-          <p className="text-2xl font-bold text-white">{formatNumber(mockStats.apiCalls)}</p>
-          <p className="text-xs text-gray-500 mt-1">This month</p>
+          <p className="text-2xl font-bold text-white">{user?.apiKeyCount ?? 0}</p>
+          <p className="text-xs text-gray-500 mt-1">{t('home.active')}</p>
         </GlassPanel>
 
         <GlassPanel intensity="subtle" className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Tokens Used</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wider">{t('home.tickets')}</p>
             <Layers size={14} className="text-success" />
           </div>
-          <p className="text-2xl font-bold text-white">{formatNumber(mockStats.tokensUsed)}</p>
-          <p className="text-xs text-gray-500 mt-1">This month</p>
+          <p className="text-2xl font-bold text-white">{user?.ticketCount ?? 0}</p>
+          <p className="text-xs text-gray-500 mt-1">{t('home.total')}</p>
         </GlassPanel>
 
         <GlassPanel intensity="subtle" className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Active Sessions</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wider">{t('home.usageEvents')}</p>
             <Activity size={14} className="text-warning" />
           </div>
-          <p className="text-2xl font-bold text-white">{mockStats.activeSessions}</p>
-          <p className="text-xs text-gray-500 mt-1">Right now</p>
+          <p className="text-2xl font-bold text-white">{formatNumber(user?.usageCount ?? 0)}</p>
+          <p className="text-xs text-gray-500 mt-1">{t('home.total')}</p>
         </GlassPanel>
       </motion.div>
 
@@ -194,27 +181,12 @@ export function DashboardHome({ user }: DashboardHomeProps) {
         <motion.div variants={item} className="lg:col-span-2">
           <GlassPanel className="p-0 overflow-hidden">
             <div className="px-6 py-4 border-b border-white/5">
-              <h2 className="text-sm font-semibold text-white">Recent Activity</h2>
+              <h2 className="text-sm font-semibold text-white">{t('home.recentActivity')}</h2>
             </div>
-            <div className="divide-y divide-white/[0.03]">
-              {mockActivity.map((act) => (
-                <div
-                  key={act.id}
-                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-white/[0.02] transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center">
-                    <act.icon size={14} className="text-gray-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white">{act.action}</p>
-                    <p className="text-xs text-gray-500 truncate">{act.detail}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <Clock size={12} />
-                    {act.time}
-                  </div>
-                </div>
-              ))}
+            <div className="px-6 py-10 text-center">
+              <Clock size={24} className="mx-auto text-gray-600 mb-3" />
+              <p className="text-sm text-gray-500">{t('home.noActivity')}</p>
+              <p className="text-xs text-gray-600 mt-1">{t('home.noActivityHint')}</p>
             </div>
           </GlassPanel>
         </motion.div>
@@ -223,17 +195,17 @@ export function DashboardHome({ user }: DashboardHomeProps) {
         <motion.div variants={item}>
           <GlassPanel className="p-0 overflow-hidden">
             <div className="px-6 py-4 border-b border-white/5">
-              <h2 className="text-sm font-semibold text-white">Quick Links</h2>
+              <h2 className="text-sm font-semibold text-white">{t('home.quickLinks')}</h2>
             </div>
             <div className="p-3 space-y-1">
               {quickLinks.map((link) => (
                 <Link
-                  key={link.label}
+                  key={link.labelKey}
                   href={link.href}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all group"
                 >
                   <link.icon size={16} className={link.color} />
-                  <span className="flex-1">{link.label}</span>
+                  <span className="flex-1">{t(link.labelKey)}</span>
                   <ArrowUpRight
                     size={14}
                     className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600"

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -45,6 +46,7 @@ const item = {
 /* ─── Component ───────────────────────────────── */
 
 export function ProfileEditor({ user }: ProfileEditorProps) {
+  const t = useTranslations('dashboard');
   const { toast } = useToast();
   const [name, setName] = useState(user?.name || '');
   const [locale, setLocale] = useState(user?.locale || 'en');
@@ -53,7 +55,7 @@ export function ProfileEditor({ user }: ProfileEditorProps) {
   const email = user?.email || '';
   const role = user?.role || 'USER';
   const memberSince = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString('en-US', {
+    ? new Date(user.createdAt).toLocaleDateString(undefined, {
         month: 'long',
         year: 'numeric',
       })
@@ -68,10 +70,22 @@ export function ProfileEditor({ user }: ProfileEditorProps) {
 
   const handleSave = async () => {
     setSaving(true);
-    // Mock save — replace with actual API call
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
-    toast({ type: 'success', message: 'Profile updated successfully.' });
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name || undefined, locale }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to save');
+      }
+      toast({ type: 'success', message: t('profile.saveSuccess') });
+    } catch (err) {
+      toast({ type: 'error', message: err instanceof Error ? err.message : t('profile.saveError') });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -83,9 +97,9 @@ export function ProfileEditor({ user }: ProfileEditorProps) {
     >
       {/* ── Header ── */}
       <motion.div variants={item}>
-        <h1 className="text-2xl font-bold text-white">Profile Settings</h1>
+        <h1 className="text-2xl font-bold text-white">{t('profile.title')}</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Manage your account information and preferences.
+          {t('profile.subtitle')}
         </p>
       </motion.div>
 
@@ -99,11 +113,11 @@ export function ProfileEditor({ user }: ProfileEditorProps) {
             </div>
 
             <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-white">{name || 'Your Name'}</h2>
+              <h2 className="text-lg font-semibold text-white">{name || t('profile.yourName')}</h2>
               <p className="text-sm text-gray-500">{email}</p>
               <div className="flex items-center gap-2 mt-1">
                 <Badge>{role}</Badge>
-                <span className="text-xs text-gray-600">Member since {memberSince}</span>
+                <span className="text-xs text-gray-600">{t('profile.memberSince', { date: memberSince })}</span>
               </div>
             </div>
           </div>
@@ -115,24 +129,24 @@ export function ProfileEditor({ user }: ProfileEditorProps) {
         <GlassPanel>
           <h2 className="text-base font-semibold text-white mb-6 flex items-center gap-2">
             <User size={16} className="text-primary" />
-            Personal Information
+            {t('profile.personalInfo')}
           </h2>
 
           <div className="space-y-5">
             {/* Name */}
             <Input
               id="profile-name"
-              label="Display Name"
+              label={t('profile.displayName')}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your name"
+              placeholder={t('profile.enterName')}
             />
 
             {/* Email (read-only) */}
             <div className="space-y-1.5">
               <label htmlFor="profile-email" className="flex items-center gap-2 text-sm font-medium text-gray-300">
                 <Mail size={14} />
-                Email Address
+                {t('profile.emailAddress')}
               </label>
               <div className="relative">
                 <input
@@ -145,7 +159,7 @@ export function ProfileEditor({ user }: ProfileEditorProps) {
               </div>
               <p className="text-xs text-gray-600 flex items-center gap-1.5">
                 <Info size={12} />
-                To change your email, contact support.
+                {t('profile.emailChangeHint')}
               </p>
             </div>
 
@@ -153,7 +167,7 @@ export function ProfileEditor({ user }: ProfileEditorProps) {
             <div className="space-y-1.5">
               <label htmlFor="profile-locale" className="flex items-center gap-2 text-sm font-medium text-gray-300">
                 <Globe size={14} />
-                Language Preference
+                {t('profile.language')}
               </label>
               <select
                 id="profile-locale"
@@ -176,7 +190,7 @@ export function ProfileEditor({ user }: ProfileEditorProps) {
           <div className="mt-8 pt-6 border-t border-white/5 flex justify-end">
             <Button onClick={handleSave} loading={saving}>
               <Save size={16} />
-              Save Changes
+              {t('profile.saveChanges')}
             </Button>
           </div>
         </GlassPanel>

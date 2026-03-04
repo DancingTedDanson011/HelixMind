@@ -159,7 +159,7 @@ export function writeStatusBar(data: StatusBarData): void {
 
   // Save cursor, draw 2 bottom rows, restore cursor
   process.stdout.write(
-    `\x1b7` +                         // Save cursor
+    `\x1b[s` +                         // Save cursor
     `\x1b[${termHeight - 1};0H` +    // Move to row N-1
     `\x1b[2K` +                       // Clear line
     '\x1b[K' +                        // Clear to end (for safety)
@@ -168,7 +168,7 @@ export function writeStatusBar(data: StatusBarData): void {
     `\x1b[2K` +                       // Clear line
     '\x1b[K' +
     (line2 ? ` ${line2}` : '') +      // Line 2 (empty when single-line)
-    `\x1b8`,                          // Restore cursor
+    `\x1b[u`,                          // Restore cursor
   );
 }
 

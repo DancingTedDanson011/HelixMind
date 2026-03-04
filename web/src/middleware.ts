@@ -9,7 +9,7 @@ const intlMiddleware = createIntlMiddleware(routing);
 // because Prisma doesn't work in Edge runtime.
 // Middleware only handles: i18n + session cookie check (no DB).
 
-const authPaths = ['/dashboard', '/dashboard/team', '/support/tickets', '/support/panel', '/admin'];
+const authPaths = ['/dashboard', '/dashboard/team', '/support/tickets', '/support/panel', '/admin', '/app'];
 
 function getPathWithoutLocale(pathname: string): string {
   return pathname.replace(/^\/(en|de)(\/|$)/, '/');

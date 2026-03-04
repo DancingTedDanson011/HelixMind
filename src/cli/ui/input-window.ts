@@ -288,7 +288,7 @@ export class InputWindow extends EventEmitter {
     const startRow = rows - INPUT_WINDOW_HEIGHT;
     
     // Save cursor
-    process.stdout.write('\x1b7');
+    process.stdout.write('\x1b[s');
     
     // Clear all input window rows
     for (let i = 0; i < INPUT_WINDOW_HEIGHT; i++) {
@@ -296,7 +296,7 @@ export class InputWindow extends EventEmitter {
     }
     
     // Restore cursor
-    process.stdout.write('\x1b8');
+    process.stdout.write('\x1b[u');
   }
 
   /**
@@ -310,7 +310,7 @@ export class InputWindow extends EventEmitter {
     const startRow = rows - INPUT_WINDOW_HEIGHT;
     
     // Save cursor
-    process.stdout.write('\x1b7');
+    process.stdout.write('\x1b[s');
     
     // Top border with enterprise styling
     process.stdout.write(`\x1b[${startRow};0H`);
@@ -334,7 +334,7 @@ export class InputWindow extends EventEmitter {
     process.stdout.write(borderColor.dim('└' + '─'.repeat(cols - 2) + '┘'));
     
     // Restore cursor
-    process.stdout.write('\x1b8');
+    process.stdout.write('\x1b[u');
     
     // Draw initial content
     this._drawInputLine();
@@ -354,7 +354,7 @@ export class InputWindow extends EventEmitter {
     const inputRow2 = rows - INPUT_WINDOW_HEIGHT + 2;
     
     // Save cursor
-    process.stdout.write('\x1b7');
+    process.stdout.write('\x1b[s');
     
     // Clear and write input line
     process.stdout.write(`\x1b[${inputRow};0H\x1b[2K`);
@@ -381,7 +381,7 @@ export class InputWindow extends EventEmitter {
     }
     
     // Restore cursor
-    process.stdout.write('\x1b8');
+    process.stdout.write('\x1b[u');
   }
 
   /**
@@ -395,7 +395,7 @@ export class InputWindow extends EventEmitter {
     const hintRow = rows - INPUT_WINDOW_HEIGHT + 3;
     
     // Save cursor
-    process.stdout.write('\x1b7');
+    process.stdout.write('\x1b[s');
     
     // Clear and write hint line
     process.stdout.write(`\x1b[${hintRow};0H\x1b[2K`);
@@ -404,7 +404,7 @@ export class InputWindow extends EventEmitter {
     process.stdout.write(borderColor.dim('│ ') + this._hintContent);
     
     // Restore cursor
-    process.stdout.write('\x1b8');
+    process.stdout.write('\x1b[u');
   }
 
   /**
@@ -418,7 +418,7 @@ export class InputWindow extends EventEmitter {
     const statusRow = rows - INPUT_WINDOW_HEIGHT + 4;
     
     // Save cursor
-    process.stdout.write('\x1b7');
+    process.stdout.write('\x1b[s');
     
     // Clear bottom border area
     process.stdout.write(`\x1b[${statusRow};0H\x1b[2K`);
@@ -436,7 +436,7 @@ export class InputWindow extends EventEmitter {
     process.stdout.write(bottomBorder);
     
     // Restore cursor
-    process.stdout.write('\x1b8');
+    process.stdout.write('\x1b[u');
   }
 
   /**

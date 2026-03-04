@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, ExternalLink, Brain, Eye, Shield, Globe, Wifi } from 'lucide-react';
 import { useEffect, useCallback, useState, Suspense, lazy } from 'react';
 import { Button } from '@/components/ui/Button';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 
 const BrainScene = lazy(() =>
   import('@/components/brain/BrainScene').then((m) => ({ default: m.BrainScene }))
