@@ -54,8 +54,8 @@ jobs:
             echo "=== NPM Install ==="
             npm ci --include=dev
 
-            echo "=== Prisma Migrate Deploy ==="
-            npx prisma migrate deploy
+            echo "=== Prisma DB Push (safe, no --accept-data-loss) ==="
+            npx prisma db push
 
             echo "=== Prisma Generate ==="
             npx prisma generate
