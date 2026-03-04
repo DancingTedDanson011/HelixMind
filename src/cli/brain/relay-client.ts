@@ -64,9 +64,15 @@ export function createRelayClient(
     });
 
     ws.on('message', (raw) => {
+      let msg: any;
       try {
-        const msg = JSON.parse(String(raw));
+        msg = JSON.parse(String(raw));
+      } catch {
+        // Ignore malformed JSON from relay — non-fatal
+        return;
+      }
 
+      try {
         if (msg.type === 'cli_auth_ok') {
           authenticated = true;
           // Send instance meta
@@ -77,12 +83,15 @@ export function createRelayClient(
             timestamp: Date.now(),
           }));
 
-          // Start heartbeat
+          // Start heartbeat (unref so it doesn't prevent clean process exit)
           pingTimer = setInterval(() => {
             if (ws?.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
             }
           }, PING_INTERVAL_MS);
+          if (pingTimer && typeof pingTimer === 'object' && 'unref' in pingTimer) {
+            (pingTimer as NodeJS.Timeout).unref();
+          }
 
           return;
         }
@@ -96,9 +105,18 @@ export function createRelayClient(
 
         // Handle control messages from relay (forwarded from browser)
         if (authenticated && isControlRequest(msg.type)) {
-          handleControlMessage(msg as ControlRequest);
+          handleControlMessage(msg as ControlRequest).catch((err) => {
+            if (process.env.DEBUG) {
+              console.error('[relay] Control message handler error:', err instanceof Error ? err.message : String(err));
+            }
+          });
         }
-      } catch { /* Ignore malformed JSON from relay — non-fatal */ }
+      } catch (err) {
+        // Non-fatal runtime error in message processing
+        if (process.env.DEBUG) {
+          console.error('[relay] Message processing error:', err instanceof Error ? err.message : String(err));
+        }
+      }
     });
 
     ws.on('close', () => {
@@ -107,7 +125,10 @@ export function createRelayClient(
       scheduleReconnect();
     });
 
-    ws.on('error', () => {
+    ws.on('error', (err: Error) => {
+      if (process.env.DEBUG) {
+        console.error('[relay] WebSocket error:', err.message);
+      }
       // Error triggers close event, which handles reconnect
     });
   }
@@ -515,6 +536,9 @@ export function createRelayClient(
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       connect();
     }, backoff + jitter);
+    if (reconnectTimer && typeof reconnectTimer === 'object' && 'unref' in reconnectTimer) {
+      (reconnectTimer as NodeJS.Timeout).unref();
+    }
   }
 
   // Start connection

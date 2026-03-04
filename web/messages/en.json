@@ -539,6 +539,8 @@
     "verifyEmailDesc": "We sent a verification link to your email.",
     "invalidCredentials": "Invalid email or password",
     "registrationFailed": "Registration failed",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordRequirements": "Minimum 8 characters",
     "accountCreatedLoginFailed": "Account created but login failed. Please try logging in.",
     "staffLogin": "Staff Login",
     "staffLoginDesc": "Admin & Support access only",

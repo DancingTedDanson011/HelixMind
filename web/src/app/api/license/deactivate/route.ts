@@ -3,6 +3,11 @@ import { createHash } from 'crypto';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { z } from 'zod';
+
+const deactivateSchema = z.object({
+  licenseKey: z.string().min(1).max(200),
+});
 
 export async function POST(req: Request) {
   const rateLimited = checkRateLimit(req, 'api/license/deactivate', GENERAL_RATE_LIMIT);
@@ -15,11 +20,11 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { licenseKey } = body;
-
-    if (!licenseKey || typeof licenseKey !== 'string') {
+    const parsed = deactivateSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ error: 'License key is required' }, { status: 400 });
     }
+    const { licenseKey } = parsed.data;
 
     const keyHash = createHash('sha256').update(licenseKey).digest('hex');
 

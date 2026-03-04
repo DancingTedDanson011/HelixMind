@@ -202,7 +202,7 @@ export function Navbar() {
                   {session?.user && <NotificationBell />}
                   <UserMenu />
                 </div>
-                <span className="text-xs text-gray-600 font-mono">v0.1.1</span>
+                <span className="text-xs text-gray-600 font-mono">HelixMind</span>
               </motion.div>
             </div>
           </motion.div>

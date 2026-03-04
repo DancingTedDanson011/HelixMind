@@ -41,33 +41,38 @@ export function getAllToolNames(): string[] {
   return Array.from(tools.keys());
 }
 
-/** Initialize all tools by importing their modules */
+/** Initialize all tools by importing their modules (parallel for speed) */
 export async function initializeTools(): Promise<void> {
-  await import('./read-file.js');
-  await import('./write-file.js');
-  await import('./edit-file.js');
-  await import('./list-dir.js');
-  await import('./search.js');
-  await import('./find.js');
-  await import('./run-command.js');
-  await import('./git-status.js');
-  await import('./git-diff.js');
-  await import('./git-commit.js');
-  await import('./git-log.js');
-  await import('./spiral-query.js');
-  await import('./spiral-store.js');
-  await import('./web-research.js');
-  await import('./bug-report.js');
-  await import('./bug-list.js');
+  // Core tools — all independent, load in parallel (~150-300ms faster)
+  await Promise.all([
+    import('./read-file.js'),
+    import('./write-file.js'),
+    import('./edit-file.js'),
+    import('./list-dir.js'),
+    import('./search.js'),
+    import('./find.js'),
+    import('./run-command.js'),
+    import('./git-status.js'),
+    import('./git-diff.js'),
+    import('./git-commit.js'),
+    import('./git-log.js'),
+    import('./spiral-query.js'),
+    import('./spiral-store.js'),
+    import('./web-research.js'),
+    import('./bug-report.js'),
+    import('./bug-list.js'),
+  ]);
 
   // Browser tools — conditional (puppeteer-core is optional)
   try {
-    await import('./browser-open.js');
-    await import('./browser-navigate.js');
-    await import('./browser-screenshot.js');
-    await import('./browser-click.js');
-    await import('./browser-type.js');
-    await import('./browser-close.js');
+    await Promise.all([
+      import('./browser-open.js'),
+      import('./browser-navigate.js'),
+      import('./browser-screenshot.js'),
+      import('./browser-click.js'),
+      import('./browser-type.js'),
+      import('./browser-close.js'),
+    ]);
   } catch {
     // puppeteer-core not installed — browser tools silently unavailable
     if (process.env.DEBUG) {

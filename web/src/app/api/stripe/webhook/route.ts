@@ -2,17 +2,27 @@ import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { createNotification } from '@/lib/notifications';
+import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import type Stripe from 'stripe';
 import type { PrismaClient } from '@prisma/client';
 
 type Tx = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
 
 export async function POST(req: Request) {
+  const rateLimited = checkRateLimit(req, 'stripe-webhook', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   const body = await req.text();
   const signature = req.headers.get('stripe-signature');
 
   if (!signature) {
     return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
+  }
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error('STRIPE_WEBHOOK_SECRET is not configured');
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
   }
 
   let event: Stripe.Event;
@@ -21,7 +31,7 @@ export async function POST(req: Request) {
     event = stripe().webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!,
+      webhookSecret,
     );
   } catch (err) {
     console.error('Webhook signature verification failed:', err instanceof Error ? err.message : 'Unknown error');

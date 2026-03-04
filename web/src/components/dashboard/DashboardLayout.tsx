@@ -57,7 +57,8 @@ const navItemDefs: NavItemDef[] = [
   { key: 'profile', labelKey: 'nav.profile', href: '/dashboard/profile', icon: User },
   { key: 'billing', labelKey: 'nav.billing', href: '/dashboard/billing', icon: CreditCard },
   { key: 'api-keys', labelKey: 'nav.apiKeys', href: '/dashboard/api-keys', icon: Key },
-  { key: 'cli', labelKey: 'nav.cli', href: '/dashboard/cli', icon: Terminal },
+  // CLI page not yet implemented — re-enable when /dashboard/cli/page.tsx exists
+  // { key: 'cli', labelKey: 'nav.cli', href: '/dashboard/cli', icon: Terminal },
   // Team+ features
   { key: 'team', labelKey: 'nav.team', href: '/dashboard/team', icon: Users, plans: ['TEAM', 'ENTERPRISE'] },
   { key: 'analytics', labelKey: 'nav.analytics', href: '/dashboard/team/analytics', icon: BarChart3, plans: ['TEAM', 'ENTERPRISE'] },

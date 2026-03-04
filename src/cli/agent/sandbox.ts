@@ -54,7 +54,9 @@ const DANGEROUS_PATTERNS = [
   /\b(curl|wget)\b.*-[oO]\s/,
   // Package manager installs (supply chain risk)
   /\bnpm\s+install\s+-g/,
-  /\bpip\s+install\b/,
+  /\b(pnpm|yarn)\s+(add\s+-g|global\s+add)/,
+  /\bpip3?\s+install\b/,
+  /\bpipx\s+install\b/,
   // Docker privileged / host mounts
   /\bdocker\s+run\b.*--privileged/,
   /\bdocker\s+run\b.*-v\s*\/:/,
@@ -99,7 +101,7 @@ export function validatePathEx(requestedPath: string, projectRoot: string): Path
   // Sensitive files ALWAYS blocked (internal and external)
   const lower = resolved.toLowerCase().replace(/\\/g, '/');
   for (const blocked of BLOCKED_FILES) {
-    if (lower.endsWith('/' + blocked) || lower.endsWith('\\' + blocked) || lower === blocked) {
+    if (lower.endsWith('/' + blocked) || lower === blocked) {
       throw new SecurityError(`Access denied: ${requestedPath} is a sensitive file`);
     }
   }
@@ -186,7 +188,7 @@ export function validatePath(requestedPath: string, projectRoot: string): string
   // Normalize for case-insensitive blocked file check
   const lower = resolved.toLowerCase().replace(/\\/g, '/');
   for (const blocked of BLOCKED_FILES) {
-    if (lower.endsWith('/' + blocked) || lower.endsWith('\\' + blocked) || lower === blocked) {
+    if (lower.endsWith('/' + blocked) || lower === blocked) {
       throw new SecurityError(`Access denied: ${requestedPath} is a sensitive file`);
     }
   }

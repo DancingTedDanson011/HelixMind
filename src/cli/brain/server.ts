@@ -771,9 +771,10 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           brainClients.delete(ws);
           controlClients.delete(ws);
           wsMessageCounters.delete(ws);
-          // Clean up output subscriptions
-          for (const subs of outputSubscriptions.values()) {
+          // Clean up output subscriptions + prune empty sets to prevent memory leak
+          for (const [sessionId, subs] of outputSubscriptions) {
             subs.delete(ws);
+            if (subs.size === 0) outputSubscriptions.delete(sessionId);
           }
         });
 
@@ -816,7 +817,12 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
             // Control messages (only from authenticated clients)
             if (authenticated && isControlRequest(msg.type)) {
-              handleControlMessage(ws, msg as ControlRequest);
+              handleControlMessage(ws, msg as ControlRequest).catch((err) => {
+                if (process.env.DEBUG) {
+                  console.error('[brain] Control message handler error:', err instanceof Error ? err.message : String(err));
+                }
+                sendTo(ws, { type: 'error', message: 'Internal error processing request', requestId: (msg as any).requestId, timestamp: Date.now() });
+              });
               return;
             }
 

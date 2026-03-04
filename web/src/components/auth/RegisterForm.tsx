@@ -21,8 +21,14 @@ export function RegisterForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const passwordValid = password.length >= 8;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!passwordValid) {
+      setError(t('passwordTooShort'));
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -110,8 +116,12 @@ export function RegisterForm() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           required
+          minLength={8}
           error={error}
         />
+        <p className="text-xs text-gray-500 -mt-2">
+          {t('passwordRequirements')}
+        </p>
 
         <Button type="submit" className="w-full" loading={loading}>
           {t('register')}

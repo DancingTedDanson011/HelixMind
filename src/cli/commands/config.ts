@@ -35,7 +35,9 @@ export function configListCommand(): void {
   process.stdout.write(`${theme.separator}\n`);
 
   for (const { key, value } of entries) {
-    const displayValue = key === 'apiKey' && typeof value === 'string' && value.length > 0
+    const isSensitive = (key === 'apiKey' || key.endsWith('.apiKey') || key.toLowerCase().includes('secret'))
+      && typeof value === 'string' && value.length > 0;
+    const displayValue = isSensitive
       ? value.slice(0, 8) + '...' + value.slice(-4)
       : JSON.stringify(value);
     process.stdout.write(`  ${theme.primary(key.padEnd(28))} ${displayValue}\n`);

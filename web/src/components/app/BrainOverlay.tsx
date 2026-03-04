@@ -88,10 +88,10 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
       {/* Content */}
       <div className="relative w-full h-full max-w-[95vw] max-h-[95vh] m-4 rounded-2xl overflow-hidden border border-white/10 bg-[#050510]">
         {/* Top-left: X and Minimize buttons */}
-        <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+        <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
           <button
             onClick={onClose}
-            className="p-2 rounded-lg bg-black/50 border border-white/10 text-gray-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition-all"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-black/50 border border-white/10 text-gray-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition-all"
             title={t('closeBrain')}
           >
             <X size={16} />
@@ -130,8 +130,8 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
           </button>
         </div>
 
-        {/* Left Panel: Filters (always open) + Search */}
-        <div className="absolute left-4 top-16 bottom-4 w-56 z-10 flex flex-col gap-3">
+        {/* Left Panel: Filters (hidden on mobile, always open on desktop) */}
+        <div className="absolute left-4 top-16 bottom-4 w-56 z-10 hidden md:flex flex-col gap-3">
           {/* Search Nodes with Voice Icon */}
           <div className="rounded-xl bg-black/60 border border-white/10 backdrop-blur-md overflow-hidden">
             <div className="p-3 border-b border-white/5">

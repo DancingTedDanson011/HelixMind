@@ -123,6 +123,11 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const isEnterprise = await requireEnterprisePlan(teamAuth.member.userId);
+  if (!isEnterprise) {
+    return NextResponse.json({ error: 'Enterprise plan required' }, { status: 403 });
+  }
+
   try {
     await prisma.samlConfig.delete({ where: { teamId } });
   } catch (err: unknown) {

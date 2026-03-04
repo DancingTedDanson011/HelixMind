@@ -255,16 +255,14 @@ benchCmd
   }));
 
 // Parse arguments with error handling
-try {
-  program.parseAsync();
-} catch (error) {
+program.parseAsync().catch((error) => {
   const err = error as Error;
-  
+
   // Set exit code based on error type
   let exitCode = 1;
   let userMessage = `❌ Error: ${err.message}`;
   let suggestion = '';
-  
+
   // Classify errors and provide helpful messages
   if (err.message.includes('unknown command')) {
     exitCode = 2;
@@ -295,21 +293,21 @@ try {
     userMessage = `❌ Network error: ${err.message}`;
     suggestion = '💡 Check your internet connection and API endpoint';
   }
-  
+
   // Output error information
   console.error(userMessage);
-  
+
   // Show suggestion if available
   if (suggestion) {
     console.log(suggestion);
   }
-  
+
   // Show stack trace in debug mode
   if (process.env.DEBUG || process.env.NODE_ENV === 'development') {
     console.error('\n🔍 Debug stack trace:');
     console.error(err.stack || 'No stack trace available');
   }
-  
+
   // Graceful exit with code
   process.exitCode = exitCode;
-}
+});

@@ -26,6 +26,11 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
 
+    const validStatuses: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+    if (status && !validStatuses.includes(status as TicketStatus)) {
+      return NextResponse.json({ error: 'Invalid status filter' }, { status: 400 });
+    }
+
     const tickets = await prisma.ticket.findMany({
       where: {
         ...(isAdmin ? {} : { userId: session.user.id }),

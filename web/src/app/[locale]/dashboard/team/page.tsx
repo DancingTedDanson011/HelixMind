@@ -51,28 +51,52 @@ export default function TeamPage() {
   const [newName, setNewName] = useState('');
   const [newSlug, setNewSlug] = useState('');
   const [createError, setCreateError] = useState('');
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchTeams = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch('/api/teams');
-      if (res.ok) {
-        const data = await res.json();
-        setTeams(data.teams);
-        if (data.teams.length > 0 && !selectedTeam) {
-          fetchTeamDetail(data.teams[0].id);
-        }
+      if (res.status === 401) {
+        setFetchError('Session expired. Please log in again.');
+        return;
       }
+      if (res.status === 403) {
+        setFetchError('You do not have permission to access teams. A Team or Enterprise plan is required.');
+        return;
+      }
+      if (!res.ok) {
+        setFetchError('Failed to load teams. Please try again.');
+        return;
+      }
+      const data = await res.json();
+      setTeams(data.teams);
+      if (data.teams.length > 0 && !selectedTeam) {
+        fetchTeamDetail(data.teams[0].id);
+      }
+    } catch {
+      setFetchError('Network error. Please check your connection.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   async function fetchTeamDetail(teamId: string) {
-    const res = await fetch(`/api/teams/${teamId}`);
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/teams/${teamId}`);
+      if (res.status === 401) {
+        setFetchError('Session expired. Please log in again.');
+        return;
+      }
+      if (!res.ok) {
+        setFetchError('Failed to load team details.');
+        return;
+      }
       const data = await res.json();
       setSelectedTeam(data.team);
+    } catch {
+      setFetchError('Network error. Please check your connection.');
     }
   }
 
@@ -118,6 +142,24 @@ export default function TeamPage() {
     return (
       <div className="min-h-screen bg-[#050510] p-8">
         <div className="text-gray-500">Loading teams...</div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="min-h-screen bg-[#050510] p-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-8 text-center">
+            <p className="text-sm text-red-400 mb-4">{fetchError}</p>
+            <button
+              onClick={() => fetchTeams()}
+              className="rounded-lg bg-white/10 px-4 py-2 text-sm text-gray-300 hover:bg-white/20 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

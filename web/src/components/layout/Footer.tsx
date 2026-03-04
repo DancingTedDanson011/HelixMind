@@ -22,7 +22,7 @@ export function Footer() {
       links: [
         { href: '/blog', label: t('blog') },
         { href: '/docs/getting-started', label: t('gettingStarted') },
-        { href: '/support', label: t('support') },
+        { href: '/support/tickets', label: t('support') },
       ],
     },
     {

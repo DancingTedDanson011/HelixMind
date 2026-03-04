@@ -73,6 +73,11 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
+    // SECURITY: Only team OWNER can add ADMIN members
+    if (parsed.data.role === 'ADMIN' && authResult.member.role !== 'OWNER') {
+      return NextResponse.json({ error: 'Only the team owner can add admins' }, { status: 403 });
+    }
+
     // SECURITY: Enforce seat limits based on team plan
     const team = await prisma.team.findUnique({ where: { id }, select: { plan: true } });
     const SEAT_LIMITS: Record<string, number> = { FREE: 3, PRO: 5, TEAM: 50, ENTERPRISE: 500 };

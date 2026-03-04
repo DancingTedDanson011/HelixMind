@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { GlassPanel } from '@/components/ui/GlassPanel';
@@ -15,6 +16,8 @@ export function LoginForm() {
   const t = useTranslations('auth');
   const locale = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || `/${locale}/app`;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -35,7 +38,7 @@ export function LoginForm() {
       setError(t('invalidCredentials'));
       setLoading(false);
     } else {
-      router.push('/app');
+      router.push(callbackUrl as any);
     }
   };
 
@@ -48,7 +51,7 @@ export function LoginForm() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => signIn('google', { callbackUrl: `/${locale}/app` })}
+          onClick={() => signIn('google', { callbackUrl })}
         >
           <GoogleIcon />
           {t('google')}
@@ -56,7 +59,7 @@ export function LoginForm() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => signIn('github', { callbackUrl: `/${locale}/app` })}
+          onClick={() => signIn('github', { callbackUrl })}
         >
           <Github size={16} />
           {t('github')}

@@ -3,8 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { requireApiKeyWithPlan } from '@/lib/team-auth';
 import { deflateSync } from 'zlib';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { z } from 'zod';
 
 const MAX_SNAPSHOTS_PER_BRAIN = 10;
+
+const pushSchema = z.object({
+  brainId: z.string().min(1).max(128),
+  version: z.number({ coerce: true }).int().nonnegative(),
+  nodesJson: z.string().min(1),
+  metadata: z.any().optional(),
+});
 
 export async function POST(req: Request) {
   const rateLimited = checkRateLimit(req, 'api/brain/sync/push', GENERAL_RATE_LIMIT);
@@ -20,28 +28,27 @@ export async function POST(req: Request) {
     }
 
     // SECURITY: Enforce body size limit before parsing to prevent OOM
-    const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
     const MAX_PUSH_BYTES = 50 * 1024 * 1024; // 50MB
-    if (contentLength > MAX_PUSH_BYTES) {
+    const rawText = await req.text();
+    if (rawText.length > MAX_PUSH_BYTES) {
       return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
     }
 
-    const body = await req.json();
-    const { brainId, version, nodesJson, metadata } = body;
+    let rawBody: unknown;
+    try {
+      rawBody = JSON.parse(rawText);
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
 
-    if (!brainId || version == null || !nodesJson) {
+    const parsed = pushSchema.safeParse(rawBody);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Missing required fields: brainId, version, nodesJson' },
+        { error: 'Invalid input', details: parsed.error.flatten() },
         { status: 400 },
       );
     }
-
-    if (typeof nodesJson !== 'string') {
-      return NextResponse.json(
-        { error: 'nodesJson must be a JSON string' },
-        { status: 400 },
-      );
-    }
+    const { brainId, version, nodesJson, metadata } = parsed.data;
 
     // SECURITY: Enforce string size limit after parsing
     if (nodesJson.length > MAX_PUSH_BYTES) {

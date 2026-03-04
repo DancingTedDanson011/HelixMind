@@ -27,8 +27,11 @@ export default function PricingPage() {
   const [yearly, setYearly] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
 
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
   const handleCheckout = async (plan: PaidTier) => {
     setLoading(plan);
+    setCheckoutError(null);
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -40,9 +43,11 @@ export default function PricingPage() {
         window.location.href = data.url;
       } else {
         setLoading(null);
+        setCheckoutError(data.error || t('checkoutFailed'));
       }
     } catch {
       setLoading(null);
+      setCheckoutError(t('checkoutFailed'));
     }
   };
 
@@ -58,6 +63,13 @@ export default function PricingPage() {
             <Info size={14} className="text-primary mt-0.5 shrink-0" />
             <p className="text-xs text-gray-500 leading-relaxed">{t('glossary')}</p>
           </div>
+
+          {/* Checkout error */}
+          {checkoutError && (
+            <div className="max-w-md mx-auto mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              {checkoutError}
+            </div>
+          )}
 
           {/* Yearly/Monthly toggle */}
           <div className="inline-flex items-center gap-3 glass rounded-xl p-1.5">
@@ -82,7 +94,7 @@ export default function PricingPage() {
         </div>
 
         {/* 4 main tiers */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
           {mainTierKeys.map((key, i) => {
             const isPro = key === 'pro';
             const isPaid = key === 'pro' || key === 'team';
@@ -119,10 +131,16 @@ export default function PricingPage() {
 
                 <p className="text-xs md:text-sm text-gray-500 mb-3 md:mb-6">{t(`${key}.desc`)}</p>
 
-                {/* Features: hidden on mobile, visible from md up */}
-                <ul className="hidden md:block space-y-3 mb-8 flex-1">
-                  {features.map((feature: string, fi: number) => (
-                    <li key={fi} className="flex items-start gap-2.5 text-sm text-gray-300">
+                {/* Features: top 3 on mobile, all on desktop */}
+                <ul className="space-y-2 md:space-y-3 mb-4 md:mb-8 flex-1">
+                  {features.slice(0, 3).map((feature: string, fi: number) => (
+                    <li key={fi} className="flex items-start gap-2 md:gap-2.5 text-xs md:text-sm text-gray-300">
+                      <Check size={14} className="mt-0.5 flex-shrink-0" style={{ color: tierColors[i] }} />
+                      {feature}
+                    </li>
+                  ))}
+                  {features.slice(3).map((feature: string, fi: number) => (
+                    <li key={fi + 3} className="hidden md:flex items-start gap-2.5 text-sm text-gray-300">
                       <Check size={15} className="mt-0.5 flex-shrink-0" style={{ color: tierColors[i] }} />
                       {feature}
                     </li>
@@ -142,7 +160,7 @@ export default function PricingPage() {
                       return;
                     }
                     if (key === 'freePlus') {
-                      window.location.href = '/auth/login';
+                      window.location.href = '/auth/register';
                       return;
                     }
                     handleCheckout(key as PaidTier);
@@ -168,7 +186,7 @@ export default function PricingPage() {
                 <span className="text-2xl font-bold text-white">{t('custom')}</span>
               </div>
               <p className="text-sm text-gray-500 mb-4">{t('enterprise.desc')}</p>
-              <div className="hidden md:grid grid-cols-2 gap-x-8 gap-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                 {(t.raw('enterprise.features') as string[]).map((feature: string, fi: number) => (
                   <span key={fi} className="flex items-center gap-2 text-sm text-gray-300">
                     <Check size={14} className="flex-shrink-0" style={{ color: '#8a2be2' }} />
