@@ -71,14 +71,6 @@ export function CliConnectionProvider({ children }: { children: React.ReactNode 
     onCliCompleteRef.current?.(text, tools);
   });
 
-  // ── Connect after React state has settled ──
-  useEffect(() => {
-    if (connectPendingRef.current) {
-      connectPendingRef.current = false;
-      connection.connect();
-    }
-  });
-
   // ── Auto-connect to first discovered local instance ──
   useEffect(() => {
     if (
@@ -94,6 +86,15 @@ export function CliConnectionProvider({ children }: { children: React.ReactNode 
       connectPendingRef.current = true;
     }
   }, [discovery.instances, connection.connectionState]);
+
+  // ── Connect after React state has settled ──
+  // Must have dependencies to ensure it fires after state updates
+  useEffect(() => {
+    if (connectPendingRef.current && selectedPort && authToken) {
+      connectPendingRef.current = false;
+      connection.connect();
+    }
+  }, [connection, selectedPort, authToken]);
 
   // ── Re-auto-connect when instance appears after disconnection ──
   // (e.g. user restarts CLI)
