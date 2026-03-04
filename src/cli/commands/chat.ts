@@ -1305,6 +1305,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           fixDescription: b.fixDescription,
         })),
 
+        deleteBug: async (id: number) => {
+          return bugJournal.delete(id);
+        },
+
         startJarvis: () => {
           if (jarvisDaemonSession && jarvisDaemonSession.status === 'running') return jarvisDaemonSession.id;
           // Enforce cross-process Jarvis instance limit

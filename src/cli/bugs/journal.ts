@@ -127,6 +127,15 @@ export class BugJournal {
     return [...this.data.bugs];
   }
 
+  delete(id: number): boolean {
+    const index = this.data.bugs.findIndex(b => b.id === id);
+    if (index === -1) return false;
+    const [removed] = this.data.bugs.splice(index, 1);
+    this.save();
+    this.onChange?.('bug_deleted', removed);
+    return true;
+  }
+
   get count(): number {
     return this.data.bugs.length;
   }

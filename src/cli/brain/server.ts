@@ -284,7 +284,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
       }
 
       /** Dispatch a control request and send the response */
-      function handleControlMessage(ws: WebSocket, msg: ControlRequest): void {
+      async function handleControlMessage(ws: WebSocket, msg: ControlRequest): Promise<void> {
         if (!controlHandlers) {
           sendTo(ws, { type: 'error', message: 'Control handlers not registered', requestId: msg.requestId, timestamp: Date.now() });
           return;
@@ -352,6 +352,12 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           case 'get_bugs': {
             const bugs = controlHandlers.getBugs();
             sendTo(ws, { type: 'bugs_list', bugs, requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'delete_bug': {
+            const success = await controlHandlers.deleteBug((msg as any).bugId);
+            sendTo(ws, { type: 'bug_deleted', success, bugId: (msg as any).bugId, requestId, timestamp: Date.now() });
             break;
           }
 

@@ -108,6 +108,7 @@ export interface UseCliConnectionReturn {
   sendChat: (text: string) => Promise<void>;
   getFindings: () => Promise<Finding[]>;
   getBugs: () => Promise<BugInfo[]>;
+  deleteBug: (bugId: number) => Promise<boolean>;
   // Jarvis methods
   startJarvis: () => Promise<string>;
   stopJarvis: () => Promise<void>;
@@ -813,6 +814,14 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     return list;
   }, [sendRequest]);
 
+  const deleteBug = useCallback(async (bugId: number): Promise<boolean> => {
+    const res = (await sendRequest('delete_bug', { bugId })) as { success: boolean };
+    if (res.success) {
+      setBugs((prev) => prev.filter((b) => b.id !== bugId));
+    }
+    return res.success;
+  }, [sendRequest]);
+
   const startMonitor = useCallback(
     async (mode: string): Promise<string> => {
       const res = (await sendRequest('start_monitor', { mode })) as { sessionId: string };
@@ -1108,6 +1117,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     sendChat,
     getFindings,
     getBugs,
+    deleteBug,
     // Jarvis
     startJarvis,
     stopJarvis,

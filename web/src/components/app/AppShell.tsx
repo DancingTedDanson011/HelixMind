@@ -173,6 +173,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const [showInstancePicker, setShowInstancePicker] = useState(false);
   const [showSpawnDialog, setShowSpawnDialog] = useState(false);
   const [showBugPanel, setShowBugPanel] = useState(false);
+  const [cliOutputMessages, setCliOutputMessages] = useState<ChatMessage[]>([]);
   const [showJarvisPanel, setShowJarvisPanel] = useState(true);
   const [showConnectPopover, setShowConnectPopover] = useState(false);
   const connectPopoverRef = useRef<HTMLDivElement>(null);
@@ -208,6 +209,32 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
       : activeTab === 'monitor' ? monitorSessionId
       : jarvisSessionIdForOutput,
   });
+
+  // ── Convert CLI output to chat messages (for chat tab) ──
+  const lastOutputLineRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeTab !== 'chat' || !isConnected || cliOutput.lines.length === 0) return;
+    const lastLine = cliOutput.lines[cliOutput.lines.length - 1];
+    if (lastLine === lastOutputLineRef.current) return;
+    lastOutputLineRef.current = lastLine;
+    
+    // Skip empty lines and pure ANSI codes
+    const cleaned = lastLine.trim();
+    if (!cleaned || cleaned.length < 2) return;
+    
+    // Add as assistant message with CLI output metadata
+    const cliMsg: ChatMessage = {
+      id: `cli-output-${Date.now()}`,
+      chatId: activeChatId || 'cli',
+      role: 'assistant',
+      content: `\`\`\`
+${cleaned}
+\`\`\``,
+      metadata: { isCliOutput: true },
+      createdAt: new Date().toISOString(),
+    };
+    setCliOutputMessages(prev => [...prev.slice(-50), cliMsg]); // Keep last 50
+  }, [cliOutput.lines, activeTab, isConnected, activeChatId]);
 
   // ── Fetch chats ─────────────────────────────
   const fetchChats = useCallback(async () => {
@@ -367,6 +394,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
 
   // ── Load chat messages ──────────────────────
   const loadChat = useCallback(async (chatId: string) => {
+    setCliOutputMessages([]); // Clear CLI output on chat switch
     try {
       const res = await fetch(`/api/chats/${chatId}`);
       if (res.ok) {
@@ -610,6 +638,10 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     const fixPrompt = `Fix ALL of the following open bugs:\n\n${bugSummary}\n\nInvestigate each bug, implement fixes, and verify they are resolved.`;
     sendBugFixMessage(fixPrompt);
   }, [connection.bugs, sendBugFixMessage]);
+
+  const handleDeleteBug = useCallback((bugId: number) => {
+    connection.deleteBug(bugId).catch(() => {});
+  }, [connection]);
 
   // ── Fetch bugs on connect ──────────────────
   useEffect(() => {
@@ -1167,6 +1199,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onRename={renameChat}
               instanceMeta={isConnected ? connection.instanceMeta ?? undefined : undefined}
               instanceMode={mode === 'yolo' ? 'yolo' : mode === 'skip-permissions' ? 'skip-permissions' : 'safe'}
+              tabMode="chat"
             />
           ) : activeTab === 'console' ? (
             <SessionSidebar
@@ -1212,6 +1245,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               onRename={renameChat}
               instanceMeta={isConnected ? connection.instanceMeta ?? undefined : undefined}
               instanceMode={mode === 'yolo' ? 'yolo' : mode === 'skip-permissions' ? 'skip-permissions' : 'safe'}
+              tabMode="jarvis"
             />
           ) : null}
         </div>
@@ -1531,7 +1565,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             {/* Always show ChatView — structured messages, not raw terminal */}
             <div className="flex-1 overflow-hidden">
               <ChatView
-                messages={activeChat?.messages || []}
+                messages={[...(activeChat?.messages || []), ...cliOutputMessages]}
                 isAgentRunning={isAgentRunning}
                 streamingContent={streamingContent}
                 activeTools={cliExecuting ? cliChat.state.activeTools : []}
@@ -1865,35 +1899,14 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             {/* Main content area */}
             {jarvisSessionIdForOutput ? (
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                {/* Inline task list */}
-                {connection.jarvisTasks.length > 0 && (
-                  <div className="flex-shrink-0 px-4 pt-2">
-                    <JarvisTaskList
-                      tasks={connection.jarvisTasks}
-                      isConnected={isConnected}
-                      onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
-                      onDeleteTask={(taskId) => connection.deleteJarvisTask(taskId).catch(() => {})}
-                    />
-                  </div>
-                )}
                 {/* Terminal output */}
                 <div className="flex-1 min-h-0">
                   <TerminalViewer lines={cliOutput.lines} fullHeight />
                 </div>
               </div>
             ) : (
-              /* No active Jarvis session — show info page or task list */
+              /* No active Jarvis session — show info page */
               <div className="flex-1 overflow-y-auto">
-                {connection.jarvisTasks.length > 0 && (
-                  <div className="px-4 pt-4 max-w-3xl mx-auto">
-                    <JarvisTaskList
-                      tasks={connection.jarvisTasks}
-                      isConnected={isConnected}
-                      onAddTask={(title, desc, pri) => connection.addJarvisTask(title, desc, pri).catch(() => {})}
-                      onDeleteTask={(taskId) => connection.deleteJarvisTask(taskId).catch(() => {})}
-                    />
-                  </div>
-                )}
                 {activeChatId ? (
                   <div className="flex-1 flex items-center justify-center py-12">
                     <p className="text-sm text-gray-500">{t('jarvisCompactHint')}</p>
@@ -2031,6 +2044,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               isConnected={isConnected}
               onFixBug={handleFixBug}
               onFixAll={handleFixAllBugs}
+              onDeleteBug={handleDeleteBug}
               onClose={() => setShowBugPanel(false)}
             />
           </div>

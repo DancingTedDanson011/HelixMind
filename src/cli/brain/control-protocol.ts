@@ -49,6 +49,7 @@ export interface UnsubscribeOutputRequest extends WSMessage { type: 'unsubscribe
 export interface SendChatRequest extends WSMessage { type: 'send_chat'; text: string; chatId?: string; mode?: 'normal' | 'skip-permissions'; files?: ChatFileAttachment[] }
 export interface GetFindingsRequest extends WSMessage { type: 'get_findings' }
 export interface GetBugsRequest extends WSMessage { type: 'get_bugs' }
+export interface DeleteBugRequest extends WSMessage { type: 'delete_bug'; bugId: number }
 export interface PingRequest extends WSMessage { type: 'ping' }
 export interface StartMonitorRequest extends WSMessage { type: 'start_monitor'; mode: 'passive' | 'defensive' | 'active' }
 export interface StopMonitorRequest extends WSMessage { type: 'stop_monitor' }
@@ -249,7 +250,7 @@ export interface ChatFileEvent extends WSMessage { type: 'chat_file'; chatId: st
 export const CONTROL_REQUEST_TYPES = new Set<string>([
   'list_sessions', 'start_auto', 'start_security', 'start_monitor', 'stop_monitor',
   'monitor_command', 'approval_response', 'abort_session', 'subscribe_output',
-  'unsubscribe_output', 'send_chat', 'get_findings', 'get_bugs', 'ping',
+  'unsubscribe_output', 'send_chat', 'get_findings', 'get_bugs', 'delete_bug', 'ping',
   'start_jarvis', 'stop_jarvis', 'pause_jarvis', 'resume_jarvis',
   'add_jarvis_task', 'list_jarvis_tasks', 'delete_jarvis_task', 'get_jarvis_status',
   'clear_jarvis_completed',
@@ -282,6 +283,7 @@ export type ControlRequest =
   | SendChatRequest
   | GetFindingsRequest
   | GetBugsRequest
+  | DeleteBugRequest
   | PingRequest
   | StartJarvisRequest
   | StopJarvisRequest
@@ -345,6 +347,7 @@ export interface ControlHandlers {
   sendChat(text: string, chatId?: string, mode?: 'normal' | 'skip-permissions', files?: ChatFileAttachment[]): void;
   getFindings(): Finding[];
   getBugs(): BugInfo[];
+  deleteBug(id: number): Promise<boolean>;
   // Jarvis
   startJarvis(): string | null;              // returns sessionId or null if limit reached
   stopJarvis(): boolean;

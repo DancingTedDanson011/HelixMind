@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Bug, CheckCircle2, Search, Wrench, AlertTriangle,
-  ChevronDown, ChevronUp, Zap, X, FileCode,
+  ChevronDown, ChevronUp, Zap, X, FileCode, Trash2,
 } from 'lucide-react';
 import type { BugInfo, BugStatus } from '@/lib/cli-types';
 
@@ -14,6 +14,7 @@ interface InlineBugPanelProps {
   onFixBug: (bugId: number) => void;
   onFixAll: () => void;
   onClose: () => void;
+  onDeleteBug?: (bugId: number) => void;
 }
 
 const STATUS_ICON: Record<BugStatus, { icon: typeof Bug; color: string }> = {
@@ -23,7 +24,7 @@ const STATUS_ICON: Record<BugStatus, { icon: typeof Bug; color: string }> = {
   verified: { icon: CheckCircle2, color: 'text-emerald-400' },
 };
 
-export function InlineBugPanel({ bugs, isConnected, onFixBug, onFixAll, onClose }: InlineBugPanelProps) {
+export function InlineBugPanel({ bugs, isConnected, onFixBug, onFixAll, onClose, onDeleteBug }: InlineBugPanelProps) {
   const t = useTranslations('app');
   const [expanded, setExpanded] = useState(true);
 
@@ -131,6 +132,15 @@ export function InlineBugPanel({ bugs, isConnected, onFixBug, onFixAll, onClose 
                     >
                       <Wrench size={8} />
                       Fix
+                    </button>
+                  )}
+                  {onDeleteBug && (
+                    <button
+                      onClick={() => onDeleteBug(bug.id)}
+                      className="flex items-center justify-center w-5 h-5 rounded text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all flex-shrink-0"
+                      title="Delete bug"
+                    >
+                      <Trash2 size={10} />
                     </button>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Plus, Trash2, Pencil, MessageSquare, Check, X, XCircle,
@@ -60,8 +60,8 @@ function sessionStripeColor(name: string, jarvisName?: string): string {
     return 'border-l-blue-400';
   if (isJarvisSession(name, jarvisName))
     return 'border-l-red-400';
-  // auto + default console sessions → green
-  return 'border-l-emerald-400';
+  // auto + default console sessions → cyan (console mode)
+  return 'border-l-cyan-400';
 }
 
 function formatElapsed(ms: number): string {
@@ -89,6 +89,8 @@ interface ChatSidebarProps {
   onRename: (id: string, title: string) => void;
   instanceMeta?: InstanceMeta;
   instanceMode?: 'safe' | 'skip-permissions' | 'yolo';
+  /** Tab context for stripe color: jarvis=red, console=cyan, chat=amber */
+  tabMode?: 'chat' | 'console' | 'jarvis';
 }
 
 export function ChatSidebar({
@@ -105,12 +107,24 @@ export function ChatSidebar({
   onRename,
   instanceMeta,
   instanceMode,
+  tabMode = 'chat',
 }: ChatSidebarProps) {
   const t = useTranslations('app');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [oldSessionsOpen, setOldSessionsOpen] = useState(false);
+  const [wasConnected, setWasConnected] = useState(isConnected);
+  
+  // Track connection state changes - when disconnects, mark current chat as archived
+  useEffect(() => {
+    if (!isConnected && wasConnected && activeChatId) {
+      // CLI disconnected - the current chat becomes "old"
+      setWasConnected(false);
+    } else if (isConnected && !wasConnected) {
+      setWasConnected(true);
+    }
+  }, [isConnected, wasConnected, activeChatId]);
 
   const startRename = (chat: ChatSummary) => {
     setEditingId(chat.id);
@@ -297,7 +311,7 @@ function ChatItem({
   chat, isActive, dimmed = false, editingId, editTitle, deletingId,
   onSelect, onStartRename, onConfirmRename, onCancelRename, onEditTitleChange,
   onStartDelete, onConfirmDelete, onCancelDelete, t,
-  cliMeta, cliMode,
+  cliMeta, cliMode, tabMode,
 }: {
   chat: ChatSummary;
   isActive: boolean;
@@ -317,6 +331,8 @@ function ChatItem({
   /** When active + connected, show CLI folder info merged into chat entry */
   cliMeta?: InstanceMeta;
   cliMode?: 'safe' | 'skip-permissions' | 'yolo';
+  /** Tab context for stripe color: jarvis=red, console=cyan, chat=amber */
+  tabMode?: 'chat' | 'console' | 'jarvis';
 }) {
   if (editingId === chat.id) {
     return (
@@ -372,7 +388,11 @@ function ChatItem({
     : cliMode === 'safe' ? 'border-l-emerald-500/60'
     : 'border-l-amber-400';
   // Pure chats always get amber stripe
-  const stripeColor = isPureChat ? 'border-l-amber-400' : modeBorderColor;
+  // Tab-based color: jarvis=red, console=cyan, chat=amber
+  const tabStripeColor = tabMode === 'jarvis' ? 'border-l-red-400' 
+    : tabMode === 'console' ? 'border-l-cyan-400' 
+    : 'border-l-amber-400';
+  const stripeColor = isPureChat ? tabStripeColor : modeBorderColor;
 
   return (
     <div className={`group relative ${dimmed ? 'opacity-50' : ''}`}>

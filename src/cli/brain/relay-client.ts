@@ -112,7 +112,7 @@ export function createRelayClient(
     });
   }
 
-  function handleControlMessage(msg: ControlRequest): void {
+  async function handleControlMessage(msg: ControlRequest): Promise<void> {
     const requestId = msg.requestId;
 
     switch (msg.type) {
@@ -164,6 +164,12 @@ export function createRelayClient(
       case 'get_bugs': {
         const bugs = handlers.getBugs();
         sendRelay({ type: 'bugs_list', bugs, requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'delete_bug': {
+        const success = await handlers.deleteBug((msg as any).bugId);
+        sendRelay({ type: 'bug_deleted', success, bugId: (msg as any).bugId, requestId, timestamp: Date.now() });
         break;
       }
 
