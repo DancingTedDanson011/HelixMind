@@ -119,13 +119,8 @@ export function Navbar() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Backdrop */}
-            <motion.div
-              className="absolute inset-0 bg-background/98 backdrop-blur-xl"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            />
+            {/* Solid backdrop — fully opaque */}
+            <div className="absolute inset-0 bg-background" />
 
             {/* Decorative elements */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
