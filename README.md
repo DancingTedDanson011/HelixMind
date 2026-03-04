@@ -46,7 +46,7 @@ When you start HelixMind for the first time, you choose how to use it:
  |                                                                            |
  |  Login - free, unlock everything        Open Source - no account needed    |
  |                                                                            |
- |    [v] Jarvis AGI                       [v] AI Agent + 22 Tools            |
+ |    [v] Jarvis Task Daemon                       [v] AI Agent + 22 Tools            |
  |    [v] Validation Matrix                [v] Spiral Memory                  |
  |    [v] Security Monitor                 [v] Anthropic/OpenAI/Ollama        |
  |    [v] Autonomous Mode                  [x] No Jarvis / No Validation      |
@@ -69,7 +69,7 @@ When you start HelixMind for the first time, you choose how to use it:
 | Web Knowledge Enrichment | Yes | Yes |
 | Swarm (parallel workers) | Yes | Yes |
 | MCP Server | Yes | Yes |
-| Jarvis AGI | - | Yes |
+| Jarvis Task Daemon | - | Yes |
 | Validation Matrix | - | Yes |
 | Security Monitor | - | Yes |
 | 3D Brain Management | - | Yes |
