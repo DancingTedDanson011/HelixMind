@@ -42,7 +42,8 @@ import { trimConversation, estimateTokens } from '../context/trimmer.js';
 import { runAutonomousLoop, SECURITY_PROMPT } from '../agent/autonomous.js';
 import { SessionManager } from '../sessions/manager.js';
 import { renderSessionNotification, renderSessionList } from '../sessions/tab-view.js';
-import { getSuggestions, getBestCompletion, writeSuggestions, clearSuggestions, setBlockedCommands } from '../ui/command-suggest.js';
+import { getSuggestions, getBestCompletion, setBlockedCommands } from '../ui/command-suggest.js';
+import { SuggestionPanel } from '../ui/suggestion-panel.js';
 import { PromptHistory } from '../ui/prompt-history.js';
 import { selectMenu, type MenuItem, type SelectMenuOptions } from '../ui/select-menu.js';
 import { BugJournal } from '../bugs/journal.js';
@@ -1965,6 +1966,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   // Update prompt, chrome, and activity on terminal resize
   process.stdout.on('resize', () => {
+    suggestionPanel.close(); // Close panel on resize (reopens on next keypress)
     rl.setPrompt(makePrompt());
     chrome.handleResize();
     activity.handleResize();
@@ -1974,8 +1976,68 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
   });
 
-  // Track suggestion overlay state
-  let lastSuggestionCount = 0;
+  // Interactive suggestion panel (dropdown below input)
+  const MAX_VISIBLE_SUGGESTIONS = 6;
+  const suggestionPanel = new SuggestionPanel(chrome);
+  let panelNavigating = false;   // Prevents keypress from recomputing during Up/Down
+  let panelJustClosed = false;   // Prevents ESC from stopping agent when only closing panel
+
+  /** Replace readline input with the given text (for arrow-key suggestion preview) */
+  function replaceReadlineInput(text: string): void {
+    (rl as any).line = text;
+    (rl as any).cursor = text.length;
+    (rl as any)._refreshLine();
+  }
+
+  // Intercept raw keystrokes BEFORE readline processes them
+  const origTtyWrite = (rl as any)._ttyWrite.bind(rl);
+  (rl as any)._ttyWrite = function (s: string, key: any) {
+    if (suggestionPanel.isOpen && key) {
+      // Down arrow — navigate suggestions
+      if (key.name === 'down') {
+        panelNavigating = true;
+        const cmd = suggestionPanel.moveDown();
+        if (cmd) replaceReadlineInput(cmd);
+        panelNavigating = false;
+        return; // swallow
+      }
+      // Up arrow — navigate suggestions
+      if (key.name === 'up') {
+        panelNavigating = true;
+        const cmd = suggestionPanel.moveUp();
+        if (cmd) replaceReadlineInput(cmd);
+        panelNavigating = false;
+        return; // swallow
+      }
+      // Tab — confirm selection (or select first)
+      if (key.name === 'tab' && !key.shift) {
+        const cmd = suggestionPanel.confirm();
+        if (cmd) replaceReadlineInput(cmd + ' ');
+        return; // swallow
+      }
+      // Enter — if item selected, confirm without submitting
+      if (key.name === 'return' && suggestionPanel.selectedIndex >= 0) {
+        const cmd = suggestionPanel.confirm();
+        if (cmd) replaceReadlineInput(cmd + ' ');
+        return; // swallow
+      }
+      // Enter with nothing selected — close panel and let readline submit
+      if (key.name === 'return' && suggestionPanel.selectedIndex < 0) {
+        suggestionPanel.close();
+        // fall through to origTtyWrite
+      }
+      // Escape — close panel without stopping agent
+      if (key.name === 'escape') {
+        suggestionPanel.close();
+        panelJustClosed = true;
+        // Schedule reset for next tick (so keypress handler sees the flag)
+        process.nextTick(() => { panelJustClosed = false; });
+        return; // swallow
+      }
+    }
+    // Pass through to original readline handler
+    origTtyWrite(s, key);
+  };
 
   permissions.setReadline(rl);
   permissions.setPromptCallback((active) => { isAtPrompt = active; });
@@ -2239,38 +2301,36 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         return;
       }
 
-      // === Command Suggestions ===
-      if (!agentRunning) {
+      // === Command Suggestions (interactive dropdown) ===
+      if (!agentRunning && !panelNavigating) {
         const currentLine = ((rl as any).line || '') as string;
         if (currentLine.startsWith('/') && currentLine.length >= 2) {
-          const suggestions = getSuggestions(currentLine);
-          // Clear old suggestions
-          if (lastSuggestionCount > 0) clearSuggestions(lastSuggestionCount);
-          // Show new ones
-          if (suggestions.length > 0) writeSuggestions(suggestions);
-          lastSuggestionCount = suggestions.length;
-        } else {
-          // Clear suggestions when not typing a command
-          if (lastSuggestionCount > 0) {
-            clearSuggestions(lastSuggestionCount);
-            lastSuggestionCount = 0;
+          const suggestions = getSuggestions(currentLine, MAX_VISIBLE_SUGGESTIONS);
+          if (suggestions.length > 0) {
+            if (suggestionPanel.isOpen) {
+              suggestionPanel.update(suggestions, currentLine);
+            } else {
+              suggestionPanel.open(suggestions, currentLine);
+            }
+          } else {
+            suggestionPanel.close();
           }
+        } else {
+          suggestionPanel.close();
         }
       }
 
       // === ESC detection (single ESC = stop) ===
       // Double-ESC (rewind browser) is handled by the raw data listener below.
       // Skip if a full-screen browser (Rewind/Plan) is open — it handles ESC itself.
-      if (key.name === 'escape' && !fullScreenBrowserOpen) {
+      // Skip if ESC was used to close the suggestion panel (panelJustClosed flag)
+      if (key.name === 'escape' && !fullScreenBrowserOpen && !panelJustClosed) {
         const jarvisRunning = jarvisDaemonSession && jarvisDaemonSession.status === 'running';
         const anythingRunning = agentRunning || sessionMgr.hasBackgroundTasks || autonomousMode || jarvisRunning;
 
         if (anythingRunning) {
-          // Clear any suggestions
-          if (lastSuggestionCount > 0) {
-            clearSuggestions(lastSuggestionCount);
-            lastSuggestionCount = 0;
-          }
+          // Close suggestion panel if open
+          suggestionPanel.close();
 
           // IMMEDIATE STOP — single ESC press
           activity.stop('Stopped');
@@ -3191,6 +3251,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     roundToolCalls = 0;
     currentStepLabel = '';
     currentStepFile = '';
+    suggestionPanel.close(); // Close suggestions when agent starts
     agentRunning = true;
     agentController.reset();
     // Set activity display name: custom Jarvis name when daemon is running, else "HelixMind"
@@ -3491,11 +3552,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       return;
     }
 
-    // Clear command suggestions on submit
-    if (lastSuggestionCount > 0) {
-      clearSuggestions(lastSuggestionCount);
-      lastSuggestionCount = 0;
-    }
+    // Close suggestion panel on submit
+    suggestionPanel.close();
 
     const trimmed = line.trim();
 

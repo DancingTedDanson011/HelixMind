@@ -2,8 +2,6 @@
  * Intelligent command suggestion engine.
  * Shows completions as user types slash commands.
  */
-import chalk from 'chalk';
-
 export interface CommandDef {
   cmd: string;
   description: string;
@@ -131,50 +129,4 @@ export function getBestCompletion(partial: string): string | null {
   const suggestions = getSuggestions(partial, 1);
   if (suggestions.length === 0) return null;
   return suggestions[0].cmd;
-}
-
-/**
- * Write command suggestions as overlay above the bottom chrome.
- * Uses ANSI cursor positioning to avoid disturbing readline.
- * @param chromeRows Number of reserved rows at the bottom (default: 4 for BottomChrome)
- */
-export function writeSuggestions(suggestions: CommandDef[], chromeRows: number = 4): void {
-  if (suggestions.length === 0) return;
-  if (!process.stdout.isTTY) return;
-
-  const termHeight = process.stdout.rows || 24;
-  // Limit suggestions to available space (leave room for prompt line above chrome)
-  const maxSuggestions = Math.max(0, termHeight - chromeRows - 3);
-  const items = suggestions.slice(0, maxSuggestions);
-  if (items.length === 0) return;
-
-  // Suggestions go above the chrome + prompt line (which sits at termHeight - chromeRows)
-  const startRow = termHeight - chromeRows - items.length;
-
-  process.stdout.write('\x1b[s'); // Save cursor
-  for (let i = 0; i < items.length; i++) {
-    const row = startRow + i;
-    const s = items[i];
-    const text = `  ${chalk.cyan(s.cmd)} ${chalk.dim('\u2014')} ${chalk.dim(s.description)}`;
-    process.stdout.write(`\x1b[${row};0H\x1b[2K${text}`);
-  }
-  process.stdout.write('\x1b[u'); // Restore cursor
-}
-
-/**
- * Clear previously rendered suggestions.
- * @param chromeRows Number of reserved rows at the bottom (default: 4 for BottomChrome)
- */
-export function clearSuggestions(count: number, chromeRows: number = 4): void {
-  if (count === 0) return;
-  if (!process.stdout.isTTY) return;
-
-  const termHeight = process.stdout.rows || 24;
-  const startRow = termHeight - chromeRows - count;
-
-  process.stdout.write('\x1b[s'); // Save cursor
-  for (let i = 0; i < count; i++) {
-    process.stdout.write(`\x1b[${startRow + i};0H\x1b[2K`);
-  }
-  process.stdout.write('\x1b[u'); // Restore cursor
 }

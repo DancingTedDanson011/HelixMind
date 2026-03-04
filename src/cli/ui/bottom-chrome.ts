@@ -1,22 +1,22 @@
 /**
- * BottomChrome — Centralized manager for the 4 fixed rows at the bottom of the terminal.
+ * BottomChrome — Centralized manager for the fixed rows at the bottom of the terminal.
  *
- * Layout (from bottom):
+ * Layout (from bottom, with N extra suggestion rows):
+ *   Row promptRow:           ❯ input here_              (bottom of scroll region)
+ *   Row promptRow+1..+N:     suggestion rows             (extra rows, 0 when no panel)
  *   Row N-3: separator / activity indicator  (chrome index 0)
  *   Row N-2: hints line                      (chrome index 1)
  *   Row N-1: statusbar line 1                (chrome index 2)
  *   Row N:   statusbar line 2                (chrome index 3)
  *
- * Uses DECSTBM scroll region to protect the bottom 4 rows from scrolling.
+ * Uses DECSTBM scroll region to protect the bottom rows from scrolling.
  * Includes a stdout hook (Layer 2) that redraws the chrome after every write,
  * protecting against terminals that ignore scroll regions.
  *
  * Double-buffer: tracks previous row content and only redraws rows that changed.
- *
- * The readline prompt lives at row N-4 (the last row of the scroll region).
  */
 
-const RESERVED_ROWS = 4;
+const BASE_ROWS = 4;
 const MIN_TERMINAL_HEIGHT = 10;
 
 export class BottomChrome {
@@ -28,15 +28,37 @@ export class BottomChrome {
   /** Previous frame — used for dirty-check diffing to avoid redundant redraws */
   private _prevRowContent: [string, string, string, string] = ['', '', '', ''];
 
-  /** Number of rows reserved at the bottom (4, or 0 in inline mode) */
+  /** Extra rows for suggestion panel (0 when no panel visible) */
+  private _extraRows = 0;
+  /** Content for each suggestion row */
+  private _suggestionContent: string[] = [];
+  /** Previous suggestion content — for dirty-check diffing */
+  private _prevSuggestionContent: string[] = [];
+
+  /** Number of base chrome rows (always 4) */
+  get baseRows(): number {
+    return BASE_ROWS;
+  }
+
+  /** Number of extra rows (suggestions) */
+  get extraRows(): number {
+    return this._extraRows;
+  }
+
+  /** Total reserved rows: base + suggestions */
+  get totalReservedRows(): number {
+    return this._inlineMode ? 0 : BASE_ROWS + this._extraRows;
+  }
+
+  /** Number of rows reserved at the bottom (total, or 0 in inline mode) */
   get reservedRows(): number {
-    return this._inlineMode ? 0 : RESERVED_ROWS;
+    return this.totalReservedRows;
   }
 
   /** Terminal row where the readline prompt should appear (bottom of scroll region) */
   get promptRow(): number {
     const rows = process.stdout.rows || 24;
-    return rows - RESERVED_ROWS;
+    return rows - this.totalReservedRows;
   }
 
   /** Whether the chrome is currently active */
@@ -75,6 +97,7 @@ export class BottomChrome {
     this._hookStdout();
     // Force full draw on activation by clearing prev content
     this._prevRowContent = ['', '', '', ''];
+    this._prevSuggestionContent = [];
     this.redraw();
   }
 
@@ -90,6 +113,9 @@ export class BottomChrome {
     this._unhookStdout();
     this._rowContent = ['', '', '', ''];
     this._prevRowContent = ['', '', '', ''];
+    this._extraRows = 0;
+    this._suggestionContent = [];
+    this._prevSuggestionContent = [];
   }
 
   /**
@@ -101,8 +127,55 @@ export class BottomChrome {
     if (this._rowContent[index] === content) return; // No change — skip
     this._rowContent[index] = content;
     if (!this._active || this._inlineMode) return;
-    this._drawRow(index);
+    this._drawChromeRow(index);
     this._prevRowContent[index] = content;
+  }
+
+  /**
+   * Set the number of extra rows for the suggestion panel.
+   * Re-establishes the scroll region and forces a redraw.
+   */
+  setExtraRows(n: number): void {
+    const rows = process.stdout.rows || 24;
+    // Clamp to available space (leave at least 3 rows for content)
+    const maxExtra = Math.max(0, rows - MIN_TERMINAL_HEIGHT - BASE_ROWS);
+    const clamped = Math.max(0, Math.min(n, maxExtra));
+
+    if (clamped === this._extraRows) return;
+
+    const oldExtra = this._extraRows;
+    this._extraRows = clamped;
+
+    // Resize suggestion content arrays
+    this._suggestionContent = new Array(clamped).fill('');
+    this._prevSuggestionContent = new Array(clamped).fill('');
+
+    if (!this._active || this._inlineMode) return;
+
+    // Clear old suggestion rows if shrinking
+    if (clamped < oldExtra) {
+      this._clearSuggestionArea(oldExtra);
+    }
+
+    // Re-establish scroll region with new total reserved rows
+    this._setScrollRegion();
+    // Force full redraw (positions changed)
+    this._prevRowContent = ['', '', '', ''];
+    this.redraw();
+  }
+
+  /**
+   * Write content to a suggestion row.
+   * @param index 0-based index within the suggestion area
+   * @param content ANSI-styled string to display
+   */
+  setSuggestionRow(index: number, content: string): void {
+    if (index < 0 || index >= this._extraRows) return;
+    if (this._suggestionContent[index] === content) return;
+    this._suggestionContent[index] = content;
+    if (!this._active || this._inlineMode) return;
+    this._drawSuggestionRow(index);
+    this._prevSuggestionContent[index] = content;
   }
 
   /**
@@ -112,20 +185,45 @@ export class BottomChrome {
   redraw(): void {
     if (!this._active || this._inlineMode) return;
 
-    // Check if any row actually changed
+    const rows = process.stdout.rows || 24;
+    const total = BASE_ROWS + this._extraRows;
+
+    // Check if any chrome row changed
     const dirty0 = this._rowContent[0] !== this._prevRowContent[0];
     const dirty1 = this._rowContent[1] !== this._prevRowContent[1];
     const dirty2 = this._rowContent[2] !== this._prevRowContent[2];
     const dirty3 = this._rowContent[3] !== this._prevRowContent[3];
 
-    if (!dirty0 && !dirty1 && !dirty2 && !dirty3) return; // Nothing changed
+    // Check suggestion rows
+    let anySuggestionDirty = false;
+    for (let i = 0; i < this._extraRows; i++) {
+      if (this._suggestionContent[i] !== this._prevSuggestionContent[i]) {
+        anySuggestionDirty = true;
+        break;
+      }
+    }
 
-    const rows = process.stdout.rows || 24;
+    if (!dirty0 && !dirty1 && !dirty2 && !dirty3 && !anySuggestionDirty) return;
+
     const write = this._rawWrite.bind(this);
 
     // Build a single write with only the changed rows
     let output = '\x1b[?25l\x1b[s'; // hide cursor + save
 
+    // Suggestion rows sit between prompt and chrome base rows
+    // Layout: promptRow | suggestion0 | suggestion1 | ... | chrome0 | chrome1 | chrome2 | chrome3
+    // Suggestion row i is at terminal row: rows - total + i (0-indexed from suggestions start)
+    // Actually: promptRow = rows - total, suggestion rows start at promptRow + 1
+    const suggestionStart = rows - total + 1; // row after prompt
+    for (let i = 0; i < this._extraRows; i++) {
+      if (this._suggestionContent[i] !== this._prevSuggestionContent[i]) {
+        output += `\x1b[${suggestionStart + i};1H\x1b[2K ${this._suggestionContent[i]}`;
+        this._prevSuggestionContent[i] = this._suggestionContent[i];
+      }
+    }
+
+    // Chrome rows: base 4 rows at the very bottom
+    // chrome row 0 = rows - 3, chrome row 1 = rows - 2, chrome row 2 = rows - 1, chrome row 3 = rows
     if (dirty0) {
       output += `\x1b[${rows - 3};1H\x1b[2K ${this._rowContent[0]}`;
       this._prevRowContent[0] = this._rowContent[0];
@@ -165,6 +263,7 @@ export class BottomChrome {
     this._setScrollRegion();
     // Force full redraw after resize (positions changed)
     this._prevRowContent = ['', '', '', ''];
+    this._prevSuggestionContent = new Array(this._extraRows).fill('');
     this.redraw();
   }
 
@@ -204,7 +303,8 @@ export class BottomChrome {
     const rows = process.stdout.rows || 24;
     if (rows < MIN_TERMINAL_HEIGHT) return;
 
-    const regionEnd = rows - RESERVED_ROWS;
+    const total = BASE_ROWS + this._extraRows;
+    const regionEnd = rows - total;
     this._rawWrite(
       `\x1b[1;${regionEnd}r` +        // set scroll region
       `\x1b[${regionEnd};1H`,         // move cursor into region
@@ -266,8 +366,8 @@ export class BottomChrome {
     write(data);
   }
 
-  /** Draw a single chrome row at its absolute position */
-  private _drawRow(index: 0 | 1 | 2 | 3): void {
+  /** Draw a single chrome base row at its absolute position */
+  private _drawChromeRow(index: 0 | 1 | 2 | 3): void {
     const rows = process.stdout.rows || 24;
     const row = rows - 3 + index; // 0 → N-3, 1 → N-2, 2 → N-1, 3 → N
     const content = this._rowContent[index];
@@ -283,16 +383,49 @@ export class BottomChrome {
     );
   }
 
-  /** Clear all 4 fixed rows */
+  /** Draw a single suggestion row at its absolute position */
+  private _drawSuggestionRow(index: number): void {
+    const rows = process.stdout.rows || 24;
+    const total = BASE_ROWS + this._extraRows;
+    // Suggestion rows start right after the prompt row
+    const row = rows - total + 1 + index;
+    const content = this._suggestionContent[index];
+
+    this._rawWrite(
+      '\x1b[?25l' +
+      '\x1b[s' +
+      `\x1b[${row};1H` +
+      '\x1b[2K' +
+      ` ${content}` +
+      '\x1b[u' +
+      '\x1b[?25h',
+    );
+  }
+
+  /** Clear all fixed rows (base + suggestion) */
   private _clearFixedRows(): void {
     const rows = process.stdout.rows || 24;
-    this._rawWrite(
-      '\x1b[s' +
-      `\x1b[${rows - 3};1H\x1b[2K` +
-      `\x1b[${rows - 2};1H\x1b[2K` +
-      `\x1b[${rows - 1};1H\x1b[2K` +
-      `\x1b[${rows};1H\x1b[2K` +
-      '\x1b[u',
-    );
+    const total = BASE_ROWS + this._extraRows;
+
+    let output = '\x1b[s';
+    for (let i = 0; i < total; i++) {
+      output += `\x1b[${rows - total + 1 + i};1H\x1b[2K`;
+    }
+    output += '\x1b[u';
+    this._rawWrite(output);
+  }
+
+  /** Clear only the suggestion area (used when shrinking extra rows) */
+  private _clearSuggestionArea(oldExtraCount: number): void {
+    const rows = process.stdout.rows || 24;
+    const oldTotal = BASE_ROWS + oldExtraCount;
+    const suggestionStart = rows - oldTotal + 1;
+
+    let output = '\x1b[s';
+    for (let i = 0; i < oldExtraCount; i++) {
+      output += `\x1b[${suggestionStart + i};1H\x1b[2K`;
+    }
+    output += '\x1b[u';
+    this._rawWrite(output);
   }
 }
