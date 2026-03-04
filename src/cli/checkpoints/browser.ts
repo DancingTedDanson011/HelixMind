@@ -283,6 +283,7 @@ export function runCheckpointBrowser(options: BrowserOptions): Promise<BrowserRe
       wasRaw = process.stdin.isRaw ?? false;
       process.stdin.setRawMode(true);
     }
+    process.stdin.resume();
 
     process.stdin.on('data', handleKey);
     render();

@@ -228,6 +228,7 @@ export function runPlanBrowser(plan: ExecutionPlan): Promise<PlanBrowserResult> 
       wasRaw = process.stdin.isRaw ?? false;
       process.stdin.setRawMode(true);
     }
+    process.stdin.resume();
 
     process.stdin.on('data', handleKey);
     render();
