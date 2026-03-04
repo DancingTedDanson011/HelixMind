@@ -145,6 +145,12 @@ app.prepare().then(() => {
     }
 
     if (pathname === '/api/relay/cli') {
+      // SECURITY: CLI relay is for headless CLI clients only — reject browser-originated connections
+      if (origin) {
+        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+        socket.destroy();
+        return;
+      }
       wssCliRelay.handleUpgrade(req, socket, head, (ws) => {
         wssCliRelay.emit('connection', ws, req);
       });
@@ -224,8 +230,22 @@ app.prepare().then(() => {
           if (conn) conn.meta = msg.instance;
         }
 
-        // Forward all messages from CLI to connected browsers
-        forwardToBrowsers(userId, String(raw));
+        // SECURITY: Only forward whitelisted message types from CLI to browsers
+        const ALLOWED_CLI_MSG_TYPES = new Set([
+          'instance_meta', 'brain_event', 'session_event', 'output',
+          'finding', 'control_response', 'session_update',
+          'session_created', 'session_removed', 'identity_changed',
+          'output_line', 'chat_text_chunk', 'chat_tool_start',
+          'chat_tool_end', 'chat_complete', 'jarvis_status',
+          'proposal', 'neuron_fired',
+        ]);
+        if (msg.type && ALLOWED_CLI_MSG_TYPES.has(msg.type)) {
+          const taggedMsg = JSON.stringify({
+            ...msg,
+            _relay: { userId, instanceId, verified: true, ts: Date.now() },
+          });
+          forwardToBrowsers(userId, taggedMsg);
+        }
       } catch { /* ignore malformed */ }
     });
 

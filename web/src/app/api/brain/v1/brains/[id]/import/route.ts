@@ -37,6 +37,26 @@ export async function POST(
     return NextResponse.json({ error: `Too many nodes (max ${MAX_IMPORT_NODES})` }, { status: 400 });
   }
 
+  // SECURITY: Validate individual node structures to prevent storing arbitrary JSON
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    if (!n || typeof n !== 'object') {
+      return NextResponse.json({ error: `Invalid node at index ${i}` }, { status: 400 });
+    }
+    if (typeof n.id !== 'string' || n.id.length > 128) {
+      return NextResponse.json({ error: `Invalid node id at index ${i}` }, { status: 400 });
+    }
+    if (typeof n.content !== 'string' || n.content.length > 500_000) {
+      return NextResponse.json({ error: `Invalid node content at index ${i} (max 500KB)` }, { status: 400 });
+    }
+    if (typeof n.level !== 'number' || !Number.isInteger(n.level) || n.level < 1 || n.level > 5) {
+      return NextResponse.json({ error: `Invalid node level at index ${i}` }, { status: 400 });
+    }
+    if (n.tags !== undefined && !Array.isArray(n.tags)) {
+      return NextResponse.json({ error: `Invalid node tags at index ${i}` }, { status: 400 });
+    }
+  }
+
   // Validate edges if provided
   if (edges !== undefined && !Array.isArray(edges)) {
     return NextResponse.json({ error: 'edges must be an array' }, { status: 400 });
@@ -52,40 +72,50 @@ export async function POST(
   }
   const compressedNodes = deflateSync(Buffer.from(nodesJson));
   const compressedEdges = edges ? deflateSync(Buffer.from(JSON.stringify(edges))) : null;
-  const newVersion = brain.syncVersion + 1;
 
-  await prisma.brainSnapshot.create({
-    data: {
-      brainId: id,
-      version: newVersion,
-      nodesJson: compressedNodes,
-      edgesJson: compressedEdges,
-      sizeBytes: compressedNodes.length + (compressedEdges?.length || 0),
-      metadata: { nodeCount: nodes.length, importedAt: Date.now() },
-    },
-  });
-
-  await prisma.brainInstance.update({
-    where: { id },
-    data: {
-      syncVersion: newVersion,
-      nodeCount: nodes.length,
-      lastSyncedAt: new Date(),
-    },
-  });
-
-  // Keep max 10 snapshots
-  const snapshots = await prisma.brainSnapshot.findMany({
-    where: { brainId: id },
-    orderBy: { version: 'desc' },
-    skip: 10,
-    select: { id: true },
-  });
-  if (snapshots.length > 0) {
-    await prisma.brainSnapshot.deleteMany({
-      where: { id: { in: snapshots.map((s) => s.id) } },
+  // SECURITY: Read version + increment inside transaction to prevent race conditions
+  const newVersion = await prisma.$transaction(async (tx) => {
+    const currentBrain = await tx.brainInstance.findUniqueOrThrow({
+      where: { id },
+      select: { syncVersion: true },
     });
-  }
+    const version = currentBrain.syncVersion + 1;
+
+    await tx.brainSnapshot.create({
+      data: {
+        brainId: id,
+        version,
+        nodesJson: compressedNodes,
+        edgesJson: compressedEdges,
+        sizeBytes: compressedNodes.length + (compressedEdges?.length || 0),
+        metadata: { nodeCount: nodes.length, importedAt: Date.now() },
+      },
+    });
+
+    await tx.brainInstance.update({
+      where: { id },
+      data: {
+        syncVersion: version,
+        nodeCount: nodes.length,
+        lastSyncedAt: new Date(),
+      },
+    });
+
+    // Keep max 10 snapshots
+    const snapshots = await tx.brainSnapshot.findMany({
+      where: { brainId: id },
+      orderBy: { version: 'desc' },
+      skip: 10,
+      select: { id: true },
+    });
+    if (snapshots.length > 0) {
+      await tx.brainSnapshot.deleteMany({
+        where: { id: { in: snapshots.map((s) => s.id) } },
+      });
+    }
+
+    return version;
+  });
 
   return NextResponse.json({
     success: true,

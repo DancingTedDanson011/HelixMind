@@ -14,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
+        # SECURITY: Pin to commit SHA to prevent supply-chain attacks via tag manipulation
+        uses: appleboy/ssh-action@2dc9d918fde38e5da0fef7a8b8aa781e5e813255 # v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}

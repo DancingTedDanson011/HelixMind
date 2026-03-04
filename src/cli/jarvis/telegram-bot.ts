@@ -206,6 +206,14 @@ export class JarvisTelegramBot {
   }
 
   private handleUpdate(update: TelegramUpdate): void {
+    // SECURITY: Reject messages from unauthorized chats
+    const incomingChatId = String(
+      update.message?.chat.id ??
+      update.channel_post?.chat.id ??
+      update.callback_query?.message?.chat.id ?? '',
+    );
+    if (this.allowedChatId && incomingChatId !== this.allowedChatId) return;
+
     // Handle text messages (DMs, groups, supergroups)
     if (update.message?.text) {
       const chatId = String(update.message.chat.id);

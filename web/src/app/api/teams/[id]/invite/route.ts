@@ -72,6 +72,23 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
+    // SECURITY: Only OWNER can invite with ADMIN role
+    if (parsed.data.role === 'ADMIN' && authResult.member.role !== 'OWNER') {
+      return NextResponse.json({ error: 'Only the team owner can invite admins' }, { status: 403 });
+    }
+
+    // SECURITY: Enforce seat limits based on team plan (members + pending invites)
+    const teamForPlan = await prisma.team.findUnique({ where: { id }, select: { plan: true } });
+    const SEAT_LIMITS: Record<string, number> = { FREE: 3, PRO: 5, TEAM: 50, ENTERPRISE: 500 };
+    const maxSeats = SEAT_LIMITS[teamForPlan?.plan || 'FREE'] ?? 3;
+    const [currentMembers, pendingInvites] = await Promise.all([
+      prisma.teamMember.count({ where: { teamId: id } }),
+      prisma.teamInvite.count({ where: { teamId: id, expiresAt: { gt: new Date() } } }),
+    ]);
+    if (currentMembers + pendingInvites >= maxSeats) {
+      return NextResponse.json({ error: `Team seat limit reached (${maxSeats} including pending invites). Upgrade your plan.` }, { status: 403 });
+    }
+
     // Check if user is already a member
     const existingUser = await prisma.user.findUnique({ where: { email: parsed.data.email } });
     if (existingUser) {

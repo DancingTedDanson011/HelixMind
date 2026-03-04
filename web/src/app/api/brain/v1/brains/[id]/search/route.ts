@@ -80,7 +80,13 @@ export async function GET(
       nodes = nodes.filter(n => n.tags.some(t => t.toLowerCase() === tag));
     }
 
-    return NextResponse.json({ nodes, total: nodes.length });
+    // Paginate results to prevent unbounded response sizes
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '100', 10), 1000);
+    const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+    const total = nodes.length;
+    nodes = nodes.slice(offset, offset + limit);
+
+    return NextResponse.json({ nodes, total, limit, offset });
   } catch (error) {
     console.error('Brain v1 search error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

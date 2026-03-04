@@ -52,21 +52,36 @@ export async function POST(req: Request) {
       );
     }
 
-    if (license.activations >= license.maxActivations) {
-      return NextResponse.json(
-        { valid: false, error: 'Maximum activations reached' },
-        { status: 403 },
-      );
+    // SECURITY: Verify the authenticated user belongs to the license's team
+    if (license.teamId) {
+      const teamMember = await prisma.teamMember.findFirst({
+        where: { userId: authResult.userId, teamId: license.teamId },
+      });
+      if (!teamMember) {
+        return NextResponse.json({ valid: false, error: 'Forbidden' }, { status: 403 });
+      }
+    } else {
+      return NextResponse.json({ valid: false, error: 'License has no team' }, { status: 403 });
     }
 
-    // Increment activations, set activatedAt on first use
-    await prisma.license.update({
-      where: { id: license.id },
+    // SECURITY: Atomic activation increment to prevent TOCTOU race condition
+    const result = await prisma.license.updateMany({
+      where: {
+        id: license.id,
+        activations: { lt: license.maxActivations },
+      },
       data: {
         activations: { increment: 1 },
         ...(license.activatedAt ? {} : { activatedAt: new Date() }),
       },
     });
+
+    if (result.count === 0) {
+      return NextResponse.json(
+        { valid: false, error: 'Maximum activations reached' },
+        { status: 403 },
+      );
+    }
 
     return NextResponse.json({
       valid: true,

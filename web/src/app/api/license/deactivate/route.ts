@@ -43,14 +43,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (license.activations <= 0) {
-      return NextResponse.json({ error: 'No active activations to deactivate' }, { status: 400 });
-    }
-
-    await prisma.license.update({
-      where: { id: license.id },
+    // SECURITY: Atomic decrement to prevent TOCTOU race condition
+    const result = await prisma.license.updateMany({
+      where: { id: license.id, activations: { gt: 0 } },
       data: { activations: { decrement: 1 } },
     });
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: 'No active activations to deactivate' }, { status: 400 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

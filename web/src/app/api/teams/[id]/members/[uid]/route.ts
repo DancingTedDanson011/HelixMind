@@ -44,6 +44,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Cannot change owner role' }, { status: 403 });
     }
 
+    // SECURITY: Only OWNER can promote members to ADMIN
+    if (parsed.data.role === 'ADMIN' && authResult.member.role !== 'OWNER') {
+      return NextResponse.json({ error: 'Only the team owner can promote to admin' }, { status: 403 });
+    }
+
     const updated = await prisma.teamMember.update({
       where: { teamId_userId: { teamId: id, userId: uid } },
       data: { role: parsed.data.role },

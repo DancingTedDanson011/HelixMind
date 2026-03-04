@@ -41,7 +41,7 @@ registerTool({
       // Filter sensitive environment variables — whitelist approach for maximum safety
       const SAFE_ENV_KEYS = new Set([
         'PATH', 'HOME', 'USERPROFILE', 'SHELL', 'TERM', 'LANG', 'LC_ALL',
-        'NODE_ENV', 'NODE_PATH', 'NODE_OPTIONS', 'NPM_CONFIG_PREFIX',
+        'NODE_ENV', 'NODE_PATH', 'NPM_CONFIG_PREFIX',
         'TMPDIR', 'TEMP', 'TMP', 'USER', 'USERNAME', 'LOGNAME',
         'HOSTNAME', 'PWD', 'OLDPWD', 'SHLVL', 'EDITOR', 'VISUAL',
         'COLORTERM', 'TERM_PROGRAM', 'COMSPEC', 'SystemRoot', 'SystemDrive',

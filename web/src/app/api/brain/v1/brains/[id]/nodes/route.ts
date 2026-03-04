@@ -134,11 +134,26 @@ export async function POST(
       return NextResponse.json({ error: 'Missing content or level' }, { status: 400 });
     }
 
+    // SECURITY: Validate node field types and sizes
+    if (typeof content !== 'string' || content.length > 500_000) {
+      return NextResponse.json({ error: 'content must be a string (max 500KB)' }, { status: 400 });
+    }
+    const numLevel = Number(level);
+    if (!Number.isInteger(numLevel) || numLevel < 1 || numLevel > 5) {
+      return NextResponse.json({ error: 'level must be an integer 1-5' }, { status: 400 });
+    }
+    if (tags !== undefined && (!Array.isArray(tags) || tags.length > 100 || !tags.every((t: unknown) => typeof t === 'string' && t.length <= 200))) {
+      return NextResponse.json({ error: 'tags must be an array of strings (max 100 items, 200 chars each)' }, { status: 400 });
+    }
+    if (connections !== undefined && (!Array.isArray(connections) || connections.length > 500 || !connections.every((c: unknown) => typeof c === 'string' && c.length <= 128))) {
+      return NextResponse.json({ error: 'connections must be an array of strings (max 500 items)' }, { status: 400 });
+    }
+
     const now = Date.now();
     const newNode: SpiralNode = {
       id: randomUUID(),
       content,
-      level: Number(level),
+      level: numLevel,
       tags: tags ?? [],
       connections: connections ?? [],
       createdAt: now,
@@ -146,19 +161,27 @@ export async function POST(
       accessCount: 0,
     };
 
-    // Get existing nodes from latest snapshot
-    const snapshot = await getLatestSnapshot(brainId);
-    const existingNodes = snapshot ? decompressNodes(snapshot) : [];
-    existingNodes.push(newNode);
+    // SECURITY: Perform version read + increment inside transaction to prevent race conditions
+    const newVersion = await prisma.$transaction(async (tx) => {
+      const currentBrain = await tx.brainInstance.findUniqueOrThrow({
+        where: { id: brainId },
+        select: { syncVersion: true },
+      });
 
-    const compressed = compressNodes(existingNodes);
-    const newVersion = brain.syncVersion + 1;
+      const snapshot = await tx.brainSnapshot.findFirst({
+        where: { brainId },
+        orderBy: { version: 'desc' },
+      });
+      const existingNodes = snapshot ? decompressNodes(snapshot) : [];
+      existingNodes.push(newNode);
 
-    await prisma.$transaction(async (tx) => {
+      const compressed = compressNodes(existingNodes);
+      const version = currentBrain.syncVersion + 1;
+
       await tx.brainSnapshot.create({
         data: {
           brainId,
-          version: newVersion,
+          version,
           nodesJson: compressed,
           sizeBytes: compressed.length,
         },
@@ -167,11 +190,13 @@ export async function POST(
       await tx.brainInstance.update({
         where: { id: brainId },
         data: {
-          syncVersion: newVersion,
+          syncVersion: version,
           nodeCount: existingNodes.length,
           lastSyncedAt: new Date(),
         },
       });
+
+      return version;
     });
 
     return NextResponse.json({ node: newNode, version: newVersion }, { status: 201 });

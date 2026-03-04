@@ -31,13 +31,16 @@ function ensureCleanup() {
 }
 
 function getIdentifier(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const ip = forwarded.split(',')[0].trim();
-    if (ip) return ip;
-  }
+  // SECURITY: Prefer X-Real-IP (set by nginx from $remote_addr, not spoofable)
+  // over X-Forwarded-For (can be spoofed by adding to the header chain)
   const realIp = req.headers.get('x-real-ip');
   if (realIp) return realIp.trim();
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    // Use the rightmost non-private IP (closest to our proxy) to resist spoofing
+    const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean);
+    if (ips.length > 0) return ips[ips.length - 1];
+  }
   return 'unknown';
 }
 

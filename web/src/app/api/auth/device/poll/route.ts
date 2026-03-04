@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit, DEVICE_POLL_RATE_LIMIT } from '@/lib/rate-limit';
 import { decryptApiKey } from '@/lib/crypto';
@@ -34,9 +35,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: 'expired' });
     }
 
-    // Verify poll secret matches (constant-time comparison would be ideal, but
-    // timing differences are negligible for 64-char hex strings over HTTP)
-    if (record.pollSecret !== pollSecret) {
+    // SECURITY: Use constant-time comparison for poll secret to prevent timing attacks
+    const secretBuf = Buffer.from(record.pollSecret || '', 'utf-8');
+    const inputBuf = Buffer.from(pollSecret, 'utf-8');
+    if (secretBuf.length !== inputBuf.length || !timingSafeEqual(secretBuf, inputBuf)) {
       return NextResponse.json({ error: 'Invalid poll secret' }, { status: 403 });
     }
 

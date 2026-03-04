@@ -1,5 +1,5 @@
 import { resolve, normalize, sep } from 'node:path';
-import { statSync, lstatSync, existsSync, mkdirSync } from 'node:fs';
+import { statSync, lstatSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
 
 /** Maximum file size in bytes (10MB) */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -82,6 +82,11 @@ export interface PathValidation {
  * Still blocks: sensitive files, symlinks.
  */
 export function validatePathEx(requestedPath: string, projectRoot: string): PathValidation {
+  // SECURITY: Reject null bytes to prevent path truncation attacks
+  if (requestedPath.includes('\0')) {
+    throw new SecurityError('Access denied: Path contains null byte');
+  }
+
   const normalizedPath = normalize(requestedPath);
   const resolved = resolve(projectRoot, normalizedPath);
   const normalizedRoot = normalize(projectRoot);
@@ -108,10 +113,23 @@ export function validatePathEx(requestedPath: string, projectRoot: string): Path
   }
 
   // Symlinks ALWAYS blocked (lstatSync does NOT follow symlinks, unlike statSync)
+  // Also perform realpath verification to mitigate TOCTOU race conditions:
+  // if the real (dereferenced) path differs from the resolved path, a symlink exists.
   try {
     const stats = lstatSync(resolved);
     if (stats.isSymbolicLink()) {
       throw new SecurityError(`Access denied: Symlinks are not allowed`);
+    }
+    // SECURITY: Double-check via realpath to catch symlinks in parent directories
+    // and reduce the TOCTOU window — if realpath differs, a symlink is present
+    const real = realpathSync(resolved);
+    const realNorm = normalize(real);
+    const resolvedNorm = normalize(resolved);
+    const pathsDiffer = process.platform === 'win32'
+      ? realNorm.toLowerCase() !== resolvedNorm.toLowerCase()
+      : realNorm !== resolvedNorm;
+    if (pathsDiffer) {
+      throw new SecurityError(`Access denied: Path resolves through a symlink`);
     }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -227,8 +245,12 @@ export function classifyCommand(cmd: string): 'safe' | 'ask' | 'dangerous' {
     throw new SecurityError('This command is blocked');
   }
 
-  // Detect shell metacharacter abuse (backticks, $(), encoded payloads)
+  // Detect shell metacharacter abuse (backticks, $(), $VAR, heredocs, aliases, BASH_ENV)
   if (/`[^`]+`/.test(trimmed) || /\$\([^)]+\)/.test(trimmed)) return 'dangerous';
+  if (/\$[A-Za-z_]/.test(trimmed)) return 'dangerous'; // bare variable expansion
+  if (/<<<?\s/.test(trimmed)) return 'dangerous'; // heredoc/herestring
+  if (/\b(alias|export\s+\w+=)/.test(trimmed)) return 'dangerous'; // alias/export injection
+  if (/\b(BASH_ENV|ENV|BASH_FUNC_)=/.test(trimmed)) return 'dangerous'; // env injection
 
   // Check for dangerous patterns on the ORIGINAL command
   if (DANGEROUS_PATTERNS.some(p => p.test(trimmed))) return 'dangerous';

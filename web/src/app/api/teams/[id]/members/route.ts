@@ -73,6 +73,15 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
+    // SECURITY: Enforce seat limits based on team plan
+    const team = await prisma.team.findUnique({ where: { id }, select: { plan: true } });
+    const SEAT_LIMITS: Record<string, number> = { FREE: 3, PRO: 5, TEAM: 50, ENTERPRISE: 500 };
+    const maxSeats = SEAT_LIMITS[team?.plan || 'FREE'] ?? 3;
+    const currentMembers = await prisma.teamMember.count({ where: { teamId: id } });
+    if (currentMembers >= maxSeats) {
+      return NextResponse.json({ error: `Team seat limit reached (${maxSeats}). Upgrade your plan.` }, { status: 403 });
+    }
+
     const existing = await prisma.teamMember.findUnique({
       where: { teamId_userId: { teamId: id, userId: parsed.data.userId } },
     });

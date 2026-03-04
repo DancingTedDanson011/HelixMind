@@ -101,8 +101,9 @@ export function startCallbackServer(timeoutMs = 120_000): Promise<CallbackServer
       const url = new URL(req.url ?? '/', `http://127.0.0.1`);
       const pathname = url.pathname;
 
-      // CORS headers for localhost
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      // SECURITY: Restrict CORS to the webapp origin only
+      const webappOrigin = process.env.NEXT_PUBLIC_APP_URL || 'https://helix-mind.ai';
+      res.setHeader('Access-Control-Allow-Origin', webappOrigin);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
       if (pathname === '/callback' && req.method === 'GET') {

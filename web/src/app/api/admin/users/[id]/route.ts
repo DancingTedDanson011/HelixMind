@@ -91,8 +91,8 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const { role, name, locale, plan } = parsed.data;
 
-    // SECURITY: Prevent admins from promoting themselves to higher roles
-    if (role && role === 'ADMIN' && id === session.user.id) {
+    // SECURITY: Prevent admins from changing their own role
+    if (role && id === session.user.id) {
       return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 });
     }
 

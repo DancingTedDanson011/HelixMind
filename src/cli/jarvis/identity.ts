@@ -372,7 +372,25 @@ Denial is feedback — use it to make better proposals.`;
    * Set autonomy level (called by AutonomyManager).
    */
   setAutonomyLevel(level: AutonomyLevel): void {
-    this.identity.autonomyLevel = level;
+    // SECURITY: Validate level is a valid AutonomyLevel (0-5)
+    const numLevel = Number(level);
+    if (!Number.isInteger(numLevel) || numLevel < 0 || numLevel > 5) return;
+
+    // SECURITY: L4+ requires minimum trust thresholds to prevent premature escalation
+    if (numLevel >= 4) {
+      const { trust } = this.identity;
+      const approvalRate = trust.totalProposals > 0 ? trust.totalApproved / trust.totalProposals : 0;
+      const minProposals = numLevel === 5 ? 50 : 20;
+      const minApprovalRate = numLevel === 5 ? 0.9 : 0.75;
+      if (trust.totalProposals < minProposals || approvalRate < minApprovalRate) {
+        // Insufficient trust — cap at L3
+        this.identity.autonomyLevel = Math.min(numLevel, 3) as AutonomyLevel;
+        this.save();
+        return;
+      }
+    }
+
+    this.identity.autonomyLevel = numLevel as AutonomyLevel;
     this.save();
   }
 

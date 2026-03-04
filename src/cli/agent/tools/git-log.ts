@@ -23,7 +23,8 @@ registerTool({
     }
 
     try {
-      const count = (input.count as number) ?? 10;
+      const rawCount = Number(input.count);
+      const count = Number.isInteger(rawCount) && rawCount > 0 && rawCount <= 100 ? rawCount : 10;
       // Use execFileSync to prevent shell injection via file paths
       const args = ['log', `-${count}`, '--format=%h  %s  (%ar)  <%an>'];
       if (input.file) args.push('--', String(input.file));

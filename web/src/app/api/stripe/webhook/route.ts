@@ -201,13 +201,17 @@ async function handlePaymentFailed(tx: Tx, event: Stripe.Event) {
 }
 
 function getPlanFromPriceId(priceId: string): 'FREE' | 'PRO' | 'TEAM' | 'ENTERPRISE' {
-  const priceMap: Record<string, 'PRO' | 'TEAM'> = {
-    [process.env.STRIPE_PRO_MONTHLY_PRICE_ID || '']: 'PRO',
-    [process.env.STRIPE_PRO_YEARLY_PRICE_ID || '']: 'PRO',
-    [process.env.STRIPE_TEAM_MONTHLY_PRICE_ID || '']: 'TEAM',
-    [process.env.STRIPE_TEAM_YEARLY_PRICE_ID || '']: 'TEAM',
-  };
-  return priceMap[priceId] || 'FREE';
+  const priceMap: Record<string, 'PRO' | 'TEAM'> = {};
+  if (process.env.STRIPE_PRO_MONTHLY_PRICE_ID) priceMap[process.env.STRIPE_PRO_MONTHLY_PRICE_ID] = 'PRO';
+  if (process.env.STRIPE_PRO_YEARLY_PRICE_ID) priceMap[process.env.STRIPE_PRO_YEARLY_PRICE_ID] = 'PRO';
+  if (process.env.STRIPE_TEAM_MONTHLY_PRICE_ID) priceMap[process.env.STRIPE_TEAM_MONTHLY_PRICE_ID] = 'TEAM';
+  if (process.env.STRIPE_TEAM_YEARLY_PRICE_ID) priceMap[process.env.STRIPE_TEAM_YEARLY_PRICE_ID] = 'TEAM';
+  const plan = priceMap[priceId];
+  if (!plan) {
+    console.error(`[CRITICAL] Unknown Stripe price ID: ${priceId} — refusing to map to a plan`);
+    throw new Error(`Unknown price ID: ${priceId}`);
+  }
+  return plan;
 }
 
 function mapStripeStatus(status: string): 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'UNPAID' | 'TRIALING' {
@@ -217,6 +221,9 @@ function mapStripeStatus(status: string): 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | '
     canceled: 'CANCELED',
     unpaid: 'UNPAID',
     trialing: 'TRIALING',
+    incomplete: 'UNPAID',
+    incomplete_expired: 'CANCELED',
+    paused: 'PAST_DUE',
   };
-  return map[status] || 'ACTIVE';
+  return map[status] || 'UNPAID';
 }

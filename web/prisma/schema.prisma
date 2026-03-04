@@ -176,6 +176,8 @@ model ApiKey {
   createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
 }
 
 model DeviceCode {
@@ -219,6 +221,8 @@ model Ticket {
 
   user     User            @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
   messages TicketMessage[]
+
+  @@index([userId, status])
 }
 
 model TicketMessage {
@@ -231,6 +235,8 @@ model TicketMessage {
 
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
 }
 
 // ─── Analytics ───────────────────────────────
@@ -473,6 +479,7 @@ model SamlConfig {
   roleAttribute      String?
   allowIdpInitiated  Boolean @default(false)
   enforceForTeam     Boolean @default(false)
+  allowedDomains     Json?    // String[] — restrict SAML login to specific email domains
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -484,7 +491,7 @@ model License {
   key             String    @unique
   keyHash         String    @unique
   teamId          String?
-  team            Team?     @relation(fields: [teamId], references: [id])
+  team            Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
   plan            Plan      @default(ENTERPRISE)
   seats           Int       @default(10)
   features        String[]
@@ -495,6 +502,7 @@ model License {
   createdAt       DateTime  @default(now())
 
   @@index([keyHash])
+  @@index([teamId])
 }
 
 // ─── SLA Monitoring ───────────────────────

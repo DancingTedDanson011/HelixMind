@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { encode } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
 import { validateAssertion } from '@/lib/saml-provider';
+import { checkRateLimit, AUTH_RATE_LIMIT } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+  const limited = checkRateLimit(req, 'saml-callback', AUTH_RATE_LIMIT);
+  if (limited) return limited;
+
   try {
     const formData = await req.formData();
     const samlResponse = formData.get('SAMLResponse') as string | null;
@@ -27,10 +31,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.redirect(new URL('/auth/login?error=saml_invalid_team', req.url));
     }
 
+    // SECURITY: Check SAML configuration before processing assertion
+    const samlConfig = await prisma.samlConfig.findUnique({ where: { teamId } });
+    if (!samlConfig) {
+      return NextResponse.redirect(new URL('/auth/login?error=saml_not_configured', req.url));
+    }
+
     // Validate the SAML assertion
     const profile = await validateAssertion(teamId, samlResponse);
     if (!profile) {
       return NextResponse.redirect(new URL('/auth/login?error=saml_validation_failed', req.url));
+    }
+
+    // SECURITY: Enforce email domain restriction if configured
+    if (samlConfig.allowedDomains && (samlConfig.allowedDomains as string[]).length > 0) {
+      const emailDomain = profile.email.split('@')[1]?.toLowerCase();
+      if (!emailDomain || !(samlConfig.allowedDomains as string[]).includes(emailDomain)) {
+        return NextResponse.redirect(new URL('/auth/login?error=saml_domain_not_allowed', req.url));
+      }
     }
 
     // JIT provisioning: find or create user by email

@@ -281,8 +281,11 @@ export function createRelayClient(
       }
 
       case 'set_autonomy_level': {
-        const success = handlers.setAutonomyLevel(msg.level);
-        sendRelay({ type: 'autonomy_level_set', level: msg.level, success, requestId, timestamp: Date.now() });
+        // SECURITY: Cap remote-initiated autonomy changes to L3 (Act-Safe) maximum.
+        // L4 (Act-Bold) and L5 (Full-Auto) must be set locally only.
+        const cappedLevel = Math.min(Number(msg.level) || 0, 3);
+        const success = handlers.setAutonomyLevel(cappedLevel);
+        sendRelay({ type: 'autonomy_level_set', level: cappedLevel, success, requestId, timestamp: Date.now() });
         break;
       }
 

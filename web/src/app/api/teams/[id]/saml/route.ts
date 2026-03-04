@@ -123,7 +123,11 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  await prisma.samlConfig.delete({ where: { teamId } }).catch(() => {});
+  try {
+    await prisma.samlConfig.delete({ where: { teamId } });
+  } catch (err: unknown) {
+    if ((err as { code?: string })?.code !== 'P2025') throw err;
+  }
 
   return NextResponse.json({ success: true });
 }

@@ -16,6 +16,9 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rateLimited = checkRateLimit(req, 'chat-messages-read', GENERAL_RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

@@ -1,7 +1,7 @@
 import * as readline from 'node:readline';
 import { Writable } from 'node:stream';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { ConfigStore } from '../config/store.js';
 import { createProvider } from '../providers/registry.js';
@@ -1125,7 +1125,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             for (const f of files.slice(0, 3)) { // max 3 files
               if (f.sizeBytes > 5 * 1024 * 1024) continue; // skip > 5MB
               try {
-                const dest = join(uploadsDir, `${Date.now()}-${f.name}`);
+                const safeName = basename(f.name).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
+                const dest = join(uploadsDir, `${Date.now()}-${safeName}`);
                 writeFileSync(dest, Buffer.from(f.dataBase64, 'base64'));
                 filePaths.push(dest);
               } catch { /* skip */ }

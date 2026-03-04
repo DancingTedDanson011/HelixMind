@@ -103,7 +103,7 @@ async function browserLogin(store: ConfigStore, webappUrl: string): Promise<bool
   process.stdout.write(theme.primary('  \u{1F300} HelixMind Login\n\n'));
 
   // --- 1. Request device code (non-blocking, tolerates failure) ---
-  interface DeviceCodeResponse { code: string; expiresAt: string; pollInterval: number }
+  interface DeviceCodeResponse { code: string; pollSecret: string; expiresAt: string; pollInterval: number }
   let deviceCode: DeviceCodeResponse | null = null;
   try {
     const dcRes = await fetch(`${webappUrl}/api/auth/device/request`, {
@@ -174,7 +174,7 @@ async function browserLogin(store: ConfigStore, webappUrl: string): Promise<bool
 
   const devicePollPromise: Promise<{ apiKey: string; email?: string; plan?: string; userId?: string }> =
     deviceCode
-      ? pollDeviceCode(webappUrl, deviceCode.code, deviceCode.pollInterval, abortController.signal)
+      ? pollDeviceCode(webappUrl, deviceCode.code, deviceCode.pollSecret, deviceCode.pollInterval, abortController.signal)
       : new Promise(() => {}); // never resolves if no device code
 
   try {
@@ -219,10 +219,11 @@ async function browserLogin(store: ConfigStore, webappUrl: string): Promise<bool
 async function pollDeviceCode(
   webappUrl: string,
   code: string,
+  pollSecret: string,
   intervalSec: number,
   signal: AbortSignal,
 ): Promise<{ apiKey: string; email?: string; plan?: string; userId?: string }> {
-  const pollUrl = `${webappUrl}/api/auth/device/poll?code=${encodeURIComponent(code)}`;
+  const pollUrl = `${webappUrl}/api/auth/device/poll?code=${encodeURIComponent(code)}&secret=${encodeURIComponent(pollSecret)}`;
 
   while (!signal.aborted) {
     await new Promise((r) => setTimeout(r, intervalSec * 1000));

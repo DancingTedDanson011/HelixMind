@@ -19,6 +19,13 @@ export async function POST(req: Request) {
       );
     }
 
+    // SECURITY: Enforce body size limit before parsing to prevent OOM
+    const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+    const MAX_PUSH_BYTES = 50 * 1024 * 1024; // 50MB
+    if (contentLength > MAX_PUSH_BYTES) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
+
     const body = await req.json();
     const { brainId, version, nodesJson, metadata } = body;
 
@@ -34,6 +41,11 @@ export async function POST(req: Request) {
         { error: 'nodesJson must be a JSON string' },
         { status: 400 },
       );
+    }
+
+    // SECURITY: Enforce string size limit after parsing
+    if (nodesJson.length > MAX_PUSH_BYTES) {
+      return NextResponse.json({ error: 'nodesJson too large' }, { status: 413 });
     }
 
     // Validate brain belongs to user
