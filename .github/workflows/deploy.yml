@@ -44,9 +44,11 @@ jobs:
             fi
 
             # H10: Export only the env vars needed for build (not all secrets into shell)
-            export DATABASE_URL=$(grep '^DATABASE_URL=' .env | cut -d= -f2-)
-            export NEXTAUTH_URL=$(grep '^NEXTAUTH_URL=' .env | cut -d= -f2-)
-            export NEXT_PUBLIC_APP_URL=$(grep '^NEXT_PUBLIC_APP_URL=' .env | cut -d= -f2-)
+            # Strip surrounding quotes that .env files commonly use
+            strip_env() { grep "^$1=" .env | cut -d= -f2- | sed "s/^['\"]//;s/['\"]$//"; }
+            export DATABASE_URL=$(strip_env DATABASE_URL)
+            export NEXTAUTH_URL=$(strip_env NEXTAUTH_URL)
+            export NEXT_PUBLIC_APP_URL=$(strip_env NEXT_PUBLIC_APP_URL)
 
             echo "=== Clean node_modules + build cache ==="
             rm -rf node_modules node_modules_old_* 2>/dev/null || true
