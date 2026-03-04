@@ -2,18 +2,14 @@
 
 import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ExternalLink, Brain, Eye, Shield, Globe, Wifi } from 'lucide-react';
-import { useEffect, useCallback, useState, Suspense, lazy } from 'react';
+import { X, ExternalLink, Brain, Shield, Globe, Wifi } from 'lucide-react';
+import { useEffect, useCallback, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Link } from '@/i18n/routing';
 
-const BrainScene = lazy(() =>
-  import('@/components/brain/BrainScene').then((m) => ({ default: m.BrainScene }))
-);
-
 // ─── Types ───────────────────────────────────────────────────
 
-type FeatureKey = 'memory' | 'brain' | 'validation' | 'web' | 'offline';
+type FeatureKey = 'memory' | 'validation' | 'web' | 'offline';
 
 interface FeatureModalProps {
   feature: FeatureKey | null;
@@ -28,7 +24,6 @@ const featureConfig: Record<FeatureKey, {
   gradient: string;
 }> = {
   memory:     { icon: Brain,  color: '#00d4ff', gradient: 'from-[#00d4ff] to-[#4169e1]' },
-  brain:      { icon: Eye,    color: '#00ff88', gradient: 'from-[#00ff88] to-[#00d4ff]' },
   validation: { icon: Shield, color: '#4169e1', gradient: 'from-[#4169e1] to-[#8a2be2]' },
   web:        { icon: Globe,  color: '#ffaa00', gradient: 'from-[#ffaa00] to-[#ff6b6b]' },
   offline:    { icon: Wifi,   color: '#8a2be2', gradient: 'from-[#8a2be2] to-[#00d4ff]' },
@@ -86,24 +81,6 @@ function SpiralMemoryDemo() {
         <div className="w-2 h-2 rounded-full bg-[#00ffff] animate-pulse" />
         <span>Nodes promote on repeated use, decay when stale</span>
       </motion.div>
-    </div>
-  );
-}
-
-function BrainDemo() {
-  return (
-    <div className="h-48 sm:h-56 rounded-xl overflow-hidden border border-white/[0.06] bg-black/40">
-      <Suspense
-        fallback={
-          <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-              <Brain size={24} className="text-primary/40" />
-            </motion.div>
-          </div>
-        }
-      >
-        <BrainScene />
-      </Suspense>
     </div>
   );
 }
@@ -358,7 +335,6 @@ function MonitorDemo() {
 
 const demoComponents: Record<FeatureKey, () => React.ReactElement> = {
   memory: SpiralMemoryDemo,
-  brain: BrainDemo,
   validation: ValidationDemo,
   web: WebKnowledgeDemo,
   offline: OfflineDemo,

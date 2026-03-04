@@ -2,23 +2,22 @@
 
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import { Brain, Eye, Shield, Globe, Wifi } from 'lucide-react';
+import { Brain, Shield, Globe, Wifi } from 'lucide-react';
 import { useState } from 'react';
 import { FeatureModal } from './FeatureModal';
 
 const featureIcons = {
   memory: Brain,
-  brain: Eye,
   validation: Shield,
   web: Globe,
   offline: Wifi,
 };
 
 const featureColors = [
-  '#00d4ff', '#00ff88', '#4169e1', '#ffaa00', '#8a2be2',
+  '#00d4ff', '#4169e1', '#ffaa00', '#8a2be2',
 ];
 
-const featureKeys = ['memory', 'brain', 'validation', 'web', 'offline'] as const;
+const featureKeys = ['memory', 'validation', 'web', 'offline'] as const;
 
 type FeatureKey = (typeof featureKeys)[number];
 
@@ -67,7 +66,7 @@ export function FeatureGrid() {
           </motion.p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4">
           {featureKeys.map((key, i) => {
             const Icon = featureIcons[key];
             const color = featureColors[i];
@@ -75,7 +74,6 @@ export function FeatureGrid() {
             return (
               <motion.div
                 key={key}
-                className={i === featureKeys.length - 1 ? 'sm:col-span-2 lg:col-start-2 lg:col-span-1' : undefined}
                 initial={{ opacity: 0, y: 24, filter: 'blur(4px)' }}
                 whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                 viewport={{ once: true }}
