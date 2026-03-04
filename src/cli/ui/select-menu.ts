@@ -18,6 +18,7 @@ export interface SelectMenuOptions {
   pageSize?: number;
   showCount?: boolean;
   autoFocus?: boolean;
+  bottomAnchored?: boolean;  // Push menu to bottom of terminal viewport
 }
 
 const HIDE = '\x1b[?25l';
@@ -193,6 +194,15 @@ export function selectMenu(
     }
 
     stdin.on('data', onData);
+
+    // Bottom-anchor: push cursor down so menu renders at terminal bottom
+    if (opts.bottomAnchored) {
+      const menuLines = buildLines().length;
+      const rows = process.stdout.rows || 24;
+      const pad = Math.max(0, rows - menuLines - 1);
+      if (pad > 0) process.stdout.write('\n'.repeat(pad));
+    }
+
     draw();
   });
 }

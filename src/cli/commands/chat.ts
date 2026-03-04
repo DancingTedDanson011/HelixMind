@@ -75,7 +75,7 @@ import { storeValidationResult, getValidationStats, renderValidationStats } from
 import { isFeatureAvailable, getLoginCTA, getJarvisLimitsForPlan, getBrainLimitsForPlan, isLoggedIn, type Feature } from '../auth/feature-gate.js';
 import { PlanEngine } from '../agent/plan-engine.js';
 import { executePlan } from '../agent/plan-executor.js';
-import { renderPlanReview, showPlanApprovalMenu, renderPlanStepStart, renderPlanStepEnd, renderPlanComplete } from '../ui/plan-display.js';
+import { renderPlanReview, runPlanBrowser, renderPlanStepStart, renderPlanStepEnd, renderPlanComplete } from '../ui/plan-display.js';
 import { AGENT_IDENTITIES, type PlanModeState } from '../agent/plan-types.js';
 import type { PlanInfo, PlanStepInfo } from '@helixmind/protocol';
 import chalk from 'chalk';
@@ -445,6 +445,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   const agentController = new AgentController();
   let agentRunning = false;
   let autonomousMode = false;
+  let fullScreenBrowserOpen = false;  // Guards ESC/stop events while Rewind or Plan browser is active
 
   // Forward-declared findings handler (reassigned by control protocol if active)
   let pushFindingsToBrainFn: ((session: import('../sessions/session.js').Session) => void) | null = null;
@@ -2173,7 +2174,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       // === ESC detection (single ESC = stop) ===
       // Double-ESC (rewind browser) is handled by the raw data listener below.
-      if (key.name === 'escape') {
+      // Skip if a full-screen browser (Rewind/Plan) is open — it handles ESC itself.
+      if (key.name === 'escape' && !fullScreenBrowserOpen) {
         const jarvisRunning = jarvisDaemonSession && jarvisDaemonSession.status === 'running';
         const anythingRunning = agentRunning || sessionMgr.hasBackgroundTasks || autonomousMode || jarvisRunning;
 
@@ -2221,10 +2223,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   {
     let lastRawEscTime = 0;
     const RAW_ESC_THRESHOLD = 800; // ms
-    let rewindBrowserOpen = false;
 
     process.stdin.prependListener('data', async (chunk: Buffer) => {
-      if (rewindBrowserOpen) return;
+      if (fullScreenBrowserOpen) return;
 
       const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
 
@@ -2256,7 +2257,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
 
     async function openRewindBrowser(): Promise<void> {
-      if (agentRunning || rewindBrowserOpen) return;
+      if (agentRunning || fullScreenBrowserOpen) return;
 
       const allCps = checkpointStore.getAll();
       if (allCps.length === 0) {
@@ -2265,7 +2266,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         return;
       }
 
-      rewindBrowserOpen = true;
+      fullScreenBrowserOpen = true;
       rl.pause();
       chrome.deactivate();
       try {
@@ -2290,7 +2291,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       } catch {
         // Browser closed unexpectedly
       }
-      rewindBrowserOpen = false;
+      fullScreenBrowserOpen = false;
       chrome.activate();
       rl.resume();
       showPrompt();
@@ -3055,10 +3056,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       if (plan) {
         // Phase 2: Show plan for review
         planModeState = 'reviewing';
+        fullScreenBrowserOpen = true;
         chrome.deactivate();
-        renderPlanReview(plan);
-        const choice = await showPlanApprovalMenu();
+        const { choice } = await runPlanBrowser(plan);
         chrome.activate();
+        fullScreenBrowserOpen = false;
 
         if (choice === 'approve' || choice === 'approve_auto') {
           // Phase 3: Execute the plan step by step
@@ -4693,7 +4695,7 @@ async function handleSlashCommand(
           ];
           rl.pause();
           process.stdout.write(`\n  ${chalk.hex('#ff00ff').bold('\u{1F916}')} ${chalk.white.bold('Autonomy Level')}\n`);
-          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: 'Default (L2)', pageSize: 6 });
+          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: 'Default (L2)', pageSize: 6, bottomAnchored: true });
           rl.resume();
           const chosenLevel = (levelIdx >= 0 ? levelIdx : 2) as import('../jarvis/types.js').AutonomyLevel;
           jarvisCtx.autonomy.setLevel(chosenLevel);
@@ -4729,7 +4731,7 @@ async function handleSlashCommand(
           autonomyItems[currentLevel].marker = '\u25C0 current';
           rl.pause();
           process.stdout.write(`\n  ${chalk.hex('#ff00ff').bold('\u{1F916}')} ${chalk.white.bold('Autonomy Level')}\n`);
-          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: `Keep L${currentLevel}`, pageSize: 6 });
+          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: `Keep L${currentLevel}`, pageSize: 6, bottomAnchored: true });
           rl.resume();
           const chosenLevel = (levelIdx >= 0 ? levelIdx : currentLevel) as import('../jarvis/types.js').AutonomyLevel;
           jarvisCtx.autonomy.setLevel(chosenLevel);
