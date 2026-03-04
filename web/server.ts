@@ -13,8 +13,8 @@ import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import { validateApiKey, validateSessionCookie } from './src/lib/relay-auth';
-import { startUptimeChecker } from './src/lib/sla/uptime-checker.js';
-import { startReportGenerator } from './src/lib/sla/report-generator.js';
+import { startUptimeChecker, stopUptimeChecker } from './src/lib/sla/uptime-checker.js';
+import { startReportGenerator, stopReportGenerator } from './src/lib/sla/report-generator.js';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -286,4 +286,41 @@ app.prepare().then(() => {
     startUptimeChecker(60_000);
     startReportGenerator();
   });
+
+  // ─── Graceful Shutdown ─────────────────────────
+  function shutdown(signal: string) {
+    console.log(`\n> ${signal} received, shutting down gracefully...`);
+
+    // Stop accepting new connections
+    server.close(() => {
+      console.log('> HTTP server closed');
+      process.exit(0);
+    });
+
+    // Stop SLA monitoring
+    stopUptimeChecker();
+    stopReportGenerator();
+
+    // Close all WebSocket connections
+    for (const [ws] of webSockets) {
+      ws.close(1001, 'Server shutting down');
+    }
+    for (const [, instances] of cliSockets) {
+      for (const [, conn] of instances) {
+        conn.ws.close(1001, 'Server shutting down');
+      }
+    }
+
+    wssCliRelay.close();
+    wssWebRelay.close();
+
+    // Force exit after 10s if connections don't close
+    setTimeout(() => {
+      console.error('> Forced shutdown after timeout');
+      process.exit(1);
+    }, 10_000).unref();
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 });
