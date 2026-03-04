@@ -1291,8 +1291,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           }).catch(() => {});
         },
 
-        handleToolPermissionResponse: (requestId, approved, mode) => {
-          permissions.resolveRemote(requestId, approved, 'user', mode);
+        handleToolPermissionResponse: (requestId, approved) => {
+          permissions.resolveRemote(requestId, approved);
         },
 
         getFindings: () => [...collectedFindings],

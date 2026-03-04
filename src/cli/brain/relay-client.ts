@@ -432,10 +432,10 @@ export function createRelayClient(
 
       // --- Tool Permission Approval ---
       case 'tool_permission_response': {
+        // SECURITY: mode intentionally not forwarded — remote clients cannot escalate permissions
         handlers.handleToolPermissionResponse(
           (msg as any).requestId,
           (msg as any).approved,
-          (msg as any).mode,
         );
         sendRelay({ type: 'tool_permission_response_ack', requestId: (msg as any).requestId, timestamp: Date.now() });
         break;

@@ -80,8 +80,17 @@ export async function importFromZip(
   }
 
   const zip = new AdmZip(zipPath);
-  const nodes = JSON.parse(zip.getEntry('nodes.json')!.getData().toString('utf-8'));
-  const edges = JSON.parse(zip.getEntry('edges.json')!.getData().toString('utf-8'));
+
+  // Zip bomb protection: check decompressed size before parsing
+  const MAX_DECOMPRESSED = 100 * 1024 * 1024; // 100 MB
+  const nodesEntry = zip.getEntry('nodes.json')!;
+  const edgesEntry = zip.getEntry('edges.json')!;
+  if (nodesEntry.header.size > MAX_DECOMPRESSED || edgesEntry.header.size > MAX_DECOMPRESSED) {
+    return { imported: 0, skipped: 0, cleared: 0, errors: ['Archive entry too large (max 100 MB decompressed)'] };
+  }
+
+  const nodes = JSON.parse(nodesEntry.getData().toString('utf-8'));
+  const edges = JSON.parse(edgesEntry.getData().toString('utf-8'));
 
   let cleared = 0;
   let imported = 0;

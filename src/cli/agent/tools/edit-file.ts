@@ -1,8 +1,11 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, statSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { registerTool } from './registry.js';
 import { validatePathEx } from '../sandbox.js';
 import { UndoStack } from '../undo.js';
+
+/** Maximum file size in bytes (10MB) — matches write_file limit */
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 registerTool({
   definition: {
@@ -23,6 +26,16 @@ registerTool({
     const { resolved: filePath } = validatePathEx(input.path as string, ctx.projectRoot);
     const oldStr = input.old_string as string;
     const newStr = input.new_string as string;
+
+    // Check file size before reading to prevent OOM
+    try {
+      const stat = statSync(filePath);
+      if (stat.size > MAX_FILE_SIZE) {
+        return `Error: File too large (${(stat.size / 1024 / 1024).toFixed(1)} MB, max ${MAX_FILE_SIZE / 1024 / 1024} MB). Use write_file for smaller targeted writes.`;
+      }
+    } catch {
+      // File doesn't exist yet — will fail on readFileSync below
+    }
 
     const original = readFileSync(filePath, 'utf-8');
     const occurrences = original.split(oldStr).length - 1;

@@ -262,19 +262,21 @@ export class SpiralEngine {
     }>;
   } {
     const allNodes = this.nodes.getAll();
-    const allEdges: Edge[] = [];
 
-    // Collect all edges
-    const seenEdgeIds = new Set<string>();
-    for (const node of allNodes) {
-      const edges = this.edges.getConnected(node.id);
-      for (const edge of edges) {
-        if (!seenEdgeIds.has(edge.id)) {
-          seenEdgeIds.add(edge.id);
-          allEdges.push(edge);
-        }
-      }
-    }
+    // Fetch all edges in a single query instead of N+1 per-node queries
+    const allEdgeRows = this.db.raw.prepare('SELECT * FROM edges').all() as Array<{
+      id: string; source_id: string; target_id: string;
+      relation_type: string; weight: number; metadata: string; created_at: number;
+    }>;
+    const allEdges: Edge[] = allEdgeRows.map(row => ({
+      id: row.id,
+      source_id: row.source_id,
+      target_id: row.target_id,
+      relation_type: row.relation_type as Edge['relation_type'],
+      weight: row.weight,
+      metadata: JSON.parse(row.metadata || '{}'),
+      created_at: row.created_at,
+    }));
 
     return {
       nodes: allNodes.map(n => ({
@@ -389,10 +391,13 @@ export class SpiralEngine {
    * Handles both sqlite-vec (vec_nodes) and JS fallback (embeddings) tables.
    */
   clearAll(): void {
-    this.db.raw.exec('DELETE FROM edges');
-    try { this.db.raw.exec('DELETE FROM vec_nodes'); } catch { /* sqlite-vec table may not exist */ }
-    try { this.db.raw.exec('DELETE FROM embeddings'); } catch { /* fallback table may not exist */ }
-    this.db.raw.exec('DELETE FROM nodes');
+    // Wrap in transaction to ensure atomicity — partial delete would corrupt the brain
+    this.db.raw.transaction(() => {
+      this.db.raw.exec('DELETE FROM edges');
+      try { this.db.raw.exec('DELETE FROM vec_nodes'); } catch { /* sqlite-vec table may not exist */ }
+      try { this.db.raw.exec('DELETE FROM embeddings'); } catch { /* fallback table may not exist */ }
+      this.db.raw.exec('DELETE FROM nodes');
+    })();
   }
 
   /**

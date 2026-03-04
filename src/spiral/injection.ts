@@ -53,10 +53,9 @@ export class InjectionEngine {
       }
     }
 
-    // If no embedding results, fall back to loading recent nodes
+    // If no embedding results, fall back to loading recent nodes (bounded query)
     if (candidateIds.length === 0) {
-      const allNodes = this.nodes.getAll();
-      candidateIds = allNodes.slice(0, 50).map(n => n.id);
+      candidateIds = this.nodes.getRecentIds(50);
     }
 
     // Step 2: Get full node data

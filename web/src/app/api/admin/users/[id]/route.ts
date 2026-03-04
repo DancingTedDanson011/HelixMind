@@ -30,8 +30,17 @@ export async function GET(req: Request, { params }: Params) {
         image: true,
         createdAt: true,
         updatedAt: true,
-        // Explicitly exclude passwordHash
-        subscription: true,
+        // Explicitly exclude passwordHash and sensitive Stripe IDs
+        subscription: {
+          select: {
+            plan: true,
+            status: true,
+            billingPeriod: true,
+            currentPeriodStart: true,
+            currentPeriodEnd: true,
+            cancelAtPeriodEnd: true,
+          },
+        },
         apiKeys: isSupport
           ? { where: { revokedAt: null }, select: { id: true, name: true, createdAt: true } }
           : { where: { revokedAt: null }, select: { id: true, name: true, keyPrefix: true, scopes: true, createdAt: true } },
@@ -76,26 +85,38 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const { role, name, locale, plan } = parsed.data;
 
-    // Update user fields
-    if (role || name || locale) {
-      await prisma.user.update({
-        where: { id },
-        data: {
-          ...(role && { role }),
-          ...(name && { name }),
-          ...(locale && { locale }),
-        },
-      });
+    // Prevent demotion of ANY admin when only 1 remains (not just self-demotion)
+    if (role && role !== 'ADMIN') {
+      const targetUser = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+      if (targetUser?.role === 'ADMIN') {
+        const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
+        if (adminCount <= 1) {
+          return NextResponse.json({ error: 'Cannot demote the last admin' }, { status: 400 });
+        }
+      }
     }
 
-    // Update subscription plan
-    if (plan) {
-      await prisma.subscription.upsert({
-        where: { userId: id },
-        update: { plan },
-        create: { userId: id, plan, status: 'ACTIVE' },
-      });
-    }
+    // Atomic update: user fields + subscription in a single transaction
+    await prisma.$transaction(async (tx) => {
+      if (role || name || locale) {
+        await tx.user.update({
+          where: { id },
+          data: {
+            ...(role && { role }),
+            ...(name && { name }),
+            ...(locale && { locale }),
+          },
+        });
+      }
+
+      if (plan) {
+        await tx.subscription.upsert({
+          where: { userId: id },
+          update: { plan },
+          create: { userId: id, plan, status: 'ACTIVE' },
+        });
+      }
+    });
 
     const updated = await prisma.user.findUnique({
       where: { id },

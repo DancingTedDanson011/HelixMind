@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
@@ -10,12 +10,12 @@ function getSecret(): Buffer {
     throw new Error('LLM_KEY_SECRET must be set (min 32 chars). Generate with: openssl rand -hex 32');
   }
   // If the secret looks like a hex string (64 hex chars from `openssl rand -hex 32`), decode as hex
-  // Otherwise fall back to UTF-8 (for backward compatibility)
   if (/^[0-9a-fA-F]{64}$/.test(secret)) {
     return Buffer.from(secret, 'hex'); // Full 32 bytes (256 bits)
   }
-  // Fallback: UTF-8 encoding (32 chars = 32 bytes for ASCII)
-  return Buffer.from(secret.slice(0, 32), 'utf-8');
+  // Fallback: derive a proper 32-byte key via SHA-256 to handle any input safely
+  // (multi-byte UTF-8, short strings, etc. all produce exactly 32 bytes)
+  return createHash('sha256').update(secret).digest();
 }
 
 /**

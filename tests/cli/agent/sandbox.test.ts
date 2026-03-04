@@ -99,7 +99,7 @@ describe('Command Safety Classification', () => {
   });
 
   it('should classify dangerous commands', () => {
-    expect(classifyCommand('rm -rf /')).toBe('dangerous');
+    // rm -rf / is now blocked (throws SecurityError), tested in 'Blocked Commands' suite
     expect(classifyCommand('rm --recursive ./dist')).toBe('dangerous');
     expect(classifyCommand('sudo apt install foo')).toBe('dangerous');
     expect(classifyCommand('chmod 777 ./app')).toBe('dangerous');
@@ -113,6 +113,11 @@ describe('Command Safety Classification', () => {
 describe('Blocked Commands', () => {
   it('should block fork bombs', () => {
     expect(isBlockedCommand(':(){ :|:& };')).toBe(true);
+  });
+
+  it('should block rm -rf / (root deletion)', () => {
+    expect(isBlockedCommand('rm -rf /')).toBe(true);
+    expect(isBlockedCommand('rm -rf /tmp/test')).toBe(false); // subdirs are not blocked
   });
 
   it('should not block normal commands', () => {

@@ -1,17 +1,17 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.6-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-helixmind}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-helixmind}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       POSTGRES_DB: ${POSTGRES_DB:-helixmind}
     ports:
       - "127.0.0.1:5432:5432"  # Restrict to localhost — not exposed to external network
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-helixmind}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -24,7 +24,7 @@ services:
     environment:
       # DATABASE_URL is injected here so it uses the internal docker hostname 'postgres',
       # overriding whatever is set in .env (which may point to localhost)
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-helixmind}:${POSTGRES_PASSWORD:-helixmind}@postgres:5432/${POSTGRES_DB:-helixmind}?schema=public"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:?required}:${POSTGRES_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-helixmind}?schema=public"
       NODE_ENV: production
       # NEXTAUTH_URL must match the public URL Nginx exposes — set in .env
       NEXTAUTH_URL: "${NEXTAUTH_URL}"
@@ -56,7 +56,7 @@ services:
       start_period: 40s
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
       - "80:80"

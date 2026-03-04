@@ -5,9 +5,11 @@ import { randomBytes, createHash } from 'crypto';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { z } from 'zod';
 
+const VALID_SCOPES = ['read', 'cli', 'relay'] as const;
+
 const createSchema = z.object({
   name: z.string().min(1).max(100),
-  scopes: z.array(z.string()).optional(),
+  scopes: z.array(z.enum(VALID_SCOPES)).optional(),
 });
 
 export async function POST(req: Request) {

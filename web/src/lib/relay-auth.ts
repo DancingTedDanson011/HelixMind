@@ -67,7 +67,13 @@ export async function validateSessionCookie(
     const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
     if (!secret) return null;
 
-    const token = await decode({ token: sessionToken, secret, salt: '' });
+    // Use the correct salt matching the cookie name (NextAuth convention)
+    const isSecure = !!cookies['__Secure-authjs.session-token'];
+    const salt = isSecure
+      ? '__Secure-authjs.session-token'
+      : 'authjs.session-token';
+
+    const token = await decode({ token: sessionToken, secret, salt });
     if (!token?.sub) return null;
 
     return { userId: token.sub };

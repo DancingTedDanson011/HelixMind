@@ -1,4 +1,4 @@
-import { execSync, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { registerTool } from './registry.js';
 
 registerTool({
@@ -21,7 +21,7 @@ registerTool({
 
   async execute(input, ctx) {
     try {
-      execSync('git rev-parse --is-inside-work-tree', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
     } catch {
       return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git.`;
     }

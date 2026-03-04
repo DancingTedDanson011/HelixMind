@@ -26,10 +26,10 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
-            echo "=== Git Fetch & Reset ==="
+            echo "=== Git Fetch & Pull ==="
             cd /opt/helixmind/web
             git fetch origin main
-            git reset --hard origin/main
+            git pull --ff-only origin main
 
             echo "=== Stop PM2 (all) ==="
             pm2 stop all 2>/dev/null || true
@@ -54,8 +54,8 @@ jobs:
             echo "=== NPM Install ==="
             npm ci --include=dev
 
-            echo "=== Prisma DB Push ==="
-            npx prisma db push --accept-data-loss
+            echo "=== Prisma Migrate Deploy ==="
+            npx prisma migrate deploy
 
             echo "=== Prisma Generate ==="
             npx prisma generate

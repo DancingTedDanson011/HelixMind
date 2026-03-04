@@ -168,12 +168,19 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
   let instanceMeta: InstanceMeta | null = null;
   let controlHandlers: ControlHandlers | null = null;
 
+  // Mutable port reference — updated after listen() resolves the actual port
+  let resolvedPort = BRAIN_PORT_START;
+
   const httpServer = createServer(async (req, res) => {
     const url = req.url || '/';
 
-    // CORS headers for all JSON endpoints
+    // CORS headers — restrict to localhost origins only (prevents cross-site abuse)
+    const requestOrigin = req.headers.origin || '';
+    const allowedOrigin = requestOrigin.startsWith('http://127.0.0.1:') || requestOrigin.startsWith('http://localhost:')
+      ? requestOrigin
+      : `http://127.0.0.1:${resolvedPort}`;
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': allowedOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     };
@@ -214,7 +221,15 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
       res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
       res.end(JSON.stringify({ hint }));
 
-    } else if (url === '/api/data') {
+    } else if (url?.startsWith('/api/data')) {
+      // SECURITY: require connection token to prevent cross-site brain data theft
+      const dataUrl = new URL(url, `http://127.0.0.1:${resolvedPort}`);
+      const tok = dataUrl.searchParams.get('token');
+      if (tok !== connectionToken) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(latestData));
 
@@ -644,10 +659,10 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
           // --- Tool Permission Approval ---
           case 'tool_permission_response': {
+            // SECURITY: mode intentionally not forwarded — remote clients cannot escalate permissions
             controlHandlers.handleToolPermissionResponse(
               (msg as any).requestId,
               (msg as any).approved,
-              (msg as any).mode,
             );
             // ACK back to the sender
             sendTo(ws, { type: 'tool_permission_response_ack', requestId: (msg as any).requestId, timestamp: Date.now() });
@@ -793,6 +808,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
       const addr = httpServer.address();
       const actualPort = typeof addr === 'object' && addr ? addr.port : port;
+      resolvedPort = actualPort;
 
       // Event listener registry for relay forwarding
       const eventListeners = new Set<BrainServerEventHandler>();

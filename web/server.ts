@@ -111,14 +111,30 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  // CLI relay WebSocket server
-  const wssCliRelay = new WebSocketServer({ noServer: true });
-  // Browser relay WebSocket server
-  const wssWebRelay = new WebSocketServer({ noServer: true });
+  // CLI relay WebSocket server (1 MB max payload)
+  const wssCliRelay = new WebSocketServer({ noServer: true, maxPayload: 1 * 1024 * 1024 });
+  // Browser relay WebSocket server (256 KB max payload)
+  const wssWebRelay = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
 
-  // Handle HTTP upgrade for WebSocket
+  // Handle HTTP upgrade for WebSocket — validate origin to prevent CSWSH
   server.on('upgrade', (req, socket, head) => {
     const { pathname } = parse(req.url || '/', true);
+    const origin = req.headers.origin;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
+
+    // Validate origin for browser WebSocket connections (prevent cross-site hijacking)
+    if (pathname === '/api/relay/web' && origin) {
+      const allowedOrigins = [
+        `http://${hostname}:${port}`,
+        `https://${hostname}:${port}`,
+        appUrl,
+      ].filter(Boolean);
+      if (!allowedOrigins.includes(origin)) {
+        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+    }
 
     if (pathname === '/api/relay/cli') {
       wssCliRelay.handleUpgrade(req, socket, head, (ws) => {

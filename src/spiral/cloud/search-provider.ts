@@ -122,13 +122,30 @@ export async function fetchPageContent(
   url: string,
   maxLength: number = 8000,
   signal?: AbortSignal,
+  _redirectDepth: number = 0,
 ): Promise<string | null> {
+  if (_redirectDepth > 5) return null; // Max redirect hops
   // Create a timeout controller if no external signal was provided
   const ownController = signal ? undefined : new AbortController();
   const effectiveSignal = signal ?? ownController?.signal;
   const timeout = ownController ? setTimeout(() => ownController.abort(), 10_000) : undefined;
 
   try {
+    // SSRF protection: only allow http/https, block internal/private IPs
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return null; // Block file://, ftp://, etc.
+    }
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' ||
+      hostname === '0.0.0.0' || hostname.endsWith('.local') ||
+      hostname === '169.254.169.254' || // Cloud metadata
+      /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(hostname)
+    ) {
+      return null; // Block internal/private network
+    }
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -136,7 +153,15 @@ export async function fetchPageContent(
         'Accept': 'text/html',
       },
       signal: effectiveSignal,
+      redirect: 'manual', // SECURITY: handle redirects manually to re-check SSRF
     });
+
+    // Follow redirects with SSRF re-validation (max 5 hops)
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (!location) return null;
+      return fetchPageContent(location, maxLength, effectiveSignal, _redirectDepth + 1);
+    }
 
     if (!response.ok) return null;
 

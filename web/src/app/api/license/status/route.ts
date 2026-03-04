@@ -27,13 +27,7 @@ export async function GET(req: Request) {
       });
     }
 
-    if (!license) {
-      // Fallback: find any license with recent activation
-      license = await prisma.license.findFirst({
-        where: { activations: { gt: 0 } },
-        orderBy: { activatedAt: 'desc' },
-      });
-    }
+    // SECURITY: No fallback query — never return another user's license data
 
     if (!license) {
       return NextResponse.json({

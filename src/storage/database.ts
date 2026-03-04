@@ -176,6 +176,12 @@ export class Database {
 
   close(): void {
     if (!this.closed) {
+      // Checkpoint WAL before closing to ensure data durability and clean state for backups/exports
+      try {
+        this.raw.pragma('wal_checkpoint(TRUNCATE)');
+      } catch {
+        // Checkpoint may fail if DB is already locked — not fatal
+      }
       this.raw.close();
       this.closed = true;
     }

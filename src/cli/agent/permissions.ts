@@ -130,16 +130,12 @@ export class PermissionManager {
   }
 
   /** Resolve a pending remote permission request (called from WebSocket/Telegram handler) */
-  resolveRemote(requestId: string, approved: boolean, deniedBy: 'user' | 'system_timeout' = 'user', mode?: 'once' | 'session' | 'yolo'): void {
+  resolveRemote(requestId: string, approved: boolean, deniedBy: 'user' | 'system_timeout' = 'user'): void {
     const entry = this.pendingRemote.get(requestId);
     if (!entry) return;
 
-    // Apply mode changes from remote UI (web dashboard)
-    if (approved && mode === 'session') {
-      this.skipPermissionsMode = true;
-    } else if (approved && mode === 'yolo') {
-      this.yoloMode = true;
-    }
+    // SECURITY: Remote clients cannot escalate permission modes (YOLO/skip).
+    // Permission mode changes must originate from the local terminal only.
 
     clearTimeout(entry.timer);
     clearTimeout(entry.reminderTimer);

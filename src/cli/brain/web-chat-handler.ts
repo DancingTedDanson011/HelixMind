@@ -94,9 +94,11 @@ export async function handleWebChat(
   // Reset controller for new turn
   session.controller.reset();
 
-  // Permissions: skip-permissions for web (no terminal for prompts)
+  // Permissions: web chats use standard safe mode (NOT skip-permissions).
+  // Remote users must not bypass security prompts. Tool calls that require
+  // user approval will be auto-denied since there is no terminal readline,
+  // effectively limiting web chats to read-only + auto-approved tools.
   const permissions = new PermissionManager();
-  permissions.setSkipPermissions(true);
 
   // Signal start
   callbacks.onStarted(chatId);

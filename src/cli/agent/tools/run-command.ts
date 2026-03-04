@@ -38,11 +38,24 @@ registerTool({
       const shell = isWindows ? 'cmd.exe' : '/bin/bash';
       const shellArgs = isWindows ? ['/c', command] : ['-c', command];
 
-      // Filter sensitive environment variables to prevent API key leakage in tool results
-      const safeEnv = { ...process.env };
-      for (const key of Object.keys(safeEnv)) {
-        if (/secret|token|password|api.?key|private.?key|credential/i.test(key)) {
-          delete safeEnv[key];
+      // Filter sensitive environment variables — whitelist approach for maximum safety
+      const SAFE_ENV_KEYS = new Set([
+        'PATH', 'HOME', 'USERPROFILE', 'SHELL', 'TERM', 'LANG', 'LC_ALL',
+        'NODE_ENV', 'NODE_PATH', 'NODE_OPTIONS', 'NPM_CONFIG_PREFIX',
+        'TMPDIR', 'TEMP', 'TMP', 'USER', 'USERNAME', 'LOGNAME',
+        'HOSTNAME', 'PWD', 'OLDPWD', 'SHLVL', 'EDITOR', 'VISUAL',
+        'COLORTERM', 'TERM_PROGRAM', 'COMSPEC', 'SystemRoot', 'SystemDrive',
+        'ProgramFiles', 'ProgramFiles(x86)', 'CommonProgramFiles',
+        'APPDATA', 'LOCALAPPDATA', 'WINDIR', 'OS',
+        'NVM_DIR', 'NVM_BIN', 'NVM_INC',
+        'GIT_EXEC_PATH', 'GIT_TEMPLATE_DIR',
+        'GOPATH', 'GOROOT', 'CARGO_HOME', 'RUSTUP_HOME',
+        'JAVA_HOME', 'PYTHON', 'PYTHONPATH',
+      ]);
+      const safeEnv: Record<string, string> = {};
+      for (const [key, val] of Object.entries(process.env)) {
+        if (val !== undefined && (SAFE_ENV_KEYS.has(key) || key.startsWith('npm_config_'))) {
+          safeEnv[key] = val;
         }
       }
 
@@ -54,6 +67,10 @@ registerTool({
 
       const timer = setTimeout(() => {
         proc.kill('SIGTERM');
+        // Fallback SIGKILL after 5s if SIGTERM is ignored (Unix only)
+        setTimeout(() => {
+          try { proc.kill('SIGKILL'); } catch { /* already dead */ }
+        }, 5000);
         resolve(`Command timed out after ${timeoutSec}s.\n\nPartial stdout:\n${stdout}\n\nPartial stderr:\n${stderr}`);
       }, timeoutSec * 1000);
 

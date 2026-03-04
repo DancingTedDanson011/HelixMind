@@ -146,6 +146,14 @@ export class NodeStore {
     return rows.map(rowToNode);
   }
 
+  /** Return IDs of the most recently accessed nodes (bounded). */
+  getRecentIds(limit: number): string[] {
+    const rows = this.db.raw.prepare(
+      'SELECT id FROM nodes ORDER BY accessed_at DESC LIMIT ?'
+    ).all(limit) as Array<{ id: string }>;
+    return rows.map(r => r.id);
+  }
+
   getByIds(ids: string[]): ContextNode[] {
     if (ids.length === 0) return [];
     const placeholders = ids.map(() => '?').join(',');

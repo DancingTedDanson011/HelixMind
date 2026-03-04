@@ -9,10 +9,16 @@ const MAX_CONTENT_LENGTH = 5 * 1024 * 1024;
 
 /** Sensitive files that should never be read or written by the agent */
 const BLOCKED_FILES = [
-  '.env', '.env.local', '.env.production', '.env.staging',
+  '.env', '.env.local', '.env.production', '.env.staging', '.env.development', '.env.test',
   'id_rsa', 'id_ed25519', 'id_ecdsa',
-  '.ssh/config', '.npmrc', '.pypirc',
+  '.ssh/config', '.ssh/authorized_keys', '.ssh/known_hosts',
+  '.npmrc', '.pypirc', '.netrc',
   'credentials.json', 'serviceAccountKey.json',
+  '.git-credentials', '.docker/config.json',
+  '.aws/credentials', '.aws/config',
+  '.kube/config',
+  '.bash_history', '.zsh_history',
+  '.config/gcloud/credentials.db',
 ];
 
 /** Dangerous command patterns that require extra confirmation */
@@ -55,7 +61,10 @@ export function validatePathEx(requestedPath: string, projectRoot: string): Path
   const resolved = resolve(projectRoot, normalizedPath);
   const normalizedRoot = normalize(projectRoot);
 
-  const external = !resolved.startsWith(normalizedRoot);
+  // Case-insensitive comparison on Windows (NTFS is case-insensitive)
+  const external = process.platform === 'win32'
+    ? !resolved.toLowerCase().startsWith(normalizedRoot.toLowerCase())
+    : !resolved.startsWith(normalizedRoot);
 
   // Sensitive files ALWAYS blocked (internal and external)
   const lower = resolved.toLowerCase().replace(/\\/g, '/');
@@ -110,7 +119,11 @@ export function validatePath(requestedPath: string, projectRoot: string): string
 
   // Ensure the resolved path starts with the normalized project root
   const normalizedRoot = normalize(projectRoot);
-  if (!resolved.startsWith(normalizedRoot)) {
+  // Case-insensitive comparison on Windows (NTFS is case-insensitive)
+  const isInside = process.platform === 'win32'
+    ? resolved.toLowerCase().startsWith(normalizedRoot.toLowerCase())
+    : resolved.startsWith(normalizedRoot);
+  if (!isInside) {
     throw new SecurityError(`Access denied: ${requestedPath} is outside the project directory`);
   }
 
@@ -186,8 +199,23 @@ export function classifyCommand(cmd: string): 'safe' | 'ask' | 'dangerous' {
   if (/Set-ExecutionPolicy/i.test(trimmed)) return 'dangerous';
 
   // Additional blocked system commands
-  if (/\b(mkfs|fdisk|shutdown|reboot)\b/.test(trimmed)) return 'dangerous';
+  if (/\b(shutdown|reboot)\b/.test(trimmed)) return 'dangerous';
   if (/\btaskkill\s+\/f/i.test(trimmed)) return 'dangerous';
+
+  // Language interpreter code execution (bypass vector for shell sandbox)
+  if (/\b(python3?|ruby|perl|lua)\s+-[ce]\b/.test(trimmed)) return 'dangerous';
+  if (/\bnode\s+-e\b/.test(trimmed)) return 'dangerous';
+  if (/\beval\s/.test(trimmed)) return 'dangerous';
+
+  // Encoded/obfuscated payload execution
+  if (/base64\s.*\|\s*(ba)?sh/i.test(trimmed)) return 'dangerous';
+  if (/powershell.*-e(nc(odedcommand)?)?/i.test(trimmed)) return 'dangerous';
+  if (/\[Net\.WebClient\]|\[System\.Net\.WebClient\]/i.test(trimmed)) return 'dangerous';
+
+  // Windows system commands
+  if (/\bwmic\b.*\bdelete\b/i.test(trimmed)) return 'dangerous';
+  if (/\breg\s+delete/i.test(trimmed)) return 'dangerous';
+  if (/\bsc\s+delete/i.test(trimmed)) return 'dangerous';
 
   // Check for potentially dangerous operations
   if (/\brm\s/.test(trimmed) || /\bmv\s/.test(trimmed) || /\bgit\s+push/.test(trimmed)) return 'ask';
@@ -197,11 +225,18 @@ export function classifyCommand(cmd: string): 'safe' | 'ask' | 'dangerous' {
 
 /**
  * Check if a command is blocked entirely (should never run).
+ * These are hard-blocked even in YOLO mode.
  */
 export function isBlockedCommand(cmd: string): boolean {
   const blocked = [
     /\bformat\s+c:/i,
     /:\(\)\s*\{[^}]*\|\s*:.*&\s*\}\s*;/,  // fork bomb
+    /\brm\s+(-rf?|--recursive)\s+\/(\s|$)/,   // rm -rf / (root, with or without trailing flags)
+    /\bdd\b.*of=\/dev\/[sh]d/,              // overwrite disk devices
+    /\bmkfs\b/,                              // format filesystems
+    /\bfdisk\b/,                             // partition table modification
+    /\bbcdedit\b/i,                          // Windows boot config
+    /\bdiskpart\b/i,                         // Windows disk partition
   ];
   return blocked.some(p => p.test(cmd));
 }

@@ -58,7 +58,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Create JWT session token
-    const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || '';
+    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+    if (!secret) {
+      console.error('FATAL: AUTH_SECRET or NEXTAUTH_SECRET must be set for SAML JWT signing');
+      return NextResponse.redirect(new URL('/auth/login?error=saml_config', req.url));
+    }
+
+    // Use the correct salt matching the cookie name (NextAuth convention)
+    const isSecure = req.url.startsWith('https');
+    const cookieName = isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token';
+
     const token = await encode({
       token: {
         id: user.id,
@@ -69,12 +78,10 @@ export async function POST(req: NextRequest) {
         locale: user.locale,
       },
       secret,
-      salt: '',
+      salt: cookieName,
     });
 
     // Set session cookie and redirect to app
-    const isSecure = req.url.startsWith('https');
-    const cookieName = isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token';
 
     const response = NextResponse.redirect(new URL('/app', req.url));
     response.cookies.set(cookieName, token, {

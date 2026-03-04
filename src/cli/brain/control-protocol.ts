@@ -383,7 +383,8 @@ export interface ControlHandlers {
   getConfig(): { provider: string; apiKey: string; model: string };
   switchModel(provider: string, model: string): boolean;
   // Tool Permission Approval (remote)
-  handleToolPermissionResponse(requestId: string, approved: boolean, mode?: 'once' | 'session' | 'yolo'): void;
+  // SECURITY: mode param removed — remote clients cannot escalate permission level
+  handleToolPermissionResponse(requestId: string, approved: boolean): void;
   // Status Bar
   getStatusBar(): StatusBarInfo;
   // Checkpoints
