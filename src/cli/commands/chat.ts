@@ -43,6 +43,7 @@ import { runAutonomousLoop, SECURITY_PROMPT } from '../agent/autonomous.js';
 import { SessionManager } from '../sessions/manager.js';
 import { renderSessionNotification, renderSessionList } from '../sessions/tab-view.js';
 import { getSuggestions, getBestCompletion, writeSuggestions, clearSuggestions, setBlockedCommands } from '../ui/command-suggest.js';
+import { PromptHistory } from '../ui/prompt-history.js';
 import { selectMenu, type MenuItem, type SelectMenuOptions } from '../ui/select-menu.js';
 import { BugJournal } from '../bugs/journal.js';
 import { detectBugReport } from '../bugs/detector.js';
@@ -350,10 +351,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   }
 
   // ─── Process exit cleanup: release Jarvis slot ─────────────
-  process.on('exit', () => { 
+  process.on('exit', () => {
     releaseJarvisSlot();
     // Restore terminal to normal mode
     if (process.stdin.isTTY) {
+      // Disable Bracketed Paste Mode
+      process.stdout.write('\x1b[?2004l');
       process.stdin.setRawMode(false);
     }
   });
@@ -1933,6 +1936,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // Enable raw mode for immediate ESC key detection
     process.stdin.setRawMode(true);
     process.stdin.resume();
+    // Enable Bracketed Paste Mode — terminal wraps pasted text in \x1b[200~ ... \x1b[201~
+    // so Enter keys inside paste don't trigger submit
+    process.stdout.write('\x1b[?2004h');
   }
 
   const rl = readline.createInterface({
@@ -1948,6 +1954,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       return [[], line];
     },
   });
+
+  // Load persistent prompt history into readline
+  const promptHistory = new PromptHistory(configDir);
+  const savedHistory = await promptHistory.load();
+  if (savedHistory.length > 0) {
+    // readline.history is an internal array — oldest at end, newest at start
+    (rl as any).history = savedHistory;
+  }
 
   // Update prompt, chrome, and activity on terminal resize
   process.stdout.on('resize', () => {
@@ -2290,6 +2304,19 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
   }
 
+  // === Bracketed Paste detection (raw layer) ===
+  // When Bracketed Paste Mode is active, pasted text arrives wrapped in:
+  //   \x1b[200~  ...pasted content...  \x1b[201~
+  // We detect these markers at the raw data layer and collect all content
+  // between them as a single paste event, preventing Enter keys from
+  // triggering submit inside pasted text.
+  let bracketedPasteActive = false;
+  let bracketedPasteBuffer = '';
+  const PASTE_START = '\x1b[200~';
+  const PASTE_END = '\x1b[201~';
+  const BRACKETED_PASTE_TIMEOUT = 500; // ms — longer timeout for large pastes
+  let bracketedPasteTimer: ReturnType<typeof setTimeout> | null = null;
+
   // === Raw data listener for double-ESC detection ===
   // Node.js readline merges rapid \x1b\x1b into a single keypress event on Windows.
   // This raw listener counts ESC bytes directly before readline processes them.
@@ -2301,6 +2328,42 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       if (fullScreenBrowserOpen) return;
 
       const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      const str = bytes.toString('utf8');
+
+      // --- Bracketed Paste: detect start/end markers ---
+      if (str.includes(PASTE_START)) {
+        bracketedPasteActive = true;
+        bracketedPasteBuffer = '';
+        // Strip the start marker and keep any text after it
+        const afterStart = str.split(PASTE_START).slice(1).join(PASTE_START);
+        if (afterStart.includes(PASTE_END)) {
+          // Start and end in same chunk — complete paste
+          bracketedPasteBuffer = afterStart.split(PASTE_END)[0];
+          bracketedPasteActive = false;
+          handleBracketedPaste(bracketedPasteBuffer);
+          bracketedPasteBuffer = '';
+        } else {
+          bracketedPasteBuffer += afterStart;
+          resetBracketedPasteTimer();
+        }
+        return; // Suppress — don't let readline see paste markers
+      }
+
+      if (bracketedPasteActive) {
+        if (str.includes(PASTE_END)) {
+          // End marker found — complete the paste
+          bracketedPasteBuffer += str.split(PASTE_END)[0];
+          bracketedPasteActive = false;
+          if (bracketedPasteTimer) { clearTimeout(bracketedPasteTimer); bracketedPasteTimer = null; }
+          handleBracketedPaste(bracketedPasteBuffer);
+          bracketedPasteBuffer = '';
+        } else {
+          // Mid-paste chunk — accumulate
+          bracketedPasteBuffer += str;
+          resetBracketedPasteTimer();
+        }
+        return; // Suppress — don't let readline see raw paste content
+      }
 
       // Only bare ESC matters — NOT escape sequences like arrow keys (\x1b[A)
       // Bare ESC = exactly 1 byte: \x1b
@@ -2368,6 +2431,44 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       chrome.activate();
       rl.resume();
       showPrompt();
+    }
+  }
+
+  // === Bracketed Paste helpers ===
+  function resetBracketedPasteTimer(): void {
+    if (bracketedPasteTimer) clearTimeout(bracketedPasteTimer);
+    bracketedPasteTimer = setTimeout(() => {
+      // Timeout: paste end marker never arrived — flush what we have
+      if (bracketedPasteActive && bracketedPasteBuffer) {
+        bracketedPasteActive = false;
+        handleBracketedPaste(bracketedPasteBuffer);
+        bracketedPasteBuffer = '';
+      }
+    }, BRACKETED_PASTE_TIMEOUT);
+  }
+
+  function handleBracketedPaste(text: string): void {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    if (agentRunning) {
+      // Queue the paste as a single type-ahead entry
+      typeAheadBuffer.push(trimmed);
+      const lineCount = trimmed.split('\n').length;
+      process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${chalk.cyan(`[${lineCount} Zeilen]`)} ${theme.dim(trimmed.split('\n')[0].slice(0, 50) + (trimmed.split('\n')[0].length > 50 ? '...' : ''))}\n`);
+      rl.prompt();
+    } else {
+      const lineCount = trimmed.split('\n').length;
+      if (lineCount > 1) {
+        // Multi-line paste — show preview and wait for confirmation
+        process.stdout.write(`\x1b[2K\r  ${chalk.cyan(`[${lineCount} Zeilen]`)} ${chalk.dim(trimmed.split('\n')[0].slice(0, 60) + (trimmed.split('\n')[0].length > 60 ? '...' : ''))}\n`);
+        process.stdout.write(`  ${chalk.dim('Enter = senden | Esc = verwerfen')}\n`);
+        pasteBuffer = trimmed.split('\n');
+        rl.prompt();
+      } else {
+        // Single-line paste — send immediately
+        processInput(trimmed);
+      }
     }
   }
 
@@ -2498,6 +2599,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   /** Process a complete input (single line or assembled paste block) */
   async function processInput(input: string): Promise<void> {
+
+    // Persist to JSONL history (async, non-blocking)
+    promptHistory.add(input, process.cwd()).catch(() => {});
 
     // Handle /feed directly here (needs access to inlineProgressActive flag)
     if (input.startsWith('/feed')) {
