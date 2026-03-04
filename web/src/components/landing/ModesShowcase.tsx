@@ -97,35 +97,135 @@ function JarvisDemo({ t }: { t: (key: string) => string }) {
 }
 
 function AgentDemo({ t }: { t: (key: string) => string }) {
-  const lines = [
-    { prefix: 'You:', text: t('agent.demo1'), color: '#fff' },
-    { prefix: '\uD83D\uDD0D', text: t('agent.demo2'), color: '#00d4ff' },
-    { prefix: '\uD83D\uDD0D', text: t('agent.demo3'), color: '#8a2be2' },
-    { prefix: '\u270F\uFE0F', text: t('agent.demo4'), color: '#ffaa00' },
-    { prefix: '\u2705', text: t('agent.demo5'), color: '#00ff88' },
+  // ASCII art banner (simplified ANSI Shadow style)
+  const bannerLines = [
+    '██╗  ██╗███████╗██╗     ██╗██╗  ██╗',
+    '██║  ██║██╔════╝██║     ██║╚██╗██╔╝',
+    '███████║█████╗  ██║     ██║ ╚███╔╝ ',
+    '██╔══██║██╔══╝  ██║     ██║ ██╔██╗ ',
+    '██║  ██║███████╗███████╗██║██╔╝ ██╗',
+    '╚═╝  ╚═╝╚══════╝╚══════╝╚═╝╚═╝  ╚═╝',
+  ];
+
+  const infoLines = [
+    { label: 'Provider', value: 'Anthropic', color: '#00d4ff' },
+    { label: 'Model', value: 'claude-sonnet-4-20250514', color: '#00d4ff' },
+    { label: 'Brain', value: '🌀 localhost:9420', color: '#8a2be2' },
+    { label: 'Spiral', value: '47 nodes · 12 connections', color: '#4169e1' },
+  ];
+
+  const agentLines = [
+    { prefix: '›', text: t('agent.demo1'), color: '#ffffff', isInput: true },
+    { prefix: '⚡', text: t('agent.demo2'), color: '#00d4ff' },
+    { prefix: '🧠', text: t('agent.demo3'), color: '#8a2be2' },
+    { prefix: '✏️', text: t('agent.demo4'), color: '#ffaa00' },
+    { prefix: '✅', text: t('agent.demo5'), color: '#00ff88' },
   ];
 
   return (
-    <div className="rounded-2xl bg-black/60 border border-white/[0.07] p-5 font-mono text-[12px] space-y-3 backdrop-blur-sm">
-      <div className="flex items-center gap-1.5 mb-4 pb-3 border-b border-white/[0.06]">
+    <div className="rounded-2xl bg-[#0a0a0f] border border-white/[0.07] font-mono text-[11px] backdrop-blur-sm overflow-hidden">
+      {/* Terminal title bar */}
+      <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.02]">
         <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
-        <span className="ml-2 text-[10px] text-white/30 tracking-wide">hx agent — 22 tools active</span>
+        <span className="ml-2 text-[10px] text-white/25 tracking-wide">helixmind — ~/my-project</span>
       </div>
-      {lines.map((line, i) => (
+
+      <div className="px-4 pt-3 pb-1 space-y-0">
+        {/* ASCII Banner with gradient */}
         <motion.div
-          key={i}
-          className="flex items-start gap-2.5"
-          initial={{ opacity: 0, x: -10 }}
-          whileInView={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.4 + i * 0.13, duration: 0.45 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
+          className="mb-1"
         >
-          <span className="shrink-0 w-8 text-[10px] text-white/40 pt-0.5">{line.prefix}</span>
-          <span style={{ color: line.color }} className="leading-relaxed">{line.text}</span>
+          {bannerLines.map((line, i) => (
+            <div
+              key={i}
+              className="text-[7px] sm:text-[8px] leading-[1.1] font-bold whitespace-pre"
+              style={{
+                background: `linear-gradient(90deg, #00d4ff, #4169e1, #8a2be2)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              {line}
+            </div>
+          ))}
+          <div
+            className="text-[9px] mt-0.5 tracking-[0.3em]"
+            style={{
+              background: `linear-gradient(90deg, #00d4ff, #4169e1, #8a2be2)`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            {'  ─── Mind ───'}
+          </div>
         </motion.div>
-      ))}
+
+        {/* Info lines */}
+        <motion.div
+          className="space-y-0.5 mb-2 pt-1 border-t border-white/[0.04]"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.5, duration: 0.4 }}
+        >
+          {infoLines.map((info, i) => (
+            <div key={i} className="flex gap-2 text-[10px]">
+              <span className="text-gray-600 w-14 shrink-0">{info.label}</span>
+              <span style={{ color: info.color }}>{info.value}</span>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Separator */}
+        <div className="border-t border-white/[0.04] my-1.5" />
+
+        {/* Agent interaction */}
+        <div className="space-y-2 pb-2">
+          {agentLines.map((line, i) => (
+            <motion.div
+              key={i}
+              className="flex items-start gap-2"
+              initial={{ opacity: 0, x: -8 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.7 + i * 0.15, duration: 0.4 }}
+            >
+              <span className={`shrink-0 w-4 text-center ${line.isInput ? 'text-[#00d4ff] font-bold' : 'text-[10px]'}`}>
+                {line.prefix}
+              </span>
+              <span
+                style={{ color: line.color }}
+                className={`leading-relaxed ${line.isInput ? 'font-semibold' : ''}`}
+              >
+                {line.text}
+              </span>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Status bar */}
+      <motion.div
+        className="flex items-center text-[9px] border-t border-white/[0.06]"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ delay: 1.5, duration: 0.4 }}
+      >
+        <span className="px-2 py-1 bg-[#00d4ff]/20 text-[#00d4ff] font-bold">AGENT</span>
+        <span className="px-2 py-1 bg-[#8a2be2]/15 text-[#8a2be2]">L1-L5</span>
+        <span className="px-2 py-1 text-gray-500">22 tools</span>
+        <span className="px-2 py-1 text-gray-600 ml-auto">sonnet-4</span>
+        <span className="px-2 py-1 bg-[#00ff88]/10 text-[#00ff88]">● connected</span>
+      </motion.div>
     </div>
   );
 }

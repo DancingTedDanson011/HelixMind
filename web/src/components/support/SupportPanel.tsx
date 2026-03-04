@@ -183,7 +183,7 @@ export function SupportPanel() {
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [selectedTicket?.messages]);
 
   useEffect(() => {

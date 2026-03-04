@@ -102,7 +102,7 @@ export async function PATCH(req: Request) {
             type: 'TICKET_REPLY',
             title: `Ticket #${ticketData.number} Reply`,
             body: 'Support has responded to your ticket',
-            link: `/dashboard/support/${id}`,
+            link: `/support/tickets`,
           }).catch((err) => console.error('Ticket notification error:', err));
         }
       }

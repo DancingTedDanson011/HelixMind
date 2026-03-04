@@ -85,7 +85,7 @@ export function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
   }, [ticketId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [ticket?.messages]);
 
   const sendReply = async () => {
