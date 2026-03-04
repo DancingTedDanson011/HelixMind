@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "nextId": 5,
+  "proposals": [
+    {
+      "id": 1,
+      "title": "Fix Double-ESC checkpoint browser activation",
+      "description": "Investigate and fix the Double-ESC keybinding issue that prevents users from opening the checkpoint browser menu. The tests pass but users report it doesn't work in practice, suggesting an integration issue between keybinding state and chat command flow.",
+      "rationale": "This is a critical usability bug that blocks access to checkpoint rewind functionality. The bug has evidence of partial fixes but remains open, indicating deeper integration issues.",
+      "category": "bugfix",
+      "source": "thinking_medium",
+      "status": "pending",
+      "impact": "high",
+      "risk": "low",
+      "affectedFiles": [],
+      "evidence": [],
+      "createdAt": 1772388827202,
+      "updatedAt": 1772388827202
+    },
+    {
+      "id": 2,
+      "title": "Enhance Jarvis autonomous identity and self-improvement",
+      "description": "Implement capabilities for Jarvis to autonomously learn, contribute to open source, and expand its knowledge base without constant user intervention. This addresses Bug #2 about Jarvis lacking true autonomous identity and self-directed improvement.",
+      "rationale": "Users expect Jarvis to be a truly autonomous assistant that can proactively improve itself and contribute value, not just execute predefined tasks. This aligns with the project's AGI aspirations.",
+      "category": "feature",
+      "source": "thinking_medium",
+      "status": "pending",
+      "impact": "medium",
+      "risk": "low",
+      "affectedFiles": [],
+      "evidence": [],
+      "createdAt": 1772388827202,
+      "updatedAt": 1772388827202
+    },
+    {
+      "id": 3,
+      "title": "Review and prioritize open bugs",
+      "description": "Analyze the 2 reported bugs in detail, assess their severity and impact, create fix plans with clear acceptance criteria",
+      "rationale": "Two open bugs represent potential user pain points or system instability; systematic review ensures they're addressed appropriately",
+      "category": "bugfix",
+      "source": "thinking_medium",
+      "status": "pending",
+      "impact": "medium",
+      "risk": "low",
+      "affectedFiles": [],
+      "evidence": [],
+      "createdAt": 1772395536410,
+      "updatedAt": 1772395536410
+    },
+    {
+      "id": 4,
+      "title": "Review and prioritize open bugs",
+      "description": "Analyze the 2 reported bugs in detail, assess their severity and impact, create fix plans with clear acceptance criteria",
+      "rationale": "Two open bugs represent potential user pain points or system instability; systematic review ensures they're addressed appropriately",
+      "category": "bugfix",
+      "source": "thinking_medium",
+      "status": "pending",
+      "impact": "medium",
+      "risk": "low",
+      "affectedFiles": [],
+      "evidence": [],
+      "createdAt": 1772395888696,
+      "updatedAt": 1772395888696
+    }
+  ],
+  "denialPatterns": []
+}

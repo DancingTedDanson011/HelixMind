@@ -1,0 +1,81 @@
+{
+  "name": "cli-programming",
+  "version": "1.0.0",
+  "description": "Skill for CLI programming expertise - enables analysis, generation, and debugging of command-line interfaces",
+  "author": "Jarvis",
+  "license": "MIT",
+  "category": "development",
+  "tags": ["cli", "command-line", "terminal", "tools", "automation"],
+  "installed": true,
+  "installedAt": "2026-03-02T22:30:00.000Z",
+  
+  "capabilities": {
+    "analyze": {
+      "description": "Analyze CLI code and identify patterns, issues, and improvements",
+      "tools": ["read_file", "search_files", "run_command"]
+    },
+    "generate": {
+      "description": "Generate CLI code based on requirements and best practices",
+      "tools": ["write_file", "edit_file"]
+    },
+    "debug": {
+      "description": "Debug CLI applications and fix common issues",
+      "tools": ["run_command", "read_file", "search_files"]
+    },
+    "optimize": {
+      "description": "Optimize CLI performance and user experience",
+      "tools": ["read_file", "edit_file", "run_command"]
+    },
+    "test": {
+      "description": "Create and run tests for CLI applications",
+      "tools": ["write_file", "run_command"]
+    }
+  },
+  
+  "dependencies": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  
+  "config": {
+    "defaultLanguage": "javascript",
+    "supportedFrameworks": ["commander", "yargs", "oclif", "click", "argparse", "cobra"],
+    "autoFormat": true,
+    "lintOnSave": true
+  },
+  
+  "features": {
+    "typingDetection": true,
+    "inputBuffer": true,
+    "debounce": true,
+    "enterpriseUI": true,
+    "multiLineInput": true,
+    "richFormatting": true,
+    "progressIndicators": true,
+    "contextualHelp": true
+  },
+  
+  "enterpriseFeatures": {
+    "typingDetection": {
+      "enabled": true,
+      "idleThreshold": 500,
+      "maxBufferSize": 10000
+    },
+    "inputBuffer": {
+      "enabled": true,
+      "debounceMs": 300,
+      "maxHistorySize": 100
+    },
+    "permissions": {
+      "selectMenuInsteadOfPrompt": true,
+      "showPremiseOptions": true,
+      "autoPauseOnInput": true
+    },
+    "ui": {
+      "enterpriseTheme": true,
+      "enhancedStatusBar": true,
+      "richTextDisplay": true,
+      "animatedProgress": true
+    }
+  }
+}

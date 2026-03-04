@@ -1,0 +1,13 @@
+{
+  "targets": [
+    {
+      "channel": "telegram",
+      "enabled": true,
+      "config": {
+        "botToken": "7686295907:AAEx3gh2kc-JPcNiQfHyNj1D_Fj9gh8bSM0",
+        "chatId": "1054782992"
+      }
+    }
+  ],
+  "minUrgency": "info"
+}

@@ -1,0 +1,432 @@
+{
+  "version": 1,
+  "history": [
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772396370139
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772396467570
+    },
+    {
+      "sentiment": "satisfied",
+      "confidence": 0.8,
+      "timestamp": 1772397044486,
+      "trigger": "danke"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772399301859
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772401044506
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772401088292
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772403434954
+    },
+    {
+      "sentiment": "curious",
+      "confidence": 0.7,
+      "timestamp": 1772407614068,
+      "trigger": "kannst du"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772407789293
+    },
+    {
+      "sentiment": "satisfied",
+      "confidence": 0.8,
+      "timestamp": 1772408013001,
+      "trigger": "super"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772409871433
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772412047247
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772481231869
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772481242366
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772481395336
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772481533502
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772481687083
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772481827467
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772482058221
+    },
+    {
+      "sentiment": "curious",
+      "confidence": 0.7,
+      "timestamp": 1772488969704,
+      "trigger": "kannst du"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772489025963
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772489096624
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772489257606
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772489991232
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772490009596
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772490178501
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772490806442
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772491524494
+    },
+    {
+      "sentiment": "stressed",
+      "confidence": 0.8,
+      "timestamp": 1772491896269,
+      "trigger": "jetzt"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772491975747
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772492001003
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772492013334
+    },
+    {
+      "sentiment": "frustrated",
+      "confidence": 0.85,
+      "timestamp": 1772492345226,
+      "trigger": "error"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772493271473
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772493740505
+    },
+    {
+      "sentiment": "stressed",
+      "confidence": 0.8,
+      "timestamp": 1772493793371,
+      "trigger": "jetzt"
+    },
+    {
+      "sentiment": "frustrated",
+      "confidence": 0.85,
+      "timestamp": 1772494367591,
+      "trigger": "bug"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772496423204
+    },
+    {
+      "sentiment": "satisfied",
+      "confidence": 0.8,
+      "timestamp": 1772497252274,
+      "trigger": "läuft"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772499559289
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772499796634
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772499833116
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772500302379
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772500371091
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772500662687
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772501016880
+    },
+    {
+      "sentiment": "curious",
+      "confidence": 0.7,
+      "timestamp": 1772501907192,
+      "trigger": "wieso"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772504727216
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772537100198
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772539673053
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772539729085
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772539908865
+    },
+    {
+      "sentiment": "stressed",
+      "confidence": 0.8,
+      "timestamp": 1772552391255,
+      "trigger": "jetzt"
+    },
+    {
+      "sentiment": "stressed",
+      "confidence": 0.8,
+      "timestamp": 1772552465227,
+      "trigger": "jetzt"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772554404444
+    },
+    {
+      "sentiment": "curious",
+      "confidence": 0.7,
+      "timestamp": 1772566647963,
+      "trigger": "wie geht"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772567759702
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772567765406
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772568380875
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772568774907
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772568779546
+    },
+    {
+      "sentiment": "stressed",
+      "confidence": 0.8,
+      "timestamp": 1772574035163,
+      "trigger": "jetzt"
+    },
+    {
+      "sentiment": "stressed",
+      "confidence": 0.8,
+      "timestamp": 1772624676723,
+      "trigger": "jetzt"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772624724332
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772630868124
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772630916078
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772630952217
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772631318286
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772631803394
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772635085081
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772635465276
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772635597273
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772635835279
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772636021913
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772636965159
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772638380572
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772638734605
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772641421224
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772641611887
+    },
+    {
+      "sentiment": "curious",
+      "confidence": 0.7,
+      "timestamp": 1772641631616,
+      "trigger": "kannst du"
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772642165437
+    },
+    {
+      "sentiment": "neutral",
+      "confidence": 0.5,
+      "timestamp": 1772642994450
+    }
+  ],
+  "sessionStart": 1772396346752
+}

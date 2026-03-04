@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "nextId": 2,
+  "entries": [
+    {
+      "id": 1,
+      "category": "tool_error",
+      "errorPattern": "ENOENT: no such file or directory, stat '<path>'",
+      "solution": "Succeeded with input: {\"path\":\"src/cli/jarvis/identity.ts\"}",
+      "context": "read_file ts",
+      "confidence": 1,
+      "successCount": 281,
+      "failCount": 0,
+      "tags": [
+        "read_file"
+      ],
+      "createdAt": 1772631421935,
+      "lastUsedAt": 1772643028792
+    }
+  ],
+  "lastDecayAt": 1772630865166
+}

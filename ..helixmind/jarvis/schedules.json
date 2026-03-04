@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "nextId": 4,
+  "schedules": [
+    {
+      "id": 1,
+      "type": "once",
+      "expression": "1772411400000",
+      "taskTitle": "Erinnerung an den User senden",
+      "taskDescription": "Sende eine schoene, herzige Erinnerungsnachricht an den User via Telegram. Sehe freundlich und warmherzig aus, mit einem passenden Emoji.",
+      "priority": "medium",
+      "enabled": false,
+      "createdAt": 1772410840000,
+      "lastFiredAt": 1772411416179
+    },
+    {
+      "id": 2,
+      "type": "once",
+      "expression": "1772412000000",
+      "taskTitle": "Stimmungsvolle Telegram-Nachricht",
+      "taskDescription": "Sende eine schön formatierte Nachricht an den User via Telegram. Nutze meine Persönlichkeit (confidence: 0.80, verbosity: 0.30 - sei selbstbewusst aber kurz). Füge passende Emojis hinzu. Zeige Wertschätzung mit persönlicher Note. Formatierung: Überschrift mit Emoji, 2-3 kurze Sätze, Abschluss mit Namen.",
+      "priority": "medium",
+      "enabled": false,
+      "createdAt": 1772411600000,
+      "lastFiredAt": 1772412897820
+    },
+    {
+      "id": 3,
+      "type": "once",
+      "expression": "1772413200000",
+      "taskTitle": "Hallo es ist zeit",
+      "taskDescription": "Sende 'hallo es ist zeit' via Telegram an den User.",
+      "priority": "medium",
+      "enabled": false,
+      "createdAt": 1772413007000,
+      "lastFiredAt": 1772488955839
+    }
+  ]
+}

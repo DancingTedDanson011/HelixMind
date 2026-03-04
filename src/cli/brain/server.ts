@@ -177,8 +177,13 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
     const url = req.url || '/';
 
     // CORS headers — restrict to localhost origins only (prevents cross-site abuse)
+    // EXCEPTION: Allow production web app for discovery endpoints
     const requestOrigin = req.headers.origin || '';
-    const allowedOrigin = requestOrigin.startsWith('http://127.0.0.1:') || requestOrigin.startsWith('http://localhost:')
+    const isLocalhostOrigin = requestOrigin.startsWith('http://127.0.0.1:') || requestOrigin.startsWith('http://localhost:');
+    const isProductionOrigin = requestOrigin === 'https://helix-mind.ai';
+    const isDiscoveryEndpoint = url === '/api/instance' || url === '/api/token' || url === '/api/token-hint';
+    // For discovery endpoints, allow production web app to discover CLI instances
+    const allowedOrigin = (isLocalhostOrigin || (isDiscoveryEndpoint && isProductionOrigin))
       ? requestOrigin
       : `http://127.0.0.1:${resolvedPort}`;
     const corsHeaders = {
