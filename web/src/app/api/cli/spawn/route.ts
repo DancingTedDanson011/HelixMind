@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       cwd: directory,
       detached: true,
       stdio: 'ignore',
-      env: safeEnv,
+      env: safeEnv as NodeJS.ProcessEnv,
     });
 
     if (!child.pid) {
