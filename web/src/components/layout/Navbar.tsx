@@ -30,6 +30,7 @@ export function Navbar() {
   const navLinks = [
     { href: '/#modes' as const, label: t('modes') },
     { href: '/features' as const, label: t('features') },
+    { href: '/enterprise' as const, label: t('enterprise') },
     { href: '/pricing' as const, label: t('pricing') },
     { href: '/docs' as const, label: t('docs') },
     { href: '/blog' as const, label: t('blog') },
