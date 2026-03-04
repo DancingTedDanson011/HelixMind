@@ -7,7 +7,7 @@
 import { randomUUID } from 'node:crypto';
 import type {
   ThinkingCallbacks, ThinkingPhase, ThinkingState, Observation,
-  ProposalCategory, ProjectDelta,
+  ProposalCategory, ProjectDelta, LearningEntry,
 } from './types.js';
 import { detectAnomalousPattern, getRecentAudit } from './core-ethics.js';
 
@@ -221,6 +221,32 @@ Be selective — only propose actions that provide clear value. Your proactivity
       o.handled = true;
     }
 
+    // Skill-gap detection: check if recent tasks had poor skill coverage
+    if (callbacks.getSkillScores) {
+      const recentTaskDescs = unhandled
+        .filter(o => o.type === 'pattern_detected' || o.type === 'bug_detected')
+        .map(o => o.summary);
+
+      for (const desc of recentTaskDescs.slice(0, 3)) {
+        const scores = callbacks.getSkillScores(desc);
+        const bestScore = scores.length > 0 ? Math.max(...scores.map(s => s.totalScore)) : 0;
+
+        if (bestScore < 0.5 && !callbacks.wouldLikelyBeDenied('skill_creation', [])) {
+          callbacks.createProposal(
+            `Create skill for: ${desc.slice(0, 50)}`,
+            `No existing skill scores above 0.5 for this pattern. Best score: ${bestScore.toFixed(2)}. Consider creating a specialized skill.`,
+            'Skill-gap detected by adaptive engine during medium check.',
+            {
+              category: 'skill_creation',
+              source: 'thinking_medium',
+              impact: 'medium',
+              risk: 'low',
+            },
+          );
+        }
+      }
+    }
+
   } catch (err) {
     state.currentThought = `Medium check error: ${err instanceof Error ? err.message : String(err)}`;
   }
@@ -258,6 +284,10 @@ async function runDeepCheck(
     const moodLine = mood.sessionReadings > 0
       ? `\n- User mood: ${mood.current} (trend: ${mood.trend}, frustration: ${(mood.frustrationLevel * 100).toFixed(0)}%)`
       : '';
+    const learningStats = callbacks.getLearningStats?.();
+    const learningLine = learningStats
+      ? `\n- Learning memory: ${learningStats.total} patterns (${learningStats.highConfidence} high-confidence). Top categories: ${Object.entries(learningStats.topCategories).map(([k, v]) => `${k}:${v}`).join(', ')}`
+      : '';
     const selfAssessmentPrompt = `You are Jarvis performing a deep self-assessment.
 
 Your current identity:
@@ -268,7 +298,7 @@ Your current identity:
 - Approval rate: ${(identity.trust.approvalRate * 100).toFixed(0)}%
 - Success rate: ${(identity.trust.successRate * 100).toFixed(0)}%
 - Total proposals: ${identity.trust.totalProposals}
-- Tasks completed: ${identity.trust.totalTasksCompleted}${moodLine}
+- Tasks completed: ${identity.trust.totalTasksCompleted}${moodLine}${learningLine}
 
 IMPORTANT — Your EXISTING capabilities (these are IMPLEMENTED, do NOT claim they are missing):
 - 22 agent tools: read/write/edit_file, list_dir, search/find_files, run_command, git_*, spiral_*, web_research, bug_report, bug_list, browser_*
@@ -288,6 +318,10 @@ IMPORTANT — Your EXISTING capabilities (these are IMPLEMENTED, do NOT claim th
 - Meta-Cognition: self-assessment, META_LEARNING events, anomaly detection
 - Ethics: autonomy levels L0-L5, built-in ethical boundaries
 - Bug Journal: auto-detection from user messages (DE+EN)
+- Failure Memory: error→solution pairs with confidence scoring, auto-decay, spiral promotion
+- Multi-Agent Orchestration: task splitting into parallel sub-agents with file-lock protection
+- Adaptive Skill Engine: skill scoring, effectiveness tracking, auto-selection
+- Telemetry: opt-in anonymized learning aggregation (privacy levels 0-3)
 
 Recent learnings:
 ${identity.recentLearnings.slice(-10).map(l => `- [${l.source}] ${l.content}`).join('\n')}

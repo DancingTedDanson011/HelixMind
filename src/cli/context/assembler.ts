@@ -75,6 +75,7 @@ export function assembleSystemPrompt(
   identity?: ModelIdentity,
   bugSummary?: string | null,
   jarvisIdentity?: string | null,
+  learningSummary?: string | null,
 ): string {
   const sections: string[] = [BASE_INSTRUCTIONS];
 
@@ -107,6 +108,11 @@ export function assembleSystemPrompt(
   // Bug journal context
   if (bugSummary) {
     sections.push(bugSummary);
+  }
+
+  // Learning memory context (failure patterns)
+  if (learningSummary) {
+    sections.push(learningSummary);
   }
 
   // Jarvis identity + ethics context (injected when Jarvis daemon is active)

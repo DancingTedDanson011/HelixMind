@@ -58,6 +58,7 @@ import { AutonomyManager } from '../jarvis/autonomy.js';
 import { NotificationManager } from '../jarvis/notifications.js';
 import { SkillManager } from '../jarvis/skills.js';
 import { JarvisTelegramBot, parseTelegramCommand } from '../jarvis/telegram-bot.js';
+import { LearningJournal } from '../jarvis/learning.js';
 import type { ThinkingCallbacks, MoodAnalysis } from '../jarvis/types.js';
 import { SentimentAnalyzer } from '../jarvis/sentiment.js';
 import { acquireJarvisSlot, releaseJarvisSlot } from '../jarvis/instance-lock.js';
@@ -410,6 +411,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let jarvisSkills: SkillManager;
   let jarvisSentiment: SentimentAnalyzer;
   let jarvisTelegramBot: JarvisTelegramBot | null = null;
+  let jarvisLearning: LearningJournal;
   let jarvisScope: BrainScope;
   let jarvisDaemonSession: import('../sessions/session.js').Session | null = null;
   let jarvisPaused = false;
@@ -564,6 +566,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   jarvisNotifications = new NotificationManager(resolveJarvisRoot(jarvisScope));
   jarvisSkills = new SkillManager(resolveJarvisRoot(jarvisScope));
   jarvisSkills.syncRegistry();
+  jarvisLearning = new LearningJournal(resolveJarvisRoot(jarvisScope));
   jarvisSentiment = new SentimentAnalyzer(resolveJarvisRoot(jarvisScope), {
     onShift: (from, to, frustrationLevel) => {
       jarvisIdentity.recordEvent({ type: 'sentiment_shift', from, to, frustrationLevel });
@@ -843,6 +846,18 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       },
       checkTriggers: (delta) => jarvisTriggers.checkTriggers(delta),
       updateStatus: () => updateStatusBar(),
+      getLearningStats: () => {
+        const all = jarvisLearning.getAll();
+        const topCategories: Record<string, number> = {};
+        for (const e of all) {
+          topCategories[e.category] = (topCategories[e.category] || 0) + 1;
+        }
+        return {
+          total: all.length,
+          highConfidence: all.filter(e => e.confidence >= 0.8).length,
+          topCategories,
+        };
+      },
     };
   }
 
@@ -1364,6 +1379,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 getIdentityName: () => jarvisIdentity.getIdentity().name,
                 getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
                 getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined, jarvisSentiment.getResponseGuidance() || undefined),
+                recordLearning: (error, solution, category, context) => {
+                  jarvisLearning.recordLearning(error, solution, category as any, context, ['jarvis_daemon']);
+                },
                 thinkingCallbacks: buildThinkingCallbacks(bgSession),
               });
             } catch (err) {
@@ -2947,6 +2965,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           setTelegramBot: (bot: JarvisTelegramBot | null) => { jarvisTelegramBot = bot; },
           buildSkillContext,
           startTelegramBot,
+          learning: jarvisLearning,
           startDaemon: () => {
             const jName = jarvisIdentity.getIdentity().name;
             const bgSession = sessionMgr.create(jName, '\u{1F916}', agentHistory);
@@ -3015,6 +3034,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   getIdentityName: () => jarvisIdentity.getIdentity().name,
                   getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
                   getIdentityPrompt: () => jarvisIdentity.getIdentityPrompt(jarvisSkills.getSkillsPrompt() ?? undefined, jarvisSentiment.getResponseGuidance() || undefined),
+                  recordLearning: (error, solution, category, context) => {
+                    jarvisLearning.recordLearning(error, solution, category as any, context, ['jarvis_daemon']);
+                  },
                   thinkingCallbacks: buildThinkingCallbacks(bgSession),
                 });
               } catch (err) {
@@ -3128,6 +3150,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
         currentStepFile = fileTools.has(tool) ? label.replace(/^(reading|writing|editing)\s+/, '') : '';
       },
+      jarvisLearning,
     );
 
     agentRunning = false;
@@ -3434,6 +3457,7 @@ async function sendAgentMessage(
   onBrowserScreenshot?: ((info: { url: string; title?: string; imageBase64?: string; analysis?: string }) => void) | null,
   jarvisContext?: string | null,
   onStepInfo?: (label: string, tool: string) => void,
+  learningJournal?: LearningJournal,
 ): Promise<void> {
   // User message was rendered by renderUserMessage() in the caller before entering here.
 
@@ -3502,6 +3526,7 @@ async function sendAgentMessage(
   // Assemble system prompt with spiral context + project info + session memory
   const sessionContext = sessionBuffer.buildContext();
   const bugSummary = bugJournal?.getSummaryForPrompt() ?? null;
+  const learningSummary = learningJournal?.getSummaryForPrompt() ?? null;
   const systemPrompt = assembleSystemPrompt(
     project.name !== 'unknown' ? project : null,
     spiralContext,
@@ -3509,6 +3534,7 @@ async function sendAgentMessage(
     { provider: provider.name, model: provider.model },
     bugSummary,
     jarvisContext,
+    learningSummary,
   );
 
   // Auto-trim context using model-aware budget (15% headroom for output + safety)
@@ -3549,6 +3575,7 @@ async function sendAgentMessage(
         browserController,
         visionProcessor,
         onBrowserScreenshot: onBrowserScreenshot ?? undefined,
+        learningJournal,
       },
       checkpointStore,
       sessionBuffer,
@@ -3806,6 +3833,7 @@ async function handleSlashCommand(
     setTelegramBot: (bot: JarvisTelegramBot | null) => void;
     buildSkillContext: () => import('../jarvis/types.js').SkillContext;
     startTelegramBot: () => void;
+    learning: import('../jarvis/learning.js').LearningJournal;
   },
   onModeChange?: () => void,
   chrome?: BottomChrome,
@@ -4896,8 +4924,38 @@ async function handleSlashCommand(
           renderInfo(chalk.dim('  Manual: /jarvis autonomy set <0-5>'));
         }
 
+      } else if (sub === 'learnings') {
+        const learnCmd = parts[2]?.toLowerCase();
+        if (learnCmd === 'clear') {
+          renderInfo(chalk.yellow('Learning memory cannot be cleared — learnings decay automatically over time.'));
+        } else {
+          // Default: show status
+          const statusLine = jarvisCtx!.learning.getStatusLine();
+          if (!statusLine) {
+            renderInfo(chalk.dim('No learnings recorded yet. Learnings are captured automatically when errors are resolved.'));
+          } else {
+            renderInfo(chalk.hex('#ff00ff').bold('Failure Memory'));
+            renderInfo(`  ${statusLine}`);
+            const all = jarvisCtx!.learning.getAll();
+            const top5 = all
+              .filter((e: any) => e.confidence >= 0.5)
+              .sort((a: any, b: any) => b.confidence - a.confidence)
+              .slice(0, 5);
+            if (top5.length > 0) {
+              renderInfo(chalk.dim('  Top learnings:'));
+              for (const e of top5) {
+                renderInfo(chalk.dim(`    #${e.id} [${e.category}] `) + `"${e.errorPattern.slice(0, 50)}" → ${e.solution.slice(0, 50)}` + chalk.dim(` (${(e.confidence * 100).toFixed(0)}%)`));
+              }
+            }
+            const promos = jarvisCtx!.learning.getPromotionCandidates();
+            if (promos.length > 0) {
+              renderInfo(chalk.dim(`  ${promos.length} candidates ready for spiral promotion`));
+            }
+          }
+        }
+
       } else {
-        renderInfo(`Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear|delete|local|global|name|telegram|skills|autonomy]`);
+        renderInfo(`Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear|delete|local|global|name|telegram|skills|autonomy|learnings]`);
       }
       break;
     }

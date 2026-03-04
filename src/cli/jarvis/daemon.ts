@@ -26,6 +26,8 @@ export interface JarvisDaemonCallbacks {
   getProposalsSummary?: () => string;
   getIdentityName?: () => string;
   getUserGoals?: () => string[];
+  /** Record a learning when a task succeeds after retries */
+  recordLearning?: (error: string, solution: string, category: string, context: string) => void;
   /** Thinking loop callbacks — when provided, enables AGI thinking between tasks */
   thinkingCallbacks?: Partial<ThinkingCallbacks>;
 }
@@ -219,6 +221,16 @@ export async function runJarvisDaemon(
         completedCount++;
         callbacks.onTaskComplete(task, summary);
         renderInfo(chalk.green(`  \u2713 Task #${task.id}: ${summary}`));
+
+        // Record learning if this was a retry success
+        if (task.retries > 0 && task.error && callbacks.recordLearning) {
+          callbacks.recordLearning(
+            task.error,
+            summary,
+            'tool_error',
+            `jarvis_task ${task.tags?.join(' ') || ''}`.trim(),
+          );
+        }
 
         // Store result in spiral memory
         if (callbacks.storeInSpiral) {

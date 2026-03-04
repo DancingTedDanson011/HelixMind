@@ -316,6 +316,30 @@ export class SkillManager {
   }
 
   /**
+   * Record outcome (success/failure) for a skill, updating effectiveness data.
+   */
+  recordOutcome(name: string, success: boolean, qualityDelta: number = 0): void {
+    const entry = this.getSkill(name);
+    if (!entry) return;
+    if (!entry.effectiveness) {
+      entry.effectiveness = {
+        skillName: name,
+        timesUsed: 0,
+        timesSuccessful: 0,
+        avgQualityDelta: 0,
+        lastUsedAt: Date.now(),
+      };
+    }
+    entry.effectiveness.timesUsed++;
+    if (success) entry.effectiveness.timesSuccessful++;
+    const prev = entry.effectiveness.avgQualityDelta;
+    entry.effectiveness.avgQualityDelta =
+      (prev * (entry.effectiveness.timesUsed - 1) + qualityDelta) / entry.effectiveness.timesUsed;
+    entry.effectiveness.lastUsedAt = Date.now();
+    this.save();
+  }
+
+  /**
    * Record a tool usage for a skill.
    */
   recordUsage(skillName: string): void {

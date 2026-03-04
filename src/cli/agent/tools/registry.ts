@@ -3,6 +3,7 @@ import type { UndoStack } from '../undo.js';
 import type { BugJournal } from '../../bugs/journal.js';
 import type { BrowserController } from '../../browser/controller.js';
 import type { VisionProcessor } from '../../browser/vision.js';
+import type { LearningJournal } from '../../jarvis/learning.js';
 
 export interface ToolContext {
   projectRoot: string;
@@ -12,6 +13,9 @@ export interface ToolContext {
   browserController?: BrowserController;
   visionProcessor?: VisionProcessor;
   onBrowserScreenshot?: (info: { url: string; title?: string; imageBase64?: string; analysis?: string }) => void;
+  learningJournal?: LearningJournal;
+  lockFile?: (path: string) => boolean;
+  unlockFile?: (path: string) => void;
 }
 
 export interface ToolHandler {

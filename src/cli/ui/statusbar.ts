@@ -34,6 +34,7 @@ export interface StatusBarData {
   runtime?: number; // seconds
   sectionTimer?: { section: string; seconds: number };
   totalTimer?: number; // seconds
+  orchestration?: { active: number; total: number };
 }
 
 // Standard CMD width is 80 chars — use 78 to leave margin
@@ -104,6 +105,10 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
       stepInfo += ` ${chalk.dim(shortFile)}`;
     }
     liveItems.push(chalk.cyan(stepInfo));
+  }
+
+  if (data.orchestration && data.orchestration.total > 0) {
+    liveItems.push(chalk.hex('#00D4FF')(`Agents: ${data.orchestration.active}/${data.orchestration.total}`));
   }
 
   if (data.jarvisName) {

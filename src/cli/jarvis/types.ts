@@ -161,6 +161,10 @@ export interface ThinkingCallbacks {
   checkTriggers: (delta: ProjectDelta) => TriggerResult[];
   getMoodAnalysis: () => MoodAnalysis;
   updateStatus: () => void;
+  /** Learning journal stats for self-assessment */
+  getLearningStats?: () => { total: number; highConfidence: number; topCategories: Record<string, number> };
+  /** Skills for gap detection */
+  getSkillScores?: (taskDesc: string) => Array<{ skillName: string; totalScore: number }>;
 }
 
 // ─── Identity ─────────────────────────────────────────────────────────
@@ -193,7 +197,8 @@ export type IdentityEvent =
   | { type: 'autonomy_changed'; oldLevel: AutonomyLevel; newLevel: AutonomyLevel; reason: string }
   | { type: 'anomaly_detected'; description: string }
   | { type: 'meta_learning'; insight: string }
-  | { type: 'sentiment_shift'; from: UserSentiment; to: UserSentiment; frustrationLevel: number };
+  | { type: 'sentiment_shift'; from: UserSentiment; to: UserSentiment; frustrationLevel: number }
+  | { type: 'learning_recorded'; learningId: number; category: LearningCategory };
 
 export interface JarvisIdentity {
   name: string;
@@ -513,6 +518,7 @@ export interface SkillEntry {
   usageCount: number;
   errors: string[];
   path: string;                                    // absolute path to skill directory
+  effectiveness?: SkillEffectiveness;
 }
 
 export interface SkillRegistryData {
@@ -530,6 +536,113 @@ export interface SkillContext {
   getConfig: (key: string) => string | undefined;
   setConfig: (key: string, value: string) => void;
   log: (message: string) => void;
+}
+
+// ─── Learning System ─────────────────────────────────────────────────
+
+export type LearningCategory = 'tool_error' | 'framework_gotcha' | 'project_pattern' | 'user_correction';
+
+export interface LearningEntry {
+  id: number;
+  category: LearningCategory;
+  errorPattern: string;       // normalized error
+  solution: string;           // what worked
+  context: string;            // tool name + file extension + framework
+  confidence: number;         // 0.0-1.0, starts at 0.5
+  successCount: number;
+  failCount: number;
+  spiralNodeId?: string;      // link to L3+ spiral node
+  tags: string[];
+  createdAt: number;
+  lastUsedAt: number;
+}
+
+export interface LearningJournalData {
+  version: 1;
+  nextId: number;
+  entries: LearningEntry[];
+  lastDecayAt: number;
+}
+
+// ─── Skill Scoring ───────────────────────────────────────────────────
+
+export interface SkillScore {
+  skillName: string;
+  taskMatch: number;            // 0-1: keyword overlap with task
+  repetitionLikelihood: number; // 0-1: from LearningJournal patterns
+  outputImprovement: number;    // 0-1: historical effectiveness
+  buildCost: number;            // 0.1=active, 0.3=installed, 0.8=must build
+  totalScore: number;           // weighted combination
+}
+
+export interface SkillEffectiveness {
+  skillName: string;
+  timesUsed: number;
+  timesSuccessful: number;
+  avgQualityDelta: number;
+  lastUsedAt: number;
+}
+
+// ─── Multi-Agent Orchestration ───────────────────────────────────────
+
+export interface SubTask {
+  id: number;
+  title: string;
+  description: string;
+  systemPromptOverride?: string;  // focused prompt per agent
+  affectedFiles: string[];         // predicted files
+  dependencies: number[];          // other SubTask IDs
+  priority: JarvisTaskPriority;
+  sessionId?: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  result?: string;
+}
+
+export interface OrchestrationPlan {
+  originalRequest: string;
+  subTasks: SubTask[];
+  parallelGroups: number[][];     // [[1,2], [3]] = group 1 parallel, then 3
+  shouldOrchestrate: boolean;
+  reason: string;
+}
+
+// ─── Telemetry ───────────────────────────────────────────────────────
+
+export type PrivacyLevel = 0 | 1 | 2 | 3;
+// 0 = Off (default)
+// 1 = Minimal (tool usage counts, error type counts)
+// 2 = Moderate (+ anonymized learnings, skill effectiveness)
+// 3 = Full (+ detailed learnings with project type context)
+
+export interface TelemetryPayload {
+  installId: string;              // random UUID, no PII
+  privacyLevel: PrivacyLevel;
+  helixmindVersion: string;
+  nodeVersion: string;
+  os: string;
+  timestamp: number;
+  toolUsage?: Record<string, number>;        // L1+
+  errorPatterns?: Record<string, number>;    // L1+
+  learnings?: AnonymizedLearning[];          // L2+
+  skillEffectiveness?: SkillEffectiveness[]; // L2+
+  completionRates?: Record<string, number>;  // L3
+  agentOrchestrationPatterns?: OrchestrationPattern[]; // L3
+}
+
+export interface AnonymizedLearning {
+  category: LearningCategory;
+  errorPattern: string;     // normalized, no paths/names
+  solution: string;         // no code snippets
+  context: string;          // tool + extension only
+  confidence: number;
+  tags: string[];
+}
+
+export interface OrchestrationPattern {
+  subTaskCount: number;
+  parallelGroupCount: number;
+  successRate: number;
+  avgDurationMs: number;
 }
 
 // ─── Sentiment / Emotional Intelligence ──────────────────────────────

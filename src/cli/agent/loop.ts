@@ -317,14 +317,49 @@ export async function runAgentLoop(
             ? captureFileSnapshots(block.name, block.input, toolContext.projectRoot)
             : undefined;
 
+          // Check file locks for write operations
+          if (toolContext.lockFile && (block.name === 'write_file' || block.name === 'edit_file')) {
+            const filePath = block.input.path as string | undefined;
+            if (filePath && !toolContext.lockFile(filePath)) {
+              renderToolResult(block.name, 'File locked by another agent. Try a different file or wait.');
+              steps.push({ num: stepNum, tool: block.name, label: stepLabel, status: 'error', error: 'file locked' });
+              onStepEnd?.(stepNum, block.name, 'error', 'file locked');
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: 'File locked by another agent. Try a different file or wait.',
+                is_error: true,
+              });
+              continue;
+            }
+          }
+
           const tool = getTool(block.name);
           let result: string;
           let stepStatus: 'done' | 'error' = 'done';
           let stepError: string | undefined;
 
+          // Query learning journal for hints
+          let learningHintIds: number[] = [];
+          if (toolContext.learningJournal) {
+            const hints = toolContext.learningJournal.getPromptSection(block.name, block.input);
+            if (hints) {
+              learningHintIds = toolContext.learningJournal
+                .queryRelevant(block.name, block.input)
+                .map(e => e.id);
+            }
+          }
+
           if (tool) {
             try {
               result = await tool.execute(block.input, toolContext);
+
+              // Reinforce successful learnings that were relevant
+              if (toolContext.learningJournal && learningHintIds.length > 0) {
+                for (const hintId of learningHintIds) {
+                  toolContext.learningJournal.reinforceSuccess(hintId);
+                }
+              }
             } catch (err) {
               const errMsg = err instanceof Error ? err.message : String(err);
               result = `Error: ${errMsg}`;
@@ -333,11 +368,41 @@ export async function runAgentLoop(
               errors.push(`${block.name}: ${errMsg}`);
               consecutiveErrors++;
               sessionBuffer?.addToolError(block.name, errMsg);
+
+              // Track error for potential learning (error→success detection)
+              if (toolContext.learningJournal) {
+                (toolContext as any).__lastToolError = {
+                  toolName: block.name,
+                  error: errMsg,
+                  input: block.input,
+                };
+              }
             }
           } else {
             result = `Error: Unknown tool "${block.name}"`;
             stepStatus = 'error';
             stepError = `Unknown tool "${block.name}"`;
+          }
+
+          // Error→Success detection: if previous tool errored and this one succeeded on same tool type
+          if (stepStatus === 'done' && toolContext.learningJournal) {
+            const lastErr = (toolContext as any).__lastToolError;
+            if (lastErr && lastErr.toolName === block.name) {
+              toolContext.learningJournal.recordLearning(
+                lastErr.error,
+                `Succeeded with input: ${JSON.stringify(block.input).slice(0, 150)}`,
+                'tool_error',
+                `${block.name} ${(block.input.path as string || '').split('.').pop() || ''}`.trim(),
+                [block.name],
+              );
+              delete (toolContext as any).__lastToolError;
+            }
+          }
+
+          // Release file lock after write operation
+          if (toolContext.unlockFile && (block.name === 'write_file' || block.name === 'edit_file')) {
+            const filePath = block.input.path as string | undefined;
+            if (filePath) toolContext.unlockFile(filePath);
           }
 
           steps.push({ num: stepNum, tool: block.name, label: stepLabel, status: stepStatus, error: stepError });
