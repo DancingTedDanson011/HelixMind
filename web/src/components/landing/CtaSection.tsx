@@ -22,7 +22,7 @@ export function CtaSection() {
   }, []);
 
   const copyInstall = () => {
-    const cmd = hasCopiedOnce ? 'npm update -g helixmind' : 'npm install -g helixmind';
+    const cmd = 'npm install -g helixmind';
     navigator.clipboard.writeText(cmd);
     setCopied(true);
     if (!hasCopiedOnce) {

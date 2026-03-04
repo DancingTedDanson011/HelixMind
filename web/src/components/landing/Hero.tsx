@@ -38,7 +38,7 @@ export function Hero() {
     setHasCopiedOnce(localStorage.getItem(INSTALL_KEY) === 'true');
   }, []);
 
-  const installCommand = hasCopiedOnce ? t('updateCommand') : t('installCommand');
+  const installCommand = t('installCommand');
 
   const copyInstall = () => {
     navigator.clipboard.writeText(installCommand);
