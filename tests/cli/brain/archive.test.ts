@@ -122,7 +122,7 @@ describe('ZIP Import (merge)', () => {
     expect(beforeStatus.total_nodes).toBe(1);
 
     // Import with merge mode
-    const result = importFromZip(zipPath, targetEngine, 'merge');
+    const result = await importFromZip(zipPath, targetEngine, 'merge');
     expect(result.imported).toBe(2);
     expect(result.skipped).toBe(0);
 
@@ -137,7 +137,7 @@ describe('ZIP Import (merge)', () => {
 
     // Import same content
     await targetEngine.store('Shared code', 'code');
-    const result = importFromZip(zipPath, targetEngine, 'merge');
+    const result = await importFromZip(zipPath, targetEngine, 'merge');
     expect(result.skipped).toBe(1);
 
     const afterStatus = targetEngine.status();
@@ -180,7 +180,7 @@ describe('ZIP Import (replace)', () => {
     expect(targetEngine.status().total_nodes).toBe(3);
 
     // Import with replace mode
-    const result = importFromZip(zipPath, targetEngine, 'replace');
+    const result = await importFromZip(zipPath, targetEngine, 'replace');
     expect(result.imported).toBe(2);
     expect(result.cleared).toBe(3);
 

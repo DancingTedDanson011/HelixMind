@@ -1,5 +1,5 @@
 import { resolve, normalize, sep } from 'node:path';
-import { statSync, existsSync, mkdirSync } from 'node:fs';
+import { statSync, lstatSync, existsSync, mkdirSync } from 'node:fs';
 
 /** Maximum file size in bytes (10MB) */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -65,9 +65,9 @@ export function validatePathEx(requestedPath: string, projectRoot: string): Path
     }
   }
 
-  // Symlinks ALWAYS blocked
+  // Symlinks ALWAYS blocked (lstatSync does NOT follow symlinks, unlike statSync)
   try {
-    const stats = statSync(resolved);
+    const stats = lstatSync(resolved);
     if (stats.isSymbolicLink()) {
       throw new SecurityError(`Access denied: Symlinks are not allowed`);
     }
@@ -127,15 +127,16 @@ export function validatePath(requestedPath: string, projectRoot: string): string
     }
   }
 
-  // Check if path exists and is not a symlink (follow symlinks could bypass security)
+  // Check if path exists and is not a symlink (lstatSync does NOT follow symlinks)
   try {
-    const stats = statSync(resolved);
+    const stats = lstatSync(resolved);
     if (stats.isSymbolicLink()) {
       throw new SecurityError(`Access denied: Symlinks are not allowed`);
     }
   } catch (err) {
     // Path doesn't exist yet, that's fine for new files
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      if (err instanceof SecurityError) throw err;
       throw new SecurityError(`Access denied: Invalid path: ${requestedPath}`);
     }
   }
@@ -157,30 +158,39 @@ export function validatePath(requestedPath: string, projectRoot: string): string
  * Classify a shell command's danger level.
  */
 export function classifyCommand(cmd: string): 'safe' | 'ask' | 'dangerous' {
-  // Sanitize command: remove non-essential shell metacharacters (keep - and / for flags and paths)
-  const sanitized = cmd
-    .replace(/[^\w\s|;&<>()\-\/.]/g, '') // Keep hyphens, slashes, dots for flags/paths
-    .trim();
+  const trimmed = cmd.trim();
 
-  if (!sanitized || sanitized.length === 0) {
+  if (!trimmed || trimmed.length === 0) {
     throw new SecurityError('Command cannot be empty');
   }
 
-  // Check for command injection attempts
-  if (sanitized.length > 10000) {
+  if (trimmed.length > 10000) {
     throw new SecurityError('Command too long');
   }
 
-  // Check for blocked commands
-  if (isBlockedCommand(sanitized)) {
+  // Check for blocked commands on the ORIGINAL command (not sanitized)
+  if (isBlockedCommand(trimmed)) {
     throw new SecurityError('This command is blocked');
   }
 
-  // Check for dangerous patterns
-  if (DANGEROUS_PATTERNS.some(p => p.test(sanitized))) return 'dangerous';
+  // Detect shell metacharacter abuse (backticks, $(), encoded payloads)
+  if (/`[^`]+`/.test(trimmed) || /\$\([^)]+\)/.test(trimmed)) return 'dangerous';
+
+  // Check for dangerous patterns on the ORIGINAL command
+  if (DANGEROUS_PATTERNS.some(p => p.test(trimmed))) return 'dangerous';
+
+  // PowerShell-specific dangerous patterns (Windows)
+  if (/powershell|pwsh/i.test(trimmed)) return 'dangerous';
+  if (/Remove-Item\s.*-Recurse/i.test(trimmed)) return 'dangerous';
+  if (/Invoke-(WebRequest|Expression|RestMethod)/i.test(trimmed)) return 'dangerous';
+  if (/Set-ExecutionPolicy/i.test(trimmed)) return 'dangerous';
+
+  // Additional blocked system commands
+  if (/\b(mkfs|fdisk|shutdown|reboot)\b/.test(trimmed)) return 'dangerous';
+  if (/\btaskkill\s+\/f/i.test(trimmed)) return 'dangerous';
 
   // Check for potentially dangerous operations
-  if (/\brm\s/.test(sanitized) || /\bmv\s/.test(sanitized) || /\bgit\s+push/.test(sanitized)) return 'ask';
+  if (/\brm\s/.test(trimmed) || /\bmv\s/.test(trimmed) || /\bgit\s+push/.test(trimmed)) return 'ask';
 
   return 'safe';
 }

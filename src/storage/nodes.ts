@@ -27,6 +27,14 @@ interface NodeRow {
   accessed_at: number;
 }
 
+function safeParseJson(raw: string, fallback: Record<string, unknown> = {}): Record<string, unknown> {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
 function rowToNode(row: NodeRow): ContextNode {
   return {
     id: row.id,
@@ -36,7 +44,7 @@ function rowToNode(row: NodeRow): ContextNode {
     level: row.level as SpiralLevel,
     relevance_score: row.relevance_score,
     token_count: row.token_count,
-    metadata: JSON.parse(row.metadata) as NodeMetadata,
+    metadata: safeParseJson(row.metadata) as NodeMetadata,
     created_at: row.created_at,
     updated_at: row.updated_at,
     accessed_at: row.accessed_at,
@@ -109,6 +117,12 @@ export class NodeStore {
       UPDATE nodes SET content = ?, content_hash = ?, token_count = ?, metadata = ?, updated_at = ?, accessed_at = ?
       WHERE id = ?
     `).run(content, contentHash, tokenCount, JSON.stringify(metadata), now, now, id);
+  }
+
+  /** Check if a node exists without updating accessed_at (for internal lookups) */
+  exists(id: string): boolean {
+    const row = this.db.raw.prepare('SELECT 1 FROM nodes WHERE id = ? LIMIT 1').get(id);
+    return !!row;
   }
 
   getById(id: string): ContextNode | null {

@@ -226,7 +226,7 @@ export class PermissionManager {
     level: PermissionLevel,
     displayFn: (msg: string) => void,
   ): Promise<boolean> {
-    if (!this.rl) return true; // No readline = non-interactive, allow
+    if (!this.rl) return false; // No readline = non-interactive, deny for safety
 
     const defaultYes = level !== 'dangerous';
 

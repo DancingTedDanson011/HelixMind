@@ -141,8 +141,7 @@ export class SpiralEngine {
     let connectionCount = 0;
     if (relations) {
       for (const targetId of relations) {
-        const target = this.nodes.getById(targetId);
-        if (target) {
+        if (this.nodes.exists(targetId)) {
           this.edges.create({
             source_id: node.id,
             target_id: targetId,
@@ -341,13 +340,13 @@ export class SpiralEngine {
    * Import a node directly (for ZIP import). Returns store result.
    * Uses content hash for deduplication.
    */
-  importNode(input: {
+  async importNode(input: {
     type: ContextType;
     content: string;
     level?: SpiralLevel;
     relevanceScore?: number;
     metadata?: NodeMetadata;
-  }): SpiralStoreResult {
+  }): Promise<SpiralStoreResult> {
     const contentHash = createHash('sha256').update(input.content).digest('hex');
 
     // Dedup: skip if identical content already exists
@@ -371,6 +370,12 @@ export class SpiralEngine {
       content_hash: contentHash,
     });
 
+    // Generate and store embedding so imported nodes are findable via semantic search
+    const embedding = await this.embeddings.embed(input.content);
+    if (embedding) {
+      this.vectors.store(node.id, embedding);
+    }
+
     return {
       node_id: node.id,
       level: node.level,
@@ -381,17 +386,20 @@ export class SpiralEngine {
 
   /**
    * Clear all nodes and edges (for ZIP replace import).
+   * Handles both sqlite-vec (vec_nodes) and JS fallback (embeddings) tables.
    */
   clearAll(): void {
     this.db.raw.exec('DELETE FROM edges');
-    this.db.raw.exec('DELETE FROM vec_nodes');
+    try { this.db.raw.exec('DELETE FROM vec_nodes'); } catch { /* sqlite-vec table may not exist */ }
+    try { this.db.raw.exec('DELETE FROM embeddings'); } catch { /* fallback table may not exist */ }
     this.db.raw.exec('DELETE FROM nodes');
   }
 
   /**
-   * Shutdown: close database.
+   * Shutdown: dispose embedding model and close database.
    */
-  close(): void {
+  async close(): Promise<void> {
+    await this.embeddings.dispose();
     this.db.close();
   }
 }

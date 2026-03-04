@@ -54,6 +54,20 @@ export class EmbeddingService {
   }
 
   /**
+   * Dispose the embedding model to free memory (ONNX sessions, WASM buffers).
+   */
+  async dispose(): Promise<void> {
+    if (this.pipeline) {
+      try {
+        await (this.pipeline as any).dispose?.();
+      } catch { /* ignore disposal errors */ }
+      this.pipeline = null;
+      this._status = 'fallback';
+    }
+    this.loading = null;
+  }
+
+  /**
    * Generate embedding for a text string.
    * Returns null if embeddings are not available.
    */

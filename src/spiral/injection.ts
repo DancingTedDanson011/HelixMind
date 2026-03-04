@@ -42,11 +42,15 @@ export class InjectionEngine {
   ): Promise<InjectionResult> {
     const budget = allocateTokenBudget(maxTokens);
 
-    // Step 1: Find direct matches via semantic search
+    // Step 1: Find direct matches via semantic search (single search, reused for scoring)
     let candidateIds: string[] = [];
+    const simMap = new Map<string, number>();
     if (queryEmbedding) {
       const vecResults = this.vectors.search(queryEmbedding, 50);
       candidateIds = vecResults.map(r => r.node_id);
+      for (const r of vecResults) {
+        simMap.set(r.node_id, 1 - r.distance);
+      }
     }
 
     // If no embedding results, fall back to loading recent nodes
@@ -58,21 +62,14 @@ export class InjectionEngine {
     // Step 2: Get full node data
     const candidates = this.nodes.getByIds(candidateIds);
 
-    // Step 3: Score each candidate
-    // Build similarity lookup ONCE (not per-candidate)
-    const simMap = new Map<string, number>();
-    if (queryEmbedding) {
-      const vecResults = this.vectors.search(queryEmbedding, 50);
-      for (const r of vecResults) {
-        simMap.set(r.node_id, 1 - r.distance);
-      }
-    }
+    // Step 3: Score each candidate (use Set for O(1) lookup instead of Array.includes)
+    const candidateIdSet = new Set(candidateIds);
 
     const scored = candidates.map(node => {
       const semanticSim = simMap.get(node.id) ?? (queryEmbedding ? 0 : 0.5);
 
       const connectedIds = this.edges.getConnectedNodeIds(node.id);
-      const connectedInResult = connectedIds.filter(id => candidateIds.includes(id)).length;
+      const connectedInResult = connectedIds.filter(id => candidateIdSet.has(id)).length;
 
       const relevance = computeRelevance(semanticSim, node, connectedInResult, query);
 

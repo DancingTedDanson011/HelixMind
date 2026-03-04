@@ -176,6 +176,12 @@ export async function enrichFromWeb(
  */
 function filterRecentTopics(topics: DetectedTopic[]): DetectedTopic[] {
   const now = Date.now();
+  // Evict expired entries to prevent unbounded memory growth
+  for (const [key, timestamp] of recentSearches) {
+    if (now - timestamp >= SEARCH_COOLDOWN_MS) {
+      recentSearches.delete(key);
+    }
+  }
   return topics.filter(t => {
     const normalized = normalizeQuery(t.query);
     const lastSearch = recentSearches.get(normalized);

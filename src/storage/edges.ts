@@ -20,6 +20,14 @@ interface EdgeRow {
   created_at: number;
 }
 
+function safeParseJson(raw: string, fallback: Record<string, unknown> = {}): Record<string, unknown> {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
 function rowToEdge(row: EdgeRow): Edge {
   return {
     id: row.id,
@@ -27,7 +35,7 @@ function rowToEdge(row: EdgeRow): Edge {
     target_id: row.target_id,
     relation_type: row.relation_type as RelationType,
     weight: row.weight,
-    metadata: JSON.parse(row.metadata) as Record<string, unknown>,
+    metadata: safeParseJson(row.metadata),
     created_at: row.created_at,
   };
 }

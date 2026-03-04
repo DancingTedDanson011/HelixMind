@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { registerTool } from './registry.js';
 
 registerTool({
@@ -30,28 +30,28 @@ registerTool({
       const message = input.message as string;
       const files = input.files as string[] | undefined;
 
-      // Stage files
+      // Stage files (use execFileSync to prevent shell injection via file names)
       if (files && files.length > 0) {
         for (const file of files) {
-          execSync(`git add "${file}"`, { cwd: ctx.projectRoot });
+          execFileSync('git', ['add', '--', file], { cwd: ctx.projectRoot });
         }
       } else {
-        execSync('git add -A', { cwd: ctx.projectRoot });
+        execFileSync('git', ['add', '-A'], { cwd: ctx.projectRoot });
       }
 
       // Check if there's anything staged
-      const staged = execSync('git diff --cached --stat', { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
+      const staged = execFileSync('git', ['diff', '--cached', '--stat'], { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
       if (!staged) {
         return 'Nothing to commit (no staged changes).';
       }
 
-      // Commit
-      execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
+      // Commit (use execFileSync to prevent shell injection via commit message)
+      execFileSync('git', ['commit', '-m', message], {
         cwd: ctx.projectRoot,
         encoding: 'utf-8',
       });
 
-      const hash = execSync('git rev-parse --short HEAD', { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
+      const hash = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
       return `Committed: ${hash} — ${message}\n\n${staged}`;
     } catch (err) {
       return `Error: ${err}`;

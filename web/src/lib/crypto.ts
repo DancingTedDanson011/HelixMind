@@ -7,9 +7,14 @@ const AUTH_TAG_LENGTH = 16;
 function getSecret(): Buffer {
   const secret = process.env.LLM_KEY_SECRET;
   if (!secret || secret.length < 32) {
-    throw new Error('LLM_KEY_SECRET must be set (min 32 chars)');
+    throw new Error('LLM_KEY_SECRET must be set (min 32 chars). Generate with: openssl rand -hex 32');
   }
-  // Use first 32 bytes as key (256 bits)
+  // If the secret looks like a hex string (64 hex chars from `openssl rand -hex 32`), decode as hex
+  // Otherwise fall back to UTF-8 (for backward compatibility)
+  if (/^[0-9a-fA-F]{64}$/.test(secret)) {
+    return Buffer.from(secret, 'hex'); // Full 32 bytes (256 bits)
+  }
+  // Fallback: UTF-8 encoding (32 chars = 32 bytes for ASCII)
   return Buffer.from(secret.slice(0, 32), 'utf-8');
 }
 

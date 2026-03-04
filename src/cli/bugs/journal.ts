@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import type { BugEntry, BugEvidence, BugJournalData, BugStatus } from './types.js';
 
@@ -35,7 +35,10 @@ export class BugJournal {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
-    writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf-8');
+    // Atomic write: write to temp file, then rename (prevents corruption on crash)
+    const tmpPath = this.filePath + '.tmp';
+    writeFileSync(tmpPath, JSON.stringify(this.data, null, 2), 'utf-8');
+    renameSync(tmpPath, this.filePath);
   }
 
   create(description: string, opts?: {

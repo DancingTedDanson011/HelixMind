@@ -38,9 +38,17 @@ registerTool({
       const shell = isWindows ? 'cmd.exe' : '/bin/bash';
       const shellArgs = isWindows ? ['/c', command] : ['-c', command];
 
+      // Filter sensitive environment variables to prevent API key leakage in tool results
+      const safeEnv = { ...process.env };
+      for (const key of Object.keys(safeEnv)) {
+        if (/secret|token|password|api.?key|private.?key|credential/i.test(key)) {
+          delete safeEnv[key];
+        }
+      }
+
       const proc = spawn(shell, shellArgs, {
         cwd,
-        env: { ...process.env },
+        env: safeEnv,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
 
@@ -49,16 +57,23 @@ registerTool({
         resolve(`Command timed out after ${timeoutSec}s.\n\nPartial stdout:\n${stdout}\n\nPartial stderr:\n${stderr}`);
       }, timeoutSec * 1000);
 
+      // Cap buffer size to prevent OOM on commands with huge output
+      const MAX_BUFFER = 5 * 1024 * 1024; // 5MB
+
       proc.stdout.on('data', (data: Buffer) => {
         const text = data.toString();
-        stdout += text;
+        if (stdout.length < MAX_BUFFER) {
+          stdout += text.slice(0, MAX_BUFFER - stdout.length);
+        }
         // Stream to user's terminal
         process.stdout.write(text);
       });
 
       proc.stderr.on('data', (data: Buffer) => {
         const text = data.toString();
-        stderr += text;
+        if (stderr.length < MAX_BUFFER) {
+          stderr += text.slice(0, MAX_BUFFER - stderr.length);
+        }
         process.stderr.write(text);
       });
 

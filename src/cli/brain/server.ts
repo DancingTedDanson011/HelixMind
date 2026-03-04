@@ -136,12 +136,22 @@ async function ollamaPullStream(
   res.end();
 }
 
-/** Read body from an incoming request */
-function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve) => {
+/** Read body from an incoming request (with size limit to prevent OOM) */
+function readBody(req: IncomingMessage, maxBytes = 1024 * 1024): Promise<string> {
+  return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+    let size = 0;
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        req.destroy();
+        reject(new Error('Request body too large'));
+        return;
+      }
+      data += chunk.toString();
+    });
     req.on('end', () => resolve(data));
+    req.on('error', (err) => reject(err));
   });
 }
 
@@ -194,8 +204,9 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
       res.end(JSON.stringify(meta));
 
     } else if (url === '/api/token') {
-      // Full token — safe because server only listens on 127.0.0.1
-      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+      // Full token — NO CORS headers to prevent cross-origin theft from malicious websites
+      // Only the brain HTML page (same-origin) can access this endpoint
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ token: connectionToken }));
 
     } else if (url === '/api/token-hint') {
@@ -681,12 +692,21 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
         }
       }
 
+      // Connection limit to prevent resource exhaustion
+      const MAX_CONNECTIONS = 50;
+
       wss.on('connection', (ws) => {
+        // Reject if too many connections
+        if (brainClients.size + controlClients.size >= MAX_CONNECTIONS) {
+          ws.close(4002, 'Too many connections');
+          return;
+        }
+
         let authenticated = false;
         let authTimeout: ReturnType<typeof setTimeout> | null = null;
 
         // Give client time to authenticate; if no auth message arrives,
-        // treat as legacy brain client (backward-compatible)
+        // treat as legacy brain client (backward-compatible, read-only)
         authTimeout = setTimeout(() => {
           if (!authenticated) {
             brainClients.add(ws);
@@ -744,7 +764,13 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
               return;
             }
 
-            // Legacy brain messages (voice, scope, model)
+            // All action messages require authentication to prevent CORS-based attacks
+            if (!authenticated) {
+              sendTo(ws, { type: 'error', message: 'Authentication required', timestamp: Date.now() });
+              return;
+            }
+
+            // Legacy brain messages (voice, scope, model) — NOW REQUIRE AUTH
             if (msg.type === 'voice_input' && typeof msg.text === 'string' && voiceHandler) {
               voiceHandler(msg.text);
             }
@@ -756,7 +782,7 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             }
             if (msg.type === 'start_ollama') {
               try {
-                const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore', shell: true });
+                const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
                 child.unref();
                 sendTo(ws, { type: 'ollama_starting', timestamp: Date.now() });
               } catch { /* ignore spawn errors */ }

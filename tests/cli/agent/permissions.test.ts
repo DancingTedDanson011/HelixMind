@@ -22,11 +22,13 @@ describe('PermissionManager', () => {
     expect(await pm.check('git_commit', { message: 'test' }, () => {})).toBe(true);
   });
 
-  it('should auto-allow non-interactive without readline', async () => {
+  it('should deny non-interactive without readline for safety', async () => {
     const pm = new PermissionManager();
-    // No readline = non-interactive = auto-allow all
-    expect(await pm.check('edit_file', { path: 'test.ts' }, () => {})).toBe(true);
-    expect(await pm.check('run_command', { command: 'npm test' }, () => {})).toBe(true);
+    // No readline = non-interactive = deny write/execute for safety
+    expect(await pm.check('edit_file', { path: 'test.ts' }, () => {})).toBe(false);
+    expect(await pm.check('run_command', { command: 'npm test' }, () => {})).toBe(false);
+    // Read-only tools should still be auto-allowed
+    expect(await pm.check('read_file', { path: 'test.ts' }, () => {})).toBe(true);
   });
 
   it('should track YOLO mode', () => {

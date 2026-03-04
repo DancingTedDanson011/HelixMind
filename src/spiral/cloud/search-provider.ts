@@ -123,15 +123,19 @@ export async function fetchPageContent(
   maxLength: number = 8000,
   signal?: AbortSignal,
 ): Promise<string | null> {
+  // Create a timeout controller if no external signal was provided
+  const ownController = signal ? undefined : new AbortController();
+  const effectiveSignal = signal ?? ownController?.signal;
+  const timeout = ownController ? setTimeout(() => ownController.abort(), 10_000) : undefined;
+
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'User-Agent': 'HelixMind/0.1 (AI Coding Assistant)',
+        'User-Agent': 'HelixMind/0.3 (AI Coding Assistant)',
         'Accept': 'text/html',
       },
-      signal,
-      // 10 second timeout via AbortController if no signal provided
+      signal: effectiveSignal,
     });
 
     if (!response.ok) return null;
@@ -154,6 +158,8 @@ export async function fetchPageContent(
       console.error('[fetchPageContent] Error:', err instanceof Error ? err.message : String(err));
     }
     return null;
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 }
 

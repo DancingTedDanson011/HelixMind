@@ -21,7 +21,16 @@ export async function GET(req: Request, { params }: Params) {
 
     const user = await prisma.user.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        locale: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true,
+        // Explicitly exclude passwordHash
         subscription: true,
         apiKeys: isSupport
           ? { where: { revokedAt: null }, select: { id: true, name: true, createdAt: true } }
@@ -90,7 +99,17 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const updated = await prisma.user.findUnique({
       where: { id },
-      include: { subscription: { select: { plan: true, status: true } } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        locale: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true,
+        subscription: { select: { plan: true, status: true } },
+      },
     });
 
     return NextResponse.json(updated);

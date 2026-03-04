@@ -1112,6 +1112,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         sendChat: (text, chatId, mode, files) => {
           const effectiveChatId = chatId || `web-${Date.now()}`;
 
+          // Show incoming web message in the CLI terminal so the user
+          // can see what was sent from the web app.
+          renderInfo(`[Web] ${text.length > 120 ? text.slice(0, 120) + '…' : text}`);
+
           // Write uploaded files to .helixmind/uploads/ and append references to text
           let enrichedText = text;
           if (files && files.length > 0) {

@@ -192,9 +192,18 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   // CLI execution state (only when user confirms prompt execution)
   const [cliExecuting, setCliExecuting] = useState(false);
 
-  // Chat ALWAYS uses brainstorm; CLI only for on-demand execution
-  const isAgentRunning = brainstormChat.state.isProcessing || cliExecuting;
-  const streamingContent = brainstormChat.state.streamingText || (cliExecuting ? cliChat.state.streamingText : '');
+  // Sync cliExecuting with the chat hook so incoming chat_started events
+  // (e.g. CLI sends response without a local sendMessage call) also show the streaming UI.
+  useEffect(() => {
+    if (cliChat.state.isProcessing && !cliExecuting) {
+      setCliExecuting(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cliChat.state.isProcessing]);
+
+  // isAgentRunning covers both brainstorm and CLI (local send + incoming events)
+  const isAgentRunning = brainstormChat.state.isProcessing || cliExecuting || cliChat.state.isProcessing;
+  const streamingContent = brainstormChat.state.streamingText || ((cliExecuting || cliChat.state.isProcessing) ? cliChat.state.streamingText : '');
 
   // CLI output — subscribe to console OR jarvis session depending on active tab
   const jNameEarly = connection.jarvisStatus?.jarvisName;

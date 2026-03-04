@@ -68,13 +68,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Maximum 5 concurrent instances' }, { status: 429 });
     }
 
+    // Validate directory path doesn't contain shell metacharacters
+    if (/[;&|`$(){}]/.test(directory)) {
+      return NextResponse.json({ error: 'Invalid directory path' }, { status: 400 });
+    }
+
     // Spawn helixmind CLI as detached process with brain server enabled
+    // NO shell:true — prevents command injection via directory path
+    // Only pass safe env vars — exclude secrets
+    const safeEnv: Record<string, string> = {};
+    const allowedEnvKeys = ['PATH', 'HOME', 'USER', 'LANG', 'NODE_ENV', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'SystemRoot', 'TEMP', 'TMP'];
+    for (const key of allowedEnvKeys) {
+      if (process.env[key]) safeEnv[key] = process.env[key]!;
+    }
+
     const child = spawn('npx', ['helixmind', 'chat', '--brain'], {
       cwd: directory,
       detached: true,
       stdio: 'ignore',
-      shell: true,
-      env: { ...process.env },
+      env: safeEnv,
     });
 
     if (!child.pid) {

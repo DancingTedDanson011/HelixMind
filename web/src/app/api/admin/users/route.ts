@@ -30,7 +30,16 @@ export async function GET(req: Request) {
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          locale: true,
+          image: true,
+          createdAt: true,
+          updatedAt: true,
+          // Explicitly exclude passwordHash
           subscription: { select: { plan: true, status: true } },
           _count: { select: { tickets: true } },
         },

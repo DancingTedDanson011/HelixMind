@@ -69,11 +69,11 @@ export function exportToZip(
 /**
  * Import spiral data from a ZIP archive.
  */
-export function importFromZip(
+export async function importFromZip(
   zipPath: string,
   engine: SpiralEngine,
   mode: 'merge' | 'replace',
-): ImportResult {
+): Promise<ImportResult> {
   const validation = validateArchive(zipPath);
   if (!validation.valid) {
     return { imported: 0, skipped: 0, cleared: 0, errors: validation.errors };
@@ -114,7 +114,7 @@ export function importFromZip(
         continue;
       }
 
-      const result = engine.importNode({
+      const result = await engine.importNode({
         type: node.type,
         content: node.content,
         level: node.level,

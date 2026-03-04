@@ -57,7 +57,7 @@ export async function importCommand(
 
   try {
     const mode = options?.replace ? 'replace' : 'merge';
-    const result = importFromZip(filePath, engine, mode);
+    const result = await importFromZip(filePath, engine, mode);
 
     if (result.errors.length > 0) {
       renderError('Import completed with errors:');
