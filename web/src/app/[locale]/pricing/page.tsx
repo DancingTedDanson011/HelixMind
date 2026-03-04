@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Check } from 'lucide-react';
+import { Check, Info } from 'lucide-react';
 
 const mainTierKeys = ['free', 'freePlus', 'pro', 'team'] as const;
 type PaidTier = 'pro' | 'team';
@@ -52,6 +52,12 @@ export default function PricingPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">{t('title')}</h1>
           <p className="text-gray-400 text-lg mb-8">{t('subtitle')}</p>
+
+          {/* Glossary hint */}
+          <div className="flex items-start gap-2 max-w-xl mx-auto mb-6 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] text-left">
+            <Info size={14} className="text-primary mt-0.5 shrink-0" />
+            <p className="text-xs text-gray-500 leading-relaxed">{t('glossary')}</p>
+          </div>
 
           {/* Yearly/Monthly toggle */}
           <div className="inline-flex items-center gap-3 glass rounded-xl p-1.5">

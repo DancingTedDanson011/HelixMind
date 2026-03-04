@@ -2,33 +2,33 @@
 
 import { useTranslations } from 'next-intl';
 import { motion, useInView } from 'framer-motion';
-import { Sparkles, Terminal, Shield, ArrowRight } from 'lucide-react';
+import { Sparkles, Terminal, Shield, ArrowRight, Copy, Check, Download } from 'lucide-react';
 import { Link } from '@/i18n/routing';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 // ─── Mode Definitions ─────────────────────────────────────────
 
 const modes = [
   {
-    key: 'jarvis',
-    index: '01',
-    icon: Sparkles,
-    color: '#ff00ff',
-    shadowColor: 'rgba(255,0,255,0.15)',
-    glowColor: 'rgba(255,0,255,0.06)',
-    borderColor: '#ff00ff',
-    docsHref: '/docs/jarvis',
-    flip: false,
-  },
-  {
     key: 'agent',
-    index: '02',
+    index: '01',
     icon: Terminal,
     color: '#00d4ff',
     shadowColor: 'rgba(0,212,255,0.15)',
     glowColor: 'rgba(0,212,255,0.06)',
     borderColor: '#00d4ff',
     docsHref: '/docs/agent-tools',
+    flip: false,
+  },
+  {
+    key: 'jarvis',
+    index: '02',
+    icon: Sparkles,
+    color: '#ff00ff',
+    shadowColor: 'rgba(255,0,255,0.15)',
+    glowColor: 'rgba(255,0,255,0.06)',
+    borderColor: '#ff00ff',
+    docsHref: '/docs/jarvis',
     flip: true,
   },
   {
@@ -334,6 +334,61 @@ function ModeRow({ mode, index, t }: ModeRowProps) {
   );
 }
 
+// ─── Install CTA (below modes) ────────────────────────────────
+
+function InstallCta({ t }: { t: (key: string) => string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = () => {
+    navigator.clipboard.writeText('npm install -g helixmind');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-20">
+      <motion.div
+        className="flex flex-col items-center text-center gap-6"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-[0.2em]">
+          <Download size={14} className="text-primary" />
+          {t('installLabel')}
+        </div>
+
+        <h3 className="text-2xl sm:text-3xl font-bold text-white max-w-xl">
+          {t('installTitle')}
+        </h3>
+
+        <p className="text-gray-400 text-sm sm:text-base max-w-lg leading-relaxed">
+          {t('installDesc')}
+        </p>
+
+        {/* npm command + copy */}
+        <button
+          onClick={copy}
+          className="group relative flex items-center gap-3 rounded-xl px-6 py-3.5 font-mono text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] bg-white/[0.04] border border-white/[0.08] hover:border-primary/30 hover:bg-primary/[0.04]"
+        >
+          <span className="text-primary font-bold">$</span>
+          <span className="text-gray-200">npm install -g helixmind</span>
+          {copied ? (
+            <Check size={15} className="text-success" />
+          ) : (
+            <Copy size={15} className="text-gray-500 group-hover:text-primary transition-colors" />
+          )}
+        </button>
+
+        <p className="text-xs text-gray-600">
+          {t('installNote')}
+        </p>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Main Section ─────────────────────────────────────────────
 
 export function ModesShowcase() {
@@ -388,6 +443,9 @@ export function ModesShowcase() {
       {modes.map((mode, i) => (
         <ModeRow key={mode.key} mode={mode} index={i} t={t} />
       ))}
+
+      {/* Install CTA */}
+      <InstallCta t={t} />
 
       {/* Bottom fade */}
       <div className="h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />

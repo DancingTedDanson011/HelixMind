@@ -20,14 +20,14 @@
     "badge": "Open Source AI Coding CLI",
     "title": "Deine KI denkt.",
     "titleHighlight": "Erinnert sich. Handelt.",
-    "subtitle": "Drei Modi. Ein CLI. Jarvis plant autonom, der Coding Agent baut mit 22 Tools, und der Sicherheits-Monitor schützt dein Projekt 24/7. Alles angetrieben von Spiral Memory, das nie vergisst.",
+    "subtitle": "Ein Terminal-AI-Coding-Agent, den du via npm installierst und lokal ausführst. Drei Modi, 22 Tools und Spiral Memory, das sich dein gesamtes Projekt über jede Session hinweg merkt.",
     "modeJarvis": "Jarvis",
     "modeAgent": "Coding Agent",
     "modeMonitor": "Sicherheits-Monitor",
     "cta": "App installieren",
     "ctaUpdate": "App aktualisieren",
     "ctaInstall": "App installieren",
-    "ctaOpen": "Dashboard öffnen",
+    "ctaOpen": "App öffnen",
     "ctaFallback": "Install-Befehl kopieren",
     "ctaSecondary": "In Aktion sehen",
     "installCommand": "npm install -g helixmind",
@@ -79,13 +79,17 @@
     }
   },
   "modes": {
-    "sectionLabel": "Drei Superkräfte",
-    "title": "Ein Tool. Drei Superkräfte.",
-    "subtitle": "Wechsle zwischen Modi oder lass sie gleichzeitig laufen. Jeder Modus greift auf dasselbe Spiral Memory zu.",
+    "sectionLabel": "Eine CLI, drei Modi",
+    "title": "Eine CLI. Drei Superkräfte.",
+    "subtitle": "Installiere mit npm, tippe `hx` in deinem Terminal. Wechsle zwischen Modi oder lass sie gleichzeitig laufen. Alle angetrieben vom selben Spiral Memory.",
+    "installLabel": "Jetzt starten",
+    "installTitle": "Installiere die CLI. Code smarter.",
+    "installDesc": "HelixMind ist ein Terminal-CLI-Tool. Installiere es global mit npm, dann tippe `hx` in einem beliebigen Projektverzeichnis, um deinen AI-Agenten zu starten.",
+    "installNote": "Erfordert Node.js 18+ \u00b7 Funktioniert auf macOS, Linux und Windows",
     "jarvis": {
       "tab": "Jarvis",
-      "title": "Autonome Intelligenz, die vorausdenkt",
-      "desc": "Jarvis läuft im Hintergrund. Plant, analysiert und bearbeitet Aufgaben aus deiner Queue. Mehrstufige Denkzyklen reichen von schnellen Checks bis zu tiefem Reasoning. Vorschläge brauchen deine Zustimmung vor kritischen Änderungen.",
+      "title": "Autonome AI, die arbeitet während du es nicht tust.",
+      "desc": "Jarvis erledigt Hintergrund-Tasks in deinem Terminal — plant, analysiert und arbeitet eine Task-Queue ab. Mehrstufige Denkzyklen reichen von schnellen Checks bis zu Deep Reasoning. Vorschläge brauchen deine Zustimmung. Denk an einen unermüdlichen Junior-Dev, der nie schläft.",
       "demo1": "Quick Check: Projekt-Health 72/100",
       "demo2": "Medium Analyse: 3 Beobachtungen ausstehend...",
       "demo3": "VORSCHLAG: refactor | auth/login.ts braucht Error-Handling",
@@ -94,8 +98,8 @@
     },
     "agent": {
       "tab": "Coding Agent",
-      "title": "22 Tools. Terminal oder Browser. Schneller liefern.",
-      "desc": "Installiere die CLI und tippe `hx`. Oder nutze die Web-Konsole. Gleiche 22 Tools, gleiches Spiral Memory, gleiche Power. Der Agent liest Dateien, schreibt Code, führt Tests aus und committet. Ob du im Terminal lebst oder ein Browser-Dashboard bevorzugst, HelixMind trifft dich wo du arbeitest.",
+      "title": "Dein AI-Coding-Partner im Terminal.",
+      "desc": "Tippe `hx` in deinem Projekt und fang an zu reden. Der Agent liest Dateien, schreibt Code, führt Tests aus, durchsucht deine Codebase und committet — alles mit 22 eingebauten Tools. Spiral Memory heißt: er kennt dein Projekt schon von der letzten Session. Kein Neuerklären.",
       "demo1": "Fix den Auth-Middleware-Bug",
       "demo2": "read_file auth/middleware.ts",
       "demo3": "spiral_query \"auth middleware patterns\"",
@@ -104,8 +108,8 @@
     },
     "monitor": {
       "tab": "Sicherheits-Monitor",
-      "title": "Autonomer Wächter für deine Codebase",
-      "desc": "Passiv, defensiv oder aktiv: wähle dein Schutzniveau. Der Monitor scannt nach Schwachstellen, blockt Bedrohungen, rotiert exponierte Secrets und alarmiert dich mit nach Schwere geordneten Findings.",
+      "title": "24/7-Sicherheitsscanner für deinen Code.",
+      "desc": "Der Monitor läuft im Hintergrund und scannt nach hardcodierten Secrets, SQL-Injection, XSS, fehlenden CSRF-Tokens und veralteten Dependencies. Findings werden nach Schweregrad geordnet und erscheinen in Echtzeit. Wähle passiv (nur Alarme), defensiv oder aktiv.",
       "demo1": "Hardcodierter API-Key in config.ts:14",
       "demo2": "SQL-Injection-Risiko im Search-Handler",
       "demo3": "Fehlendes CSRF-Token am Formular-Endpunkt",
@@ -223,10 +227,10 @@
       ],
       "docsLink": "/docs/security-monitor"
     },
-    "pageTitle": "Alles unter der Haube",
-    "pageSubtitle": "22 Tools, persistenter Speicher, 3D-Visualisierung, Multi-Session Agents, Offline-Modus und mehr.",
-    "modesTitle": "Drei Modi. Ein CLI.",
-    "modesSubtitle": "HelixMind vereint drei KI-Modi in einem einzigen Tool.",
+    "pageTitle": "Alles, was dein AI-Coding-Agent kann",
+    "pageSubtitle": "Installiere die CLI, tippe `hx` und erhalte 22 Tools, persistenten Speicher, 3D-Visualisierung, Multi-Session Agents, Offline-Modus und mehr.",
+    "modesTitle": "Drei Modi. Ein CLI-Tool.",
+    "modesSubtitle": "Alle Modi laufen in der `hx` CLI. Das optionale Web-Dashboard dient zur Visualisierung und Verwaltung.",
     "moreTitle": "Und noch mehr",
     "viewDocs": "Docs ansehen",
     "viewPricing": "Preise ansehen",
@@ -258,19 +262,19 @@
       }
     },
     "modeCards": {
-      "jarvis": {
-        "title": "Jarvis",
-        "desc": "Autonomer Assistent. Plant, analysiert und bearbeitet Aufgaben aus einer Queue. Mehrstufiges Denken mit Genehmigungs-Workflow.",
-        "link": "/docs/jarvis"
-      },
       "agent": {
         "title": "Coding Agent",
-        "desc": "22 Tools zum Lesen, Schreiben, Testen und Committen von Code. Terminal oder Browser. Persistenter Spiral Memory.",
+        "desc": "Tippe `hx` und chatte. 22 Tools zum Lesen, Schreiben, Testen und Committen. Das Spiral Memory deines Projekts überträgt sich zwischen Sessions.",
         "link": "/docs/agent-tools"
+      },
+      "jarvis": {
+        "title": "Jarvis",
+        "desc": "Autonomer Hintergrund-Worker. Plant, analysiert und arbeitet Tasks aus einer Queue ab. Vorschläge brauchen deine Genehmigung.",
+        "link": "/docs/jarvis"
       },
       "monitor": {
         "title": "Sicherheits-Monitor",
-        "desc": "Autonomer Wächter. Scannt nach Schwachstellen, blockt Bedrohungen, rotiert Secrets. Passiv, defensiv oder aktiv.",
+        "desc": "24/7-Code-Scanner. Findet hardcodierte Secrets, SQL-Injection, XSS, veraltete Deps. Passiv, defensiv oder aktiver Modus.",
         "link": "/docs/security-monitor"
       }
     }
@@ -314,14 +318,15 @@
     "mostPopular": "Beliebteste Wahl",
     "sectionLabel": "Preise",
     "yearlyBilled": "${amount}/Jahr, jährlich abgerechnet",
+    "glossary": "Ein Brain ist das Spiral Memory deines Projekts — es speichert Code-Kontext, Patterns und Web-Wissen. Jarvis-Instanzen sind Hintergrund-AI-Worker, die Aufgaben autonom erledigen.",
     "free": {
       "name": "Open Source",
       "price": "0",
-      "desc": "Vollständiger CLI-Agent, unbegrenzt lokal nutzbar.",
+      "desc": "Der vollständige CLI-Agent. Keine Limits bei lokaler Nutzung.",
       "features": [
-        "Vollständiger KI-Agent mit 22 Tools",
-        "Spiral Memory (1 lokales Brain)",
-        "Alle Provider (Anthropic, OpenAI, Ollama)",
+        "Vollständiger AI-Agent mit 22 Tools",
+        "Spiral Memory (1 Projekt-Brain)",
+        "Alle LLM-Provider (Anthropic, OpenAI, Ollama)",
         "Web Knowledge Enricher",
         "Bug Journal + Browser Control",
         "Community-Support"
@@ -330,28 +335,28 @@
     "freePlus": {
       "name": "Free+",
       "price": "0",
-      "desc": "Login für Jarvis + Brain Management.",
+      "desc": "Schalte Jarvis-Autonomie frei und verwalte mehrere Projekte.",
       "features": [
         "Alles aus Open Source",
-        "Jarvis (1 Instanz)",
+        "1 Jarvis-Hintergrund-Worker",
         "Basis Validation Matrix",
-        "3 Brains (1 global + 2 lokal)",
-        "3D Brain Management UI",
-        "Live Brain WebSocket"
+        "3 Projekt-Brains (1 global + 2 lokal)",
+        "3D Brain Visualisierungs-UI",
+        "Live Brain WebSocket-Updates"
       ]
     },
     "pro": {
       "name": "Pro",
       "price": "19",
       "yearlyPrice": "190",
-      "desc": "Power-User mit Cloud-Sync und Deep Thinking.",
+      "desc": "Für Power-User: Cloud-Backup, Deep Thinking, volle Validierung.",
       "features": [
         "Alles aus Free+",
-        "Jarvis (3 Instanzen)",
-        "Jarvis Deep Thinking + Scheduling",
-        "Volle Validation Matrix + Monitor",
-        "15 Brains (5 global + 10 lokal)",
-        "Cloud Brain Sync",
+        "3 Jarvis-Hintergrund-Worker",
+        "Jarvis Deep Thinking + Task-Scheduling",
+        "Volle Validation Matrix + Sicherheits-Monitor",
+        "15 Projekt-Brains (5 global + 10 lokal)",
+        "Cloud Brain Sync & Backup",
         "Priority Support"
       ]
     },
@@ -359,19 +364,19 @@
       "name": "Team",
       "price": "39",
       "yearlyPrice": "390",
-      "desc": "Geteilte Brains, unbegrenzter Jarvis.",
+      "desc": "Für Dev-Teams: geteiltes Memory, unbegrenzte Worker.",
       "features": [
         "Alles aus Pro",
-        "Unbegrenzter Jarvis + Parallele Ausführung",
-        "Geteilter Team-Brain-Pool",
-        "Unbegrenzte Brains",
+        "Unbegrenzte Jarvis-Worker + parallele Ausführung",
+        "Geteilter Team-Brain-Pool über alle Mitglieder",
+        "Unbegrenzte Projekt-Brains",
         "Team-Analytics-Dashboard",
-        "Team-Rollen (Owner/Admin/Member/Viewer)"
+        "Team-Rollen (Owner / Admin / Member / Viewer)"
       ]
     },
     "enterprise": {
       "name": "Enterprise",
-      "desc": "Volle API, Self-Hosted, alles inklusive.",
+      "desc": "Self-Hosted, voller API-Zugang, dedizierter Support.",
       "features": [
         "Alles aus Team",
         "Volle Brain API (REST + WebSocket)",

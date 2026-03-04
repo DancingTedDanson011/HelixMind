@@ -28,7 +28,7 @@ import { colors } from '@/lib/constants';
 
 // ── Mode cards (3 modes) ──────────────────────────────────────
 
-const modeKeys = ['jarvis', 'agent', 'monitor'] as const;
+const modeKeys = ['agent', 'jarvis', 'monitor'] as const;
 const modeIcons = { jarvis: Bot, agent: Terminal, monitor: Shield };
 const modeColors = { jarvis: '#ffaa00', agent: '#00d4ff', monitor: '#ff4444' };
 

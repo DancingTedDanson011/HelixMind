@@ -119,13 +119,13 @@ export function Hero() {
 
         {/* Mode Pills */}
         <motion.div variants={stagger.item} className="flex justify-center gap-2 sm:gap-3 mb-10 flex-wrap">
-          <a href="#modes" className="inline-flex items-center gap-1.5 rounded-full border border-[#ff00ff]/30 bg-[#ff00ff]/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#ff00ff] hover:bg-[#ff00ff]/[0.12] hover:shadow-[0_0_16px_rgba(255,0,255,0.15)] transition-all duration-300">
-            <Sparkles size={12} />
-            {t('modeJarvis')}
-          </a>
           <a href="#modes" className="inline-flex items-center gap-1.5 rounded-full border border-[#00d4ff]/30 bg-[#00d4ff]/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#00d4ff] hover:bg-[#00d4ff]/[0.12] hover:shadow-[0_0_16px_rgba(0,212,255,0.15)] transition-all duration-300">
             <Terminal size={12} />
             {t('modeAgent')}
+          </a>
+          <a href="#modes" className="inline-flex items-center gap-1.5 rounded-full border border-[#ff00ff]/30 bg-[#ff00ff]/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#ff00ff] hover:bg-[#ff00ff]/[0.12] hover:shadow-[0_0_16px_rgba(255,0,255,0.15)] transition-all duration-300">
+            <Sparkles size={12} />
+            {t('modeJarvis')}
           </a>
           <a href="#modes" className="inline-flex items-center gap-1.5 rounded-full border border-[#ff4444]/30 bg-[#ff4444]/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#ff4444] hover:bg-[#ff4444]/[0.12] hover:shadow-[0_0_16px_rgba(255,68,68,0.15)] transition-all duration-300">
             <Shield size={12} />
