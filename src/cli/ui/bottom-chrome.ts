@@ -339,6 +339,15 @@ export class BottomChrome {
         process.nextTick(() => {
           self._redrawScheduled = false;
           if (self._active) {
+            // Force full redraw: Windows Terminal / ConPTY may ignore DECSTBM
+            // scroll regions, causing newlines in the scroll area to scroll the
+            // chrome off-screen. Clear prev-content so the dirty check always
+            // triggers a repaint. Coalescence via _redrawScheduled keeps this
+            // to one repaint per event-loop tick.
+            self._prevRowContent = ['', '', '', ''];
+            for (let i = 0; i < self._prevSuggestionContent.length; i++) {
+              self._prevSuggestionContent[i] = '';
+            }
             self.redraw();
           }
         });
