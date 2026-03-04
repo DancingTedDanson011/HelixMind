@@ -369,6 +369,13 @@ const demoComponents: Record<FeatureKey, () => React.ReactElement> = {
 export function FeatureModal({ feature, onClose }: FeatureModalProps) {
   const t = useTranslations('features');
 
+  // Keep last valid feature so content stays rendered during exit animation
+  const [lastFeature, setLastFeature] = useState<FeatureKey | null>(null);
+  useEffect(() => {
+    if (feature) setLastFeature(feature);
+  }, [feature]);
+  const renderFeature = feature ?? lastFeature;
+
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -387,32 +394,32 @@ export function FeatureModal({ feature, onClose }: FeatureModalProps) {
     };
   }, [feature, handleEscape]);
 
-  // Compute outside JSX so AnimatePresence children are clean
-  const config = feature ? featureConfig[feature] : null;
+  // Use renderFeature (last valid) so content doesn't flash empty during exit
+  const config = renderFeature ? featureConfig[renderFeature] : null;
   const Icon = config?.icon ?? Brain;
-  const Demo = feature ? demoComponents[feature] : null;
+  const Demo = renderFeature ? demoComponents[renderFeature] : null;
   const capabilities: string[] = [];
-  if (feature) {
+  if (renderFeature) {
     for (let i = 0; i < 4; i++) {
       try {
-        capabilities.push(t(`${feature}.capabilities.${i}`));
+        capabilities.push(t(`${renderFeature}.capabilities.${i}`));
       } catch {
         break;
       }
     }
   }
-  const docsLink = feature ? t(`${feature}.docsLink`) : '/docs';
+  const docsLink = renderFeature ? t(`${renderFeature}.docsLink`) : '/docs';
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {feature && config && (
         <motion.div
-          key="feature-overlay"
+          key={feature}
           className="fixed inset-0 z-[9990]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
+          transition={{ duration: 0.2 }}
         >
           {/* Backdrop */}
           <div
@@ -424,10 +431,10 @@ export function FeatureModal({ feature, onClose }: FeatureModalProps) {
           <div className="absolute inset-0 z-[1] flex items-center justify-center p-4 sm:p-8">
             <motion.div
               className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#0d0f14]/95 backdrop-blur-xl shadow-2xl shadow-black/60"
-              initial={{ scale: 0.8, y: 60, filter: 'blur(12px)' }}
-              animate={{ scale: 1, y: 0, filter: 'blur(0px)' }}
-              exit={{ scale: 0.9, y: 30, filter: 'blur(8px)' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              initial={{ scale: 0.85, y: 40, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
               onClick={(e) => e.stopPropagation()}
             >
                 {/* Close button */}
