@@ -386,6 +386,33 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
       return;
     }
 
+    // Relay-mode: batch of connected CLI instances sent on auth
+    if (msg.type === 'cli_instances') {
+      const list = msg.instances as Array<{ instanceId: string; meta: InstanceMeta | null }>;
+      if (mountedRef.current && Array.isArray(list) && list.length > 0) {
+        // Use first instance with meta, or fall back to first entry
+        const best = list.find((i) => i.meta !== null) ?? list[0];
+        if (best?.meta) setInstanceMeta(best.meta);
+      }
+      return;
+    }
+
+    // Relay-mode: new CLI instance connected — refresh sessions
+    if (msg.type === 'cli_connected') {
+      if (mountedRef.current) {
+        syncSessions();
+      }
+      return;
+    }
+
+    // Relay-mode: CLI instance disconnected — clear state if no more instances
+    if (msg.type === 'cli_disconnected') {
+      if (mountedRef.current) {
+        syncSessions();
+      }
+      return;
+    }
+
     if (msg.type === 'findings_push') {
       const pushed = msg.findings as Finding[];
       if (mountedRef.current && Array.isArray(pushed)) {

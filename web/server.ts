@@ -230,21 +230,42 @@ app.prepare().then(() => {
           if (conn) conn.meta = msg.instance;
         }
 
-        // SECURITY: Only forward whitelisted message types from CLI to browsers
-        const ALLOWED_CLI_MSG_TYPES = new Set([
-          'instance_meta', 'brain_event', 'session_event', 'output',
-          'finding', 'control_response', 'session_update',
-          'session_created', 'session_removed', 'identity_changed',
-          'output_line', 'chat_text_chunk', 'chat_tool_start',
-          'chat_tool_end', 'chat_complete', 'jarvis_status',
-          'proposal', 'neuron_fired',
-        ]);
-        if (msg.type && ALLOWED_CLI_MSG_TYPES.has(msg.type)) {
+        // SECURITY: Forward control responses (have requestId) unconditionally —
+        // they match pending browser requests and are safe to relay.
+        // Push events (no requestId) must pass the whitelist.
+        if (msg.requestId) {
           const taggedMsg = JSON.stringify({
             ...msg,
             _relay: { userId, instanceId, verified: true, ts: Date.now() },
           });
           forwardToBrowsers(userId, taggedMsg);
+        } else {
+          const ALLOWED_CLI_PUSH_TYPES = new Set([
+            'instance_meta', 'brain_event', 'session_event', 'output',
+            'finding', 'control_response', 'session_update',
+            'session_created', 'session_removed', 'identity_changed',
+            'output_line', 'chat_text_chunk', 'chat_tool_start',
+            'chat_tool_end', 'chat_complete', 'jarvis_status',
+            'proposal', 'neuron_fired', 'findings_push',
+            'bug_created', 'bug_updated', 'browser_screenshot',
+            'threat_detected', 'defense_activated', 'approval_request',
+            'monitor_status', 'jarvis_task_created', 'jarvis_task_updated',
+            'jarvis_task_removed', 'jarvis_status_changed',
+            'proposal_created', 'proposal_updated',
+            'thinking_update', 'consciousness_event', 'autonomy_changed',
+            'worker_started', 'worker_completed',
+            'tool_permission_request', 'tool_permission_resolved',
+            'tool_permission_reminder', 'schedule_fired', 'trigger_fired',
+            'status_bar_update', 'checkpoint_created', 'checkpoint_reverted',
+            'swarm_created', 'swarm_updated', 'swarm_completed',
+          ]);
+          if (msg.type && ALLOWED_CLI_PUSH_TYPES.has(msg.type)) {
+            const taggedMsg = JSON.stringify({
+              ...msg,
+              _relay: { userId, instanceId, verified: true, ts: Date.now() },
+            });
+            forwardToBrowsers(userId, taggedMsg);
+          }
         }
       } catch { /* ignore malformed */ }
     });
