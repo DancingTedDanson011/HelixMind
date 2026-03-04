@@ -109,8 +109,8 @@ function AgentDemo({ t }: { t: (key: string) => string }) {
   ].join('\n');
 
   const infoLines = [
-    { label: 'Provider', value: 'Anthropic', color: '#00d4ff' },
-    { label: 'Model', value: 'claude-sonnet-4-20250514', color: '#00d4ff' },
+    { label: 'Provider', value: 'ollama (local)', color: '#00d4ff' },
+    { label: 'Model', value: 'llama3.2 · your machine', color: '#00d4ff' },
     { label: 'Brain', value: '🌀 localhost:9420', color: '#8a2be2' },
     { label: 'Spiral', value: '47 nodes · 12 connections', color: '#4169e1' },
   ];
@@ -207,7 +207,7 @@ function AgentDemo({ t }: { t: (key: string) => string }) {
         <span className="px-2 py-1 bg-[#00d4ff]/20 text-[#00d4ff] font-bold">AGENT</span>
         <span className="px-2 py-1 bg-[#8a2be2]/15 text-[#8a2be2]">L1-L5</span>
         <span className="px-2 py-1 text-gray-500">22 tools</span>
-        <span className="px-2 py-1 text-gray-600 ml-auto">sonnet-4</span>
+        <span className="px-2 py-1 text-gray-600 ml-auto">llama3.2</span>
         <span className="px-2 py-1 bg-[#00ff88]/10 text-[#00ff88]">● connected</span>
       </motion.div>
     </div>

@@ -40,7 +40,7 @@ const LINES: TermLine[] = [
   { spans: [] },
 
   // ─── Startup Info ───
-  { spans: [d('  Provider: '), t('anthropic'), d(' │ Model: '), c('claude-opus-4-6', '#00d4ff')] },
+  { spans: [d('  Provider: '), t('ollama'), d(' (local) │ Model: '), c('llama3.2', '#00d4ff')] },
   { spans: [d('  Project: '), t('my-saas-app'), d(' (typescript)')] },
   { spans: [d('  Brain: '), c('project-local', '#00d4ff'), d(' (.helixmind/) │ '), c('847', '#00ff88'), d(' memories')] },
   { spans: [d('  Agent mode: '), c('safe permissions', '#00ff88')] },
@@ -152,7 +152,7 @@ function StatusBar() {
         <span className="text-gray-700">│</span>
         <span style={{ color: '#00ff88' }}>🛡 safe</span>
         <span className="text-gray-700">│</span>
-        <span className="text-gray-500">opus-4.6</span>
+        <span className="text-gray-500">llama3.2</span>
         <span className="text-gray-700">│</span>
         <span style={{ color: '#00ff88' }}>master</span>
         <span className="text-gray-700">│</span>

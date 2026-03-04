@@ -158,7 +158,7 @@ function StatusBar() {
         <span className="hidden sm:inline text-gray-700">{'\u2502'}</span>
         <span style={{ color: '#00ff88' }}>{'\uD83D\uDEE1'} safe</span>
         <span className="text-gray-700">{'\u2502'}</span>
-        <span>opus-4.6</span>
+        <span>llama3.2</span>
         <span className="hidden sm:inline text-gray-700">{'\u2502'}</span>
         <span className="hidden sm:inline" style={{ color: '#00ff88' }}>main</span>
       </div>
