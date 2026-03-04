@@ -1,7 +1,7 @@
 GNU AFFERO GENERAL PUBLIC LICENSE
 Version 3, 19 November 2007
 
-Copyright (C) 2025 HelixMind
+Copyright (C) 2025-2026 HelixMind (helix-mind.ai)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published
@@ -18,3 +18,56 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For the full license text, see:
 https://www.gnu.org/licenses/agpl-3.0.txt
+
+===========================================================================
+ADDITIONAL TERMS AND COMMERCIAL LICENSING
+===========================================================================
+
+1. OPEN SOURCE USE (THIS REPOSITORY)
+
+   This repository contains the open source CLI agent of HelixMind,
+   licensed under AGPL-3.0. You are free to:
+
+   - Use it for personal, educational, and internal purposes
+   - Modify and distribute it under the same AGPL-3.0 terms
+   - Build and deploy your own tools on top of it
+
+   Under AGPL-3.0, if you modify this software and provide it as a
+   network service (SaaS), you MUST make your complete source code
+   available to all users of that service under the same license.
+
+2. ATTRIBUTION
+
+   Any use, distribution, or derivative work must retain the original
+   copyright notice and attribution to HelixMind (helix-mind.ai).
+   This includes but is not limited to:
+
+   - The copyright notice in the LICENSE file
+   - Attribution in any user-facing documentation or about page
+   - Credit in any published derivative works
+
+3. COMMERCIAL LICENSE
+
+   A separate commercial license is available for organizations that:
+
+   - Want to use HelixMind without AGPL-3.0 obligations
+     (e.g., in proprietary/closed-source products or SaaS offerings)
+   - Want access to premium features not included in this repository,
+     such as: Jarvis AGI, Validation Matrix, Security Monitor,
+     3D Brain Management, Autonomous Mode, and Web Dashboard
+   - Need enterprise support, SLAs, or custom integrations
+
+   The commercial license removes the AGPL requirement to open-source
+   your modifications and includes all premium features.
+
+   For commercial licensing inquiries, visit:
+   https://helix-mind.ai or contact: license@helix-mind.ai
+
+4. TRADEMARKS
+
+   The names "HelixMind", "Spiral Memory", the HelixMind logo, and
+   associated branding are trademarks of HelixMind. This license does
+   not grant permission to use these trademarks except as required for
+   reasonable attribution as described above.
+
+===========================================================================
