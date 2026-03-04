@@ -37,7 +37,7 @@ export function Navbar() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass-strong">
+    <header className={`fixed top-0 left-0 right-0 z-50 ${mobileOpen ? 'bg-background' : 'glass-strong'}`}>
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -129,7 +129,7 @@ export function Navbar() {
             </div>
 
             {/* Content */}
-            <div className="relative h-full flex flex-col justify-center px-8 pt-20">
+            <div className="relative h-full flex flex-col px-8 pt-24 overflow-y-auto">
               {/* Nav links — large, staggered */}
               <nav className="space-y-2">
                 {navLinks.map((link, i) => (
