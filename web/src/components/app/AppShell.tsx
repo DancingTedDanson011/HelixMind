@@ -2190,6 +2190,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               voiceState={voice.voiceState}
               onToggleVoice={voice.toggleVoice}
               audioLevel={voice.audioLevel}
+              voiceConfig={voice.voiceConfig}
+              onVoiceConfigUpdate={voice.updateConfig}
+              onVoiceCloneUpload={voice.uploadClone}
             />
           </div>
         )}
@@ -2252,6 +2255,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             voiceState={voice.voiceState}
             onToggleVoice={voice.toggleVoice}
             audioLevel={voice.audioLevel}
+            voiceConfig={voice.voiceConfig}
+            onVoiceConfigUpdate={voice.updateConfig}
+            onVoiceCloneUpload={voice.uploadClone}
           />
         </div>,
         document.body

@@ -26,6 +26,8 @@ export interface UseVoiceSessionReturn {
   transcript: string;
   audioLevel: number;
   voiceConfig: VoiceConfig;
+  updateConfig: (config: Partial<VoiceConfig>) => void;
+  uploadClone: (audioBase64: string, name: string) => void;
   error: string | null;
 }
 
@@ -239,6 +241,14 @@ export function useVoiceSession(params: UseVoiceSessionParams): UseVoiceSessionR
   void isListening;
   void isSpeechDetected;
 
+  const updateConfig = useCallback((config: Partial<VoiceConfig>) => {
+    sendRaw('voice_config_update', { config });
+  }, [sendRaw]);
+
+  const uploadClone = useCallback((audioBase64: string, name: string) => {
+    sendRaw('voice_clone_upload', { audioBase64, name });
+  }, [sendRaw]);
+
   return {
     voiceState,
     isVoiceActive,
@@ -246,6 +256,8 @@ export function useVoiceSession(params: UseVoiceSessionParams): UseVoiceSessionR
     transcript,
     audioLevel,
     voiceConfig,
+    updateConfig,
+    uploadClone,
     error,
   };
 }

@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Send, Square, ChevronDown, Shield, ShieldOff,
-  Zap, Eye, ShieldAlert, Key, ArrowRight, Terminal, Bot, Paperclip,
+  Zap, Eye, ShieldAlert, Key, ArrowRight, Terminal, Bot, Paperclip, Settings2,
 } from 'lucide-react';
 import { Link, type AppHref } from '@/i18n/routing';
 import { SlashCommandMenu } from './SlashCommandMenu';
@@ -12,7 +12,8 @@ import { FileAttachmentPill } from './FileAttachment';
 import type { FileInfo } from './FileAttachment';
 import { VoiceButton } from './VoiceButton';
 import { AudioVisualizer } from './AudioVisualizer';
-import type { VoiceSessionState } from '@/lib/cli-types';
+import { VoiceSettings } from './VoiceSettings';
+import type { VoiceSessionState, VoiceConfig } from '@/lib/cli-types';
 
 interface ChatInputProps {
   onSend: (content: string) => void;
@@ -46,6 +47,12 @@ interface ChatInputProps {
   onToggleVoice?: () => void;
   /** Real-time audio level (0-1) for voice visualization */
   audioLevel?: number;
+  /** Voice configuration for settings panel */
+  voiceConfig?: VoiceConfig;
+  /** Update voice configuration */
+  onVoiceConfigUpdate?: (config: Partial<VoiceConfig>) => void;
+  /** Upload audio for voice cloning */
+  onVoiceCloneUpload?: (audioBase64: string, name: string) => void;
 }
 
 export const ChatInput = memo(function ChatInput({
@@ -68,6 +75,9 @@ export const ChatInput = memo(function ChatInput({
   voiceState = 'idle',
   onToggleVoice,
   audioLevel = 0,
+  voiceConfig,
+  onVoiceConfigUpdate,
+  onVoiceCloneUpload,
 }: ChatInputProps) {
   const t = useTranslations('app');
   const [value, setValue] = useState('');
@@ -75,6 +85,7 @@ export const ChatInput = memo(function ChatInput({
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [giveMenuOpen, setGiveMenuOpen] = useState(false);
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<FileInfo[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -357,6 +368,17 @@ export const ChatInput = memo(function ChatInput({
           <AudioVisualizer audioLevel={audioLevel} voiceState={voiceState} isVisible={true} />
         )}
 
+        {/* Voice Settings panel */}
+        {voiceSettingsOpen && voiceConfig && onVoiceConfigUpdate && (
+          <div className="mb-2 animate-in slide-in-from-bottom-2 duration-200">
+            <VoiceSettings
+              voiceConfig={voiceConfig}
+              onConfigUpdate={onVoiceConfigUpdate}
+              onCloneUpload={onVoiceCloneUpload ?? (() => {})}
+            />
+          </div>
+        )}
+
         {/* Outer glow wrapper — symmetrical on all sides, colored by tab */}
         <div
           className={`relative rounded-2xl transition-all duration-300 ${
@@ -459,14 +481,29 @@ export const ChatInput = memo(function ChatInput({
 
             {/* Voice + Send / Stop buttons */}
             <div className="flex items-center gap-1 flex-shrink-0 self-end p-2">
-              {/* Voice button */}
+              {/* Voice button + settings gear */}
               {onToggleVoice && (
-                <VoiceButton
-                  voiceState={voiceState}
-                  audioLevel={audioLevel}
-                  onToggle={onToggleVoice}
-                  disabled={disabled}
-                />
+                <div className="flex items-center gap-0.5">
+                  <VoiceButton
+                    voiceState={voiceState}
+                    audioLevel={audioLevel}
+                    onToggle={onToggleVoice}
+                    disabled={disabled}
+                  />
+                  {onVoiceConfigUpdate && (
+                    <button
+                      onClick={() => setVoiceSettingsOpen(!voiceSettingsOpen)}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                        voiceSettingsOpen
+                          ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+                          : 'text-gray-600 hover:text-gray-400 hover:bg-white/[0.05]'
+                      }`}
+                      title="Voice Settings"
+                    >
+                      <Settings2 size={12} />
+                    </button>
+                  )}
+                </div>
               )}
 
               {isAgentRunning ? (
