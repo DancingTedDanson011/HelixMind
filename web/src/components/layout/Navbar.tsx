@@ -150,8 +150,8 @@ export function Navbar() {
                 </Link>
               </motion.div>
 
-              {/* Nav links — large, staggered */}
-              <nav className="space-y-1">
+              {/* Nav links — compact for small screens, staggered animation */}
+              <nav className="space-y-0">
                 {navLinks.map((link, i) => (
                   <motion.div
                     key={link.href}
@@ -166,14 +166,14 @@ export function Navbar() {
                   >
                     <Link
                       href={link.href}
-                      className="group flex items-center justify-between py-3 border-b border-white/[0.04]"
+                      className="group flex items-center justify-between py-2.5 border-b border-white/[0.04]"
                       onClick={() => setMobileOpen(false)}
                     >
-                      <span className="text-2xl font-display font-bold text-white/90 group-hover:text-primary transition-colors duration-300">
+                      <span className="text-xl font-display font-bold text-white/90 group-hover:text-primary transition-colors duration-300">
                         {link.label}
                       </span>
                       <ArrowRight
-                        size={18}
+                        size={16}
                         className="text-gray-700 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300"
                       />
                     </Link>
@@ -181,20 +181,22 @@ export function Navbar() {
                 ))}
               </nav>
 
-              {/* Bottom section — locale + user */}
+              {/* Bottom section — stacked for small screens */}
               <motion.div
-                className="mt-auto pt-6 flex items-center justify-between"
+                className="mt-auto pt-4 space-y-3"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.35, duration: 0.4 }}
               >
-                <div className="flex items-center gap-4">
-                  <LocaleSwitcher />
-                  {session?.user && <NotificationBell />}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <LocaleSwitcher />
+                    {session?.user && <NotificationBell />}
+                  </div>
                   <UserMenu />
                 </div>
-                <span className="text-xs text-gray-600 font-mono">HelixMind</span>
+                <div className="text-center text-xs text-gray-600 font-mono">HelixMind</div>
               </motion.div>
             </div>
           </motion.div>
