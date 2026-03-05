@@ -4,6 +4,7 @@ import { useRef, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/Button';
 import { ArrowDown } from 'lucide-react';
+import { AnsiLine } from '@/lib/ansi-to-spans';
 
 /* ─── Types ───────────────────────────────────── */
 
@@ -91,7 +92,7 @@ export function TerminalViewer({ lines, maxLines = 500, fullHeight = false }: Te
                       {lineNum}
                     </td>
                     <td className="py-0 text-gray-300 break-all whitespace-pre-wrap">
-                      {line}
+                      <AnsiLine text={line} />
                     </td>
                   </tr>
                 );

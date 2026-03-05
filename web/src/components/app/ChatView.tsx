@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
   MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle,
   Wifi, Terminal, Download, Plug, ExternalLink, Key, BookOpen,
-  Square, Globe, Smartphone,
+  Square, Globe, Smartphone, ChevronDown, ChevronUp, Activity,
 } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
@@ -63,6 +63,43 @@ function ThinkingDots({ accentDot = 'bg-gray-400' }: { accentDot?: string }) {
   );
 }
 
+/* ─── Thinking block (collapsible) ─────────────── */
+
+const THINKING_REGEX = /<thinking>([\s\S]*?)<\/thinking>/;
+
+function stripThinkingTags(text: string): string {
+  return text.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, '');
+}
+
+function ThinkingBlock({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const match = content.match(THINKING_REGEX);
+  if (!match) return null;
+
+  const thinkingText = match[1].trim();
+  if (!thinkingText) return null;
+
+  return (
+    <div className="mb-2 rounded-lg border border-white/5 bg-white/[0.02] overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 w-full px-3 py-1.5 text-[11px] text-gray-500 hover:text-gray-400 transition-colors"
+      >
+        <Loader2 size={10} className="animate-spin text-purple-400/60" />
+        <span className="italic">Thinking...</span>
+        <span className="ml-auto">
+          {expanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+        </span>
+      </button>
+      {expanded && (
+        <div className="px-3 pb-2 text-[12px] text-gray-500 italic whitespace-pre-wrap border-t border-white/5">
+          {thinkingText}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ChatViewProps {
   messages: ChatMessage[];
   isAgentRunning: boolean;
@@ -86,6 +123,8 @@ interface ChatViewProps {
   onStop?: () => void;
   /** Active tab for accent color theming */
   tabColor?: 'chat' | 'console' | 'monitor' | 'jarvis';
+  /** Active background sessions for multi-agent display */
+  activeSessions?: Array<{ id: string; name: string; status: string }>;
 }
 
 export function ChatView({
@@ -109,6 +148,7 @@ export function ChatView({
   cliOutputLines = [],
   onStop,
   tabColor = 'chat',
+  activeSessions = [],
 }: ChatViewProps) {
   const t = useTranslations('app');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -400,17 +440,38 @@ export function ChatView({
             </div>
           )}
 
+          {/* Active background sessions indicator */}
+          {activeSessions.length > 0 && isAgentRunning && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {activeSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.03] border border-white/5 text-[10px]"
+                >
+                  <Activity size={9} className={session.status === 'running' ? 'text-emerald-400 animate-pulse' : 'text-gray-500'} />
+                  <span className="text-gray-400">{session.name}</span>
+                  <span className={`text-[9px] ${session.status === 'running' ? 'text-emerald-400/70' : 'text-gray-600'}`}>
+                    {session.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Streaming response */}
           {isAgentRunning && (
             <div ref={answerStartRef} className="animate-message-in">
               {streamingContent ? (
-                <div className="text-[15px] text-gray-200 whitespace-pre-wrap break-words leading-[1.7]">
-                  <StreamingText text={streamingContent} />
-                  <span
-                    className={`inline-block w-[2px] h-[1.1em] ${TAB_ACCENT[tabColor].cursor} ml-0.5 align-middle rounded-full`}
-                    style={{ animation: 'cursor-blink 1s step-end infinite' }}
-                  />
-                </div>
+                <>
+                  <ThinkingBlock content={streamingContent} />
+                  <div className="text-[15px] text-gray-200 whitespace-pre-wrap break-words leading-[1.7]">
+                    <StreamingText text={stripThinkingTags(streamingContent)} />
+                    <span
+                      className={`inline-block w-[2px] h-[1.1em] ${TAB_ACCENT[tabColor].cursor} ml-0.5 align-middle rounded-full`}
+                      style={{ animation: 'cursor-blink 1s step-end infinite' }}
+                    />
+                  </div>
+                </>
               ) : (
                 <div className="flex items-center gap-2.5 py-1">
                   <ThinkingDots accentDot={TAB_ACCENT[tabColor].dot} />
@@ -428,7 +489,7 @@ export function ChatView({
       {isAgentRunning && onStop && (
         <button
           onClick={onStop}
-          className="absolute bottom-20 right-6 z-10 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/20 text-xs font-medium transition-all shadow-lg backdrop-blur-sm"
+          className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/20 text-xs font-medium transition-all shadow-lg backdrop-blur-sm"
         >
           <Square size={12} />
           {t('stopAgent')}

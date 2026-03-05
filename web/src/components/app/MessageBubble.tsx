@@ -4,6 +4,7 @@ import { useState, useCallback, memo } from 'react';
 import { Copy, Check, CheckCircle2, XCircle, ChevronDown, ChevronUp, Wrench } from 'lucide-react';
 import { ToolBlock } from './ToolBlock';
 import { FileAttachmentCard } from './FileAttachment';
+import { AnsiLine } from '@/lib/ansi-to-spans';
 import type { FileInfo } from './FileAttachment';
 import type { ChatMessage } from './AppShell';
 
@@ -85,17 +86,25 @@ function AssistantContent({
         </div>
       )}
 
-      {/* Content segments */}
-      {segments.map((seg, i) => {
-        if (seg.type === 'code') {
-          return <CodeBlock key={i} code={seg.content} language={seg.language} />;
-        }
-        return (
-          <div key={i} className="text-[15px] text-gray-200 whitespace-pre-wrap break-words leading-[1.7]">
-            {renderInlineMarkdown(seg.content)}
-          </div>
-        );
-      })}
+      {/* Content segments — CLI output gets ANSI-colored terminal rendering */}
+      {isCliExecution ? (
+        <div className="bg-[#0a0a1a] rounded-xl border border-white/5 font-mono text-xs p-3 whitespace-pre-wrap break-words leading-5">
+          {content.split('\n').map((line, i) => (
+            <div key={i}><AnsiLine text={line} /></div>
+          ))}
+        </div>
+      ) : (
+        segments.map((seg, i) => {
+          if (seg.type === 'code') {
+            return <CodeBlock key={i} code={seg.content} language={seg.language} />;
+          }
+          return (
+            <div key={i} className="text-[15px] text-gray-200 whitespace-pre-wrap break-words leading-[1.7]">
+              {renderInlineMarkdown(seg.content)}
+            </div>
+          );
+        })
+      )}
 
       {/* File attachments */}
       {fileAttachments && fileAttachments.length > 0 && (

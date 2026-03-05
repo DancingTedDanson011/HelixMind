@@ -23,7 +23,7 @@ import {
   AlertTriangle, Activity, X, MessageSquare, Square,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
   Bug, Bot, Search, ListChecks, ShieldCheck,
-  Play, Pause, Sparkles, Users, Minimize2,
+  Play, Pause, Sparkles, Users, Minimize2, Maximize2,
 } from 'lucide-react';
 import { JarvisPanel } from '@/components/jarvis/JarvisPanel';
 import { JarvisTaskList } from '@/components/jarvis/JarvisTaskList';
@@ -33,6 +33,7 @@ import { TabInfoPage } from './TabInfoPage';
 import { PermissionRequestCard } from './PermissionRequestCard';
 import { CliStatusBar } from './CliStatusBar';
 import { CheckpointBrowser } from './CheckpointBrowser';
+import { BrainCanvas } from '@/components/brain/BrainCanvas';
 
 /* ─── Tab color scheme ──────────────────────── */
 
@@ -176,6 +177,18 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   const [showBugPanel, setShowBugPanel] = useState(false);
   const [cliOutputMessages, setCliOutputMessages] = useState<ChatMessage[]>([]);
   const [showJarvisPanel, setShowJarvisPanel] = useState(true);
+  const [isFullscreenChat, setIsFullscreenChat] = useState(false);
+
+  // Close fullscreen chat on Escape
+  useEffect(() => {
+    if (!isFullscreenChat) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setIsFullscreenChat(false);
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isFullscreenChat]);
+
   const [showConnectPopover, setShowConnectPopover] = useState(false);
   const connectPopoverRef = useRef<HTMLDivElement>(null);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
@@ -490,13 +503,16 @@ ${cleaned}
   // ── Checkpoints panel ──
   const [showCheckpoints, setShowCheckpoints] = useState(false);
 
-  // ── Brain: in-app iframe overlay (hidden / minimized / full) ──
+  // ── Brain: in-app overlay (hidden / minimized / full) ──
   const [brainOverlayState, setBrainOverlayState] = useState<'hidden' | 'minimized' | 'full'>('hidden');
+  // Use iframe only when locally connected via HTTP (not HTTPS/relay)
+  const canUseIframe = connectedPort && typeof window !== 'undefined' && window.location.protocol === 'http:';
   const handleBrainClick = useCallback(() => {
-    if (connectedPort) {
+    // Always allow opening — use embedded brain when no iframe possible
+    if (isConnected) {
       setBrainOverlayState('full');
     }
-  }, [connectedPort]);
+  }, [isConnected]);
 
   // ── Auto-select console session (prefer main when connected) ─────
   useEffect(() => {
@@ -1414,6 +1430,15 @@ ${cleaned}
             <Plus size={18} />
           </button>
 
+          {/* Fullscreen chat button */}
+          <button
+            onClick={() => setIsFullscreenChat(true)}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors sm:block"
+            title={t('fullscreenChat') ?? 'Fullscreen Chat'}
+          >
+            <Maximize2 size={18} />
+          </button>
+
           {/* Brain button — glow when chat active + CLI, grayed when not connected */}
           <button
             onClick={handleBrainClick}
@@ -1595,6 +1620,7 @@ ${cleaned}
                 cliOutputLines={cliOutput.lines}
                 onStop={handleStop}
                 tabColor={activeTab as 'chat' | 'console' | 'monitor' | 'jarvis'}
+                activeSessions={activeSessions.map(s => ({ id: s.id, name: s.name, status: s.status }))}
               />
             </div>
           </div>
@@ -2023,6 +2049,9 @@ ${cleaned}
           <CliStatusBar
             statusBar={connection.statusBar}
             checkpointCount={connection.checkpoints.length}
+            isWorking={isAgentRunning}
+            liveLines={cliOutput.lines}
+            onSendChat={sendMessage}
             onCheckpointClick={() => {
               setShowCheckpoints(prev => !prev);
               connection.listCheckpoints().catch(() => {});
@@ -2100,26 +2129,28 @@ ${cleaned}
 
         {/* Input — visible on chat/console/monitor tabs (Jarvis has its own embedded input) */}
         {activeTab !== 'jarvis' && (
-          <div className="relative">
-            {/* Bug toggle button — floating above input right side */}
+          <div>
+            {/* Bug toggle button — inline above input, right-aligned */}
             {isConnected && activeTab === 'chat' && (
-              <button
-                onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
-                className={`absolute -top-10 right-5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border z-10 ${
-                  showBugPanel
-                    ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                    : connection.bugs.filter(b => b.status === 'open').length > 0
-                      ? 'bg-red-500/5 border-red-500/10 text-red-400 hover:bg-red-500/10'
-                      : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
-                }`}
-              >
-                <Bug size={11} />
-                {connection.bugs.filter(b => b.status === 'open').length > 0 && (
-                  <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
-                    {connection.bugs.filter(b => b.status === 'open').length}
-                  </span>
-                )}
-              </button>
+              <div className="flex justify-end px-4 pb-1">
+                <button
+                  onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
+                    showBugPanel
+                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                      : connection.bugs.filter(b => b.status === 'open').length > 0
+                        ? 'bg-red-500/5 border-red-500/10 text-red-400 hover:bg-red-500/10'
+                        : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  <Bug size={11} />
+                  {connection.bugs.filter(b => b.status === 'open').length > 0 && (
+                    <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
+                      {connection.bugs.filter(b => b.status === 'open').length}
+                    </span>
+                  )}
+                </button>
+              </div>
             )}
             <ChatInput
               onSend={sendMessage}
@@ -2144,6 +2175,65 @@ ${cleaned}
           </div>
         )}
       </div>
+
+      {/* Fullscreen Chat Overlay */}
+      {isFullscreenChat && createPortal(
+        <div className="fixed inset-0 z-50 bg-[#050510] flex flex-col">
+          {/* Minimal header */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 flex-shrink-0">
+            <span className="text-xs font-medium text-gray-400 font-mono">
+              {connection.instanceMeta?.projectName || 'HelixMind'}
+            </span>
+            <button
+              onClick={() => setIsFullscreenChat(false)}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <Minimize2 size={18} />
+            </button>
+          </div>
+          {/* Chat fills remaining space */}
+          <div className="flex-1 overflow-hidden">
+            <ChatView
+              messages={[...(activeChat?.messages || []), ...cliOutputMessages]}
+              isAgentRunning={isAgentRunning}
+              streamingContent={streamingContent}
+              activeTools={cliExecuting ? cliChat.state.activeTools : []}
+              hasChat={!!activeChat}
+              agentPrompt={activeChat?.agentPrompt}
+              chatStatus={activeChat?.status}
+              onEditPrompt={handleEditPrompt}
+              onConnectInstance={() => setShowInstancePicker(true)}
+              onExecutePrompt={handleExecutePrompt}
+              isConnected={isConnected}
+              isExecuting={cliExecuting}
+              pendingPermissions={connection.pendingPermissions}
+              onApprovePermission={(id, pMode) => connection.respondPermission(id, true, pMode)}
+              onDenyPermission={(id) => connection.respondPermission(id, false)}
+              instanceMeta={connection.instanceMeta}
+              connectedPort={connectedPort}
+              cliOutputLines={cliOutput.lines}
+              onStop={handleStop}
+              tabColor="chat"
+            />
+          </div>
+          {/* Input */}
+          <ChatInput
+            onSend={sendMessage}
+            onSendWithFiles={handleSendWithFiles}
+            isAgentRunning={isAgentRunning}
+            onStop={handleStop}
+            mode={mode}
+            onModeChange={setMode}
+            disabled={!isConnected && !hasLLMKey}
+            hasLLMKey={isConnected || hasLLMKey}
+            hasChat={!!activeChat}
+            isConnected={isConnected}
+            activeTab="chat"
+            tabColor="chat"
+          />
+        </div>,
+        document.body
+      )}
 
       {/* Instance Picker Modal */}
       <InstancePicker
@@ -2175,7 +2265,8 @@ ${cleaned}
       )}
 
       {/* Brain 3D Overlay — portal to body, supports full / minimized / hidden */}
-      {brainOverlayState !== 'hidden' && connectedPort && typeof document !== 'undefined' && createPortal(
+      {/* Uses iframe when local HTTP, embedded BrainCanvas when HTTPS/relay */}
+      {brainOverlayState !== 'hidden' && isConnected && typeof document !== 'undefined' && createPortal(
         brainOverlayState === 'full' ? (
           <div className="fixed inset-0 z-[70] bg-black">
             <div className="relative w-full h-full">
@@ -2194,11 +2285,22 @@ ${cleaned}
                   <X size={18} />
                 </button>
               </div>
-              <iframe
-                src={`http://127.0.0.1:${connectedPort}`}
-                className="w-full h-full border-0 bg-black"
-                title="HelixMind Brain"
-              />
+              {/* Project info overlay */}
+              <div className="absolute top-4 left-4 z-10">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/10 backdrop-blur-sm">
+                  <Brain size={14} className="text-purple-400" />
+                  <span className="text-xs font-mono text-gray-300">{connection.instanceMeta?.projectName || 'Brain'}</span>
+                </div>
+              </div>
+              {canUseIframe ? (
+                <iframe
+                  src={`http://127.0.0.1:${connectedPort}`}
+                  className="w-full h-full border-0 bg-black"
+                  title="HelixMind Brain"
+                />
+              ) : (
+                <BrainCanvas />
+              )}
             </div>
           </div>
         ) : (
@@ -2218,12 +2320,18 @@ ${cleaned}
               <Brain size={10} className="text-purple-400/60" />
               <span className="text-[9px] text-gray-500 font-mono">Brain</span>
             </div>
-            <iframe
-              src={`http://127.0.0.1:${connectedPort}`}
-              className="w-full h-full border-0 bg-black pointer-events-none"
-              title="HelixMind Brain Mini"
-              tabIndex={-1}
-            />
+            {canUseIframe ? (
+              <iframe
+                src={`http://127.0.0.1:${connectedPort}`}
+                className="w-full h-full border-0 bg-black pointer-events-none"
+                title="HelixMind Brain Mini"
+                tabIndex={-1}
+              />
+            ) : (
+              <div className="w-full h-full bg-black relative">
+                <BrainCanvas />
+              </div>
+            )}
           </div>
         ),
         document.body,

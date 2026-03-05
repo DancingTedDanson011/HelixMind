@@ -130,7 +130,7 @@ export function useCliOutput(params: UseCliOutputParams): UseCliOutputReturn {
           data.sessionId === subscribedIdRef.current &&
           typeof data.line === 'string'
         ) {
-          const cleaned = stripAnsi(data.line);
+          const cleaned = data.line;  // Preserve ANSI codes for rendering
           const sid = data.sessionId!;
 
           setLines((prev) => {

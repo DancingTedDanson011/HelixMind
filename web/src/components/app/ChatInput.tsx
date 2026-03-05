@@ -70,12 +70,17 @@ export const ChatInput = memo(function ChatInput({
   const modeRef = useRef<HTMLDivElement>(null);
   const giveRef = useRef<HTMLDivElement>(null);
 
-  // Auto-resize textarea
+  // Auto-resize textarea (preserve cursor position across reflow)
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    const { selectionStart, selectionEnd } = el;
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    requestAnimationFrame(() => {
+      el.selectionStart = selectionStart;
+      el.selectionEnd = selectionEnd;
+    });
   }, [value]);
 
   // Close menus on outside click

@@ -325,6 +325,26 @@ body {
   animation: reveal-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ─── StatusBar Working Flicker ──────────── */
+
+@keyframes statusbar-flicker {
+  0%, 100% { background-position: 200% 0; }
+  50% { background-position: -200% 0; }
+}
+
+@keyframes statusbar-text-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-statusbar-flicker {
+  animation: statusbar-flicker 2s ease-in-out infinite;
+}
+
+.animate-statusbar-text-pulse {
+  animation: statusbar-text-pulse 1.5s ease-in-out infinite;
+}
+
 /* ─── Terminal Styles ──────────────────────── */
 
 .terminal-window {
