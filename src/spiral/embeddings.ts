@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { logger } from '../utils/logger.js';
 import type { EmbeddingStatus } from '../types.js';
 
@@ -12,6 +13,8 @@ export class EmbeddingService {
   private loading: Promise<void> | null = null;
   private _status: EmbeddingStatus = 'loading';
   private model: string;
+  private cache = new Map<string, Float32Array>();
+  private static readonly MAX_CACHE = 128;
 
   constructor(model: string) {
     this.model = model;
@@ -64,6 +67,7 @@ export class EmbeddingService {
       this.pipeline = null;
       this._status = 'fallback';
     }
+    this.cache.clear();
     this.loading = null;
   }
 
@@ -80,12 +84,26 @@ export class EmbeddingService {
       return null;
     }
 
+    // LRU cache: same input text → return cached embedding
+    const key = createHash('sha256').update(text).digest('hex').slice(0, 16);
+    const cached = this.cache.get(key);
+    if (cached) return new Float32Array(cached);
+
     try {
       const result = await this.pipeline(text, {
         pooling: 'mean',
         normalize: true,
       });
-      return new Float32Array(result.data);
+      const embedding = new Float32Array(result.data);
+
+      // Evict oldest entry if cache is full
+      if (this.cache.size >= EmbeddingService.MAX_CACHE) {
+        const oldest = this.cache.keys().next().value!;
+        this.cache.delete(oldest);
+      }
+      this.cache.set(key, new Float32Array(embedding));
+
+      return embedding;
     } catch (err) {
       logger.error(`Embedding generation failed: ${err}`);
       return null;

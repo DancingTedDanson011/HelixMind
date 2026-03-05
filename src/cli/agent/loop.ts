@@ -144,6 +144,11 @@ export async function runAgentLoop(
   let consecutiveErrors = 0;
   let toolBlockStarted = false;
   let toolBlockStartTime = 0;
+  const toolInsights: string[] = [];
+
+  // Cache systemTokens + budget outside the loop (system prompt never changes mid-loop)
+  const systemTokens = estimateTokens([{ role: 'user', content: systemPrompt }]);
+  const availableBudget = Math.floor(provider.maxContextLength * 0.85) - systemTokens;
 
   while (iterations < maxIterations) {
     iterations++;
@@ -156,10 +161,10 @@ export async function runAgentLoop(
     // Signal activity indicator: we're about to call the LLM
     onThinking?.();
 
-    // Auto-trim before each LLM call to prevent context overflow
-    const systemTokens = estimateTokens([{ role: 'user', content: systemPrompt }]);
-    const availableBudget = Math.floor(provider.maxContextLength * 0.85) - systemTokens;
-    trimConversation(messages, availableBudget, sessionBuffer);
+    // Auto-trim before each LLM call — skip first iteration (caller already trimmed)
+    if (iterations > 1) {
+      trimConversation(messages, availableBudget, sessionBuffer);
+    }
 
     // Call the LLM with tools — pass abort signal for hard cancellation
     let response;
@@ -446,10 +451,9 @@ export async function runAgentLoop(
 
           if (stepStatus === 'done') consecutiveErrors = 0;
 
-          // Store in spiral (fire-and-forget) — skip read-only tools to reduce noise
+          // Collect tool insights for batched spiral store (debounced — stored once after loop)
           if (toolContext.spiralEngine && !READ_ONLY_TOOLS.has(block.name)) {
-            const insight = `Tool ${block.name}: ${JSON.stringify(block.input).slice(0, 200)}`;
-            toolContext.spiralEngine.store(insight, 'code', { tags: ['tool_use', block.name] }).catch(() => {});
+            toolInsights.push(`${block.name}: ${summarizeToolForStep(block.name, block.input)}`);
           }
         } else {
           // User denied
@@ -487,6 +491,14 @@ export async function runAgentLoop(
       }
       break;
     }
+  }
+
+  // Batch-store all tool insights in a single spiral node (1 embedding instead of N)
+  if (toolContext.spiralEngine && toolInsights.length > 0) {
+    const batchSummary = `Agent session — ${toolInsights.length} tool calls:\n${toolInsights.join('\n')}`;
+    toolContext.spiralEngine.store(batchSummary, 'code', {
+      tags: ['tool_use', 'batch_summary'],
+    }).catch(() => {});
   }
 
   if (iterations >= maxIterations) {

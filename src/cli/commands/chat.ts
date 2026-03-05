@@ -4034,14 +4034,9 @@ async function sendAgentMessage(
 
         if (classification.category !== 'chat_only') {
           // Generate criteria
-          let spiralContextStr = '';
-          if (spiralEngine) {
-            try {
-              const sq = await spiralEngine.query(input, undefined, [3, 4, 5]);
-              spiralContextStr = [...sq.level_3, ...sq.level_4, ...sq.level_5]
-                .map((n: any) => n.content).join('\n');
-            } catch { /* ignore */ }
-          }
+          // Reuse spiralContext already queried at line 3925 — no duplicate query needed
+          const spiralContextStr = [...spiralContext.level_3, ...spiralContext.level_4, ...spiralContext.level_5]
+            .map(n => n.content).join('\n');
 
           const criteria = generateCriteria(classification, input, spiralContextStr || undefined);
 

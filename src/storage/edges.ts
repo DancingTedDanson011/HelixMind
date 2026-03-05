@@ -103,6 +103,27 @@ export class EdgeStore {
     return Array.from(ids);
   }
 
+  /**
+   * Batch-fetch connected node IDs for multiple nodes in a single SQL query.
+   * Eliminates N+1 query pattern in the injection engine.
+   */
+  getConnectedNodeIdsForMany(nodeIds: string[]): Map<string, string[]> {
+    if (nodeIds.length === 0) return new Map();
+    const placeholders = nodeIds.map(() => '?').join(',');
+    const rows = this.db.raw.prepare(
+      `SELECT source_id, target_id FROM edges
+       WHERE source_id IN (${placeholders}) OR target_id IN (${placeholders})`
+    ).all(...nodeIds, ...nodeIds) as Array<{ source_id: string; target_id: string }>;
+
+    const map = new Map<string, string[]>();
+    for (const id of nodeIds) map.set(id, []);
+    for (const row of rows) {
+      if (map.has(row.source_id)) map.get(row.source_id)!.push(row.target_id);
+      if (map.has(row.target_id)) map.get(row.target_id)!.push(row.source_id);
+    }
+    return map;
+  }
+
   count(): number {
     const row = this.db.raw.prepare('SELECT COUNT(*) as cnt FROM edges').get() as { cnt: number };
     return row.cnt;

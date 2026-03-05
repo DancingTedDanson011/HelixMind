@@ -57,14 +57,14 @@ export function trimConversation(
   // Minimum messages to keep (current user message + some context)
   const minKeep = Math.min(10, history.length);
 
-  // Binary search for how many messages to drop from the front
+  // O(N) incremental approach — subtract tokens of dropped messages instead of recounting
   let dropCount = 0;
-  let remaining = [...history];
+  let runningTokens = currentTokens;
 
-  while (estimateTokens(remaining) > trimTarget && remaining.length > minKeep) {
+  while (runningTokens > trimTarget && (history.length - dropCount) > minKeep) {
     // Drop 2 messages at a time (user + assistant pair)
-    const toDrop = Math.min(2, remaining.length - minKeep);
-    remaining = remaining.slice(toDrop);
+    const toDrop = Math.min(2, history.length - dropCount - minKeep);
+    runningTokens -= estimateTokens(history.slice(dropCount, dropCount + toDrop));
     dropCount += toDrop;
   }
 

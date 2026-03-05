@@ -112,6 +112,44 @@ describe('EdgeStore', () => {
     });
   });
 
+  describe('getConnectedNodeIdsForMany', () => {
+    it('should return empty map for empty input', () => {
+      const result = edges.getConnectedNodeIdsForMany([]);
+      expect(result).toEqual(new Map());
+    });
+
+    it('should return connected IDs for a single node', () => {
+      const n1 = nodes.create({ type: 'code', content: 'A', metadata: {} });
+      const n2 = nodes.create({ type: 'code', content: 'B', metadata: {} });
+      edges.create({ source_id: n1.id, target_id: n2.id, relation_type: 'depends_on' });
+
+      const result = edges.getConnectedNodeIdsForMany([n1.id]);
+      expect(result.get(n1.id)).toContain(n2.id);
+    });
+
+    it('should return connected IDs for multiple nodes in one query', () => {
+      const n1 = nodes.create({ type: 'code', content: 'A', metadata: {} });
+      const n2 = nodes.create({ type: 'code', content: 'B', metadata: {} });
+      const n3 = nodes.create({ type: 'code', content: 'C', metadata: {} });
+
+      edges.create({ source_id: n1.id, target_id: n2.id, relation_type: 'depends_on' });
+      edges.create({ source_id: n2.id, target_id: n3.id, relation_type: 'related_to' });
+
+      const result = edges.getConnectedNodeIdsForMany([n1.id, n2.id, n3.id]);
+
+      expect(result.get(n1.id)).toContain(n2.id);
+      expect(result.get(n2.id)).toContain(n1.id);
+      expect(result.get(n2.id)).toContain(n3.id);
+      expect(result.get(n3.id)).toContain(n2.id);
+    });
+
+    it('should return empty arrays for nodes with no edges', () => {
+      const n1 = nodes.create({ type: 'code', content: 'A', metadata: {} });
+      const result = edges.getConnectedNodeIdsForMany([n1.id]);
+      expect(result.get(n1.id)).toEqual([]);
+    });
+  });
+
   describe('count', () => {
     it('should return total edge count', () => {
       expect(edges.count()).toBe(0);

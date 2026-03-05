@@ -64,10 +64,13 @@ export class InjectionEngine {
     // Step 3: Score each candidate (use Set for O(1) lookup instead of Array.includes)
     const candidateIdSet = new Set(candidateIds);
 
+    // Batch-fetch all edge connections in a single SQL query (eliminates N+1)
+    const adjacencyMap = this.edges.getConnectedNodeIdsForMany(candidateIds);
+
     const scored = candidates.map(node => {
       const semanticSim = simMap.get(node.id) ?? (queryEmbedding ? 0 : 0.5);
 
-      const connectedIds = this.edges.getConnectedNodeIds(node.id);
+      const connectedIds = adjacencyMap.get(node.id) ?? [];
       const connectedInResult = connectedIds.filter(id => candidateIdSet.has(id)).length;
 
       const relevance = computeRelevance(semanticSim, node, connectedInResult, query);
@@ -113,9 +116,12 @@ export class InjectionEngine {
     // Step 6: Fill Level 2 Active (associated context, proactive injection)
     const l2Budget = budget.level2 + surplus;
     if (levels.includes(2)) {
+      // Batch-fetch L1 neighbors in a single query
+      const l1Ids = level1.map(n => n.id);
+      const l1AdjMap = l1Ids.length > 0 ? this.edges.getConnectedNodeIdsForMany(l1Ids) : new Map();
       const neighborIds = new Set<string>();
       for (const l1Node of level1) {
-        const connected = this.edges.getConnectedNodeIds(l1Node.id);
+        const connected = l1AdjMap.get(l1Node.id) ?? [];
         for (const id of connected) {
           if (!usedIds.has(id)) neighborIds.add(id);
         }
