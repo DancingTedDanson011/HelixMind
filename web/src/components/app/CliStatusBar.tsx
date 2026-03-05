@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { GitBranch, History, Shield, ShieldOff, Zap, Loader2, ChevronDown, SkipForward, X } from 'lucide-react';
 import type { StatusBarInfo } from '@/lib/cli-types';
@@ -72,6 +73,14 @@ export function CliStatusBar({
   const [skipMenuIndex, setSkipMenuIndex] = useState(0);
   const [validationSkipped, setValidationSkipped] = useState(false);
   const skipRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+
+  // Recompute portal position when menu opens
+  useLayoutEffect(() => {
+    if (!skipMenuOpen || !skipRef.current) { setMenuPos(null); return; }
+    const rect = skipRef.current.getBoundingClientRect();
+    setMenuPos({ top: rect.top - 4, left: rect.right - 144 }); // 144 ≈ w-36
+  }, [skipMenuOpen]);
 
   const spiralValues = [
     statusBar.spiral.l1,
@@ -252,8 +261,11 @@ export function CliStatusBar({
                 <ChevronDown size={7} />
               </button>
             )}
-            {skipMenuOpen && (
-              <div className="absolute bottom-full right-0 mb-1 w-36 rounded-lg border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl py-0.5 z-50">
+            {skipMenuOpen && menuPos && typeof document !== 'undefined' && createPortal(
+              <div
+                className="fixed w-36 rounded-lg border border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl shadow-2xl py-0.5 z-[100]"
+                style={{ top: menuPos.top, left: menuPos.left, transform: 'translateY(-100%)' }}
+              >
                 {skipOptions.map((opt, i) => (
                   <button
                     key={opt.label}
@@ -271,7 +283,8 @@ export function CliStatusBar({
                 <div className="px-3 py-1 text-[8px] text-gray-600 border-t border-white/5">
                   Arrow keys + Enter to select
                 </div>
-              </div>
+              </div>,
+              document.body,
             )}
           </div>
         )}
