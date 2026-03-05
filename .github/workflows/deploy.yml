@@ -80,6 +80,7 @@ jobs:
 
             echo "=== PM2 Logs (last 30 lines) ==="
             pm2 logs helixmind-web --nostream --lines 30 || true
+            #teploy failed thats why i try adding a comment to deploy
 
             pm2 save
             echo "=== Deploy complete: $(date) ==="
