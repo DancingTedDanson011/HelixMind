@@ -34,7 +34,9 @@ import { PermissionRequestCard } from './PermissionRequestCard';
 import { CliStatusBar } from './CliStatusBar';
 import { CheckpointBrowser } from './CheckpointBrowser';
 import { BrainCanvas } from '@/components/brain/BrainCanvas';
+import { BrainOverlay } from './BrainOverlay';
 import { useVoiceSession } from '@/hooks/use-voice-session';
+import { stripAnsi } from '@/lib/ansi-to-spans';
 
 /* ─── Tab color scheme ──────────────────────── */
 
@@ -242,26 +244,29 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   });
 
   // ── Convert CLI output to chat messages (for chat tab) ──
-  const lastOutputLineRef = useRef<string | null>(null);
+  const lastOutputIdxRef = useRef<number>(0);
   useEffect(() => {
     if (activeTab !== 'chat' || !isConnected || cliOutput.lines.length === 0) return;
-    const lastLine = cliOutput.lines[cliOutput.lines.length - 1];
-    if (lastLine === lastOutputLineRef.current) return;
-    lastOutputLineRef.current = lastLine;
-    
-    // Skip empty lines and pure ANSI codes
-    const cleaned = lastLine.trim();
-    if (!cleaned || cleaned.length < 2) return;
-    
-    // Add as assistant message with CLI output metadata
+
+    const startIdx = lastOutputIdxRef.current;
+    if (startIdx >= cliOutput.lines.length) return;
+    lastOutputIdxRef.current = cliOutput.lines.length;
+
+    // Collect new lines, strip ANSI, skip empty
+    const newLines: string[] = [];
+    for (let i = startIdx; i < cliOutput.lines.length; i++) {
+      const clean = stripAnsi(cliOutput.lines[i]).trim();
+      if (clean && clean.length >= 2) newLines.push(clean);
+    }
+    if (newLines.length === 0) return;
+
+    // Batch into a single message (not one per line)
     const cliMsg: ChatMessage = {
       id: `cli-output-${Date.now()}`,
       chatId: activeChatId || 'cli',
       role: 'assistant',
-      content: `\`\`\`
-${cleaned}
-\`\`\``,
-      metadata: { isCliOutput: true },
+      content: newLines.join('\n'),
+      metadata: { isCliExecution: true },
       createdAt: new Date().toISOString(),
     };
     setCliOutputMessages(prev => [...prev.slice(-50), cliMsg]); // Keep last 50
@@ -2119,6 +2124,9 @@ ${cleaned}
             <button onClick={handleStartSecurity} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400 transition-all">
               <Shield size={12} />Security
             </button>
+            <button onClick={() => { connection.startJarvis().catch(() => {}); setActiveTab('jarvis'); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all">
+              <Bot size={12} />Jarvis
+            </button>
           </div>
         )}
         {isConnected && activeTab === 'monitor' && !connection.monitorStatus && (
@@ -2279,48 +2287,51 @@ ${cleaned}
       )}
 
       {/* Brain 3D Overlay — portal to body, supports full / minimized / hidden */}
-      {/* Uses iframe when local HTTP, embedded BrainCanvas when HTTPS/relay */}
+      {/* Uses iframe when local HTTP, BrainOverlay with search/filter when HTTPS/relay */}
       {brainOverlayState !== 'hidden' && isConnected && typeof document !== 'undefined' && createPortal(
         brainOverlayState === 'full' ? (
-          <div className="fixed inset-0 z-[70] bg-black">
-            <div className="relative w-full h-full">
-              <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                <button
-                  onClick={() => setBrainOverlayState('minimized')}
-                  className="w-10 h-10 rounded-full bg-black/60 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
-                  title="Minimize"
-                >
-                  <Minimize2 size={16} />
-                </button>
-                <button
-                  onClick={() => setBrainOverlayState('hidden')}
-                  className="w-10 h-10 rounded-full bg-black/60 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              {/* Project info overlay */}
-              <div className="absolute top-4 left-4 z-10">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/10 backdrop-blur-sm">
-                  <Brain size={14} className="text-purple-400" />
-                  <span className="text-xs font-mono text-gray-300">{connection.instanceMeta?.projectName || 'Brain'}</span>
+          canUseIframe ? (
+            <div className="fixed inset-0 z-[70] bg-black">
+              <div className="relative w-full h-full">
+                <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                  <button
+                    onClick={() => setBrainOverlayState('minimized')}
+                    className="w-10 h-10 rounded-full bg-black/60 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
+                    title="Minimize"
+                  >
+                    <Minimize2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => setBrainOverlayState('hidden')}
+                    className="w-10 h-10 rounded-full bg-black/60 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-              </div>
-              {canUseIframe ? (
+                {/* Project info overlay */}
+                <div className="absolute top-4 left-4 z-10">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/10 backdrop-blur-sm">
+                    <Brain size={14} className="text-purple-400" />
+                    <span className="text-xs font-mono text-gray-300">{connection.instanceMeta?.projectName || 'Brain'}</span>
+                  </div>
+                </div>
                 <iframe
                   src={`http://127.0.0.1:${connectedPort}`}
                   className="w-full h-full border-0 bg-black"
                   title="HelixMind Brain"
                 />
-              ) : (
-                <BrainCanvas voiceState={voice.voiceState} audioLevel={voice.audioLevel} />
-              )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <BrainOverlay
+              onClose={() => setBrainOverlayState('hidden')}
+              onMinimize={() => setBrainOverlayState('minimized')}
+            />
+          )
         ) : (
-          /* Minimized: small preview window bottom-right */
+          /* Minimized: small preview window bottom-right — offset above status bar */
           <div
-            className="fixed bottom-4 right-4 z-[60] w-[220px] h-[150px] rounded-xl overflow-hidden border border-white/10 shadow-2xl cursor-pointer group"
+            className="fixed bottom-16 right-4 z-[60] w-[220px] h-[150px] rounded-xl overflow-hidden border border-white/10 shadow-2xl cursor-pointer group"
             onClick={() => setBrainOverlayState('full')}
           >
             <button

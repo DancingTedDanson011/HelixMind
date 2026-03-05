@@ -924,12 +924,9 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
         },
         pushControlEvent(event: Record<string, unknown>) {
           const msg = JSON.stringify(event);
-          for (const ws of controlClients) {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(msg);
-            }
-          }
-          // Also forward output_line events to subscribed clients
+
+          // output_line events go ONLY to subscribed clients (not all control clients)
+          // to avoid duplicate delivery — control clients subscribe explicitly
           if (event.type === 'output_line' && typeof event.sessionId === 'string') {
             const subs = outputSubscriptions.get(event.sessionId);
             if (subs) {
@@ -937,6 +934,13 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
                 if (ws.readyState === WebSocket.OPEN) {
                   ws.send(msg);
                 }
+              }
+            }
+          } else {
+            // All other control events go to all authenticated clients
+            for (const ws of controlClients) {
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(msg);
               }
             }
           }

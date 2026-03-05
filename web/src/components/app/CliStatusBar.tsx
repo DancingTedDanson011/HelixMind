@@ -129,7 +129,7 @@ export function CliStatusBar({
   }, [skipMenuOpen]);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col flex-shrink-0">
       {/* Main status bar */}
       <div
         className={`relative flex items-center gap-2.5 px-3 py-1.5 backdrop-blur-sm border-t font-mono text-[11px] text-gray-500 overflow-x-auto scrollbar-none select-none transition-all duration-300 ${

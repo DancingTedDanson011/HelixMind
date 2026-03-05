@@ -38,13 +38,34 @@ function parseSGR(codes: number[], style: Style): Style {
   return next;
 }
 
-/* ─── Component ──────────────────────────────── */
+/* ─── Regex patterns ─────────────────────────── */
 
-const ANSI_SEQ = /\x1b\[([0-9;]*)m/g;
+/** Matches ALL ANSI escape sequences (CSI, OSC, cursor, etc.) */
+const ALL_ANSI = /\x1b(?:\[[0-9;?]*[a-zA-Z]|\][^\x07]*\x07|\[[\s\S]|.)/g;
+
+/** Matches only SGR (color/style) sequences: \x1b[...m */
+const SGR_SEQ = /\x1b\[([0-9;]*)m/g;
+
+/** Strip ALL ANSI escape codes from a string — use for plain text contexts */
+export function stripAnsi(text: string): string {
+  return text.replace(ALL_ANSI, '');
+}
+
+/* ─── Component ──────────────────────────────── */
 
 export function AnsiLine({ text }: { text: string }): React.ReactElement {
   if (!text.includes('\x1b[')) {
     return <>{text}</>;
+  }
+
+  // First strip non-SGR sequences (cursor movement, erase, etc.)
+  const cleaned = text.replace(
+    /\x1b\[[\?]?[0-9;]*[A-HJKSTfhlnsu]/g,
+    '',
+  );
+
+  if (!cleaned.includes('\x1b[')) {
+    return <>{cleaned}</>;
   }
 
   const spans: React.ReactNode[] = [];
@@ -53,12 +74,12 @@ export function AnsiLine({ text }: { text: string }): React.ReactElement {
   let match: RegExpExecArray | null;
 
   // Reset lastIndex to ensure clean matching
-  ANSI_SEQ.lastIndex = 0;
+  SGR_SEQ.lastIndex = 0;
 
-  while ((match = ANSI_SEQ.exec(text)) !== null) {
+  while ((match = SGR_SEQ.exec(cleaned)) !== null) {
     // Text before this escape
     if (match.index > lastIndex) {
-      const chunk = text.slice(lastIndex, match.index);
+      const chunk = cleaned.slice(lastIndex, match.index);
       const hasStyle = Object.keys(style).length > 0;
       spans.push(
         hasStyle
@@ -75,8 +96,8 @@ export function AnsiLine({ text }: { text: string }): React.ReactElement {
   }
 
   // Remaining text
-  if (lastIndex < text.length) {
-    const chunk = text.slice(lastIndex);
+  if (lastIndex < cleaned.length) {
+    const chunk = cleaned.slice(lastIndex);
     const hasStyle = Object.keys(style).length > 0;
     spans.push(
       hasStyle
