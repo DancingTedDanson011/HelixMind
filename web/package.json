@@ -33,6 +33,7 @@
     "next-auth": "^5.0.0-beta.25",
     "next-intl": "^3.25.0",
     "next-mdx-remote": "^6.0.0",
+    "openai": "^6.26.0",
     "postprocessing": "^6.36.0",
     "prisma": "~6.3.0",
     "react": "^19.0.0",
