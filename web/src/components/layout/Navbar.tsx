@@ -58,7 +58,7 @@ export function Navbar() {
               </Link>
             ))}
             <Link
-              href={session?.user ? '/app' as AppHref : '/auth/signin' as AppHref}
+              href={session?.user ? '/app' as AppHref : '/auth/login' as AppHref}
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 hover:border-cyan-400/50 hover:shadow-[0_0_16px_rgba(0,212,255,0.2)] transition-all duration-200"
             >
               <Sparkles size={14} />
@@ -172,7 +172,7 @@ export function Navbar() {
                 className="mt-6"
               >
                 <Link
-                  href={session?.user ? '/app' as AppHref : '/auth/signin' as AppHref}
+                  href={session?.user ? '/app' as AppHref : '/auth/login' as AppHref}
                   className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl text-lg font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 transition-all duration-200"
                   onClick={() => setMobileOpen(false)}
                 >
