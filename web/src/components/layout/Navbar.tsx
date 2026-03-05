@@ -57,15 +57,13 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {session?.user && (
-              <Link
-                href={'/app' as AppHref}
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 hover:border-cyan-400/50 hover:shadow-[0_0_16px_rgba(0,212,255,0.2)] transition-all duration-200"
-              >
-                <Sparkles size={14} />
-                {t('openApp')}
-              </Link>
-            )}
+            <Link
+              href={session?.user ? '/app' as AppHref : '/auth/signin' as AppHref}
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 hover:border-cyan-400/50 hover:shadow-[0_0_16px_rgba(0,212,255,0.2)] transition-all duration-200"
+            >
+              <Sparkles size={14} />
+              {session?.user ? t('openApp') : t('getStarted')}
+            </Link>
           </div>
 
           {/* Right side */}
@@ -128,31 +126,29 @@ export function Navbar() {
               <div className="absolute bottom-1/4 left-1/4 w-[300px] h-[300px] rounded-full bg-accent/[0.03] blur-[100px]" />
             </div>
 
-            {/* Content — use dvh for real viewport on mobile browsers */}
-            <div className="relative flex flex-col px-8 pt-24 pb-8 overflow-y-auto" style={{ height: '100dvh' }}>
-              {/* App button pinned at top when logged in */}
-              {session?.user && (
-                <motion.div
-                  initial={{ opacity: 0, y: -16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -16 }}
-                  transition={{
-                    delay: 0.08,
-                    duration: 0.35,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  className="mb-4"
+            {/* Content — min-h-screen fallback + dvh override for mobile address bar */}
+            <div className="relative flex flex-col px-8 pt-24 pb-8 overflow-y-auto min-h-screen" style={{ minHeight: '100dvh' }}>
+              {/* App button — always visible, redirects to login if not authenticated */}
+              <motion.div
+                initial={{ opacity: 0, y: -16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{
+                  delay: 0.08,
+                  duration: 0.35,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className="mb-4"
+              >
+                <Link
+                  href={session?.user ? '/app' as AppHref : '/auth/signin' as AppHref}
+                  className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl text-lg font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 transition-all duration-200"
+                  onClick={() => setMobileOpen(false)}
                 >
-                  <Link
-                    href={'/app' as AppHref}
-                    className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl text-lg font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 transition-all duration-200"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    <Sparkles size={20} />
-                    {t('openApp')}
-                  </Link>
-                </motion.div>
-              )}
+                  <Sparkles size={20} />
+                  {session?.user ? t('openApp') : t('getStarted')}
+                </Link>
+              </motion.div>
 
               {/* Nav links — large, staggered */}
               <nav className="space-y-1">
