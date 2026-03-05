@@ -79,7 +79,7 @@ import { PlanEngine } from '../agent/plan-engine.js';
 import { executePlan } from '../agent/plan-executor.js';
 import { renderPlanReview, runPlanBrowser, renderPlanStepStart, renderPlanStepEnd, renderPlanComplete } from '../ui/plan-display.js';
 import { AGENT_IDENTITIES, resolveAgentIdentity, type PlanModeState } from '../agent/plan-types.js';
-import type { PlanInfo, PlanStepInfo, SwarmInfo } from '@helixmind/protocol';
+import type { PlanInfo, PlanStepInfo, SwarmInfo, VoiceConfig } from '@helixmind/protocol';
 import { SwarmController } from '../agent/swarm.js';
 import { TaskOrchestrator } from '../jarvis/orchestrator.js';
 import { ParallelExecutor } from '../jarvis/parallel.js';
@@ -1012,6 +1012,81 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       const stdoutCapture = new (await import('../brain/stdout-capture.js')).StdoutCapture(sessionMgr.main);
       stdoutCapture.start();
 
+      // Voice engine (lazy-initialized on first voice_audio_chunk)
+      let voiceEngine: import('../voice/engine.js').VoiceEngine | null = null;
+
+      function initVoiceEngine(): void {
+        if (voiceEngine) return;
+        // Lazy import to avoid loading heavy Whisper model at startup
+        Promise.all([
+          import('../voice/whisper-stt.js'),
+          import('../voice/engine.js'),
+          import('../jarvis/voice-bridge.js'),
+          import('../brain/generator.js'),
+        ]).then(([{ WhisperSTT }, { VoiceEngine }, { TTSEngine }, gen]) => {
+          const voiceConf = store.get('voice') as Record<string, unknown> | undefined;
+          const stt = new WhisperSTT(voiceConf?.whisperModel as string | undefined);
+          const tts = new TTSEngine(
+            {
+              provider: (voiceConf?.ttsProvider as 'elevenlabs' | 'web_speech') ?? 'elevenlabs',
+              apiKey: voiceConf?.elevenLabsApiKey as string | undefined,
+              voiceId: voiceConf?.clonedVoiceId as string | undefined,
+              enabled: true,
+            },
+          );
+
+          voiceEngine = new VoiceEngine({
+            sttEngine: stt,
+            ttsEngine: tts,
+            callbacks: {
+              onTranscript: (uid, text, conf) => gen.pushVoiceTranscript(uid, text, conf),
+              onTTSChunk: (uid, audio, fmt, sr) => gen.pushVoiceTTSChunk(uid, audio, fmt, sr),
+              onTTSStart: (uid, text) => gen.pushVoiceTTSStart(uid, text),
+              onTTSEnd: (uid) => gen.pushVoiceTTSEnd(uid),
+              onStateChange: (state) => gen.pushVoiceState(state),
+              onError: (error, uid) => gen.pushVoiceError(error, uid),
+              sendChat: async (text, _utteranceId) => {
+                // Route voice text through the web chat handler
+                const chatId = `voice-${Date.now()}`;
+                return new Promise<string>((resolve) => {
+                  let fullText = '';
+                  import('../brain/web-chat-handler.js').then(({ handleWebChat }) => {
+                    handleWebChat(text, chatId, {
+                      provider,
+                      spiralEngine,
+                      project,
+                      config,
+                      checkpointStore,
+                      bugJournal,
+                    }, {
+                      onStarted: (cid) => pushControlEvent({ type: 'chat_started', chatId: cid, timestamp: Date.now() }),
+                      onTextChunk: (cid, chunk) => {
+                        fullText += chunk;
+                        pushControlEvent({ type: 'chat_text_chunk', chatId: cid, text: chunk, timestamp: Date.now() });
+                      },
+                      onToolStart: (cid, stepNum, toolName, toolInput) => pushControlEvent({ type: 'chat_tool_start', chatId: cid, stepNum, toolName, toolInput, timestamp: Date.now() }),
+                      onToolEnd: (cid, stepNum, toolName, status, result) => pushControlEvent({ type: 'chat_tool_end', chatId: cid, stepNum, toolName, status, result, timestamp: Date.now() }),
+                      onComplete: (cid, txt, steps, tokensUsed) => {
+                        pushControlEvent({ type: 'chat_complete', chatId: cid, text: txt, steps, tokensUsed, timestamp: Date.now() });
+                        resolve(fullText);
+                      },
+                      onError: (cid, error) => {
+                        pushControlEvent({ type: 'chat_error', chatId: cid, error, timestamp: Date.now() });
+                        resolve(fullText);
+                      },
+                    }).catch(() => resolve(fullText));
+                  }).catch(() => resolve(fullText));
+                });
+              },
+            },
+          });
+
+          renderInfo('[Voice] Engine initialized');
+        }).catch(() => {
+          renderInfo('[Voice] Failed to initialize engine');
+        });
+      }
+
       // Register control handlers
       const controlHandlerImpl: import('../brain/control-protocol.js').ControlHandlers = {
         listSessions: () => sessionMgr.all.map(serializeSession),
@@ -1652,6 +1727,64 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
         getSwarmStatus: (): SwarmInfo | null => {
           return activeSwarm?.getStatus() ?? null;
+        },
+
+        // --- Voice Conversation (lazy-init VoiceEngine on first use) ---
+        handleVoiceAudioChunk: (audioBase64, sampleRate, utteranceId, isFinal) => {
+          // Lazy-init VoiceEngine on first audio chunk
+          if (!voiceEngine) {
+            initVoiceEngine();
+          }
+          voiceEngine?.handleAudioChunk(audioBase64, sampleRate, utteranceId, isFinal);
+        },
+        handleVoiceInterrupt: () => {
+          voiceEngine?.interrupt();
+        },
+        updateVoiceConfig: (voiceConfig) => {
+          for (const [key, value] of Object.entries(voiceConfig)) {
+            store.set(`voice.${key}`, value);
+          }
+          voiceEngine?.updateConfig(voiceConfig);
+        },
+        handleVoiceCloneUpload: (audioBase64, name) => {
+          (async () => {
+            try {
+              const { TTSEngine } = await import('../jarvis/voice-bridge.js');
+              const apiKey = store.get('voice.elevenLabsApiKey') as string | undefined;
+              if (!apiKey) {
+                const { pushVoiceError } = await import('../brain/generator.js');
+                pushVoiceError('ElevenLabs API key not configured');
+                return;
+              }
+              const tts = new TTSEngine({ provider: 'elevenlabs', apiKey, enabled: true });
+              const result = await tts.cloneVoice(audioBase64, name);
+              const { pushControlEvent } = await import('../brain/generator.js');
+              if (result) {
+                const { VoiceCloneManager } = await import('../voice/clone-manager.js');
+                const mgr = new VoiceCloneManager();
+                mgr.addClone({ voiceId: result.voiceId, name, provider: 'elevenlabs', createdAt: Date.now(), isActive: true });
+                store.set('voice.clonedVoiceId', result.voiceId);
+                pushControlEvent({ type: 'voice_clone_result', success: true, voiceId: result.voiceId, timestamp: Date.now() });
+              } else {
+                pushControlEvent({ type: 'voice_clone_result', success: false, error: 'Clone failed', timestamp: Date.now() });
+              }
+            } catch (err) {
+              const { pushVoiceError } = await import('../brain/generator.js');
+              pushVoiceError(err instanceof Error ? err.message : 'Voice clone failed');
+            }
+          })();
+        },
+        getVoiceConfig: () => {
+          const v = store.get('voice') as Record<string, unknown> | undefined;
+          return {
+            sttProvider: (v?.sttProvider as 'whisper' | 'web_speech') ?? 'whisper',
+            ttsProvider: (v?.ttsProvider as 'elevenlabs' | 'web_speech') ?? 'elevenlabs',
+            elevenLabsApiKey: v?.elevenLabsApiKey as string | undefined,
+            clonedVoiceId: v?.clonedVoiceId as string | undefined,
+            whisperModel: v?.whisperModel as string | undefined,
+            vadSensitivity: v?.vadSensitivity as number | undefined,
+            enabled: !!voiceEngine,
+          };
         },
       };
       registerControlHandlers(controlHandlerImpl);

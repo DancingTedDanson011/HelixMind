@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import type { DemoNode, DemoEdge } from './brain-types';
 import { FORCE_LAYOUT } from '@/lib/constants';
+import { useVoiceBrain } from './VoiceBrainContext';
 
 // ─── Constants ───────────────────────────────────────────────
 const SIG_COUNT = 80;
@@ -58,6 +59,8 @@ const sigFragmentShader = /* glsl */`
 
 // ─── Component ───────────────────────────────────────────────
 export function SignalParticles({ positions, nodes, edges, nodeColors }: SignalParticlesProps) {
+  const { voiceState, audioLevel } = useVoiceBrain();
+
   // Build node-id-to-index map
   const nodeIdxMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -145,11 +148,17 @@ export function SignalParticles({ positions, nodes, edges, nodeColors }: SignalP
 
     const dt = clock.getDelta();
 
+    // Voice-reactive speed multiplier
+    const isSpeaking = voiceState === 'speaking';
+    const isListening = voiceState === 'listening';
+    const isProcessing = voiceState === 'processing';
+    const speedMult = isSpeaking ? 2.5 + audioLevel : isListening ? 1.3 + audioLevel * 0.5 : isProcessing ? 3.0 : 1.0;
+
     for (let i = 0; i < SIG_COUNT; i++) {
       const sig = sigData[i];
 
-      // Advance progress
-      sig.progress += sig.speed * dt;
+      // Advance progress — scaled by voice activity
+      sig.progress += sig.speed * dt * speedMult;
 
       // Hop to next edge when arriving at a node
       if (sig.progress >= 1.0) {

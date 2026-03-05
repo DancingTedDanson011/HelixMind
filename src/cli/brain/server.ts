@@ -727,6 +727,36 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
             sendTo(ws, { type: 'swarm_status', swarm, requestId, timestamp: Date.now() });
             break;
           }
+
+          // --- Voice Conversation ---
+          case 'voice_audio_chunk': {
+            controlHandlers.handleVoiceAudioChunk(msg.audioBase64, msg.sampleRate, msg.utteranceId, msg.isFinal);
+            break;
+          }
+
+          case 'voice_interrupt': {
+            controlHandlers.handleVoiceInterrupt();
+            sendTo(ws, { type: 'voice_interrupt_ack', requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'voice_config_update': {
+            controlHandlers.updateVoiceConfig(msg.config);
+            sendTo(ws, { type: 'voice_config_update_ack', requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'voice_clone_upload': {
+            controlHandlers.handleVoiceCloneUpload(msg.audioBase64, msg.name);
+            sendTo(ws, { type: 'voice_clone_upload_ack', requestId, timestamp: Date.now() });
+            break;
+          }
+
+          case 'get_voice_config': {
+            const voiceConfig = controlHandlers.getVoiceConfig();
+            sendTo(ws, { type: 'voice_config', config: voiceConfig, requestId, timestamp: Date.now() });
+            break;
+          }
         }
       }
 

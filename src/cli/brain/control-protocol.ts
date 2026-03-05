@@ -17,6 +17,7 @@ import type {
   CheckpointInfo, WSMessage,
   PlanInfo, PlanStepInfo, PlanStatusInfo, PlanStepStatusInfo,
   SwarmStatus, SwarmInfo, SwarmSubTaskInfo,
+  VoiceConfig, VoiceSessionState,
 } from '@helixmind/protocol';
 
 // Re-export all shared wire types for backwards compatibility
@@ -28,6 +29,7 @@ export type {
   CheckpointInfo, WSMessage,
   PlanInfo, PlanStepInfo, PlanStatusInfo, PlanStepStatusInfo,
   SwarmStatus, SwarmInfo, SwarmSubTaskInfo,
+  VoiceConfig, VoiceSessionState,
 };
 
 // --- Auth ---
@@ -246,6 +248,23 @@ export interface ChatCompleteEvent extends WSMessage { type: 'chat_complete'; ch
 export interface ChatErrorEvent extends WSMessage { type: 'chat_error'; chatId: string; error: string }
 export interface ChatFileEvent extends WSMessage { type: 'chat_file'; chatId: string; file: { name: string; mimeType: string; sizeBytes: number; dataBase64: string } }
 
+// --- Voice Conversation Requests (Browser → CLI) ---
+export interface VoiceAudioChunkRequest extends WSMessage { type: 'voice_audio_chunk'; audioBase64: string; sampleRate: number; utteranceId: string; isFinal: boolean }
+export interface VoiceInterruptRequest extends WSMessage { type: 'voice_interrupt' }
+export interface VoiceConfigUpdateRequest extends WSMessage { type: 'voice_config_update'; config: Partial<VoiceConfig> }
+export interface VoiceCloneUploadRequest extends WSMessage { type: 'voice_clone_upload'; audioBase64: string; name: string }
+export interface GetVoiceConfigRequest extends WSMessage { type: 'get_voice_config' }
+
+// --- Voice Conversation Events (CLI → Browser, async) ---
+export interface VoiceTranscriptEvent extends WSMessage { type: 'voice_transcript'; utteranceId: string; text: string; confidence: number }
+export interface VoiceTTSChunkEvent extends WSMessage { type: 'voice_tts_chunk'; utteranceId: string; audioBase64: string; format: string; sampleRate: number }
+export interface VoiceTTSStartEvent extends WSMessage { type: 'voice_tts_start'; utteranceId: string; text: string }
+export interface VoiceTTSEndEvent extends WSMessage { type: 'voice_tts_end'; utteranceId: string }
+export interface VoiceStateEvent extends WSMessage { type: 'voice_state'; state: VoiceSessionState }
+export interface VoiceConfigResponse extends WSMessage { type: 'voice_config'; config: VoiceConfig }
+export interface VoiceCloneResultEvent extends WSMessage { type: 'voice_clone_result'; success: boolean; voiceId?: string; error?: string }
+export interface VoiceErrorEvent extends WSMessage { type: 'voice_error'; error: string; utteranceId?: string }
+
 /** All valid control request type strings — derived from the ControlRequest union. */
 export const CONTROL_REQUEST_TYPES = new Set<string>([
   'list_sessions', 'start_auto', 'start_security', 'start_monitor', 'stop_monitor',
@@ -266,6 +285,7 @@ export const CONTROL_REQUEST_TYPES = new Set<string>([
   'brain_sync_push', 'brain_sync_pull', 'license_validate',
   'get_active_plan', 'approve_plan', 'reject_plan', 'set_plan_mode',
   'start_swarm', 'abort_swarm', 'get_swarm_status',
+  'voice_audio_chunk', 'voice_interrupt', 'voice_config_update', 'voice_clone_upload', 'get_voice_config',
 ]);
 
 // Union of all control request types
@@ -329,7 +349,12 @@ export type ControlRequest =
   | SetPlanModeRequest
   | StartSwarmRequest
   | AbortSwarmRequest
-  | GetSwarmStatusRequest;
+  | GetSwarmStatusRequest
+  | VoiceAudioChunkRequest
+  | VoiceInterruptRequest
+  | VoiceConfigUpdateRequest
+  | VoiceCloneUploadRequest
+  | GetVoiceConfigRequest;
 
 // ---------------------------------------------------------------------------
 // Control handler callbacks — registered from chat.ts
@@ -399,6 +424,12 @@ export interface ControlHandlers {
   startSwarm(message: string): string;          // returns swarmId
   abortSwarm(swarmId: string): boolean;
   getSwarmStatus(): SwarmInfo | null;
+  // Voice Conversation
+  handleVoiceAudioChunk(audioBase64: string, sampleRate: number, utteranceId: string, isFinal: boolean): void;
+  handleVoiceInterrupt(): void;
+  updateVoiceConfig(config: Partial<VoiceConfig>): void;
+  handleVoiceCloneUpload(audioBase64: string, name: string): void;
+  getVoiceConfig(): VoiceConfig;
 }
 
 // ---------------------------------------------------------------------------

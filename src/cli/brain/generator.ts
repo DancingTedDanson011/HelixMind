@@ -5,7 +5,7 @@ import type { BrainExport } from './exporter.js';
 import type { BrainScope } from '../../utils/config.js';
 import { generateBrainHTML } from './template.js';
 import { startBrainServer, type BrainServer } from './server.js';
-import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo, TriggerInfo, WorkerInfo, ToolPermissionRequest, PlanInfo, PlanStepInfo, SwarmInfo } from './control-protocol.js';
+import type { ControlHandlers, InstanceMeta, SessionInfo, BugInfo, BrowserScreenshotInfo, JarvisTaskInfo, JarvisStatusInfo, ProposalInfo, IdentityInfo, ScheduleInfo, TriggerInfo, WorkerInfo, ToolPermissionRequest, PlanInfo, PlanStepInfo, SwarmInfo, VoiceSessionState } from './control-protocol.js';
 
 /** Generate a static HTML file (fallback / export) */
 export function generateBrainFile(data: BrainExport): string {
@@ -603,6 +603,58 @@ export function pushToolPermissionResolved(requestId: string, approved: boolean,
     approved,
     deniedBy,
     timestamp: Date.now(),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Voice Conversation — Push Functions
+// ---------------------------------------------------------------------------
+
+/** Push a voice transcript to control clients */
+export function pushVoiceTranscript(utteranceId: string, text: string, confidence: number): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'voice_transcript', utteranceId, text, confidence, timestamp: Date.now(),
+  });
+}
+
+/** Push a voice TTS audio chunk to control clients */
+export function pushVoiceTTSChunk(utteranceId: string, audioBase64: string, format: string, sampleRate: number): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'voice_tts_chunk', utteranceId, audioBase64, format, sampleRate, timestamp: Date.now(),
+  });
+}
+
+/** Push a voice TTS start event to control clients */
+export function pushVoiceTTSStart(utteranceId: string, text: string): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'voice_tts_start', utteranceId, text, timestamp: Date.now(),
+  });
+}
+
+/** Push a voice TTS end event to control clients */
+export function pushVoiceTTSEnd(utteranceId: string): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'voice_tts_end', utteranceId, timestamp: Date.now(),
+  });
+}
+
+/** Push voice state change to all clients (brain + control) */
+export function pushVoiceState(state: VoiceSessionState): void {
+  if (!activeBrainServer) return;
+  const event = { type: 'voice_state', state, timestamp: Date.now() };
+  activeBrainServer.pushEvent(event);
+  activeBrainServer.pushControlEvent(event);
+}
+
+/** Push a voice error to control clients */
+export function pushVoiceError(error: string, utteranceId?: string): void {
+  if (!activeBrainServer) return;
+  activeBrainServer.pushControlEvent({
+    type: 'voice_error', error, utteranceId, timestamp: Date.now(),
   });
 }
 

@@ -319,6 +319,24 @@ export interface PlanInfo {
 }
 
 // ---------------------------------------------------------------------------
+// Voice Conversation
+// ---------------------------------------------------------------------------
+
+export type VoiceSessionState = 'idle' | 'listening' | 'processing' | 'speaking';
+export type VoiceProvider = 'elevenlabs' | 'web_speech';
+export type STTProvider = 'whisper' | 'web_speech';
+
+export interface VoiceConfig {
+  sttProvider: STTProvider;
+  ttsProvider: VoiceProvider;
+  elevenLabsApiKey?: string;
+  clonedVoiceId?: string;
+  whisperModel?: string;
+  vadSensitivity?: number;
+  enabled: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // WS message envelope
 // ---------------------------------------------------------------------------
 

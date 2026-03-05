@@ -514,6 +514,36 @@ export function createRelayClient(
         sendRelay({ type: 'swarm_status', swarm, requestId, timestamp: Date.now() });
         break;
       }
+
+      // --- Voice Conversation ---
+      case 'voice_audio_chunk': {
+        handlers.handleVoiceAudioChunk(msg.audioBase64, msg.sampleRate, msg.utteranceId, msg.isFinal);
+        break;
+      }
+
+      case 'voice_interrupt': {
+        handlers.handleVoiceInterrupt();
+        sendRelay({ type: 'voice_interrupt_ack', requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'voice_config_update': {
+        handlers.updateVoiceConfig(msg.config);
+        sendRelay({ type: 'voice_config_update_ack', requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'voice_clone_upload': {
+        handlers.handleVoiceCloneUpload(msg.audioBase64, msg.name);
+        sendRelay({ type: 'voice_clone_upload_ack', requestId, timestamp: Date.now() });
+        break;
+      }
+
+      case 'get_voice_config': {
+        const voiceConfig = handlers.getVoiceConfig();
+        sendRelay({ type: 'voice_config', config: voiceConfig, requestId, timestamp: Date.now() });
+        break;
+      }
     }
   }
 

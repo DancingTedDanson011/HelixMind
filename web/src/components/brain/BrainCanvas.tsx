@@ -1,15 +1,29 @@
 'use client';
 
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useMemo } from 'react';
+import { VoiceBrainContext, type VoiceBrainState } from './VoiceBrainContext';
+import type { VoiceSessionState } from '@/lib/cli-types';
 
 const BrainScene = lazy(() => import('./BrainScene').then((m) => ({ default: m.BrainScene })));
 
-export function BrainCanvas() {
+interface BrainCanvasProps {
+  voiceState?: VoiceSessionState;
+  audioLevel?: number;
+}
+
+export function BrainCanvas({ voiceState = 'idle', audioLevel = 0 }: BrainCanvasProps) {
+  const voiceBrain = useMemo<VoiceBrainState>(
+    () => ({ voiceState, audioLevel }),
+    [voiceState, audioLevel],
+  );
+
   return (
     <div className="absolute inset-0 z-0">
-      <Suspense fallback={<BrainFallback />}>
-        <BrainScene />
-      </Suspense>
+      <VoiceBrainContext.Provider value={voiceBrain}>
+        <Suspense fallback={<BrainFallback />}>
+          <BrainScene />
+        </Suspense>
+      </VoiceBrainContext.Provider>
     </div>
   );
 }

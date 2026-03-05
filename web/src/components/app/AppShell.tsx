@@ -34,6 +34,7 @@ import { PermissionRequestCard } from './PermissionRequestCard';
 import { CliStatusBar } from './CliStatusBar';
 import { CheckpointBrowser } from './CheckpointBrowser';
 import { BrainCanvas } from '@/components/brain/BrainCanvas';
+import { useVoiceSession } from '@/hooks/use-voice-session';
 
 /* ─── Tab color scheme ──────────────────────── */
 
@@ -218,6 +219,13 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
   // isAgentRunning covers both brainstorm and CLI (local send + incoming events)
   const isAgentRunning = brainstormChat.state.isProcessing || cliExecuting || cliChat.state.isProcessing;
   const streamingContent = brainstormChat.state.streamingText || ((cliExecuting || cliChat.state.isProcessing) ? cliChat.state.streamingText : '');
+
+  // Voice conversation
+  const voice = useVoiceSession({
+    sendRaw: connection.sendRaw,
+    onWsMessage: connection.onWsMessage,
+    isConnected,
+  });
 
   // CLI output — subscribe to console OR jarvis session depending on active tab
   const jNameEarly = connection.jarvisStatus?.jarvisName;
@@ -2171,6 +2179,9 @@ ${cleaned}
                 jarvis: connection.jarvisStatus?.daemonState === 'running',
               }}
               tabColor={activeTab as 'chat' | 'console' | 'monitor' | 'jarvis'}
+              voiceState={voice.voiceState}
+              onToggleVoice={voice.toggleVoice}
+              audioLevel={voice.audioLevel}
             />
           </div>
         )}
@@ -2230,6 +2241,9 @@ ${cleaned}
             isConnected={isConnected}
             activeTab="chat"
             tabColor="chat"
+            voiceState={voice.voiceState}
+            onToggleVoice={voice.toggleVoice}
+            audioLevel={voice.audioLevel}
           />
         </div>,
         document.body
@@ -2299,7 +2313,7 @@ ${cleaned}
                   title="HelixMind Brain"
                 />
               ) : (
-                <BrainCanvas />
+                <BrainCanvas voiceState={voice.voiceState} audioLevel={voice.audioLevel} />
               )}
             </div>
           </div>
@@ -2329,7 +2343,7 @@ ${cleaned}
               />
             ) : (
               <div className="w-full h-full bg-black relative">
-                <BrainCanvas />
+                <BrainCanvas voiceState={voice.voiceState} audioLevel={voice.audioLevel} />
               </div>
             )}
           </div>

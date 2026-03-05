@@ -95,6 +95,10 @@ export interface UseCliConnectionReturn {
   connect: () => void;
   disconnect: () => void;
   sendRequest: (type: string, payload?: Record<string, unknown>) => Promise<unknown>;
+  /** Send a raw WS message (fire-and-forget). Used by voice hooks. */
+  sendRaw: (type: string, payload?: Record<string, unknown>) => void;
+  /** Subscribe to raw WS messages. Returns unsubscribe function. Used by voice hooks. */
+  onWsMessage: (handler: (msg: Record<string, unknown>) => void) => () => void;
   listSessions: () => Promise<SessionInfo[]>;
   startAuto: (goal?: string) => Promise<string>;
   startSecurity: () => Promise<string>;
@@ -202,6 +206,9 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
   const [swarm, setSwarm] = useState<SwarmInfo | null>(null);
 
+  // External message subscribers (for voice hooks etc.)
+  const messageSubscribersRef = useRef<Set<(msg: Record<string, unknown>) => void>>(new Set());
+
   const wsRef = useRef<WebSocket | null>(null);
   const connectionStateRef = useRef<ConnectionState>('disconnected');
   const mountedRef = useRef(true);
@@ -289,6 +296,17 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     }
   }, []);
 
+  // Public typed sendRaw for voice hooks
+  const sendRawPublic = useCallback((type: string, payload?: Record<string, unknown>) => {
+    sendRaw({ type, ...payload, timestamp: Date.now() });
+  }, [sendRaw]);
+
+  // Subscribe to raw WS messages (returns unsubscribe)
+  const onWsMessage = useCallback((handler: (msg: Record<string, unknown>) => void) => {
+    messageSubscribersRef.current.add(handler);
+    return () => { messageSubscribersRef.current.delete(handler); };
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Internal: sync sessions from CLI (initial + periodic)
   // ---------------------------------------------------------------------------
@@ -313,6 +331,11 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   // Internal: handle incoming messages
   // ---------------------------------------------------------------------------
   const handleMessage = useCallback((msg: WSIncoming) => {
+    // Dispatch to external subscribers (voice hooks, etc.)
+    for (const sub of messageSubscribersRef.current) {
+      try { sub(msg as Record<string, unknown>); } catch { /* subscriber error */ }
+    }
+
     // Response to a pending request
     if (msg.requestId && pendingRef.current.has(msg.requestId)) {
       const pending = pendingRef.current.get(msg.requestId)!;
@@ -1132,6 +1155,8 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     connect,
     disconnect,
     sendRequest,
+    sendRaw: sendRawPublic,
+    onWsMessage,
     listSessions,
     startAuto,
     startSecurity,

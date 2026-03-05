@@ -75,6 +75,7 @@ const DEFAULT_TTS_CONFIG: TTSConfig = {
 export class TTSEngine {
   private config: TTSConfig;
   private pushAudioToClient?: (audioBase64: string, text: string, duration: number) => void;
+  private currentAbortController: AbortController | null = null;
 
   constructor(
     config?: Partial<TTSConfig>,
@@ -118,6 +119,102 @@ export class TTSEngine {
 
   get isEnabled(): boolean {
     return this.config.enabled;
+  }
+
+  // ─── Streaming TTS (for voice conversation) ─────────────────────
+
+  /**
+   * Stream TTS audio via ElevenLabs streaming endpoint.
+   * Emits PCM chunks as they arrive via onChunk callback.
+   */
+  async speakStreaming(
+    text: string,
+    _utteranceId: string,
+    onChunk: (base64: string, format: string, sampleRate: number) => void,
+  ): Promise<void> {
+    if (!this.config.apiKey) return;
+
+    const voiceId = this.config.voiceId || '21m00Tcm4TlvDq8ikWAM';
+    this.currentAbortController = new AbortController();
+
+    try {
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'xi-api-key': this.config.apiKey,
+          },
+          body: JSON.stringify({
+            text,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+            output_format: 'pcm_24000',
+          }),
+          signal: this.currentAbortController.signal,
+        },
+      );
+
+      if (!response.ok || !response.body) return;
+
+      const reader = response.body.getReader();
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const base64 = Buffer.from(value).toString('base64');
+          onChunk(base64, 'pcm_24000', 24000);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      // TTS streaming failure is non-critical
+    } finally {
+      this.currentAbortController = null;
+    }
+  }
+
+  /** Cancel any in-progress streaming TTS. */
+  cancelSpeaking(): void {
+    this.currentAbortController?.abort();
+    this.currentAbortController = null;
+  }
+
+  /**
+   * Clone a voice using ElevenLabs Instant Voice Cloning API.
+   * Returns the new voiceId or null on failure.
+   */
+  async cloneVoice(
+    audioBase64: string,
+    name: string,
+  ): Promise<{ voiceId: string } | null> {
+    if (!this.config.apiKey) return null;
+
+    try {
+      const audioBuffer = Buffer.from(audioBase64, 'base64');
+      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('files', blob, 'sample.wav');
+
+      const response = await fetch('https://api.elevenlabs.io/v1/voices/add', {
+        method: 'POST',
+        headers: { 'xi-api-key': this.config.apiKey },
+        body: formData,
+        signal: AbortSignal.timeout(60_000),
+      });
+
+      if (!response.ok) return null;
+
+      const data = await response.json() as { voice_id: string };
+      return { voiceId: data.voice_id };
+    } catch {
+      return null;
+    }
   }
 
   // ─── ElevenLabs Implementation ───────────────────────────────────

@@ -26,6 +26,14 @@ export interface HelixMindConfig {
     plan?: string;
     loginAt?: string;
   };
+  voice?: {
+    sttProvider?: string;
+    ttsProvider?: string;
+    elevenLabsApiKey?: string;
+    clonedVoiceId?: string;
+    whisperModel?: string;
+    vadSensitivity?: number;
+  };
 }
 
 // Keep in sync with KNOWN_PROVIDERS in providers/registry.ts
@@ -104,6 +112,7 @@ export class ConfigStore {
         providers: raw.providers ?? {},
         spiral: { ...DEFAULT_CONFIG.spiral, ...(raw.spiral ?? {}) },
         relay: raw.relay ?? undefined,
+        voice: raw.voice ?? undefined,
       };
     } catch {
       return { ...DEFAULT_CONFIG, providers: {}, spiral: { ...DEFAULT_CONFIG.spiral } };

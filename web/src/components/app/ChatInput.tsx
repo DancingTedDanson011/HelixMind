@@ -10,6 +10,9 @@ import { Link, type AppHref } from '@/i18n/routing';
 import { SlashCommandMenu } from './SlashCommandMenu';
 import { FileAttachmentPill } from './FileAttachment';
 import type { FileInfo } from './FileAttachment';
+import { VoiceButton } from './VoiceButton';
+import { AudioVisualizer } from './AudioVisualizer';
+import type { VoiceSessionState } from '@/lib/cli-types';
 
 interface ChatInputProps {
   onSend: (content: string) => void;
@@ -37,6 +40,12 @@ interface ChatInputProps {
   tabColor?: 'chat' | 'console' | 'monitor' | 'jarvis';
   /** Callback for sending with file attachments */
   onSendWithFiles?: (content: string, files: FileInfo[]) => void;
+  /** Voice conversation state */
+  voiceState?: VoiceSessionState;
+  /** Toggle voice on/off */
+  onToggleVoice?: () => void;
+  /** Real-time audio level (0-1) for voice visualization */
+  audioLevel?: number;
 }
 
 export const ChatInput = memo(function ChatInput({
@@ -56,6 +65,9 @@ export const ChatInput = memo(function ChatInput({
   activeCliModes = { console: false, monitor: false, jarvis: false },
   tabColor = 'chat',
   onSendWithFiles,
+  voiceState = 'idle',
+  onToggleVoice,
+  audioLevel = 0,
 }: ChatInputProps) {
   const t = useTranslations('app');
   const [value, setValue] = useState('');
@@ -340,6 +352,11 @@ export const ChatInput = memo(function ChatInput({
           onChange={handleFileInput}
         />
 
+        {/* Audio visualizer — shown during voice conversation */}
+        {voiceState !== 'idle' && (
+          <AudioVisualizer audioLevel={audioLevel} voiceState={voiceState} isVisible={true} />
+        )}
+
         {/* Outer glow wrapper — symmetrical on all sides, colored by tab */}
         <div
           className={`relative rounded-2xl transition-all duration-300 ${
@@ -440,8 +457,18 @@ export const ChatInput = memo(function ChatInput({
               className="flex-1 resize-none bg-transparent py-3 px-3 text-sm text-gray-200 placeholder-gray-600 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
             />
 
-            {/* Send / Stop button */}
-            <div className="flex-shrink-0 self-end p-2">
+            {/* Voice + Send / Stop buttons */}
+            <div className="flex items-center gap-1 flex-shrink-0 self-end p-2">
+              {/* Voice button */}
+              {onToggleVoice && (
+                <VoiceButton
+                  voiceState={voiceState}
+                  audioLevel={audioLevel}
+                  onToggle={onToggleVoice}
+                  disabled={disabled}
+                />
+              )}
+
               {isAgentRunning ? (
                 <button
                   onClick={onStop}
