@@ -30,11 +30,15 @@ export function SSOLogin({ teamId: initialTeamId, teamName, onInitiate }: SSOLog
     setError(null);
 
     try {
-      // Fetch SAML auth URL for the team
-      const res = await fetch(`/api/teams/${teamId}/saml/test`, { method: 'POST' });
+      // Fetch SAML auth URL for the team (public endpoint, no auth required)
+      const res = await fetch('/api/auth/sso/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId }),
+      });
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
+      if (!res.ok) {
         setError(data.error || 'SSO not available for this team');
         setLoading(false);
         return;
