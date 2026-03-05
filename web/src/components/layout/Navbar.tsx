@@ -128,10 +128,34 @@ export function Navbar() {
               <div className="absolute bottom-1/4 left-1/4 w-[300px] h-[300px] rounded-full bg-accent/[0.03] blur-[100px]" />
             </div>
 
-            {/* Content */}
-            <div className="relative h-full flex flex-col px-8 pt-24 overflow-y-auto">
+            {/* Content — use dvh for real viewport on mobile browsers */}
+            <div className="relative flex flex-col px-8 pt-24 pb-8 overflow-y-auto" style={{ height: '100dvh' }}>
+              {/* App button pinned at top when logged in */}
+              {session?.user && (
+                <motion.div
+                  initial={{ opacity: 0, y: -16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
+                  transition={{
+                    delay: 0.08,
+                    duration: 0.35,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                  className="mb-4"
+                >
+                  <Link
+                    href={'/app' as AppHref}
+                    className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl text-lg font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 transition-all duration-200"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <Sparkles size={20} />
+                    {t('openApp')}
+                  </Link>
+                </motion.div>
+              )}
+
               {/* Nav links — large, staggered */}
-              <nav className="space-y-2">
+              <nav className="space-y-1">
                 {navLinks.map((link, i) => (
                   <motion.div
                     key={link.href}
@@ -146,52 +170,24 @@ export function Navbar() {
                   >
                     <Link
                       href={link.href}
-                      className="group flex items-center justify-between py-4 border-b border-white/[0.04]"
+                      className="group flex items-center justify-between py-3 border-b border-white/[0.04]"
                       onClick={() => setMobileOpen(false)}
                     >
-                      <span className="text-3xl font-display font-bold text-white/90 group-hover:text-primary transition-colors duration-300">
+                      <span className="text-2xl font-display font-bold text-white/90 group-hover:text-primary transition-colors duration-300">
                         {link.label}
                       </span>
                       <ArrowRight
-                        size={20}
+                        size={18}
                         className="text-gray-700 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300"
                       />
                     </Link>
                   </motion.div>
                 ))}
-
-                {session?.user && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -32 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -32 }}
-                    transition={{
-                      delay: 0.1 + navLinks.length * 0.07,
-                      duration: 0.4,
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                  >
-                    <Link
-                      href={'/app' as AppHref}
-                      className="group flex items-center justify-between py-4 border-b border-white/[0.04]"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      <span className="flex items-center gap-3 text-3xl font-display font-bold text-cyan-400 group-hover:text-cyan-300 transition-colors duration-300">
-                        <Sparkles size={24} />
-                        {t('openApp')}
-                      </span>
-                      <ArrowRight
-                        size={20}
-                        className="text-gray-700 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all duration-300"
-                      />
-                    </Link>
-                  </motion.div>
-                )}
               </nav>
 
               {/* Bottom section — locale + user */}
               <motion.div
-                className="mt-auto pb-12 flex items-center justify-between"
+                className="mt-auto pt-6 flex items-center justify-between"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
