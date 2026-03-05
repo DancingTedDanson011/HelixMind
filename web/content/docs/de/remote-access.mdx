@@ -1,0 +1,121 @@
+---
+title: "Remote-Zugriff — Von uberall verbinden"
+description: "Steuere deine HelixMind CLI von jedem Gerat uber die Web-App. Ein Befehl, funktioniert vom Handy."
+order: 16
+category: "Web-Integration"
+---
+
+# Remote-Zugriff
+
+HelixMind unterstutzt zwei Verbindungsmodi zwischen CLI und Web-App. **Lokal** funktioniert, wenn Browser und CLI auf dem gleichen Rechner laufen. **Remote** verbindet von uberall — Handy, Tablet oder ein anderer Computer — uber einen verschlusselten Relay.
+
+## So funktioniert es
+
+### Lokal (Gleicher Rechner)
+
+Wenn du `helixmind` auf deinem PC startest und die Web-App im Browser des gleichen Rechners offnest, findet die App die CLI automatisch uber localhost. Kein Setup notig.
+
+```
+Browser → ws://127.0.0.1:{port} → CLI
+```
+
+### Remote (Von uberall)
+
+Wenn du von einem anderen Gerat zugreifen willst (z.B. Handy), verbindet sich die CLI **ausgehend** zum HelixMind Relay-Server, und dein Browser verbindet sich ebenfalls. Der Relay leitet Nachrichten zwischen beiden weiter.
+
+```
+CLI   →  wss://helix-mind.ai/api/relay/cli   (API-Key Auth)
+              ↕  Relay Server  ↕
+Handy →  wss://helix-mind.ai/api/relay/web   (Session Auth)
+```
+
+Beide Verbindungen sind **ausgehend** — kein Port-Forwarding, keine Firewall-Anderungen, kein VPN notig.
+
+## Einrichtung: Ein Befehl
+
+```bash
+helixmind connect
+```
+
+Das startet den Pairing-Flow:
+
+1. Ein **Device-Code** erscheint im Terminal (z.B. `ABCD-EFGH`)
+2. Dein Browser offnet die Bestatigungs-Seite
+3. Einloggen (oder Code am Handy scannen) und Code eingeben
+4. Die CLI erhalt einen API-Key und speichert ihn automatisch
+5. Fertig. Deine CLI ist jetzt von jedem Gerat erreichbar, auf dem du eingeloggt bist.
+
+> `helixmind connect` ist ein Alias fur `helixmind login`. Beide machen exakt das Gleiche.
+
+### Alternative: Manueller API-Key
+
+Wenn der Browser-Flow nicht funktioniert (z.B. headless Server), kannst du im Web-Dashboard einen API-Key erstellen und direkt ubergeben:
+
+```bash
+helixmind connect --api-key hm_dein_key_hier
+```
+
+## Was du remote machen kannst
+
+Nach der Verbindung hast du volle Kontrolle uber die Web-App:
+
+| Feature | Beschreibung |
+|---------|-------------|
+| **Live Output** | CLI-Ausgabe in Echtzeit sehen |
+| **Chat** | Nachrichten an den AI-Agenten senden |
+| **Sessions** | Laufende Sessions anzeigen und verwalten |
+| **Tasks starten** | Auto, Security oder Jarvis Sessions starten |
+| **Permissions** | Tool-Berechtigungsanfragen genehmigen oder ablehnen |
+| **Findings** | Security-Findings und Bug-Reports ansehen |
+| **Checkpoints** | Fruehere Zustande durchsuchen und wiederherstellen |
+| **Swarm** | Multi-Agent-Schwarm starten und uberwachen |
+
+## Sicherheit
+
+- Alle Remote-Verbindungen nutzen **TLS-Verschlusselung** (wss://)
+- CLI lehnt unverschlusselte Verbindungen zu Remote-Servern ab
+- API-Keys werden gehasht (SHA-256) vor Speicherung — der Roh-Key wird nie auf dem Server gespeichert
+- Remote-Clients **konnen** Berechtigungen nicht uber L3 (Act-Safe) eskalieren
+- L4 (Act-Bold) und L5 (Full-Auto) mussen lokal im Terminal gesetzt werden
+- Tool-Permission-Antworten von remote enthalten keine Mode-Eskalation
+
+## Konfiguration
+
+Nach `helixmind connect` werden diese Config-Werte automatisch gesetzt:
+
+| Key | Wert | Beschreibung |
+|-----|------|-------------|
+| `relay.url` | `https://helix-mind.ai` | Web-Plattform URL |
+| `relay.apiKey` | `hm_...` | Dein verschlusselter API-Key |
+| `relay.autoConnect` | `true` | Auto-Connect beim CLI-Start |
+| `relay.userEmail` | Deine E-Mail | Verknupftes Konto |
+| `relay.plan` | Dein Plan | Feature-Zugriffslevel |
+
+Status prufen:
+
+```bash
+helixmind whoami
+```
+
+Verbindung trennen:
+
+```bash
+helixmind logout
+```
+
+## Fehlerbehebung
+
+### CLI zeigt "Waiting for authorization..." aber nichts passiert
+- Stelle sicher, dass du in der Web-App eingeloggt bist
+- Prufe ob der Device-Code abgelaufen ist (15 Minuten Timeout)
+- Versuche `helixmind connect --force` um den Flow neu zu starten
+
+### Remote-Verbindung bricht haufig ab
+- Die CLI verbindet sich automatisch mit exponentiellem Backoff (1s bis 30s) neu
+- Prufe deine Internetverbindung
+- Teste ob der Relay-Server erreichbar ist: `curl https://helix-mind.ai/api/health`
+
+### Handy sieht die CLI-Instanz nicht
+- Stelle sicher, dass `helixmind connect` erfolgreich war (`helixmind whoami` sollte "connected" zeigen)
+- Die CLI muss laufen — Remote-Zugriff funktioniert nur wahrend der CLI-Prozess aktiv ist
+- Prufe ob du auf beiden Geraten mit dem gleichen Account eingeloggt bist

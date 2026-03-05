@@ -37,11 +37,14 @@ export async function loginFlow(store: ConfigStore, options: LoginOptions): Prom
     const status = await checkAuthStatus(store);
     if (status.loggedIn) {
       process.stdout.write('\n');
-      process.stdout.write(chalk.dim('\u256D\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E') + '\n');
-      process.stdout.write(chalk.dim('\u2502  ') + theme.primary('\u{1F517} Already logged in') + chalk.dim('                        \u2502') + '\n');
-      process.stdout.write(chalk.dim('\u2502  ') + `Account: ${status.email ?? 'unknown'}`.padEnd(46) + chalk.dim('\u2502') + '\n');
-      process.stdout.write(chalk.dim('\u2502  ') + `Plan: ${status.plan ?? 'FREE'}`.padEnd(46) + chalk.dim('\u2502') + '\n');
-      process.stdout.write(chalk.dim('\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F') + '\n');
+      const w = 50;
+      const ln = '\u2500'.repeat(w);
+      process.stdout.write(chalk.dim(`\u256D${ln}\u256E`) + '\n');
+      process.stdout.write(chalk.dim('\u2502  ') + theme.primary('\u{1F517} Already connected') + ' '.repeat(w - 24) + chalk.dim('\u2502') + '\n');
+      process.stdout.write(chalk.dim('\u2502  ') + `Account: ${status.email ?? 'unknown'}`.padEnd(w - 4) + chalk.dim('\u2502') + '\n');
+      process.stdout.write(chalk.dim('\u2502  ') + `Plan:    ${status.plan ?? 'FREE'}`.padEnd(w - 4) + chalk.dim('\u2502') + '\n');
+      process.stdout.write(chalk.dim('\u2502  ') + chalk.gray('\u{1F310} Remote access active \u2014 open dashboard on any device').slice(0, w - 2).padEnd(w - 4) + chalk.dim('\u2502') + '\n');
+      process.stdout.write(chalk.dim(`\u2570${ln}\u256F`) + '\n');
       process.stdout.write(chalk.dim('  Use --force to re-authenticate.\n\n'));
       return true;
     }
@@ -264,14 +267,20 @@ async function pollDeviceCode(
 
 function showSuccessBox(email?: string, plan?: string, apiKey?: string): void {
   const masked = apiKey ? ConfigStore.maskKey(apiKey) : '***';
+  const w = 50;
+  const line = '\u2500'.repeat(w);
 
   process.stdout.write('\n');
-  process.stdout.write(chalk.dim('\u256D\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E') + '\n');
-  process.stdout.write(chalk.dim('\u2502  ') + chalk.green('\u2713 HelixMind \u2014 Logged In') + chalk.dim('                       \u2502') + '\n');
-  process.stdout.write(chalk.dim('\u2502  ') + `Account: ${email ?? 'connected'}`.padEnd(46) + chalk.dim('\u2502') + '\n');
-  process.stdout.write(chalk.dim('\u2502  ') + `Plan:    ${plan ?? 'FREE'}`.padEnd(46) + chalk.dim('\u2502') + '\n');
-  process.stdout.write(chalk.dim('\u2502  ') + `API Key: ${masked}`.padEnd(46) + chalk.dim('\u2502') + '\n');
-  process.stdout.write(chalk.dim('\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F') + '\n\n');
+  process.stdout.write(chalk.dim(`\u256D${line}\u256E`) + '\n');
+  process.stdout.write(chalk.dim('\u2502  ') + chalk.green('\u2713 HelixMind \u2014 Connected') + ' '.repeat(w - 26) + chalk.dim('\u2502') + '\n');
+  process.stdout.write(chalk.dim('\u2502  ') + `Account: ${email ?? 'connected'}`.padEnd(w - 4) + chalk.dim('\u2502') + '\n');
+  process.stdout.write(chalk.dim('\u2502  ') + `Plan:    ${plan ?? 'FREE'}`.padEnd(w - 4) + chalk.dim('\u2502') + '\n');
+  process.stdout.write(chalk.dim('\u2502  ') + `API Key: ${masked}`.padEnd(w - 4) + chalk.dim('\u2502') + '\n');
+  process.stdout.write(chalk.dim(`\u251C${line}\u2524`) + '\n');
+  process.stdout.write(chalk.dim('\u2502  ') + theme.primary('\u{1F310} Remote Access active') + ' '.repeat(w - 26) + chalk.dim('\u2502') + '\n');
+  process.stdout.write(chalk.dim('\u2502  ') + chalk.gray('Open the dashboard on any device to control').padEnd(w - 4) + chalk.dim('\u2502') + '\n');
+  process.stdout.write(chalk.dim('\u2502  ') + chalk.gray('this CLI \u2014 phone, tablet, another PC.').padEnd(w - 4) + chalk.dim('\u2502') + '\n');
+  process.stdout.write(chalk.dim(`\u2570${line}\u256F`) + '\n\n');
 }
 
 function openBrowser(url: string): Promise<boolean> {

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
   MessageSquare, Bot, ArrowDown, Loader2, CheckCircle2, XCircle,
   Wifi, Terminal, Download, Plug, ExternalLink, Key, BookOpen,
-  Square,
+  Square, Globe, Smartphone,
 } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { AgentPromptBlock } from './AgentPromptBlock';
@@ -224,6 +224,36 @@ export function ChatView({
               <BookOpen size={11} />{t('setupDocsFullGuide')}
               <ExternalLink size={8} />
             </a>
+          </div>
+
+          {/* Remote Access Section */}
+          <div className="px-3 py-3 rounded-lg bg-gradient-to-br from-purple-500/[0.04] to-cyan-500/[0.04] border border-purple-500/10 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-purple-500/10 flex items-center justify-center">
+                <Globe size={12} className="text-purple-400" />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-gray-300">{t('remoteTitle')}</p>
+                <p className="text-[9px] text-gray-500">{t('remoteDesc')}</p>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-[9px] text-gray-500">{t('remoteStep1')}</p>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-purple-400/80 text-[10px] font-mono">helixmind connect</code>
+              <p className="text-[9px] text-gray-500">{t('remoteStep2')}</p>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-[9px] text-gray-600">
+                  <Smartphone size={9} />
+                  <span>{t('remoteStep3')}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-0.5">
+              <span className="text-[8px] text-gray-600 font-mono">{t('remoteOr')} helixmind login</span>
+              <a href="/docs/remote-access" className="inline-flex items-center gap-1 text-[9px] text-purple-400/60 hover:text-purple-400 transition-colors">
+                {t('remoteLearnMore')} <ExternalLink size={8} />
+              </a>
+            </div>
           </div>
         </div>
       </div>

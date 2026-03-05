@@ -151,6 +151,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     connection, chat: cliChat,
     instances, scanning, rescan, connectTo, disconnectCli,
     connectedPort, registerOnComplete,
+    isRelay, toast: cliToast,
   } = useCliContext();
 
   const [chats, setChats] = useState<ChatSummary[]>([]);
@@ -2162,6 +2163,16 @@ ${cleaned}
         instances={instances}
         onConnect={(inst) => { handleInstanceSwitch(inst); setShowSpawnDialog(false); }}
       />
+
+      {/* Connection toast notification */}
+      {cliToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[80] animate-fade-in">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 text-xs font-medium shadow-lg backdrop-blur-md">
+            <Wifi size={14} />
+            {cliToast}
+          </div>
+        </div>
+      )}
 
       {/* Brain 3D Overlay — portal to body, supports full / minimized / hidden */}
       {brainOverlayState !== 'hidden' && connectedPort && typeof document !== 'undefined' && createPortal(

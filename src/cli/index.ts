@@ -176,6 +176,17 @@ program
   });
 
 program
+  .command('connect')
+  .description('Connect CLI to HelixMind web app (alias for login)')
+  .option('--api-key <key>', 'Use API key directly (skip browser flow)')
+  .option('--url <url>', 'Web platform URL')
+  .option('--force', 'Re-authenticate even if already logged in')
+  .action(async (options) => {
+    const { loginCommand } = await import('./commands/auth.js');
+    await loginCommand(options);
+  });
+
+program
   .command('logout')
   .description('Remove stored authentication')
   .option('--no-revoke', 'Do not revoke the API key on the server')

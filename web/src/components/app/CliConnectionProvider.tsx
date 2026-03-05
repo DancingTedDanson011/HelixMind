@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { useCliConnection, type UseCliConnectionReturn } from '@/hooks/use-cli-connection';
 import { useCliChat, type UseCliChatReturn, type ActiveTool } from '@/hooks/use-cli-chat';
 import { useCliDiscovery } from '@/hooks/use-cli-discovery';
@@ -27,6 +28,10 @@ interface CliContextValue {
   connectedPort: number | undefined;
   /** Register a callback for CLI chat completion */
   registerOnComplete: (fn: (text: string, tools: ActiveTool[]) => void) => void;
+  /** Whether the current connection is via relay (remote) */
+  isRelay: boolean;
+  /** Toast message to display (auto-clears) */
+  toast: string | null;
 }
 
 const CliContext = createContext<CliContextValue | null>(null);
@@ -44,11 +49,15 @@ export function useCliContext(): CliContextValue {
 // ---------------------------------------------------------------------------
 
 export function CliConnectionProvider({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
   const [connectionMode, setConnectionMode] = useState<ConnectionMode>('local');
   const [selectedPort, setSelectedPort] = useState<number | undefined>();
   const [authToken, setAuthToken] = useState<string | undefined>();
+  const [toast, setToast] = useState<string | null>(null);
   const connectPendingRef = useRef(false);
   const hasAutoConnectedRef = useRef(false);
+  const relayFallbackTriedRef = useRef(false);
+  const prevConnectionStateRef = useRef<string>('disconnected');
 
   // Discovery: scans localhost:9420-9440 every 10s
   const discovery = useCliDiscovery();
@@ -122,6 +131,61 @@ export function CliConnectionProvider({ children }: { children: React.ReactNode 
     }
   }, [discovery.instances, connection.connectionState, selectedPort]);
 
+  // ── Auto-relay fallback: no local instances + user logged in → try relay ──
+  useEffect(() => {
+    if (
+      !relayFallbackTriedRef.current &&
+      session?.user &&
+      !discovery.scanning &&
+      discovery.instances.length === 0 &&
+      connection.connectionState === 'disconnected' &&
+      connectionMode === 'local'
+    ) {
+      relayFallbackTriedRef.current = true;
+      setConnectionMode('relay');
+      setSelectedPort(undefined);
+      setAuthToken(undefined);
+      connectPendingRef.current = true;
+    }
+  }, [session, discovery.scanning, discovery.instances.length, connection.connectionState, connectionMode]);
+
+  // ── Relay connect after mode switch ──
+  useEffect(() => {
+    if (connectPendingRef.current && connectionMode === 'relay') {
+      connectPendingRef.current = false;
+      connection.connect();
+    }
+  }, [connection, connectionMode]);
+
+  // ── Toast on connection state changes ──
+  useEffect(() => {
+    const prev = prevConnectionStateRef.current;
+    const curr = connection.connectionState;
+    prevConnectionStateRef.current = curr;
+
+    if (prev !== 'connected' && curr === 'connected') {
+      const mode = connectionMode === 'relay' ? 'remote' : 'local';
+      const project = connection.instanceMeta?.projectName;
+      setToast(project ? `Connected (${mode}) — ${project}` : `Connected (${mode})`);
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [connection.connectionState, connection.instanceMeta, connectionMode]);
+
+  // ── Reset relay fallback when local instances appear ──
+  useEffect(() => {
+    if (discovery.instances.length > 0 && connectionMode === 'relay' && relayFallbackTriedRef.current) {
+      // Local instance appeared — switch back to local
+      relayFallbackTriedRef.current = false;
+      const inst = discovery.instances[0];
+      connection.disconnect();
+      setSelectedPort(inst.port);
+      setAuthToken(inst.token || undefined);
+      setConnectionMode('local');
+      connectPendingRef.current = true;
+    }
+  }, [discovery.instances, connectionMode, connection]);
+
   // ── Manual connect to a specific instance ──
   const connectTo = useCallback((instance: DiscoveredInstance) => {
     hasAutoConnectedRef.current = true;
@@ -135,6 +199,7 @@ export function CliConnectionProvider({ children }: { children: React.ReactNode 
   // ── Manual disconnect ──
   const disconnectCli = useCallback(() => {
     hasAutoConnectedRef.current = true; // prevent auto-reconnect loop
+    relayFallbackTriedRef.current = true; // don't auto-fallback again
     connection.disconnect();
   }, [connection]);
 
@@ -149,6 +214,8 @@ export function CliConnectionProvider({ children }: { children: React.ReactNode 
       disconnectCli,
       connectedPort: selectedPort,
       registerOnComplete,
+      isRelay: connectionMode === 'relay',
+      toast,
     }}>
       {children}
     </CliContext.Provider>

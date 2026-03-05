@@ -1,0 +1,121 @@
+---
+title: "Remote Access — Connect from Anywhere"
+description: "Control your HelixMind CLI from any device via the web app. One command, works from your phone."
+order: 16
+category: "Web Integration"
+---
+
+# Remote Access
+
+HelixMind supports two connection modes between your CLI and the web app. **Local mode** works when the browser runs on the same machine as the CLI. **Remote mode** lets you connect from anywhere — your phone, a tablet, or another computer — via an encrypted relay.
+
+## How It Works
+
+### Local Mode (Same Machine)
+
+When you run `helixmind` on your PC and open the web app in the same machine's browser, the app auto-discovers CLI instances on localhost. No setup needed.
+
+```
+Browser → ws://127.0.0.1:{port} → CLI
+```
+
+### Remote Mode (From Anywhere)
+
+When you want to access your CLI from a different device (e.g., your phone), the CLI connects **outbound** to the HelixMind relay server, and your browser connects to the same relay. The relay forwards messages between them.
+
+```
+CLI  →  wss://helix-mind.ai/api/relay/cli   (API key auth)
+             ↕  Relay Server  ↕
+Phone →  wss://helix-mind.ai/api/relay/web   (Session auth)
+```
+
+Both connections are **outbound** — no port forwarding, no firewall changes, no VPN required.
+
+## Setup: One Command
+
+```bash
+helixmind connect
+```
+
+This opens a pairing flow:
+
+1. A **device code** appears in your terminal (e.g., `ABCD-EFGH`)
+2. Your browser opens to the confirmation page
+3. Log in (or scan the code on your phone) and enter the code
+4. The CLI receives an API key and stores it automatically
+5. Done. Your CLI is now accessible from any device where you're logged in.
+
+> `helixmind connect` is an alias for `helixmind login`. Both do exactly the same thing.
+
+### Alternative: Manual API Key
+
+If the browser flow doesn't work (e.g., headless server), you can create an API key in the web dashboard and pass it directly:
+
+```bash
+helixmind connect --api-key hm_your_key_here
+```
+
+## What You Can Do Remotely
+
+Once connected, the web app gives you full control:
+
+| Feature | Description |
+|---------|-------------|
+| **Live Output** | See CLI output in real-time |
+| **Chat** | Send messages to the AI agent |
+| **Sessions** | View and manage running sessions |
+| **Start Tasks** | Launch Auto, Security, or Jarvis sessions |
+| **Permissions** | Approve or deny tool permission requests |
+| **Findings** | View security findings and bug reports |
+| **Checkpoints** | Browse and revert to previous states |
+| **Swarm** | Start and monitor multi-agent swarms |
+
+## Security
+
+- All remote connections use **TLS encryption** (wss://)
+- CLI refuses non-TLS connections to remote servers
+- API keys are hashed (SHA-256) before storage — the raw key is never stored on the server
+- Remote clients **cannot** escalate permissions beyond L3 (Act-Safe)
+- L4 (Act-Bold) and L5 (Full-Auto) must be set locally in the terminal
+- Tool permission responses from remote don't include mode escalation
+
+## Configuration
+
+After running `helixmind connect`, these config values are set automatically:
+
+| Key | Value | Description |
+|-----|-------|-------------|
+| `relay.url` | `https://helix-mind.ai` | Web platform URL |
+| `relay.apiKey` | `hm_...` | Your encrypted API key |
+| `relay.autoConnect` | `true` | Auto-connect on CLI startup |
+| `relay.userEmail` | Your email | Linked account |
+| `relay.plan` | Your plan tier | Feature access level |
+
+To check your connection status:
+
+```bash
+helixmind whoami
+```
+
+To disconnect:
+
+```bash
+helixmind logout
+```
+
+## Troubleshooting
+
+### CLI shows "Waiting for authorization..." but nothing happens
+- Make sure you're logged into the web app in your browser
+- Check that the device code hasn't expired (15 minute timeout)
+- Try `helixmind connect --force` to restart the flow
+
+### Remote connection drops frequently
+- The CLI auto-reconnects with exponential backoff (1s to 30s)
+- Check your internet connection stability
+- Verify the relay server is reachable: `curl https://helix-mind.ai/api/health`
+
+### Phone can't see the CLI instance
+- Ensure `helixmind connect` completed successfully (`helixmind whoami` should show "connected")
+- The CLI must be running — remote access only works while the CLI process is active
+- Check that you're logged into the same account on both devices
