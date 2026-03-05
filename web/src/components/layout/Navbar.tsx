@@ -128,28 +128,6 @@ export function Navbar() {
 
             {/* Content — min-h-screen fallback + dvh override for mobile address bar */}
             <div className="relative flex flex-col px-8 pt-24 pb-8 overflow-y-auto min-h-screen" style={{ minHeight: '100dvh' }}>
-              {/* App button — always visible, redirects to login if not authenticated */}
-              <motion.div
-                initial={{ opacity: 0, y: -16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                transition={{
-                  delay: 0.08,
-                  duration: 0.35,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-                className="mb-4"
-              >
-                <Link
-                  href={session?.user ? '/app' as AppHref : '/auth/signin' as AppHref}
-                  className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl text-lg font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 transition-all duration-200"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <Sparkles size={20} />
-                  {session?.user ? t('openApp') : t('getStarted')}
-                </Link>
-              </motion.div>
-
               {/* Nav links — compact for small screens, staggered animation */}
               <nav className="space-y-0">
                 {navLinks.map((link, i) => (
@@ -180,6 +158,28 @@ export function Navbar() {
                   </motion.div>
                 ))}
               </nav>
+
+              {/* Open App button — below nav links */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 16 }}
+                transition={{
+                  delay: 0.1 + navLinks.length * 0.07 + 0.05,
+                  duration: 0.35,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className="mt-6"
+              >
+                <Link
+                  href={session?.user ? '/app' as AppHref : '/auth/signin' as AppHref}
+                  className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl text-lg font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/25 transition-all duration-200"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Sparkles size={20} />
+                  {t('openApp')}
+                </Link>
+              </motion.div>
 
               {/* Bottom section — stacked for small screens */}
               <motion.div

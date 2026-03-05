@@ -179,15 +179,22 @@ export function ChatView({
                 <p className="text-[11px] font-medium text-gray-300">{t('setupStep1Title')}</p>
               </div>
               <code className="block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[10px] font-mono">npm i -g helixmind</code>
-              <p className="text-[9px] text-gray-700">{t('setupStep1Requires')}</p>
+              <p className="text-[9px] text-gray-500">{t('setupStep1Requires')}{' '}
+                <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer" className="text-cyan-500/70 hover:text-cyan-400 underline">nodejs.org</a>
+              </p>
+              <p className="text-[9px] text-gray-700">{t('setupStep1Start')}</p>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[10px] font-mono">cd your-project && helixmind</code>
+              <p className="text-[9px] text-gray-700">{t('setupStep3Alias')}</p>
             </div>
             <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <Key size={12} className="text-amber-400 flex-shrink-0" />
                 <p className="text-[11px] font-medium text-gray-300">{t('setupStep2Title')}</p>
               </div>
-              <code className="block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[10px] font-mono">hx config set provider anthropic</code>
-              <code className="block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[10px] font-mono mt-1">hx config set apiKey sk-ant-...</code>
+              <p className="text-[9px] text-gray-500">{t('setupStep2Hint')}</p>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[10px] font-mono">/model</code>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-amber-400/80 text-[10px] font-mono mt-1">/api sk-ant-...</code>
+              <p className="text-[9px] text-gray-700 mt-0.5">{t('setupStep2Cli')}</p>
             </div>
             <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
               <div className="flex items-center gap-2">
@@ -195,15 +202,20 @@ export function ChatView({
                 <p className="text-[11px] font-medium text-gray-300">{t('setupStep3Title')}</p>
               </div>
               <code className="block px-2 py-1 rounded-md bg-white/5 text-cyan-400/80 text-[10px] font-mono">cd your-project && helixmind</code>
-              <p className="text-[9px] text-gray-700">{t('setupStep3Alias')}</p>
+              <p className="text-[9px] text-gray-500">{t('setupStep3Explorer')}</p>
             </div>
             <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <Wifi size={12} className="text-emerald-400 flex-shrink-0" />
                 <p className="text-[11px] font-medium text-gray-300">{t('setupStep4Title')}</p>
               </div>
-              <code className="block px-2 py-1 rounded-md bg-white/5 text-purple-400/80 text-[10px] font-mono">helixmind init</code>
-              <p className="text-[9px] text-gray-700">{t('setupStep5Desc')}</p>
+              <code className="block px-2 py-1 rounded-md bg-white/5 text-emerald-400/80 text-[10px] font-mono">/feed</code>
+              <p className="text-[9px] text-gray-500">{t('setupStep4Mode')}</p>
+              <div className="flex gap-1.5 flex-wrap mt-0.5">
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400/70 font-mono">CLI</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400/70 font-mono">Monitor</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400/70 font-mono">Jarvis</span>
+              </div>
             </div>
           </div>
 

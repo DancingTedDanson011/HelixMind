@@ -10,7 +10,7 @@ interface Feature {
 }
 
 interface TabInfoPageProps {
-  icon: ReactNode;
+  icon?: ReactNode;
   title: string;
   description: string;
   features: Feature[];
@@ -55,9 +55,11 @@ export function TabInfoPage({ icon, title, description, features, actions, accen
       <div className="max-w-xl mx-auto space-y-6">
         {/* Hero */}
         <div className="text-center space-y-4">
-          <div className={`mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br ${gradients[accentColor]} border border-white/5 flex items-center justify-center`}>
-            <div className={iconColors[accentColor]}>{icon}</div>
-          </div>
+          {icon && (
+            <div className={`mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br ${gradients[accentColor]} border border-white/5 flex items-center justify-center`}>
+              <div className={iconColors[accentColor]}>{icon}</div>
+            </div>
+          )}
           <div>
             <h2 className="text-lg font-semibold text-gray-200">{title}</h2>
             <p className="text-sm text-gray-500 mt-1.5 max-w-md mx-auto leading-relaxed">{description}</p>

@@ -1629,7 +1629,6 @@ ${cleaned}
               </div>
             ) : (
               <TabInfoPage
-                icon={<Terminal size={28} />}
                 title={t('consoleInfoTitle')}
                 description={t('consoleInfoDesc')}
                 accentColor="cyan"
@@ -1693,7 +1692,6 @@ ${cleaned}
                   </div>
                 ) : (
                   <TabInfoPage
-                    icon={<Eye size={28} />}
                     title={t('monitorInfoTitle')}
                     description={t('monitorInfoDesc')}
                     accentColor="blue"
@@ -1922,7 +1920,6 @@ ${cleaned}
                   </div>
                 ) : (
                   <TabInfoPage
-                    icon={<Bot size={28} />}
                     title={t('jarvisInfoTitle')}
                     description={t('jarvisInfoDesc')}
                     accentColor="red"
