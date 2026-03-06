@@ -28,6 +28,13 @@ export class BottomChrome {
   /** Previous frame — used for dirty-check diffing to avoid redundant redraws */
   private _prevRowContent: [string, string, string, string] = ['', '', '', ''];
 
+  /**
+   * When true, the stdout hook suppresses automatic redraws.
+   * Set this while readline is active (user typing at prompt) to prevent
+   * cursor-position interference that causes garbled/doubled characters.
+   */
+  private _promptActive = false;
+
   /** Extra rows for suggestion panel (0 when no panel visible) */
   private _extraRows = 0;
   /** Content for each suggestion row */
@@ -69,6 +76,11 @@ export class BottomChrome {
   /** Whether we fell back to inline mode (terminal too small) */
   get isInlineMode(): boolean {
     return this._inlineMode;
+  }
+
+  /** Suppress hook redraws while readline is managing cursor (user typing). */
+  set promptActive(active: boolean) {
+    this._promptActive = active;
   }
 
   // ---------------------------------------------------------------------------
@@ -341,7 +353,7 @@ export class BottomChrome {
       // could scroll chrome rows off-screen (on terminals ignoring DECSTBM).
       // Previous approach forced ALL rows dirty on every write — the constant
       // cursor-save/restore cycles corrupted output on Windows Terminal.
-      if (self._active && !self._redrawScheduled) {
+      if (self._active && !self._redrawScheduled && !self._promptActive) {
         // Check if the written data contains a newline
         const data = typeof args[0] === 'string' ? args[0] : '';
         const hasNewline = data.includes('\n');

@@ -2011,6 +2011,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
 
     isAtPrompt = true;
+    // Suppress stdout hook redraws while readline manages the cursor —
+    // prevents cursor-position interference that garbles/doubles characters.
+    chrome.promptActive = true;
 
     // Restore readline echo (may have been muted during agent work)
     (rl as any).output = process.stdout;
@@ -3454,6 +3457,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     currentStepFile = '';
     suggestionPanel.close(); // Close suggestions when agent starts
     agentRunning = true;
+    chrome.promptActive = false; // Re-enable stdout hook redraws for agent output
     agentController.reset();
     // Set activity display name: custom Jarvis name when daemon is running, else "HelixMind"
     activity.setDisplayName(
@@ -3752,6 +3756,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // We collect them and show a preview instead of sending immediately.
   rl.on('line', (line) => {
     isAtPrompt = false;
+    chrome.promptActive = false; // Re-enable stdout hook redraws
     ctrlCCount = 0;
 
     // Clear any type-ahead preview at the prompt row
