@@ -428,6 +428,20 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
     }
   }, [isConnected]);
 
+  // ── On CLI disconnect: move current chat to "old sessions" ──
+  // This clears the active chat so the user sees the info/welcome pages
+  // when navigating tabs, and the chat appears in "old sessions" in sidebar.
+  const wasConnectedRef = useRef(isConnected);
+  useEffect(() => {
+    if (wasConnectedRef.current && !isConnected && activeChatId) {
+      // CLI just disconnected — archive current chat
+      setActiveChatId(null);
+      setActiveChat(null);
+      setCliOutputMessages([]);
+    }
+    wasConnectedRef.current = isConnected;
+  }, [isConnected, activeChatId]);
+
   // ── Load chat messages ──────────────────────
   const loadChat = useCallback(async (chatId: string) => {
     setCliOutputMessages([]); // Clear CLI output on chat switch
@@ -1669,6 +1683,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               </div>
             ) : (
               <TabInfoPage
+                icon={<Terminal size={18} />}
                 title={t('consoleInfoTitle')}
                 description={t('consoleInfoDesc')}
                 accentColor="cyan"
@@ -1732,6 +1747,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   </div>
                 ) : (
                   <TabInfoPage
+                    icon={<Eye size={18} />}
                     title={t('monitorInfoTitle')}
                     description={t('monitorInfoDesc')}
                     accentColor="blue"
@@ -1960,6 +1976,7 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
                   </div>
                 ) : (
                   <TabInfoPage
+                    icon={<Bot size={18} />}
                     title={t('jarvisInfoTitle')}
                     description={t('jarvisInfoDesc')}
                     accentColor="red"

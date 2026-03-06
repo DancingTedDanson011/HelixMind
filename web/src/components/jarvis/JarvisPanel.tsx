@@ -225,7 +225,7 @@ export function JarvisPanel({
           </div>
         ) : (
           <TabInfoPage
-            icon={<Bot size={28} />}
+            icon={<Bot size={18} />}
             title={t('jarvisInfoTitle')}
             description={t('jarvisInfoDesc')}
             accentColor="red"

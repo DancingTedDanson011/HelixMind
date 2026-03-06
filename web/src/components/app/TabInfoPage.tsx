@@ -54,9 +54,9 @@ export function TabInfoPage({ icon, title, description, features, actions, accen
     <div className="flex-1 overflow-y-auto px-4 py-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
       <div className="max-w-xl mx-auto space-y-6">
         {/* Hero */}
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-3">
           {icon && (
-            <div className={`mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br ${gradients[accentColor]} border border-white/5 flex items-center justify-center`}>
+            <div className={`mx-auto w-10 h-10 rounded-xl bg-gradient-to-br ${gradients[accentColor]} border border-white/5 flex items-center justify-center`}>
               <div className={iconColors[accentColor]}>{icon}</div>
             </div>
           )}
