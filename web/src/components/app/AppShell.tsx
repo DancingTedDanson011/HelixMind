@@ -22,7 +22,7 @@ import {
   Cpu, Clock, Plug, Shield, Zap,
   AlertTriangle, Activity, X, MessageSquare, Square,
   Eye, ShieldAlert, CheckCircle2, XCircle, Radio, FileText, Loader2,
-  Bug, Bot, Search, ListChecks, ShieldCheck,
+  Bot, Search, ListChecks, ShieldCheck,
   Play, Pause, Sparkles, Users, Minimize2, Maximize2,
 } from 'lucide-react';
 import { JarvisPanel } from '@/components/jarvis/JarvisPanel';
@@ -2069,6 +2069,9 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
               setShowCheckpoints(prev => !prev);
               connection.listCheckpoints().catch(() => {});
             }}
+            openBugCount={connection.bugs.filter(b => b.status === 'open').length}
+            showBugPanel={showBugPanel}
+            onToggleBugPanel={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
           />
         )}
 
@@ -2146,28 +2149,6 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
         {/* Input — visible on chat/console/monitor tabs (Jarvis has its own embedded input) */}
         {activeTab !== 'jarvis' && (
           <div>
-            {/* Bug toggle button — inline above input, right-aligned */}
-            {isConnected && activeTab === 'chat' && (
-              <div className="flex justify-end px-4 pb-1">
-                <button
-                  onClick={() => { setShowBugPanel(prev => !prev); connection.getBugs().catch(() => {}); }}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
-                    showBugPanel
-                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                      : connection.bugs.filter(b => b.status === 'open').length > 0
-                        ? 'bg-red-500/5 border-red-500/10 text-red-400 hover:bg-red-500/10'
-                        : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
-                  }`}
-                >
-                  <Bug size={11} />
-                  {connection.bugs.filter(b => b.status === 'open').length > 0 && (
-                    <span className="min-w-[12px] h-[12px] flex items-center justify-center rounded-full bg-red-500/20 text-[8px] text-red-400 font-bold px-0.5">
-                      {connection.bugs.filter(b => b.status === 'open').length}
-                    </span>
-                  )}
-                </button>
-              </div>
-            )}
             <ChatInput
               onSend={sendMessage}
               onSendWithFiles={handleSendWithFiles}
