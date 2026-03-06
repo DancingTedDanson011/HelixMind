@@ -206,14 +206,16 @@ export class BottomChrome {
     if (!dirty0 && !dirty1 && !dirty2 && !dirty3 && !anySuggestionDirty) return;
 
     const write = this._rawWrite.bind(this);
+    const promptRow = rows - total;
 
-    // Build a single write with only the changed rows
-    let output = '\x1b[?25l\x1b[s'; // hide cursor + save
+    // Build a single write with only the changed rows.
+    // NOTE: We avoid \x1b[s / \x1b[u (DECSC/DECRC) because Windows Terminal
+    // / ConPTY handles cursor save/restore unreliably during rapid output,
+    // causing status bar fragments to bleed into the main scroll area.
+    // Instead we move cursor to chrome rows, draw, then move back to prompt row.
+    let output = '\x1b[?25l'; // hide cursor
 
     // Suggestion rows sit between prompt and chrome base rows
-    // Layout: promptRow | suggestion0 | suggestion1 | ... | chrome0 | chrome1 | chrome2 | chrome3
-    // Suggestion row i is at terminal row: rows - total + i (0-indexed from suggestions start)
-    // Actually: promptRow = rows - total, suggestion rows start at promptRow + 1
     const suggestionStart = rows - total + 1; // row after prompt
     for (let i = 0; i < this._extraRows; i++) {
       if (this._suggestionContent[i] !== this._prevSuggestionContent[i]) {
@@ -241,7 +243,8 @@ export class BottomChrome {
       this._prevRowContent[3] = this._rowContent[3];
     }
 
-    output += '\x1b[u\x1b[?25h'; // restore cursor + show
+    // Return cursor to prompt row (bottom of scroll region) instead of restore
+    output += `\x1b[${promptRow};1H\x1b[?25h`; // move to prompt row + show cursor
     write(output);
   }
 
@@ -283,13 +286,13 @@ export class BottomChrome {
    */
   writeAtPromptRow(content: string): void {
     if (this._inlineMode || !this._active) return;
+    const pr = this.promptRow;
     this._rawWrite(
       '\x1b[?25l' +                           // hide cursor
-      '\x1b[s' +                                 // save cursor
-      `\x1b[${this.promptRow};1H` +            // move to prompt row
+      `\x1b[${pr};1H` +                       // move to prompt row
       '\x1b[2K' +                              // clear entire line
       content +                                // write content
-      '\x1b[u' +                                 // restore cursor
+      `\x1b[${pr};1H` +                       // stay at prompt row
       '\x1b[?25h',                             // show cursor
     );
   }
@@ -334,23 +337,30 @@ export class BottomChrome {
     (process.stdout as any).write = function (...args: any[]): boolean {
       const result = self._originalWrite!(...args);
 
+      // Only schedule a chrome repaint when output contains a newline that
+      // could scroll chrome rows off-screen (on terminals ignoring DECSTBM).
+      // Previous approach forced ALL rows dirty on every write — the constant
+      // cursor-save/restore cycles corrupted output on Windows Terminal.
       if (self._active && !self._redrawScheduled) {
-        self._redrawScheduled = true;
-        process.nextTick(() => {
-          self._redrawScheduled = false;
-          if (self._active) {
-            // Force full redraw: Windows Terminal / ConPTY may ignore DECSTBM
-            // scroll regions, causing newlines in the scroll area to scroll the
-            // chrome off-screen. Clear prev-content so the dirty check always
-            // triggers a repaint. Coalescence via _redrawScheduled keeps this
-            // to one repaint per event-loop tick.
-            self._prevRowContent = ['', '', '', ''];
-            for (let i = 0; i < self._prevSuggestionContent.length; i++) {
-              self._prevSuggestionContent[i] = '';
+        // Check if the written data contains a newline
+        const data = typeof args[0] === 'string' ? args[0] : '';
+        const hasNewline = data.includes('\n');
+        if (hasNewline) {
+          self._redrawScheduled = true;
+          // Use setTimeout (not nextTick) to coalesce rapid-fire writes
+          setTimeout(() => {
+            self._redrawScheduled = false;
+            if (self._active) {
+              // Force dirty only when newlines were written (scroll may have
+              // pushed chrome off-screen). Single repaint per batch.
+              self._prevRowContent = ['', '', '', ''];
+              for (let i = 0; i < self._prevSuggestionContent.length; i++) {
+                self._prevSuggestionContent[i] = '';
+              }
+              self.redraw();
             }
-            self.redraw();
-          }
-        });
+          }, 16); // ~1 frame at 60fps
+        }
       }
 
       return result;
@@ -378,16 +388,17 @@ export class BottomChrome {
   /** Draw a single chrome base row at its absolute position */
   private _drawChromeRow(index: 0 | 1 | 2 | 3): void {
     const rows = process.stdout.rows || 24;
+    const total = BASE_ROWS + this._extraRows;
     const row = rows - 3 + index; // 0 → N-3, 1 → N-2, 2 → N-1, 3 → N
+    const promptRow = rows - total;
     const content = this._rowContent[index];
 
     this._rawWrite(
       '\x1b[?25l' +
-      '\x1b[s' +
       `\x1b[${row};1H` +
       '\x1b[2K' +
       ` ${content}` +
-      '\x1b[u' +
+      `\x1b[${promptRow};1H` +
       '\x1b[?25h',
     );
   }
@@ -396,17 +407,16 @@ export class BottomChrome {
   private _drawSuggestionRow(index: number): void {
     const rows = process.stdout.rows || 24;
     const total = BASE_ROWS + this._extraRows;
-    // Suggestion rows start right after the prompt row
     const row = rows - total + 1 + index;
+    const promptRow = rows - total;
     const content = this._suggestionContent[index];
 
     this._rawWrite(
       '\x1b[?25l' +
-      '\x1b[s' +
       `\x1b[${row};1H` +
       '\x1b[2K' +
       ` ${content}` +
-      '\x1b[u' +
+      `\x1b[${promptRow};1H` +
       '\x1b[?25h',
     );
   }
@@ -415,12 +425,13 @@ export class BottomChrome {
   private _clearFixedRows(): void {
     const rows = process.stdout.rows || 24;
     const total = BASE_ROWS + this._extraRows;
+    const promptRow = rows - total;
 
-    let output = '\x1b[s';
+    let output = '';
     for (let i = 0; i < total; i++) {
       output += `\x1b[${rows - total + 1 + i};1H\x1b[2K`;
     }
-    output += '\x1b[u';
+    output += `\x1b[${promptRow};1H`;
     this._rawWrite(output);
   }
 
@@ -429,12 +440,14 @@ export class BottomChrome {
     const rows = process.stdout.rows || 24;
     const oldTotal = BASE_ROWS + oldExtraCount;
     const suggestionStart = rows - oldTotal + 1;
+    const newTotal = BASE_ROWS + this._extraRows;
+    const promptRow = rows - newTotal;
 
-    let output = '\x1b[s';
+    let output = '';
     for (let i = 0; i < oldExtraCount; i++) {
       output += `\x1b[${suggestionStart + i};1H\x1b[2K`;
     }
-    output += '\x1b[u';
+    output += `\x1b[${promptRow};1H`;
     this._rawWrite(output);
   }
 }

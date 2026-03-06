@@ -172,18 +172,21 @@ export function writeStatusBar(data: StatusBarData): void {
   const bar = renderStatusBar(data, termWidth);
   const [line1, line2] = bar.split('\n');
 
-  // Save cursor, draw 2 bottom rows, restore cursor
+  // Draw 2 bottom rows, then return cursor to prompt area.
+  // NOTE: We avoid \x1b[s / \x1b[u (DECSC/DECRC) because Windows Terminal
+  // / ConPTY handles cursor save/restore unreliably during rapid output,
+  // causing status bar fragments to bleed into the main scroll area.
+  const promptRow = termHeight - 2; // above the 2 status rows
   process.stdout.write(
-    `\x1b[s` +                         // Save cursor
-    `\x1b[${termHeight - 1};0H` +    // Move to row N-1
-    `\x1b[2K` +                       // Clear line
-    '\x1b[K' +                        // Clear to end (for safety)
-    ` ${line1}` +                     // Line 1
-    `\x1b[${termHeight};0H` +        // Move to row N
-    `\x1b[2K` +                       // Clear line
-    '\x1b[K' +
-    (line2 ? ` ${line2}` : '') +      // Line 2 (empty when single-line)
-    `\x1b[u`,                          // Restore cursor
+    '\x1b[?25l' +                      // Hide cursor
+    `\x1b[${termHeight - 1};1H` +     // Move to row N-1
+    '\x1b[2K' +                        // Clear line
+    ` ${line1}` +                      // Line 1
+    `\x1b[${termHeight};1H` +         // Move to row N
+    '\x1b[2K' +                        // Clear line
+    (line2 ? ` ${line2}` : '') +       // Line 2 (empty when single-line)
+    `\x1b[${promptRow};1H` +          // Return cursor to prompt area
+    '\x1b[?25h',                       // Show cursor
   );
 }
 
