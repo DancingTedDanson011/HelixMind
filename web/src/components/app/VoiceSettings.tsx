@@ -55,6 +55,7 @@ export function VoiceSettings({ voiceConfig, onConfigUpdate, onCloneUpload }: Vo
   const handleAudioFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('audio/')) {
       setUploadStatus('error');
+      setTimeout(() => setUploadStatus('idle'), 3000);
       return;
     }
     const name = cloneName.trim() || file.name.replace(/\.[^.]+$/, '');
@@ -63,17 +64,18 @@ export function VoiceSettings({ voiceConfig, onConfigUpdate, onCloneUpload }: Vo
       const base64 = await readFileAsBase64(file);
       onCloneUpload(base64, name);
       setUploadStatus('done');
-      setTimeout(() => setUploadStatus('idle'), 2000);
+      // stays "done" — resets only on next interaction or error
     } catch {
       setUploadStatus('error');
-      setTimeout(() => setUploadStatus('idle'), 2000);
+      setTimeout(() => setUploadStatus('idle'), 3000);
     }
   }, [cloneName, onCloneUpload]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
-  }, []);
+    if (uploadStatus === 'done' || uploadStatus === 'error') setUploadStatus('idle');
+  }, [uploadStatus]);
 
   const handleDragLeave = useCallback(() => {
     setIsDragOver(false);

@@ -61,8 +61,9 @@ export function useVoiceSession(params: UseVoiceSessionParams): UseVoiceSessionR
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [localConfig, setLocalConfig] = useState<VoiceConfig>({ ...DEFAULT_CONFIG, ...configOverride });
 
-  const voiceConfig: VoiceConfig = { ...DEFAULT_CONFIG, ...configOverride };
+  const voiceConfig = localConfig;
   const voiceStateRef = useRef<VoiceSessionState>('idle');
   const isVoiceActiveRef = useRef(false);
   const mountedRef = useRef(true);
@@ -173,6 +174,23 @@ export function useVoiceSession(params: UseVoiceSessionParams): UseVoiceSessionR
         updateVoiceState('idle');
         return;
       }
+
+      if (type === 'voice_config') {
+        const config = msg.config as Partial<VoiceConfig>;
+        if (config) setLocalConfig(prev => ({ ...prev, ...config }));
+        return;
+      }
+
+      if (type === 'voice_clone_result') {
+        const success = msg.success as boolean;
+        if (success && msg.voiceId) {
+          setLocalConfig(prev => ({ ...prev, clonedVoiceId: msg.voiceId as string }));
+        }
+        if (!success && msg.error) {
+          setError(msg.error as string);
+        }
+        return;
+      }
     });
 
     return unsubscribe;
@@ -242,6 +260,7 @@ export function useVoiceSession(params: UseVoiceSessionParams): UseVoiceSessionR
   void isSpeechDetected;
 
   const updateConfig = useCallback((config: Partial<VoiceConfig>) => {
+    setLocalConfig(prev => ({ ...prev, ...config }));
     sendRaw('voice_config_update', { config });
   }, [sendRaw]);
 
