@@ -164,10 +164,9 @@ export class BottomChrome {
 
     if (!this._active || this._inlineMode) return;
 
-    // Clear old suggestion rows if shrinking
-    if (clamped < oldExtra) {
-      this._clearSuggestionArea(oldExtra);
-    }
+    // Clear old prompt/suggestion area before changing scroll region
+    // This prevents ghost lines when panel opens (grows) or closes (shrinks)
+    this._clearPromptAndSuggestionArea(oldExtra);
 
     // Re-establish scroll region with new total reserved rows
     this._setScrollRegion();
@@ -444,6 +443,24 @@ export class BottomChrome {
       output += `\x1b[${rows - total + 1 + i};1H\x1b[2K`;
     }
     output += `\x1b[${promptRow};1H`;
+    this._rawWrite(output);
+  }
+
+  /** Clear the prompt row and suggestion area before changing scroll region */
+  private _clearPromptAndSuggestionArea(oldExtraCount: number): void {
+    const rows = process.stdout.rows || 24;
+    const oldTotal = BASE_ROWS + oldExtraCount;
+    const oldPromptRow = rows - oldTotal;
+    const newTotal = BASE_ROWS + this._extraRows;
+
+    // Clear from old prompt row down to the chrome base rows
+    // This removes any ghost prompt lines when the panel opens/closes
+    let output = '';
+    const startRow = Math.min(oldPromptRow, rows - newTotal);
+    const endRow = rows - BASE_ROWS;
+    for (let i = startRow; i <= endRow; i++) {
+      output += `\x1b[${i};1H\x1b[2K`;
+    }
     this._rawWrite(output);
   }
 
