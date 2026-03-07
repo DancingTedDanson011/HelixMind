@@ -51,19 +51,17 @@ export function BrainOverlay({ onClose, onMinimize, projectName }: BrainOverlayP
   const [brainNodes, setBrainNodes] = useState<DemoNode[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load brain data
+  // Load brain data - always start with demo, then try to get real data
   useEffect(() => {
-    if (!isConnected) {
-      // Load demo data as fallback
-      import('@/components/brain/brain-demo-data').then((m) => {
-        setBrainNodes(m.demoNodes);
-        setIsLoading(false);
-      });
-      return;
-    }
+    // Always load demo first for immediate display
+    import('@/components/brain/brain-demo-data').then((m) => {
+      setBrainNodes(m.demoNodes);
+      setIsLoading(false);
+    });
 
-    setIsLoading(true);
-    
+    // If connected, try to get real brain data
+    if (!isConnected) return;
+
     // Request brain sync from CLI
     connection.sendRaw?.(JSON.stringify({ type: 'brain_sync_pull', brainId: 'main' }));
 
@@ -72,35 +70,16 @@ export function BrainOverlay({ onClose, onMinimize, projectName }: BrainOverlayP
       if (msg.type === 'brain_sync_data' && typeof msg.nodesJson === 'string') {
         try {
           const data = JSON.parse(msg.nodesJson);
-          setBrainNodes(data.nodes || []);
-          setIsLoading(false);
-        } catch {
-          // Fallback to demo
-          import('@/components/brain/brain-demo-data').then((m) => {
-            setBrainNodes(m.demoNodes);
-            setIsLoading(false);
-          });
-        }
+          if (data.nodes?.length > 0) {
+            setBrainNodes(data.nodes);
+          }
+        } catch { /* keep demo */ }
       }
     };
 
     const unsubscribe = connection.onWsMessage?.(handleBrainSync);
-
-    // Timeout fallback
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        import('@/components/brain/brain-demo-data').then((m) => {
-          setBrainNodes(m.demoNodes);
-          setIsLoading(false);
-        });
-      }
-    }, 3000);
-
-    return () => {
-      unsubscribe?.();
-      clearTimeout(timeout);
-    };
-  }, [isConnected, connection, isLoading]);
+    return () => unsubscribe?.();
+  }, [isConnected, connection]);
 
   // ESC to close
   useEffect(() => {
