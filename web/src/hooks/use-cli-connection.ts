@@ -1231,5 +1231,8 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
     startSwarm,
     abortSwarm,
     getSwarmStatus,
+
+    // Brain data
+    brainData,
   };
 }
