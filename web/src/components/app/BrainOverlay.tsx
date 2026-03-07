@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { X, Minimize2, Mic, MicOff, Search, Filter, Brain, MessageSquare, Send, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { X, Minimize2, Mic, MicOff, Search, Filter, Brain, MessageSquare, Send } from 'lucide-react';
+import { useCliContext } from './CliConnectionProvider';
+import type { DemoNode, DemoEdge } from '@/components/brain/brain-types';
 
 // Lazy-load the heavy 3D scene
 const BrainScene = dynamic(
@@ -12,7 +13,10 @@ const BrainScene = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-600 text-sm">Loading Brain...</div>
+        <div className="flex items-center gap-2 text-gray-500">
+          <Loader2 size={16} className="animate-spin" />
+          <span className="text-sm">Loading Brain...</span>
+        </div>
       </div>
     ),
   },
@@ -31,15 +35,72 @@ const LEVELS = [
 interface BrainOverlayProps {
   onClose: () => void;
   onMinimize?: () => void;
+  cliPort?: number | null;
+  projectName?: string;
 }
 
-export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
-  const t = useTranslations('app');
+export function BrainOverlay({ onClose, onMinimize, projectName }: BrainOverlayProps) {
+  const { connection } = useCliContext();
+  const isConnected = connection.connectionState === 'connected';
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [selectedLevels, setSelectedLevels] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6]));
   const [chatInput, setChatInput] = useState('');
   const [showChat, setShowChat] = useState(false);
+  const [brainNodes, setBrainNodes] = useState<DemoNode[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load brain data
+  useEffect(() => {
+    if (!isConnected) {
+      // Load demo data as fallback
+      import('@/components/brain/brain-demo-data').then((m) => {
+        setBrainNodes(m.demoNodes);
+        setIsLoading(false);
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    
+    // Request brain sync from CLI
+    connection.sendRaw?.(JSON.stringify({ type: 'brain_sync_pull', brainId: 'main' }));
+
+    // Listen for brain sync data
+    const handleBrainSync = (msg: Record<string, unknown>) => {
+      if (msg.type === 'brain_sync_data' && typeof msg.nodesJson === 'string') {
+        try {
+          const data = JSON.parse(msg.nodesJson);
+          setBrainNodes(data.nodes || []);
+          setIsLoading(false);
+        } catch {
+          // Fallback to demo
+          import('@/components/brain/brain-demo-data').then((m) => {
+            setBrainNodes(m.demoNodes);
+            setIsLoading(false);
+          });
+        }
+      }
+    };
+
+    const unsubscribe = connection.onWsMessage?.(handleBrainSync);
+
+    // Timeout fallback
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        import('@/components/brain/brain-demo-data').then((m) => {
+          setBrainNodes(m.demoNodes);
+          setIsLoading(false);
+        });
+      }
+    }, 3000);
+
+    return () => {
+      unsubscribe?.();
+      clearTimeout(timeout);
+    };
+  }, [isConnected, connection, isLoading]);
 
   // ESC to close
   useEffect(() => {
@@ -63,42 +124,31 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
     });
   }, []);
 
-  // Voice input simulation (would connect to Web Speech API in production)
-  const toggleVoiceInput = useCallback(() => {
-    setIsListening(prev => !prev);
-    // In production: connect to Web Speech API
-  }, []);
-
-  // Handle chat send
+  const toggleVoiceInput = useCallback(() => setIsListening(prev => !prev), []);
+  
   const handleChatSend = useCallback(() => {
     if (!chatInput.trim()) return;
-    // TODO: Wire to brain agent chat handler
     setChatInput('');
   }, [chatInput]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Content */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      
       <div className="relative w-full h-full max-w-[95vw] max-h-[95vh] m-4 rounded-2xl overflow-hidden border border-white/10 bg-[#050510]">
-        {/* Top-left: X and Minimize buttons */}
+        {/* Top-left buttons */}
         <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
           <button
             onClick={onClose}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-black/50 border border-white/10 text-gray-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition-all"
-            title={t('closeBrain')}
+            className="w-10 h-10 flex items-center justify-center rounded-lg bg-black/50 border border-white/10 text-gray-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition-all"
+            title="Close"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
           {onMinimize && (
             <button
               onClick={onMinimize}
-              className="p-2 rounded-lg bg-black/50 border border-white/10 text-gray-400 hover:text-white hover:bg-black/70 transition-all"
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-black/50 border border-white/10 text-gray-400 hover:text-white hover:bg-black/70 transition-all"
               title="Minimize"
             >
               <Minimize2 size={16} />
@@ -106,19 +156,21 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
           )}
         </div>
 
-        {/* Title */}
-        <div className="absolute top-4 left-24 z-10">
-          <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
-            <span className="text-lg">🧠</span>
-            Spiral Brain
-          </h3>
-        </div>
+        {/* Project name */}
+        {projectName && (
+          <div className="absolute top-4 left-28 z-10">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/50 border border-white/10">
+              <Brain size={14} className="text-purple-400" />
+              <span className="text-xs font-mono text-gray-300">{projectName}</span>
+            </div>
+          </div>
+        )}
 
-        {/* Right side: Toggle Chat button */}
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        {/* Chat toggle */}
+        <div className="absolute top-4 right-4 z-20">
           <button
             onClick={() => setShowChat(prev => !prev)}
-            className={`p-2 rounded-lg border transition-all ${
+            className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-all ${
               showChat
                 ? 'bg-cyan-500/20 border-cyan-500/30 text-cyan-400'
                 : 'bg-black/50 border-white/10 text-gray-400 hover:text-white hover:bg-black/70'
@@ -129,14 +181,11 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
           </button>
         </div>
 
-        {/* Left Panel: Filters (hidden on mobile, always open on desktop) */}
+        {/* Filters panel */}
         <div className="absolute left-4 top-16 bottom-4 w-56 z-10 hidden md:flex flex-col gap-3">
-          {/* Search Nodes with Voice Icon */}
           <div className="rounded-xl bg-black/60 border border-white/10 backdrop-blur-md overflow-hidden">
             <div className="p-3 border-b border-white/5">
-              <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-2">
-                Search Nodes
-              </div>
+              <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-2">Search Nodes</div>
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -155,7 +204,6 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
                       ? 'bg-red-500/20 border-red-500/30 text-red-400 animate-pulse'
                       : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:bg-white/10'
                   }`}
-                  title={isListening ? 'Listening...' : 'Voice input'}
                 >
                   {isListening ? <MicOff size={14} /> : <Mic size={14} />}
                 </button>
@@ -163,7 +211,6 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
             </div>
           </div>
 
-          {/* Filters Panel (always open) */}
           <div className="flex-1 rounded-xl bg-black/60 border border-white/10 backdrop-blur-md overflow-hidden">
             <div className="p-3 border-b border-white/5">
               <div className="flex items-center gap-2 text-[10px] font-medium text-gray-500 uppercase tracking-wider">
@@ -174,6 +221,7 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
             <div className="p-2 space-y-1 overflow-y-auto max-h-[calc(100%-40px)]">
               {LEVELS.map(({ level, color, name }) => {
                 const isSelected = selectedLevels.has(level);
+                const count = brainNodes?.filter(n => n.level === level).length || 0;
                 return (
                   <button
                     key={level}
@@ -189,9 +237,7 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
                       style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
                     />
                     <span className="text-xs text-gray-300">L{level} {name}</span>
-                    {isSelected && (
-                      <span className="ml-auto text-[9px] text-cyan-400">✓</span>
-                    )}
+                    <span className="ml-auto text-[9px] text-gray-600">{count}</span>
                   </button>
                 );
               })}
@@ -199,7 +245,7 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
           </div>
         </div>
 
-        {/* Right Panel: Chat with Brain (collapsible) */}
+        {/* Chat panel */}
         {showChat && (
           <div className="absolute right-4 top-16 bottom-4 w-72 z-10 flex flex-col rounded-xl bg-black/60 border border-white/10 backdrop-blur-md overflow-hidden">
             <div className="p-3 border-b border-white/5">
@@ -208,8 +254,7 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
                 <span className="text-xs font-medium text-gray-300">Chat with Brain</span>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {/* Placeholder messages */}
+            <div className="flex-1 overflow-y-auto p-3">
               <div className="text-xs text-gray-500 text-center py-8">
                 Access grant, permissions, and direct commands will appear here.
               </div>
@@ -237,7 +282,16 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
         )}
 
         {/* 3D Scene */}
-        <BrainScene />
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="flex items-center gap-2 text-gray-500">
+              <Loader2 size={20} className="animate-spin" />
+              <span className="text-sm">Loading Brain...</span>
+            </div>
+          </div>
+        ) : (
+          <BrainScene />
+        )}
       </div>
     </div>
   );

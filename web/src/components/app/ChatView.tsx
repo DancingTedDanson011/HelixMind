@@ -80,10 +80,10 @@ function ThinkingBlock({ content }: { content: string }) {
   if (!thinkingText) return null;
 
   return (
-    <div className="mb-2 rounded-lg border border-white/5 bg-white/[0.02] overflow-hidden">
+    <div className="mb-2 overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 w-full px-3 py-1.5 text-[11px] text-gray-500 hover:text-gray-400 transition-colors"
+        className="flex items-center gap-1.5 w-full px-1 py-1 text-[11px] text-gray-500 hover:text-gray-400 transition-colors"
       >
         <Loader2 size={10} className="animate-spin text-purple-400/60" />
         <span className="italic">Thinking...</span>
@@ -92,7 +92,7 @@ function ThinkingBlock({ content }: { content: string }) {
         </span>
       </button>
       {expanded && (
-        <div className="px-3 pb-2 text-[12px] text-gray-500 italic whitespace-pre-wrap border-t border-white/5">
+        <div className="px-1 pb-2 text-[12px] text-gray-500 italic whitespace-pre-wrap">
           {thinkingText}
         </div>
       )}
@@ -260,7 +260,7 @@ export function ChatView({
           </div>
 
           <div className="text-center">
-            <a href="/docs/getting-started" className="inline-flex items-center gap-1.5 text-[10px] text-cyan-500/60 hover:text-cyan-400 transition-colors">
+            <a href="/docs/getting-started" className="inline-flex items-items gap-1.5 text-[10px] text-cyan-500/60 hover:text-cyan-400 transition-colors">
               <BookOpen size={11} />{t('setupDocsFullGuide')}
               <ExternalLink size={8} />
             </a>
@@ -382,9 +382,9 @@ export function ChatView({
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="h-full overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
+        className="h-full overflow-y-auto px-4 py-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
       >
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-2xl mx-auto space-y-4">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
@@ -415,25 +415,25 @@ export function ChatView({
             </div>
           )}
 
-          {/* Active tool calls — elegant animated style */}
+          {/* Active tool calls — minimal inline style */}
           {activeTools.length > 0 && isAgentRunning && (
-            <div className="space-y-2 ml-1 animate-fade-in">
+            <div className="space-y-1 ml-1 animate-fade-in">
               {activeTools.map((tool, index) => (
                 <div 
                   key={tool.stepNum} 
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/5"
+                  className="flex items-center gap-2 px-2 py-1 text-xs"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {tool.status === 'running' ? (
-                    <Loader2 size={14} className="text-cyan-400 animate-spin flex-shrink-0" />
+                    <Loader2 size={12} className="text-cyan-400 animate-spin flex-shrink-0" />
                   ) : tool.status === 'done' ? (
-                    <CheckCircle2 size={14} className="text-emerald-400 flex-shrink-0" />
+                    <CheckCircle2 size={12} className="text-emerald-400 flex-shrink-0" />
                   ) : (
-                    <XCircle size={14} className="text-red-400 flex-shrink-0" />
+                    <XCircle size={12} className="text-red-400 flex-shrink-0" />
                   )}
-                  <span className="text-xs font-medium text-gray-300">{toolLabel(tool.toolName)}</span>
+                  <span className="font-medium text-gray-400">{toolLabel(tool.toolName)}</span>
                   {toolDetail(tool) && (
-                    <span className="text-xs text-gray-500 font-mono truncate max-w-[280px] bg-white/5 px-1.5 py-0.5 rounded">{toolDetail(tool)}</span>
+                    <span className="text-gray-600 font-mono truncate max-w-[280px]">{toolDetail(tool)}</span>
                   )}
                 </div>
               ))}
@@ -446,10 +446,10 @@ export function ChatView({
               {activeSessions.map((session) => (
                 <div
                   key={session.id}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.03] border border-white/5 text-[10px]"
+                  className="flex items-center gap-1.5 px-2 py-0.5 text-[10px]"
                 >
                   <Activity size={9} className={session.status === 'running' ? 'text-emerald-400 animate-pulse' : 'text-gray-500'} />
-                  <span className="text-gray-400">{session.name}</span>
+                  <span className="text-gray-500">{session.name}</span>
                   <span className={`text-[9px] ${session.status === 'running' ? 'text-emerald-400/70' : 'text-gray-600'}`}>
                     {session.status}
                   </span>
@@ -482,14 +482,14 @@ export function ChatView({
         </div>
 
         {/* Bottom padding for breathing room */}
-        <div className="h-8" />
+        <div className="h-6" />
       </div>
 
       {/* Floating stop button */}
       {isAgentRunning && onStop && (
         <button
           onClick={onStop}
-          className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/20 text-xs font-medium transition-all shadow-lg backdrop-blur-sm"
+          className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 text-xs font-medium transition-all shadow-lg backdrop-blur-sm"
         >
           <Square size={12} />
           {t('stopAgent')}

@@ -52,11 +52,11 @@ export function ToolBlock({ tool }: ToolBlockProps) {
   const summary = formatToolSummary(tool.name, tool.input);
 
   return (
-    <div className="rounded-lg border border-white/5 bg-white/[0.02] overflow-hidden">
+    <div className="rounded-lg overflow-hidden">
       {/* Header — always visible */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/[0.02] transition-colors"
+        className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-white/[0.02] transition-colors"
       >
         <span className="text-gray-500">
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -74,7 +74,7 @@ export function ToolBlock({ tool }: ToolBlockProps) {
 
       {/* Expanded body */}
       {expanded && (
-        <div className="border-t border-white/5 px-3 py-2 space-y-2">
+        <div className="border-t border-white/5 px-2 py-2 space-y-2">
           {/* Input */}
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1">

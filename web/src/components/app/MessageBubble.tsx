@@ -20,7 +20,7 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
     return (
       <div className="flex justify-end animate-message-in">
         <div className="max-w-[85%] min-w-0">
-          <div className="bg-white/[0.06] rounded-2xl rounded-tr-sm px-4 py-3 text-[15px] text-gray-200 whitespace-pre-wrap break-words leading-[1.7]">
+          <div className="text-[15px] text-cyan-300 whitespace-pre-wrap break-words leading-[1.7] text-right">
             {message.content}
           </div>
           {userFiles && userFiles.length > 0 && (
@@ -88,7 +88,7 @@ function AssistantContent({
 
       {/* Content segments — CLI output gets ANSI-colored terminal rendering */}
       {isCliExecution ? (
-        <div className="bg-[#0a0a1a] rounded-xl border border-white/5 font-mono text-xs p-3 whitespace-pre-wrap break-words leading-5">
+        <div className="font-mono text-xs whitespace-pre-wrap break-words leading-5">
           {content.split('\n').map((line, i) => (
             <div key={i}><AnsiLine text={line} /></div>
           ))}
@@ -127,10 +127,10 @@ function ToolSummary({ tools }: { tools: Array<{ name: string; status: string; r
   const errorCount = tools.filter(t => t.status === 'error').length;
 
   return (
-    <div className="rounded-lg overflow-hidden border border-white/[0.06] bg-white/[0.02]">
+    <div className="overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-500 hover:text-gray-400 transition-colors"
+        className="w-full flex items-center gap-2 px-1 py-1.5 text-xs text-gray-500 hover:text-gray-400 transition-colors"
       >
         <Wrench size={11} className="text-gray-500" />
         <span>{tools.length} tools used</span>
@@ -149,7 +149,7 @@ function ToolSummary({ tools }: { tools: Array<{ name: string; status: string; r
         </span>
       </button>
       {expanded && (
-        <div className="border-t border-white/5 px-3 py-2 space-y-1">
+        <div className="px-1 py-1 space-y-1">
           {tools.map((tool, i) => (
             <div key={i} className="flex items-center gap-2 text-[11px]">
               {tool.status === 'done' ? (
@@ -184,9 +184,9 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
   }, [code]);
 
   return (
-    <div className="rounded-xl overflow-hidden border border-white/[0.06] bg-[#0d0d1a]">
+    <div className="rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-white/5">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white/[0.02]">
         <span className="text-[10px] font-mono text-gray-600 uppercase tracking-wider">
           {language || 'code'}
         </span>
@@ -199,7 +199,7 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
         </button>
       </div>
       {/* Code */}
-      <pre className="p-4 overflow-x-auto text-[13px] font-mono text-gray-300 leading-6">
+      <pre className="p-3 overflow-x-auto text-[13px] font-mono text-gray-300 leading-6 bg-black/20">
         <code>{code}</code>
       </pre>
     </div>
@@ -257,7 +257,7 @@ function renderInlineMarkdown(text: string): React.ReactNode {
     }
     if (part.startsWith('`') && part.endsWith('`')) {
       return (
-        <code key={i} className="px-1.5 py-0.5 rounded-md bg-white/[0.05] text-gray-300 text-[13px] font-mono">
+        <code key={i} className="px-1.5 py-0.5 rounded bg-white/[0.05] text-gray-300 text-[13px] font-mono">
           {part.slice(1, -1)}
         </code>
       );

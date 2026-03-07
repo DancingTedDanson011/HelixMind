@@ -2330,6 +2330,8 @@ export function AppShell({ initialTab, initialSession }: AppShellProps = {}) {
             <BrainOverlay
               onClose={() => setBrainOverlayState('hidden')}
               onMinimize={() => setBrainOverlayState('minimized')}
+              cliPort={connectedPort}
+              projectName={connection.instanceMeta?.projectName}
             />
           )
         ) : (
