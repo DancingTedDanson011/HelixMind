@@ -32,6 +32,11 @@ export async function POST(req: Request) {
     return new Response('audioBase64 and format are required', { status: 400 });
   }
 
+  // Prevent OOM from oversized audio payloads (25MB base64 ≈ ~18MB audio)
+  if (typeof audioBase64 !== 'string' || audioBase64.length > 25 * 1024 * 1024) {
+    return new Response('Audio payload too large (max 25MB base64)', { status: 413 });
+  }
+
   // Step 1: Get user's OpenAI key for Whisper STT
   const openaiKeyRecord = await prisma.userLLMKey.findUnique({
     where: { userId_provider: { userId: session.user.id, provider: 'openai' } },

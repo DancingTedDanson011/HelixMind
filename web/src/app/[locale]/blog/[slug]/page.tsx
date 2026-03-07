@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { getLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { getBlogPost } from '@/lib/mdx';
@@ -8,6 +9,34 @@ import { ArrowLeft, Calendar, User } from 'lucide-react';
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const locale = await getLocale();
+  const post = await getBlogPost(slug, locale);
+
+  if (!post) {
+    return { title: 'Post Not Found' };
+  }
+
+  return {
+    title: post.meta.title,
+    description: post.meta.description,
+    openGraph: {
+      title: post.meta.title,
+      description: post.meta.description,
+      type: 'article',
+      publishedTime: post.meta.date,
+      authors: post.meta.author ? [post.meta.author] : undefined,
+      tags: post.meta.tags,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.meta.title,
+      description: post.meta.description,
+    },
+  };
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
@@ -27,7 +56,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors mb-8"
         >
           <ArrowLeft size={14} />
-          All Posts
+          {locale === 'de' ? 'Alle Beitr\u00e4ge' : 'All Posts'}
         </Link>
 
         <GlassPanel className="p-8 lg:p-12">
@@ -81,7 +110,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             href="/blog"
             className="text-sm text-gray-500 hover:text-primary transition-colors"
           >
-            Back to all posts
+            {locale === 'de' ? 'Zur\u00fcck zu allen Beitr\u00e4gen' : 'Back to all posts'}
           </Link>
         </div>
       </div>

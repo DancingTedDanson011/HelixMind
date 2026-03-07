@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.redirect(new URL('/auth/login?error=saml_not_configured', req.url));
     }
 
+    // TODO: Enforce allowIdpInitiated — requires storing SP AuthnRequest IDs
+    // so we can verify InResponseTo in the assertion. Currently this field
+    // is configurable in the UI but not enforced in the callback.
+
     // Validate the SAML assertion
     const profile = await validateAssertion(teamId, samlResponse);
     if (!profile) {
@@ -63,6 +67,9 @@ export async function POST(req: NextRequest) {
           email: profile.email,
           name: profile.name || profile.email.split('@')[0],
           emailVerified: new Date(),
+          subscription: {
+            create: { plan: 'FREE', status: 'ACTIVE' },
+          },
         },
         select: { id: true, email: true, name: true, role: true, locale: true },
       });

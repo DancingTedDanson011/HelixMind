@@ -53,11 +53,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: t('description'),
       siteName: 'HelixMind',
       type: 'website',
+      locale,
+      images: [
+        {
+          url: '/opengraph-image',
+          width: 1200,
+          height: 630,
+          alt: 'HelixMind — AI Coding CLI with Spiral Memory',
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: t('title'),
       description: t('description'),
+      images: ['/opengraph-image'],
+    },
+    alternates: {
+      languages: {
+        en: '/en',
+        de: '/de',
+      },
     },
   };
 }

@@ -13,8 +13,7 @@ export function EnterpriseCTA() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In production, this would send to an API
-    console.log('Contact request:', email);
+    // TODO: Wire to enterprise contact API endpoint
     setSubmitted(true);
   };
 

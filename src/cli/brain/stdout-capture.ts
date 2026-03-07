@@ -32,8 +32,11 @@ export class StdoutCapture {
         self.buffer = self.buffer.slice(ni + 1);
         // Strip all ANSI sequences (colors, cursor movement, etc.)
         const stripped = line.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').trim();
-        // Skip empty lines, statusbar redraws, and prompt-only lines
-        if (stripped.length > 0 && !STATUSBAR_RE.test(stripped) && stripped !== '›' && stripped !== '>') {
+        // Skip empty lines, statusbar redraws, prompt-only lines, and readline echoed input
+        // Readline shows user input with prompt prefix like "│ ❯ /help" - we must NOT capture this!
+        const isReadlineInput = stripped.startsWith('│') || stripped.startsWith('|') || 
+                                stripped.includes('❯') || stripped === '›' || stripped === '>';
+        if (stripped.length > 0 && !STATUSBAR_RE.test(stripped) && !isReadlineInput) {
           self.session.capture(line);
         }
       }

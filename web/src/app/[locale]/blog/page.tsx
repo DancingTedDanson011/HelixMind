@@ -14,7 +14,9 @@ export default async function BlogPage() {
       <div className="mx-auto max-w-4xl">
         <h1 className="text-4xl font-bold mb-4">Blog</h1>
         <p className="text-gray-400 text-lg mb-12">
-          Updates, tutorials, and insights about HelixMind and AI coding.
+          {locale === 'de'
+            ? 'Updates, Tutorials und Einblicke rund um HelixMind und AI Coding.'
+            : 'Updates, tutorials, and insights about HelixMind and AI coding.'}
         </p>
 
         <div className="space-y-6">

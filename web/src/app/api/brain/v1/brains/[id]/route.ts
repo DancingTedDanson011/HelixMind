@@ -88,9 +88,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Brain not found' }, { status: 404 });
     }
 
-    // Only allow updating specific fields
+    // Validate update fields
     const data: Record<string, unknown> = {};
-    if (body.name !== undefined) data.name = body.name;
+    if (body.name !== undefined) {
+      if (typeof body.name !== 'string' || body.name.length === 0 || body.name.length > 200) {
+        return NextResponse.json({ error: 'name must be a string (1-200 chars)' }, { status: 400 });
+      }
+      data.name = body.name;
+    }
     if (body.syncEnabled !== undefined) data.syncEnabled = Boolean(body.syncEnabled);
     if (body.active !== undefined) data.active = Boolean(body.active);
 

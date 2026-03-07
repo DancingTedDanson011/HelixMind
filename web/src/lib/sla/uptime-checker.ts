@@ -136,7 +136,9 @@ export function startUptimeChecker(intervalMs = 60_000): void {
     }, intervalMs);
   }, 30_000);
 
-  console.log(`[SLA] Uptime checker started (interval: ${intervalMs}ms)`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[SLA] Uptime checker started (interval: ${intervalMs}ms)`);
+  }
 }
 
 export function stopUptimeChecker(): void {

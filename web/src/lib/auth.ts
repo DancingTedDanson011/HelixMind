@@ -93,6 +93,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: '/auth/login',
   },
   providers,
+  events: {
+    async createUser({ user }) {
+      // Ensure OAuth users (GitHub/Google) get a subscription record.
+      // Register and SAML flows handle this themselves; PrismaAdapter does not.
+      try {
+        await prisma.subscription.create({
+          data: { userId: user.id!, plan: 'FREE', status: 'ACTIVE' },
+        });
+      } catch {
+        // Ignore if subscription already exists (e.g. race condition)
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {

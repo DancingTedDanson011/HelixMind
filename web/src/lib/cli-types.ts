@@ -169,6 +169,33 @@ export interface ConsciousnessEvent {
   timestamp: number;
 }
 
+// --- Brain Data (from CLI full_sync events) ---
+
+export interface BrainNodeInfo {
+  id: string;
+  label: string;
+  type: string;
+  level: number;
+  relevanceScore: number;
+}
+
+export interface BrainEdgeInfo {
+  source: string;
+  target: string;
+  type: string;
+  weight: number;
+}
+
+export interface BrainData {
+  nodes: BrainNodeInfo[];
+  edges: BrainEdgeInfo[];
+  meta?: {
+    totalNodes: number;
+    totalEdges: number;
+    projectName: string;
+  };
+}
+
 // --- Connection ---
 
 export type ConnectionState =

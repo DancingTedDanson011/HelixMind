@@ -26,6 +26,7 @@ import type {
   StatusBarInfo,
   CheckpointInfo,
   SwarmInfo,
+  BrainData,
 } from '@/lib/cli-types';
 import { registerConnectionWs, unregisterConnectionWs } from '@/lib/cli-ws-registry';
 
@@ -161,6 +162,9 @@ export interface UseCliConnectionReturn {
   startSwarm: (message: string) => Promise<string>;
   abortSwarm: (swarmId: string) => Promise<void>;
   getSwarmStatus: () => Promise<SwarmInfo | null>;
+
+  // Brain data (from full_sync events)
+  brainData: BrainData | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,6 +209,7 @@ export function useCliConnection(params: UseCliConnectionParams): UseCliConnecti
   const [statusBar, setStatusBar] = useState<StatusBarInfo | null>(null);
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
   const [swarm, setSwarm] = useState<SwarmInfo | null>(null);
+  const [brainData, setBrainData] = useState<BrainData | null>(null);
 
   // External message subscribers (for voice hooks etc.)
   const messageSubscribersRef = useRef<Set<(msg: Record<string, unknown>) => void>>(new Set());

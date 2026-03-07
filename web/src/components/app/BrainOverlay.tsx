@@ -72,8 +72,7 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
   // Handle chat send
   const handleChatSend = useCallback(() => {
     if (!chatInput.trim()) return;
-    // In production: send to agent
-    console.log('Send to Olaf:', chatInput);
+    // TODO: Wire to brain agent chat handler
     setChatInput('');
   }, [chatInput]);
 
@@ -124,7 +123,7 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
                 ? 'bg-cyan-500/20 border-cyan-500/30 text-cyan-400'
                 : 'bg-black/50 border-white/10 text-gray-400 hover:text-white hover:bg-black/70'
             }`}
-            title="Chat with Olaf"
+            title="Chat with Brain"
           >
             <MessageSquare size={16} />
           </button>
@@ -200,13 +199,13 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
           </div>
         </div>
 
-        {/* Right Panel: Chat with Olaf (collapsible) */}
+        {/* Right Panel: Chat with Brain (collapsible) */}
         {showChat && (
           <div className="absolute right-4 top-16 bottom-4 w-72 z-10 flex flex-col rounded-xl bg-black/60 border border-white/10 backdrop-blur-md overflow-hidden">
             <div className="p-3 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <Brain size={14} className="text-cyan-400" />
-                <span className="text-xs font-medium text-gray-300">Chat with Olaf</span>
+                <span className="text-xs font-medium text-gray-300">Chat with Brain</span>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -222,7 +221,7 @@ export function BrainOverlay({ onClose, onMinimize }: BrainOverlayProps) {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleChatSend()}
-                  placeholder="Ask Olaf..."
+                  placeholder="Ask HelixMind..."
                   className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-200 placeholder-gray-600 focus:border-cyan-500/30 focus:outline-none"
                 />
                 <button

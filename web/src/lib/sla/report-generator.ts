@@ -75,7 +75,9 @@ export function startReportGenerator(intervalMs = 24 * 60 * 60 * 1000): void {
     }, intervalMs);
   }, 5 * 60 * 1000);
 
-  console.log('[SLA] Report generator started');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[SLA] Report generator started');
+  }
 }
 
 export function stopReportGenerator(): void {

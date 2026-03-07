@@ -130,10 +130,31 @@ export async function PATCH(
     const body = await req.json();
     const node = nodes[nodeIndex];
 
-    if (body.content !== undefined) node.content = body.content;
-    if (body.level !== undefined) node.level = Number(body.level);
-    if (body.tags !== undefined) node.tags = body.tags;
-    if (body.connections !== undefined) node.connections = body.connections;
+    if (body.content !== undefined) {
+      if (typeof body.content !== 'string' || body.content.length > 500_000) {
+        return NextResponse.json({ error: 'content must be a string (max 500KB)' }, { status: 400 });
+      }
+      node.content = body.content;
+    }
+    if (body.level !== undefined) {
+      const numLevel = Number(body.level);
+      if (!Number.isInteger(numLevel) || numLevel < 1 || numLevel > 5) {
+        return NextResponse.json({ error: 'level must be an integer 1-5' }, { status: 400 });
+      }
+      node.level = numLevel;
+    }
+    if (body.tags !== undefined) {
+      if (!Array.isArray(body.tags) || body.tags.length > 100 || !body.tags.every((t: unknown) => typeof t === 'string' && (t as string).length <= 200)) {
+        return NextResponse.json({ error: 'tags must be an array of strings (max 100 items, 200 chars each)' }, { status: 400 });
+      }
+      node.tags = body.tags;
+    }
+    if (body.connections !== undefined) {
+      if (!Array.isArray(body.connections) || body.connections.length > 500 || !body.connections.every((c: unknown) => typeof c === 'string' && (c as string).length <= 128)) {
+        return NextResponse.json({ error: 'connections must be an array of strings (max 500 items)' }, { status: 400 });
+      }
+      node.connections = body.connections;
+    }
     node.updatedAt = Date.now();
 
     nodes[nodeIndex] = node;

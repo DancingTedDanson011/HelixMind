@@ -1082,8 +1082,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           });
 
           renderInfo('[Voice] Engine initialized');
-        }).catch(() => {
-          renderInfo('[Voice] Failed to initialize engine');
+        }).catch((err: unknown) => {
+          console.error('[Voice] Init error:', err instanceof Error ? err.message : err);
+          renderError('[Voice] Engine failed to initialize. Voice features unavailable.');
         });
       }
 
