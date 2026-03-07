@@ -2472,6 +2472,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               suggestionPanel.update(suggestions, currentLine);
             } else {
               suggestionPanel.open(suggestions, currentLine);
+              // Scroll region changed — reposition cursor and refresh readline prompt
+              chrome.positionCursorForPrompt();
+              (rl as any)._refreshLine();
             }
           } else {
             closeSuggestionPanel();
