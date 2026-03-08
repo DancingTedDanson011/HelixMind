@@ -2574,12 +2574,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Rewind browser can write directly to the terminal without buffering.
       chrome.deactivate({ suspend: false });
 
-      // CRITICAL: Remove ALL stdin data listeners to prevent readline's internal
-      // handler from buffering keypresses during Rewind navigation. Without this,
-      // arrow key escape sequences leak into readline's line buffer and trigger
-      // phantom slash commands (e.g. /model) when Rewind closes.
+      // CRITICAL: Remove ALL stdin data+keypress listeners to prevent readline's
+      // internal handler from buffering keypresses during Rewind navigation.
+      // The browser adds its own raw 'data' listener for arrow keys / ESC.
       const savedDataListeners = process.stdin.rawListeners('data').slice();
+      const savedKeypressListeners = process.stdin.rawListeners('keypress').slice();
       process.stdin.removeAllListeners('data');
+      process.stdin.removeAllListeners('keypress');
 
       let didRevertWithMessage = false;
       try {
@@ -2605,9 +2606,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         // Browser closed unexpectedly
       }
 
-      // Restore all saved stdin data listeners (browser already removed its own)
+      // Restore all saved stdin data+keypress listeners
       for (const listener of savedDataListeners) {
         process.stdin.on('data', listener as (...args: any[]) => void);
+      }
+      for (const listener of savedKeypressListeners) {
+        process.stdin.on('keypress', listener as (...args: any[]) => void);
       }
 
       // Clear readline buffer unless a revert populated it with the message text
