@@ -117,7 +117,8 @@ export function runCheckpointBrowser(options: BrowserOptions): Promise<BrowserRe
 
   return new Promise<BrowserResult>((resolve) => {
     // selectedIndex points into entries; entries.length = "(current)"
-    let selectedIndex = entries.length; // start at "(current)"
+    // Start at the most recent entry (last before "(current)") so user sees it first
+    let selectedIndex = entries.length > 0 ? entries.length - 1 : 0;
     let inOptions = false;
     const keyState = createKeybindingState();
     keyState.inBrowser = true;

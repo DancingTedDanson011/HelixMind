@@ -2570,7 +2570,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       fullScreenBrowserOpen = true;
       rl.pause();
-      chrome.deactivate();
+      // Fullscreen overlay: suspend=false removes stdout hook entirely so the
+      // Rewind browser can write directly to the terminal without buffering.
+      chrome.deactivate({ suspend: false });
 
       // CRITICAL: Remove ALL stdin data listeners to prevent readline's internal
       // handler from buffering keypresses during Rewind navigation. Without this,
@@ -3477,7 +3479,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         planModeState = 'reviewing';
         fullScreenBrowserOpen = true;
         rl.pause();
-        chrome.deactivate();
+        chrome.deactivate({ suspend: false });
         // Isolate stdin: remove all data listeners to prevent readline buffering
         const savedPlanListeners = process.stdin.rawListeners('data').slice();
         process.stdin.removeAllListeners('data');

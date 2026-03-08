@@ -172,7 +172,7 @@ export class Screen {
     this._suspended = false;
     this._updateScrollRegion();
     if (!wasSuspended) {
-      // Fresh activation — install stdout hook
+      // Fresh activation or returning from fullscreen overlay — (re)install stdout hook
       this._hookStdout();
     }
     // Force full draw
@@ -188,9 +188,16 @@ export class Screen {
     }
   }
 
-  deactivate(): void {
+  /**
+   * Deactivate the screen.
+   * @param options.suspend  Keep stdout hook active and buffer writes (default: true).
+   *   Use `suspend: false` for fullscreen overlays (e.g. Rewind browser) that need
+   *   direct stdout access — the hook is removed entirely so process.stdout.write works normally.
+   */
+  deactivate(options?: { suspend?: boolean }): void {
     if (!this._active) return;
     this._active = false;
+    const suspend = options?.suspend ?? true;
     // Remember scroll end before clearing (frameTopRow depends on _inputFrameLines/_extraRows)
     const scrollBottom = this.scrollEnd;
     this._clearAllFixed();
@@ -198,11 +205,19 @@ export class Screen {
     // Position cursor at the old scroll region bottom so subsequent writes
     // (e.g. selectMenu) start from a predictable position above the cleared area.
     this._rawWrite(`\x1b[${scrollBottom};1H`);
-    // Enter suspended mode: keep stdout hook active but buffer all writes.
-    // This prevents background output (session completion, agent results) from
-    // corrupting interactive sub-menus that render on the raw terminal.
-    this._suspended = true;
-    this._suspendedBuffer = [];
+    if (suspend) {
+      // Enter suspended mode: keep stdout hook active but buffer all writes.
+      // This prevents background output (session completion, agent results) from
+      // corrupting interactive sub-menus that render on the raw terminal.
+      this._suspended = true;
+      this._suspendedBuffer = [];
+    } else {
+      // Fullscreen overlay mode: remove stdout hook entirely so the overlay
+      // can write directly to the terminal without buffering interference.
+      this._suspended = false;
+      this._suspendedBuffer = [];
+      this._unhookStdout();
+    }
     this._chromeContent = ['', '', '', ''];
     this._prevChromeContent = ['', '', '', ''];
     this._extraRows = 0;
