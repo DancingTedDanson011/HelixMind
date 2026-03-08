@@ -142,7 +142,9 @@ export function renderMarkdown(text: string): string {
 }
 
 export function renderUserMessage(message: string): void {
-  process.stdout.write(`\n${theme.userLabel}  ${message}\n\n`);
+  // Style badge placeholders [📋 N lines] in cyan (matches input field display)
+  const styled = message.replace(/(\[📋[^\]]*\])/g, (m) => chalk.cyan(m));
+  process.stdout.write(`\n${theme.userLabel}  ${styled}\n\n`);
 }
 
 export function renderAssistantStart(): void {

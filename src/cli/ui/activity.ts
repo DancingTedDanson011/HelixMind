@@ -141,6 +141,10 @@ export class ActivityIndicator {
   /**
    * Stop the activity indicator and write a final status line.
    * Restores hints on chrome row 1 and writes "Done" as inline scrolling content.
+   *
+   * IMPORTANT: The Done line must be written BEFORE _onUnmute, because unmute
+   * repositions the cursor at the input row. Writing after unmute would place
+   * the Done text inside the input frame instead of the scroll region.
    */
   stop(message: string = 'Done'): void {
     if (this.startTime > 0) {
@@ -151,7 +155,6 @@ export class ActivityIndicator {
       clearInterval(this.interval);
       this.interval = null;
     }
-    this._onUnmute?.();
 
     // Restore hints on chrome row 1
     if (this.chrome?.isActive) {
@@ -159,6 +162,17 @@ export class ActivityIndicator {
     }
 
     if (this.startTime > 0 && wasAnimating) {
+      // Position cursor in scroll region before writing Done line.
+      // The animation leaves the cursor at inputRow (inside the frame) —
+      // we must move it to the scroll region so the Done text appears
+      // in the conversation flow, not inside the input frame.
+      if (this.chrome?.isActive) {
+        const scrollEnd = (this.chrome as any).scrollEnd;
+        if (scrollEnd > 0) {
+          process.stdout.write(`\x1b[${scrollEnd};1H`);
+        }
+      }
+
       // Write colorful final status inline (part of conversation flow)
       const text = this._displayName;
       let coloredText = '';
@@ -172,6 +186,9 @@ export class ActivityIndicator {
       const finalLine = `${pfx}${icon} ${coloredText} ${msgColor} ${timeStr}`;
       process.stdout.write(`${finalLine}\n`);
     }
+
+    // Unmute AFTER Done line is written — unmute repositions cursor to input row
+    this._onUnmute?.();
 
     this.startTime = 0;
     this._blockMode = false;
@@ -246,9 +263,14 @@ export class ActivityIndicator {
       }
     }
 
-    // Write to chrome row 0 (activity row) — hints and statusbar stay untouched
+    // Write activity embedded in frame bottom border (╰── activity ──╯)
+    // Falls back to plain setRow(0) if drawFrameBottom isn't available
     if (this.chrome?.isActive) {
-      this.chrome.setRow(0, line);
+      if (typeof (this.chrome as any).drawFrameBottom === 'function') {
+        (this.chrome as any).drawFrameBottom(line);
+      } else {
+        this.chrome.setRow(0, line);
+      }
     }
   }
 }

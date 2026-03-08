@@ -2,6 +2,11 @@
 
 import { Command } from 'commander';
 import { VERSION } from './version.js';
+import { setLogLevel } from '../utils/logger.js';
+
+// In interactive CLI mode, suppress INFO logs (they pollute the terminal).
+// Only show warnings and errors. MCP server sets its own level from config.
+setLogLevel('warn');
 
 
 

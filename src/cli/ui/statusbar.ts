@@ -36,6 +36,8 @@ export interface StatusBarData {
   sectionTimer?: { section: string; seconds: number };
   totalTimer?: number; // seconds
   orchestration?: { active: number; total: number };
+  /** Active mode: cli (default), monitor (/auto /security), jarvis (/jarvis) */
+  activeMode?: 'cli' | 'monitor' | 'jarvis';
 }
 
 // Standard CMD width is 80 chars — use 78 to leave margin
@@ -71,7 +73,15 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
       case 'plan':  permText = chalk.cyan('Plan'); break;
     }
   }
-  const modelSection = `${chalk.dim(shortenModelName(data.model))} ${permText}`;
+  // Active mode badge: CLI (default), MONITOR, JARVIS — eye-catching with mode colors
+  let modeText = '';
+  switch (data.activeMode) {
+    case 'monitor': modeText = chalk.hex('#FF6B9D').bold(' MONITOR'); break;
+    case 'jarvis':  modeText = chalk.hex('#8a2be2').bold(' JARVIS'); break;
+    default:        modeText = chalk.hex('#00d4ff').bold(' CLI'); break;
+  }
+
+  const modelSection = `${chalk.dim(shortenModelName(data.model))} ${permText}${modeText}`;
 
   // === Metrics: Tools + Checkpoints (always with labels) ===
   const metricsSection = `${chalk.dim('Tools:')}${data.tools.callsThisRound} ${chalk.dim('CP:')}${data.checkpoints ?? 0}`;

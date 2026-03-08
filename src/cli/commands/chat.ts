@@ -23,7 +23,7 @@ import { isInsideToolBlock, renderThinkingText } from '../ui/tool-output.js';
 import { renderFeedProgress, renderFeedSummary } from '../ui/progress.js';
 import type { FeedProgress } from '../feed/pipeline.js';
 import { ActivityIndicator } from '../ui/activity.js';
-import { BottomChrome } from '../ui/bottom-chrome.js';
+import { Terminal, Screen, InputManager } from '../core/index.js';
 import { theme } from '../ui/theme.js';
 import { detectFeedIntent } from '../feed/intent.js';
 import { runFeedPipeline } from '../feed/pipeline.js';
@@ -43,7 +43,6 @@ import { runAutonomousLoop, SECURITY_PROMPT } from '../agent/autonomous.js';
 import { SessionManager } from '../sessions/manager.js';
 import { renderSessionNotification, renderSessionList } from '../sessions/tab-view.js';
 import { getSuggestions, getBestCompletion, setBlockedCommands } from '../ui/command-suggest.js';
-import { SuggestionPanel } from '../ui/suggestion-panel.js';
 import { PromptHistory } from '../ui/prompt-history.js';
 import { selectMenu, type MenuItem, type SelectMenuOptions } from '../ui/select-menu.js';
 import { BugJournal } from '../bugs/journal.js';
@@ -310,9 +309,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   const store = new ConfigStore(configDir);
   let config = store.getAll();
 
-  // Show logo + version early
-  process.stdout.write(renderLogo());
-  process.stdout.write(renderVersion(VERSION) + '\n\n');
+  // Collect startup banner — written into scroll region AFTER screen activation
+  // so content sits directly above the input frame (no gap).
+  const startupBannerParts: string[] = [renderLogo(), renderVersion(VERSION) + '\n\n'];
 
   // ─── Auth Gate: require login on first use ───────────────────
   // Once logged in, credentials are cached locally.
@@ -354,12 +353,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // ─── Process exit cleanup: release Jarvis slot ─────────────
   process.on('exit', () => {
     releaseJarvisSlot();
-    // Restore terminal to normal mode
-    if (process.stdin.isTTY) {
-      // Disable Bracketed Paste Mode
-      process.stdout.write('\x1b[?2004l');
-      process.stdin.setRawMode(false);
-    }
+    // Restore terminal to normal mode (scroll region, cursor, paste mode, raw mode)
+    terminal.cleanup();
   });
 
   // First-time setup: prompt for LLM API key if none configured
@@ -442,11 +437,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let browserController: BrowserController | undefined = new BrowserController();
   let visionProcessor: VisionProcessor | undefined;
 
-  // Bottom chrome (3 fixed rows at terminal bottom: separator, hints, statusbar)
-  const chrome = new BottomChrome();
+  // Terminal + Screen (replaces BottomChrome with framed input area)
+  const terminal = new Terminal();
+  const screen = new Screen(terminal);
+  // Alias for backward compat with code that references 'chrome'
+  const chrome = screen;
 
   // Activity indicator (renders on chrome row 0 during agent work)
-  const activity = new ActivityIndicator(chrome);
+  const activity = new ActivityIndicator(chrome as any);
 
   // Agent controller for pause/resume
   const agentController = new AgentController();
@@ -908,25 +906,32 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     return;
   }
 
-  // Interactive mode
-  renderInfo(`  Provider: ${config.provider} | Model: ${config.model}`);
+  // Interactive mode — collect info into startup banner buffer
+  const bufInfo = (msg: string) => { startupBannerParts.push(`  ${chalk.gray(msg)}\n`); };
+  bufInfo(`  Provider: ${config.provider} | Model: ${config.model}`);
   if (project.name !== 'unknown') {
-    renderInfo(`  Project: ${project.name} (${project.type})`);
+    bufInfo(`  Project: ${project.name} (${project.type})`);
   }
   const brainLabel = brainScope === 'project'
     ? chalk.cyan('project-local') + chalk.dim(` (.helixmind/)`)
     : chalk.dim('global') + chalk.dim(` (~/.spiral-context/)`);
-  renderInfo(`  Brain: ${brainLabel}`);
+  bufInfo(`  Brain: ${brainLabel}`);
 
   // Show mode-specific startup info
   const modeLabel = permissions.getModeLabel();
-  renderInfo(`  Agent mode: ${modeLabel} permissions`);
+  bufInfo(`  Agent mode: ${modeLabel} permissions`);
 
-  // Show warnings for skip-permissions / yolo
+  // Show warnings for skip-permissions / yolo (captured via stdout hook)
   if (options.skipPermissions && options.yolo) {
+    const _origW = process.stdout.write.bind(process.stdout);
+    (process.stdout as any).write = function (d: any) { if (typeof d === 'string') startupBannerParts.push(d); return true; };
     showFullAutonomousWarning();
+    process.stdout.write = _origW;
   } else if (options.skipPermissions) {
+    const _origW = process.stdout.write.bind(process.stdout);
+    (process.stdout as any).write = function (d: any) { if (typeof d === 'string') startupBannerParts.push(d); return true; };
     showSkipPermissionsWarning();
+    process.stdout.write = _origW;
   }
 
   // === Start Brain Server BEFORE prompt (no async output during typing) ===
@@ -941,7 +946,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       exportBrainData(spiralEngine, project.name || 'HelixMind', brainScope);
     }
     brainUrl = await startLiveBrain(spiralEngine, project.name || 'HelixMind', brainScope);
-    renderInfo(`  \u{1F9E0} Brain: ${chalk.dim(brainUrl)}`);
+    bufInfo(`  \u{1F9E0} Brain: ${chalk.dim(brainUrl)}`);
   } catch { /* brain server optional */ }
 
   // === Register CLI ↔ Web control protocol ===
@@ -1008,9 +1013,24 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Wire main session output so web clients can subscribe to 'main'
       wireSessionOutput(sessionMgr.main);
 
-      // Capture main session stdout output for web streaming
-      const stdoutCapture = new (await import('../brain/stdout-capture.js')).StdoutCapture(sessionMgr.main);
-      stdoutCapture.start();
+      // Wire Screen's stdout hook to session capture for web streaming.
+      // Replaces the separate StdoutCapture monkey-patch — Screen already hooks stdout.
+      const STATUS_RE = /L\d+:\d+\s+L\d+:\d+|safe permissions|shift\+tab to cycle|esc to interrupt|FREE_PLUS|FREE_BASE|\d+\/\d+\.?\d*k tk|\d+ ckpts/;
+      let captureBuf = '';
+      screen.setOutputWriteCallback((data: string) => {
+        captureBuf += data;
+        let ni: number;
+        while ((ni = captureBuf.indexOf('\n')) !== -1) {
+          const line = captureBuf.slice(0, ni);
+          captureBuf = captureBuf.slice(ni + 1);
+          const stripped = line.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').trim();
+          const isFrameContent = stripped.startsWith('\u2502') || stripped.startsWith('|') ||
+                                  stripped.includes('\u276F') || stripped === '\u203A' || stripped === '>';
+          if (stripped.length > 0 && !STATUS_RE.test(stripped) && !isFrameContent) {
+            sessionMgr.main.capture(line);
+          }
+        }
+      });
 
       // Voice engine (lazy-initialized on first voice_audio_chunk)
       let voiceEngine: import('../voice/engine.js').VoiceEngine | null = null;
@@ -1445,7 +1465,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                       reason: evalResult.reason,
                     });
                     jarvisIdentity.setAutonomyLevel(evalResult.newLevel);
-                    renderInfo(chalk.hex('#ff00ff')(`\u2B06 ${jName} Autonomy: L${evalResult.newLevel} \u2014 ${evalResult.reason}`));
+                    screen.writeOutput(`  ${chalk.hex('#ff00ff')(`\u2B06 ${jName} Autonomy: L${evalResult.newLevel} \u2014 ${evalResult.reason}`)}\n`);
                   }
                   pushSessionUpdate(serializeSession(bgSession));
                 },
@@ -1903,7 +1923,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Log connection token
       const token = getBrainToken();
       if (token) {
-        renderInfo(`  \u{1F511} Brain token: ${chalk.dim(token.slice(-4))} ${chalk.dim('(full token in /brain)')}`);
+        bufInfo(`  \u{1F511} Brain token: ${chalk.dim(token.slice(-4))} ${chalk.dim('(full token in /brain)')}`);
       }
 
       // Start relay client if configured — reuses the same controlHandlerImpl
@@ -1911,15 +1931,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       const relayApiKey = config.relay?.apiKey as string | undefined;
       if (relayUrl && relayApiKey) {
         startRelayClient(relayUrl, relayApiKey, controlHandlerImpl, updateMeta).catch(() => {});
-        renderInfo(`  \u{1F310} Relay: ${chalk.dim(relayUrl.replace(/\/api.*/, ''))}`);
+        bufInfo(`  \u{1F310} Relay: ${chalk.dim(relayUrl.replace(/\/api.*/, ''))}`);
       } else {
-        renderInfo(`  ${chalk.dim('\u{1F310} Web: not connected')} ${chalk.dim('— run')} ${chalk.cyan('hx login')} ${chalk.dim('to link with helix-mind.ai')}`);
+        bufInfo(`  ${chalk.dim('\u{1F310} Web: not connected')} ${chalk.dim('— run')} ${chalk.cyan('hx login')} ${chalk.dim('to link with helix-mind.ai')}`);
       }
     } catch { /* control protocol optional */ }
   }
 
-  renderInfo(`  Type /help for commands, ESC = stop agent, Ctrl+C twice to exit\n`);
-  process.stdout.write(theme.separator + '\n');
+  bufInfo(`  Type /help for commands, ESC = stop agent, Ctrl+C twice to exit\n`);
 
   // Flag: true while user is at the prompt (typing). Footer timer skips updates
   // when this is true to prevent cursor-jumping from interfering with readline.
@@ -1944,34 +1963,23 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // line events on stdin that would be misinterpreted as user messages.
   let drainUntil = 0;
 
-  /**
-   * Build the readline prompt string. Must be a SINGLE line with ANSI codes
-   * wrapped in \x01..\x02 so readline can correctly compute visible width
-   * and position the cursor where the user types.
-   */
+  // makePrompt is no longer needed — InputManager renders the input frame with │ ❯
+  // Kept as a minimal stub for any legacy code that still calls it
   function makePrompt(): string {
-    const ansiStart = '\x01'; // RL_PROMPT_START_IGNORE
-    const ansiEnd = '\x02';   // RL_PROMPT_END_IGNORE
-    // Wrap each ANSI escape sequence so readline ignores it for width calculation
-    const pipe = chalk.hex('#00d4ff').dim('\u2502');
-    const gt = chalk.hex('#00d4ff').bold('\u276F');
-    const escapedPipe = pipe.replace(/(\x1b\[[0-9;]*m)/g, `${ansiStart}$1${ansiEnd}`);
-    const escapedGt = gt.replace(/(\x1b\[[0-9;]*m)/g, `${ansiStart}$1${ansiEnd}`);
-    return `${escapedPipe} ${escapedGt} `;
+    return '';
   }
 
-  /** Build top border for input box: ┌──────────────────┐ */
-  function buildTopBorder(w: number): string {
-    const dim = chalk.hex('#00d4ff').dim;
-    return dim('\u250C' + '\u2500'.repeat(w - 2) + '\u2510');
+  /** Build top border for input box — now handled by Screen.drawFrameTop() */
+  function buildTopBorder(_w: number): string {
+    return ''; // Handled by Screen
   }
 
   /** Build hint line content for chrome row 1 */
   function buildHintLine(): string {
     const data = getStatusBarData();
     const hints: string[] = [];
-    if (data.permissionMode === 'yolo') hints.push(chalk.red('\u25B8\u25B8 yolo mode'));
-    else if (data.permissionMode === 'skip') hints.push(chalk.yellow('\u25B8\u25B8 bypass permissions'));
+    if (data.permissionMode === 'yolo') hints.push(chalk.red.bold('\u25B8\u25B8 YOLO'));
+    else if (data.permissionMode === 'skip') hints.push(chalk.red('\u25B8\u25B8 skip permissions'));
     else hints.push(chalk.green('\u25B8\u25B8 safe permissions'));
     hints.push(chalk.dim('shift+tab to cycle'));
     hints.push(chalk.dim('esc to interrupt'));
@@ -1990,7 +1998,6 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     const w = Math.max(20, (process.stdout.columns || 80) - 2);
 
     // Build chrome row content
-    const topBorder = buildTopBorder(w);
     const hintLine = buildHintLine();
 
     // Set hints content on activity indicator (for restore on chrome row 1 after agent work)
@@ -2001,28 +2008,25 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     const statusBar = renderStatusBar(statusData, w - 4);
     const [statusLine1, statusLine2] = statusBar.split('\n');
 
-    chrome.setRow(0, topBorder);
+    // Activate screen FIRST (sets scroll region + hooks stdout)
+    if (!screen.isActive && !screen.isInlineMode) {
+      screen.activate();
+    }
+
+    // Now set chrome content and draw (screen must be active for these to render)
+    screen.drawFrameBottom();
     chrome.setRow(1, hintLine);
     chrome.setRow(2, ' ' + statusLine1);
     chrome.setRow(3, ' ' + statusLine2);
 
-    // Activate chrome if not already (sets scroll region + hooks stdout)
-    if (!chrome.isActive && !chrome.isInlineMode) {
-      chrome.activate();
-    }
-
     isAtPrompt = true;
-    // Suppress stdout hook redraws while readline manages the cursor —
-    // prevents cursor-position interference that garbles/doubles characters.
-    chrome.promptActive = true;
+    // Suppress stdout hook redraws while InputManager manages the cursor
+    screen.inputActive = true;
 
-    // Restore readline echo (may have been muted during agent work)
-    (rl as any).output = process.stdout;
-
-    if (chrome.isActive) {
-      // Position cursor at the bottom of the scroll region, then prompt
-      chrome.positionCursorForPrompt();
-      rl.prompt();
+    if (screen.isActive) {
+      // Draw input frame and position cursor
+      inputMgr.unmute();
+      inputMgr.prompt();
     } else {
       // Inline fallback for small terminals
       const dim = chalk.hex('#00d4ff').dim;
@@ -2060,6 +2064,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       autonomous: autonomousMode,
       paused: agentController.isPaused,
       plan: (store.get('relay.plan') as string | undefined) ?? undefined,
+      activeMode: jarvisDaemonSession && jarvisDaemonSession.status === 'running'
+        ? 'jarvis' as const
+        : autonomousMode ? 'monitor' as const : 'cli' as const,
       jarvisName: jarvisDaemonSession && jarvisDaemonSession.status === 'running'
         ? jarvisIdentity.getIdentity().name
         : undefined,
@@ -2071,22 +2078,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     };
   }
 
-  // Ensure keypress events are emitted on stdin (required for ESC detection)
+  // ─── InputManager: handles raw mode, readline, bracketed paste, ESC detection ───
+  // Replaces direct readline creation — input is rendered inside a framed area
   if (process.stdin.isTTY) {
-    readline.emitKeypressEvents(process.stdin);
-    // Enable raw mode for immediate ESC key detection
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    // Enable Bracketed Paste Mode — terminal wraps pasted text in \x1b[200~ ... \x1b[201~
-    // so Enter keys inside paste don't trigger submit
-    process.stdout.write('\x1b[?2004h');
+    terminal.enableRawMode();
+    terminal.enableBracketedPaste();
+    terminal.enableKittyKeyboard();
   }
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: makePrompt(),
-    escapeCodeTimeout: 50, // Low timeout so ESC keypress is emitted quickly (default 500ms merges double-ESC into one event)
+  const inputMgr = new InputManager(screen, terminal, {
     completer: (line: string) => {
       if (line.startsWith('/')) {
         const matches = getSuggestions(line).map(s => s.cmd);
@@ -2094,7 +2094,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       }
       return [[], line];
     },
+    getSuggestions,
+    getBestCompletion,
   });
+
+  // Expose readline for legacy code (PermissionManager, rl.question, etc.)
+  const rl = inputMgr.readline;
 
   // Load persistent prompt history into readline
   const promptHistory = new PromptHistory(configDir);
@@ -2104,102 +2109,62 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     (rl as any).history = savedHistory;
   }
 
-  // Update prompt, chrome, and activity on terminal resize
+  // Update screen and activity on terminal resize
   process.stdout.on('resize', () => {
     closeSuggestionPanel(); // Close panel on resize (reopens on next keypress)
-    rl.setPrompt(makePrompt());
-    chrome.handleResize();
+    screen.handleResize();
     activity.handleResize();
     if (isAtPrompt) {
-      chrome.positionCursorForPrompt();
-      rl.prompt();
+      showPrompt();
     }
   });
 
-  // Interactive suggestion panel (dropdown below input)
-  const MAX_VISIBLE_SUGGESTIONS = 6;
-  const suggestionPanel = new SuggestionPanel(chrome);
-  let panelNavigating = false;   // Prevents keypress from recomputing during Up/Down
-  let panelJustClosed = false;   // Prevents ESC from stopping agent when only closing panel
-
-  /** Replace readline input with the given text (for arrow-key suggestion preview) */
+  // Suggestion panel is now handled by InputManager (built-in arrow navigation, Tab/Enter/ESC)
+  // Legacy compat stubs:
+  let panelJustClosed = false;
   function replaceReadlineInput(text: string): void {
-    (rl as any).line = text;
-    (rl as any).cursor = text.length;
-    (rl as any)._refreshLine();
+    inputMgr.setLine(text);
   }
-
-  /** Close suggestion panel and restore readline prompt at the correct position */
   function closeSuggestionPanel(): void {
-    if (!suggestionPanel.isOpen) return;
-    suggestionPanel.close();
-    // Scroll region changed — reposition cursor and refresh readline prompt
-    chrome.positionCursorForPrompt();
-    (rl as any)._refreshLine();
+    inputMgr.closeSuggestions();
   }
-
-  // Intercept raw keystrokes BEFORE readline processes them
-  const origTtyWrite = (rl as any)._ttyWrite.bind(rl);
-  (rl as any)._ttyWrite = function (s: string, key: any) {
-    // Block ALL readline input while full-screen browser (Rewind/Plan) is active.
-    // The browser reads raw stdin directly — readline must not process anything.
-    if (fullScreenBrowserOpen) return;
-
-    if (suggestionPanel.isOpen && key) {
-      // Down arrow — navigate suggestions
-      if (key.name === 'down') {
-        panelNavigating = true;
-        const cmd = suggestionPanel.moveDown();
-        if (cmd) replaceReadlineInput(cmd);
-        panelNavigating = false;
-        return; // swallow
-      }
-      // Up arrow — navigate suggestions
-      if (key.name === 'up') {
-        panelNavigating = true;
-        const cmd = suggestionPanel.moveUp();
-        if (cmd) replaceReadlineInput(cmd);
-        panelNavigating = false;
-        return; // swallow
-      }
-      // Tab — confirm selection (or select first)
-      if (key.name === 'tab' && !key.shift) {
-        const cmd = suggestionPanel.confirm();
-        if (cmd) {
-          chrome.positionCursorForPrompt();
-          replaceReadlineInput(cmd + ' ');
-        }
-        return; // swallow
-      }
-      // Enter — if item selected, confirm without submitting
-      if (key.name === 'return' && suggestionPanel.selectedIndex >= 0) {
-        const cmd = suggestionPanel.confirm();
-        if (cmd) {
-          chrome.positionCursorForPrompt();
-          replaceReadlineInput(cmd + ' ');
-        }
-        return; // swallow
-      }
-      // Enter with nothing selected — close panel and let readline submit
-      if (key.name === 'return' && suggestionPanel.selectedIndex < 0) {
-        closeSuggestionPanel();
-        // fall through to origTtyWrite
-      }
-      // Escape — close panel without stopping agent
-      if (key.name === 'escape') {
-        closeSuggestionPanel();
-        panelJustClosed = true;
-        // Schedule reset for next tick (so keypress handler sees the flag)
-        process.nextTick(() => { panelJustClosed = false; });
-        return; // swallow
-      }
-    }
-    // Pass through to original readline handler
-    origTtyWrite(s, key);
+  const suggestionPanel = {
+    get isOpen() { return inputMgr.isSuggestionOpen; },
+    get selectedIndex() { return inputMgr.selectedSuggestion ? 0 : -1; },
+    get selectedCommand() { return inputMgr.selectedSuggestion; },
+    close() { inputMgr.closeSuggestions(); },
+    moveDown() { return inputMgr.suggestionDown(); },
+    moveUp() { return inputMgr.suggestionUp(); },
+    confirm() { return inputMgr.confirmSuggestion(); },
+    open(items: any[], input: string) { inputMgr.openSuggestions(items, input); },
+    update(items: any[], input: string) { inputMgr.updateSuggestions(items, input); },
   };
 
   permissions.setReadline(rl);
   permissions.setPromptCallback((active) => { isAtPrompt = active; });
+
+  // Shift+Tab → cycle permission mode: safe → skip → yolo → safe
+  inputMgr.on('shift-tab', () => {
+    const current = permissions.getModeLabel();
+    if (current === 'safe') {
+      permissions.setSkipPermissions(true);
+      permissions.setYolo(false);
+    } else if (current === 'skip') {
+      permissions.setSkipPermissions(false);
+      permissions.setYolo(true);
+    } else {
+      // yolo or plan → back to safe
+      permissions.setSkipPermissions(false);
+      permissions.setYolo(false);
+    }
+    // Refresh hint line and statusbar to reflect new mode
+    if (isAtPrompt) {
+      const hintLine = buildHintLine();
+      activity.setRestoreContent(hintLine);
+      chrome.setRow(1, hintLine);
+      updateStatusBar();
+    }
+  });
 
   // Set up remote permission approval (Brain Server + Telegram + Notifications)
   if (brainUrl) {
@@ -2268,17 +2233,17 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
   }
 
-  // Mute readline echo during LLM streaming (animation running) to prevent typed
-  // chars from mixing with agent output. Unmute during tool execution so the user
-  // can answer permission prompts normally at the prompt row.
+  // Mute/unmute input echo during agent work.
+  // InputManager handles rendering — mute prevents echo from leaking to stdout,
+  // unmute restores the framed input display.
   activity.setMuteCallbacks(
     () => {
-      (rl as any).output = devNull;
+      inputMgr.mute();
     },
     () => {
-      (rl as any).output = process.stdout;
-      // Clear type-ahead preview from prompt row when unmuting
-      if (chrome.isActive) chrome.writeAtPromptRow('');
+      inputMgr.unmute();
+      // Clear type-ahead preview from input row when unmuting
+      if (screen.isActive) screen.writeAtInputRow('');
     },
   );
 
@@ -2306,14 +2271,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     // Check if readline has text on the current line
     // (rl.line is still populated at this point — not yet cleared)
-    const currentLine = (rl as any).line || '';
+    const currentLine = inputMgr.currentLine;
     if (currentLine.length > 0) {
       // Clear current input — write a new line and re-prompt
       process.stdout.write('\n');
-      (rl as any).line = '';
-      (rl as any).cursor = 0;
-      isAtPrompt = true;
-      rl.prompt();
+      inputMgr.setLine('');
+      showPrompt();
       ctrlCCount = 0;
       return;
     }
@@ -2324,8 +2287,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
       process.stdout.write('\n');
       renderInfo(chalk.dim('Input cleared.'));
-      isAtPrompt = true;
-      rl.prompt();
+      showPrompt();
       ctrlCCount = 0;
       return;
     }
@@ -2348,8 +2310,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     process.stdout.write('\n');
     renderInfo('Press Ctrl+C again to exit, or type a message to continue.');
-    isAtPrompt = true;
-    rl.prompt();
+    showPrompt();
 
     if (ctrlCTimer) clearTimeout(ctrlCTimer);
     ctrlCTimer = setTimeout(() => { ctrlCCount = 0; }, 2000);
@@ -2384,12 +2345,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         pushModelActivated(modelName);
 
         process.stdout.write(`\n  ${chalk.green('\u26A1')} Model activated: ${chalk.cyan(modelName)} ${chalk.dim('(ollama)')}\n`);
-        isAtPrompt = true;
-        rl.prompt();
+        showPrompt();
       } catch (err) {
         process.stdout.write(`\n  ${chalk.red('Model activation failed:')} ${err}\n`);
-        isAtPrompt = true;
-        rl.prompt();
+        showPrompt();
       }
     });
 
@@ -2425,12 +2384,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           ? chalk.cyan('\u{1F4C1} project-local (.helixmind/)')
           : chalk.dim('\u{1F310} global (~/.spiral-context/)');
         process.stdout.write(`\n  \u{1F9E0} Brain switched to ${scopeLabel}\n`);
-        isAtPrompt = true;
-        rl.prompt();
+        showPrompt();
       } catch (err) {
         process.stdout.write(`\n  ${chalk.red('Brain switch failed:')} ${err}\n`);
-        isAtPrompt = true;
-        rl.prompt();
+        showPrompt();
       }
     });
   }
@@ -2462,27 +2419,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         return;
       }
 
-      // === Command Suggestions (interactive dropdown) ===
-      if (!agentRunning && !panelNavigating) {
-        const currentLine = ((rl as any).line || '') as string;
-        if (currentLine.startsWith('/') && currentLine.length >= 2) {
-          const suggestions = getSuggestions(currentLine, MAX_VISIBLE_SUGGESTIONS);
-          if (suggestions.length > 0) {
-            if (suggestionPanel.isOpen) {
-              suggestionPanel.update(suggestions, currentLine);
-            } else {
-              suggestionPanel.open(suggestions, currentLine);
-              // Scroll region changed — reposition cursor and refresh readline prompt
-              chrome.positionCursorForPrompt();
-              (rl as any)._refreshLine();
-            }
-          } else {
-            closeSuggestionPanel();
-          }
-        } else {
-          closeSuggestionPanel();
-        }
-      }
+      // Command suggestions are now handled by InputManager's built-in _interceptTtyWrite.
+      // The panel opens/updates/closes automatically as the user types slash commands.
 
       // === ESC detection (single ESC = stop) ===
       // Double-ESC (rewind browser) is handled by the raw data listener below.
@@ -2555,9 +2493,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       const str = bytes.toString('utf8');
 
       // --- Bracketed Paste: detect start/end markers ---
+      // Suppress readline's _ttyWrite during paste to prevent buffer pollution.
+      // Without this, paste characters go through _ttyWrite → readline buffer fills
+      // up → text flashes briefly → state corruption → can't submit.
       if (str.includes(PASTE_START)) {
         bracketedPasteActive = true;
         bracketedPasteBuffer = '';
+        inputMgr.suppressInput = true; // Block _ttyWrite from processing paste chars
         // Strip the start marker and keep any text after it
         const afterStart = str.split(PASTE_START).slice(1).join(PASTE_START);
         if (afterStart.includes(PASTE_END)) {
@@ -2653,8 +2595,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           if (r.filesReverted > 0) renderInfo(chalk.yellow(`${r.filesReverted} file(s) reverted`));
 
           if (browserResult.messageText) {
-            (rl as any).line = browserResult.messageText;
-            (rl as any).cursor = browserResult.messageText.length;
+            inputMgr.setLine(browserResult.messageText);
             didRevertWithMessage = true;
           }
         }
@@ -2669,8 +2610,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       // Clear readline buffer unless a revert populated it with the message text
       if (!didRevertWithMessage) {
-        (rl as any).line = '';
-        (rl as any).cursor = 0;
+        inputMgr.setLine('');
       }
 
       fullScreenBrowserOpen = false;
@@ -2687,45 +2627,58 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     if (bracketedPasteTimer) clearTimeout(bracketedPasteTimer);
     bracketedPasteTimer = setTimeout(() => {
       // Timeout: paste end marker never arrived — flush what we have
-      if (bracketedPasteActive && bracketedPasteBuffer) {
+      if (bracketedPasteActive) {
         bracketedPasteActive = false;
-        handleBracketedPaste(bracketedPasteBuffer);
-        bracketedPasteBuffer = '';
+        if (bracketedPasteBuffer) {
+          handleBracketedPaste(bracketedPasteBuffer);
+          bracketedPasteBuffer = '';
+        } else {
+          // No data accumulated — just unsuppress
+          inputMgr.suppressInput = false;
+        }
       }
     }, BRACKETED_PASTE_TIMEOUT);
   }
 
   function handleBracketedPaste(text: string): void {
+    // IMPORTANT: Do NOT set suppressInput=false here synchronously!
+    // Readline's internal data handler for the SAME data event hasn't fired yet
+    // (our prependListener runs first). If we unsuppress now, readline would
+    // process the paste bytes normally → text flashes in input then disappears.
+    // Defer to next tick so readline sees suppressInput=true for this event.
+    setImmediate(() => { inputMgr.suppressInput = false; });
+
     // Suppress readline 'line' events from the same paste data — readline also
     // receives the raw bytes and fires duplicate line events for each \n.
     drainUntil = Date.now() + 150;
 
+    // Save the user's already-typed input before clearing leaked paste bytes
+    const existingInput = inputMgr.currentLine;
+
+    // Clear any characters that leaked into readline buffer before suppression kicked in
+    replaceReadlineInput('');
+
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      // Restore existing input if paste was empty
+      if (existingInput) replaceReadlineInput(existingInput);
+      return;
+    }
 
     if (agentRunning) {
       // Queue the paste as a single type-ahead entry (with current input if any)
-      const currentInput = ((rl as any).line as string || '').trim();
-      const combined = currentInput ? `${currentInput}\n${trimmed}` : trimmed;
+      const combined = existingInput.trim()
+        ? `${existingInput.trim()}\n${trimmed}` : trimmed;
       typeAheadBuffer.push(combined);
       const lineCount = trimmed.split('\n').length;
       replaceReadlineInput('');
-      process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${currentInput ? chalk.dim(currentInput + ' ') : ''}${chalk.cyan(`[pasted text ${lineCount} lines]`)}\n`);
-      rl.prompt();
+      process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${existingInput.trim() ? chalk.dim(existingInput.trim() + ' ') : ''}${chalk.cyan(`[pasted text ${lineCount} lines]`)}\n`);
+      inputMgr.prompt();
     } else {
-      // Store paste and show inline indicator after current input
-      const lineCount = trimmed.split('\n').length;
-      pendingPasteText = trimmed;
-
-      // Append visual indicator to the current readline input
-      const currentInput = (rl as any).line as string || '';
-      const indicator = ` \x1b[36m[pasted text ${lineCount} lines]\x1b[0m`;
-      // Show the combined input on the prompt line
-      process.stdout.write(`\x1b[2K\r`);
-      rl.prompt();
-      // Write the current input + paste indicator visually (without modifying rl.line)
-      const promptStr = makePrompt();
-      process.stdout.write(`\x1b[2K\r${promptStr}${currentInput}${indicator}`);
+      // Restore existing input, then set paste block
+      if (existingInput) replaceReadlineInput(existingInput);
+      inputMgr.setPasteBlock(trimmed);
+      pendingPasteText = inputMgr.pendingPaste;
     }
   }
 
@@ -2762,6 +2715,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Called by footer timer every 500ms to keep token counts, tools, git etc. live.
   function updateStatusBar(): void {
     if (!process.stdout.isTTY) return;
+    // Skip when screen is deactivated (sub-menu active) — inline writeStatusBar
+    // would clobber the menu content with absolute cursor positioning.
+    if (!chrome.isActive) return;
     const data = getStatusBarData();
     const w = (process.stdout.columns || 80) - 2;
     const bar = renderStatusBar(data, w - 4);
@@ -2774,15 +2730,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       line1 = `${tabBar}  ${statusLine1}`;
     }
 
-    if (chrome.isActive) {
-      // Refresh hint line on row 1 (prevents stale border/status from previous layout)
-      chrome.setRow(1, buildHintLine());
-      chrome.setRow(2, ' ' + line1);
-      chrome.setRow(3, ' ' + (statusLine2 || ''));
-    } else {
-      // Inline fallback
-      writeStatusBar(data);
-    }
+    // Refresh hint line on row 1 (prevents stale border/status from previous layout)
+    chrome.setRow(1, buildHintLine());
+    chrome.setRow(2, ' ' + line1);
+    chrome.setRow(3, ' ' + (statusLine2 || ''));
   }
 
   /** Push session findings to brain visualization */
@@ -2838,21 +2789,22 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Shown as "[pasted text X lines]" after the user's typed text on the prompt line
   let pendingPasteText: string | null = null;
 
-  // Scroll the viewport so the bottom chrome rows land in the visible area.
-  // On Windows Terminal / ConPTY the cursor may sit mid-viewport after startup
-  // output, and absolute-positioned writes target off-screen rows. The fix:
-  // 1. Move cursor to the last terminal row (creates scrollback if needed).
-  // 2. Print newlines to push the viewport fully down.
-  // 3. showPrompt() then activates chrome with scroll region at the right spot.
+  // Activate screen first, then write the startup banner INTO the scroll region.
+  // This positions the banner content directly above the input frame (no gap).
+  // Old approach scrolled viewport aggressively which cut off the banner top.
   if (process.stdout.isTTY) {
     const termRows = process.stdout.rows || 24;
-    // Move to last row, then emit newlines to ensure full viewport scroll
+    // Push viewport down so absolute-positioned chrome lands in visible area
     process.stdout.write(`\x1b[${termRows};1H`);
-    process.stdout.write('\n'.repeat(chrome.baseRows + 2));
+    process.stdout.write('\n'.repeat(chrome.totalReservedRows));
   }
 
   // Show full prompt area on startup (separator + status + > prompt)
   showPrompt();
+
+  // Write the collected startup banner into the scroll region.
+  // Content flows bottom-up within the region, sitting just above the input frame.
+  screen.writeOutput(startupBannerParts.join(''));
 
   // Footer timer — redraws statusbar on chrome rows 2+3 during agent work.
   // Skipped when:
@@ -2866,7 +2818,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   footerTimer.unref();
 
   /** Process a complete input (single line or assembled paste block) */
-  async function processInput(input: string): Promise<void> {
+  async function processInput(input: string, displayText?: string): Promise<void> {
+
+    // Clear input frame FIRST — before any renderInfo/process.stdout.write.
+    // This ensures the cursor moves out of the input area so all output
+    // (slash command results, "daemon started", etc.) goes to the scroll region.
+    if (screen.isActive) {
+      screen.clearInputFrame();
+    }
 
     // Persist to JSONL history (async, non-blocking)
     promptHistory.add(input, process.cwd()).catch(() => {});
@@ -3312,8 +3271,25 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             bgSession.start();
             jarvisDaemonSession = bgSession;
             jarvisPaused = false;
-            renderInfo(chalk.hex('#ff00ff').bold(`\u{1F916} ${jName} daemon started`));
-            renderInfo(chalk.dim('Add tasks with /jarvis task "description"'));
+
+            // Render daemon startup banner in scroll region via screen.writeOutput()
+            // (direct process.stdout.write would bypass scroll region and pollute input frame)
+            const d = chalk.dim;
+            const j = chalk.hex('#ff00ff');
+            const g = chalk.hex('#FFB800');
+            const displayName = jName.toUpperCase() + ' AGI';
+            const namePad = Math.max(0, 34 - displayName.length);
+            const banner =
+              '\n' +
+              d('\u256D' + '\u2500'.repeat(45) + '\u256E') + '\n' +
+              d('\u2502  ') + g('\u{1F31F}') + ' ' + j(displayName) + d(' '.repeat(namePad) + '\u2502') + '\n' +
+              d('\u2502' + ' '.repeat(45) + '\u2502') + '\n' +
+              d('\u2502  ') + 'Autonomous agent \u2014 thinking, learning,' + d('     \u2502') + '\n' +
+              d('\u2502  ') + 'proposing, executing tasks' + d(' '.repeat(17) + '\u2502') + '\n' +
+              d('\u2502' + ' '.repeat(45) + '\u2502') + '\n' +
+              d('\u2502  ') + d('/jarvis stop or ESC to stop') + d(' '.repeat(13) + '\u2502') + '\n' +
+              d('\u2570' + '\u2500'.repeat(45) + '\u256F') + '\n\n';
+            screen.writeOutput(banner);
 
             // Start Telegram bot alongside daemon (if configured)
             startTelegramBot();
@@ -3340,11 +3316,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   isPaused: () => jarvisPaused,
                   onTaskStart: (task) => {
                     bgSession.capture(`\u25B6 Task #${task.id}: ${task.title}`);
-                    renderInfo(chalk.hex('#ff00ff')(`\u25B6 ${jName}: Starting task #${task.id} \u2014 ${task.title}`));
+                    screen.writeOutput(`  ${chalk.hex('#ff00ff')(`\u25B6 ${jName}: Starting task #${task.id} \u2014 ${task.title}`)}\n`);
                   },
                   onTaskComplete: (task, result) => {
                     bgSession.capture(`\u2713 Task #${task.id} done: ${result.slice(0, 100)}`);
-                    renderInfo(chalk.hex('#ff00ff')(`\u2713 ${jName}: Task #${task.id} completed`));
+                    screen.writeOutput(`  ${chalk.hex('#ff00ff')(`\u2713 ${jName}: Task #${task.id} completed`)}\n`);
                     jarvisIdentity.recordEvent({ type: 'task_completed', taskId: task.id, summary: result });
                     const evalResult = jarvisAutonomy.evaluate(jarvisIdentity.getIdentity());
                     if (evalResult.changed) {
@@ -3355,12 +3331,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                         reason: evalResult.reason,
                       });
                       jarvisIdentity.setAutonomyLevel(evalResult.newLevel);
-                      renderInfo(chalk.hex('#ff00ff')(`\u2B06 ${jName} Autonomy: L${evalResult.newLevel} \u2014 ${evalResult.reason}`));
+                      screen.writeOutput(`  ${chalk.hex('#ff00ff')(`\u2B06 ${jName} Autonomy: L${evalResult.newLevel} \u2014 ${evalResult.reason}`)}\n`);
                     }
                   },
                   onTaskFailed: (task, error) => {
                     bgSession.capture(`\u2717 Task #${task.id} failed: ${error.slice(0, 100)}`);
-                    renderInfo(chalk.hex('#ff00ff')(`\u2717 ${jName}: Task #${task.id} failed \u2014 ${error.slice(0, 60)}`));
+                    screen.writeOutput(`  ${chalk.hex('#ff00ff')(`\u2717 ${jName}: Task #${task.id} failed \u2014 ${error.slice(0, 60)}`)}\n`);
                     jarvisIdentity.recordEvent({ type: 'task_failed', taskId: task.id, error });
                     if (task.priority === 'high') {
                       jarvisNotifications.notify(`${jName}: Task #${task.id} failed`, error.slice(0, 200), 'important').catch(() => {});
@@ -3420,13 +3396,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       return;
     }
 
-    // Clear the readline echo (prompt + typed text) — may span multiple wrapped
-    // terminal lines for long inputs. Clear each wrapped line so nothing lingers.
-    const promptVis = visibleLength(makePrompt());
-    const cols = process.stdout.columns || 80;
-    const wrappedLines = Math.max(1, Math.ceil((promptVis + input.length) / cols));
-    process.stdout.write('\x1b[A\x1b[2K'.repeat(wrappedLines));
-    renderUserMessage(input);
+    // Frame was already cleared at processInput entry — render user message
+    // Use display text (badge placeholders) if available, full text goes to model
+    renderUserMessage(displayText || input);
 
     // Track user message in session buffer
     sessionBuffer.addUserMessage(input);
@@ -3514,8 +3486,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         for (const listener of savedPlanListeners) {
           process.stdin.on('data', listener as (...args: any[]) => void);
         }
-        (rl as any).line = '';
-        (rl as any).cursor = 0;
+        inputMgr.setLine('');
         chrome.activate();
         fullScreenBrowserOpen = false;
         drainUntil = Date.now() + 500;
@@ -3736,7 +3707,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           permissions, undoStack, checkpointStore, agentController, activity, sessionBuffer,
           (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
           () => { sessionToolCalls++; roundToolCalls++; },
-          () => { isAtPrompt = true; rl.prompt(); },
+          () => { showPrompt(); },
           { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
           bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
           getJarvisContextForPrompt(),
@@ -3758,7 +3729,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // === Paste-aware line handler ===
   // Rapid-fire line events (< 50ms apart) = multi-line paste.
   // We collect them and show a preview instead of sending immediately.
-  rl.on('line', (line) => {
+  rl.on('line', (rawLine) => {
     isAtPrompt = false;
     chrome.promptActive = false; // Re-enable stdout hook redraws
     ctrlCCount = 0;
@@ -3777,13 +3748,22 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // Close suggestion panel on submit
     suggestionPanel.close();
 
+    // Resolve inline paste badges: replace \x01id:label\x02 markers with actual paste content
+    const line = inputMgr.resolveBadges(rawLine);
+    // Build display version: show badges as styled placeholders (like in input field)
+    // eslint-disable-next-line no-control-regex
+    const displayLine = rawLine.replace(/\x01\d+:/g, '[').replace(/\x02/g, ']');
+    // Clear paste store after resolving (InputManager defers clearing to us)
+    inputMgr.clearPasteStore();
+
     const trimmed = line.trim();
 
     // --- Pending paste: user pressed Enter → combine typed text + pasted text ---
-    if (pendingPasteText) {
+    // InputManager's submit handler already combines line + paste block,
+    // but the legacy pendingPasteText path is kept for non-bracketed paste.
+    if (pendingPasteText && !inputMgr.hasPasteBlock) {
       const pastedContent = pendingPasteText;
       pendingPasteText = null;
-      process.stdout.write(`\x1b[2K\r`);
 
       // Combine: typed text (if any) + newline + pasted text
       const combined = trimmed ? `${trimmed}\n${pastedContent}` : pastedContent;
@@ -3792,7 +3772,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         typeAheadBuffer.push(combined);
         const lineCount = pastedContent.split('\n').length;
         process.stdout.write(`  ${theme.dim('\u23F3 Queued:')} ${trimmed ? chalk.dim(trimmed + ' ') : ''}${chalk.cyan(`[pasted text ${lineCount} lines]`)}\n`);
-        rl.prompt();
+        inputMgr.prompt();
       } else {
         processInput(combined);
       }
@@ -3808,39 +3788,36 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       clearTimeout(pasteTimer);
       // Show updated preview
       const count = pasteBuffer.length;
-      process.stdout.write(`\x1b[2K\r  ${chalk.dim(`(${count} Zeilen eingefuegt — Enter zum Senden, Esc zum Verwerfen)`)}`);
+      process.stdout.write(`\x1b[2K\r  ${chalk.dim(`(${count} lines pasted — Enter to send, Esc to discard)`)}`);
       pasteTimer = setTimeout(() => {
         // Paste ended — store as pending paste inline with current input
         pasteTimer = null;
         const assembled = pasteBuffer.join('\n').trim();
         pasteBuffer = [];
-        if (!assembled) { rl.prompt(); return; }
+        if (!assembled) { inputMgr.prompt(); return; }
 
         if (agentRunning) {
           typeAheadBuffer.push(assembled);
           const lineCount = assembled.split('\n').length;
           process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${chalk.cyan(`[pasted text ${lineCount} lines]`)}\n`);
-          rl.prompt();
+          inputMgr.prompt();
         } else {
-          // Store as pending paste — show inline indicator
-          const lineCount = assembled.split('\n').length;
-          pendingPasteText = assembled;
-          const currentInput = (rl as any).line as string || '';
-          const indicator = ` \x1b[36m[pasted text ${lineCount} lines]\x1b[0m`;
-          const promptStr = makePrompt();
-          process.stdout.write(`\x1b[2K\r${promptStr}${currentInput}${indicator}`);
+          // Use InputManager's paste block system
+          inputMgr.setPasteBlock(assembled);
+          pendingPasteText = inputMgr.pendingPaste;
         }
       }, PASTE_THRESHOLD_MS);
       return;
     }
 
     if (!trimmed) {
-      isAtPrompt = true;
-      rl.prompt();
+      showPrompt();
       return;
     }
 
     // First line — start the paste timer
+    // Capture display version for badge rendering in chat output
+    const capturedDisplayLine = displayLine;
     pasteBuffer = [line];
     pasteTimer = setTimeout(() => {
       // Timer expired without more lines → this was a normal single-line input
@@ -3852,13 +3829,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           // Single-line type-ahead while agent works
           typeAheadBuffer.push(singleInput);
           process.stdout.write(`  ${theme.dim('\u23F3 Queued:')} ${theme.dim(singleInput)}\n`);
-          rl.prompt();
+          inputMgr.prompt();
         } else {
-          processInput(singleInput);
+          // Pass display text with badge placeholders for chat rendering
+          const display = capturedDisplayLine !== singleInput ? capturedDisplayLine : undefined;
+          processInput(singleInput, display);
         }
       } else {
-        isAtPrompt = true;
-        rl.prompt();
+        showPrompt();
       }
     }, PASTE_THRESHOLD_MS);
   });
@@ -3868,11 +3846,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     const origKeypress = process.stdin.listeners('keypress') as Array<(...args: any[]) => void>;
     // Insert paste-cancel before the existing ESC handler
     process.stdin.prependListener('keypress', (_str: string, key: any) => {
-      if (key?.name === 'escape' && (pasteBuffer.length > 0 || pendingPasteText)) {
+      if (key?.name === 'escape' && (pasteBuffer.length > 0 || pendingPasteText || inputMgr.hasPasteBlock)) {
         pasteBuffer = [];
         pendingPasteText = null;
         if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
-        process.stdout.write(`\x1b[2K\r  ${chalk.dim('Paste verworfen.')}\n`);
+        inputMgr.clearPasteBlock();
         showPrompt();
       }
     });
@@ -3886,7 +3864,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // Defer to let readline update rl.line first
     setImmediate(() => {
       if (!agentRunning || !chrome.isActive || !activity.isAnimating) return;
-      const userInput = (rl as any).line as string || '';
+      const userInput = inputMgr.currentLine;
       if (userInput) {
         const maxLen = Math.max(20, (process.stdout.columns || 80) - 8);
         const display = userInput.length > maxLen
@@ -4387,7 +4365,7 @@ async function handleSlashCommand(
     learning: import('../jarvis/learning.js').LearningJournal;
   },
   onModeChange?: () => void,
-  chrome?: BottomChrome,
+  chrome?: Screen,
   planCtx?: {
     engine: PlanEngine;
     getState: () => PlanModeState;
@@ -4398,7 +4376,7 @@ async function handleSlashCommand(
   let cmd = parts[0].toLowerCase();
 
   // ─── Chrome-aware selectMenu ───────────────────────────
-  // Deactivates BottomChrome during interactive menus to prevent
+  // Deactivates Screen during interactive menus to prevent
   // stdout hook interference (menu stacking on Windows Terminal).
   const chromeSelect = async (items: MenuItem[], menuOpts?: SelectMenuOptions): Promise<number> => {
     chrome?.deactivate();
@@ -4551,11 +4529,13 @@ async function handleSlashCommand(
           }
         }
       } else {
-        // Interactive picker — suppress statusbar to prevent cursor interference
+        // Interactive picker — deactivate screen to prevent scroll region + statusbar interference
         onSubPrompt?.(true);
         rl.pause();
+        chrome?.deactivate();
         const configBefore = store.getAll();
         const result = await showModelSwitcher(store, rl);
+        chrome?.activate();
         rl.resume();
         // Always refresh provider if config changed (covers "Add new provider" path too)
         const newConfig = store.getAll();
@@ -4580,10 +4560,12 @@ async function handleSlashCommand(
     }
 
     case '/keys': {
-      // Suppress statusbar to prevent cursor interference during text input
+      // Deactivate screen to prevent scroll region + statusbar interference
       onSubPrompt?.(true);
       rl.pause();
+      chrome?.deactivate();
       await showKeyManagement(store, rl);
+      chrome?.activate();
       rl.resume();
       // Refresh provider after key changes
       const newConfig = store.getAll();
@@ -4658,7 +4640,9 @@ async function handleSlashCommand(
       }
       onSubPrompt?.(true);
       rl.pause();
+      chrome?.deactivate();
       await showHelixMenu(spiralEngine, store, 'project');
+      chrome?.activate();
       rl.resume();
       return 'drain';
 
@@ -4694,7 +4678,9 @@ async function handleSlashCommand(
       }
       onSubPrompt?.(true);
       rl.pause();
+      chrome?.deactivate();
       await showHelixMenu(spiralEngine, store, 'global');
+      chrome?.activate();
       rl.resume();
       return 'drain';
 
@@ -5250,10 +5236,10 @@ async function handleSlashCommand(
           if (onboardResult.goalText) {
             const finalName = jarvisCtx.identity.getIdentity().name;
             const autoTask = jq.addTask(
-              `Projekt analysieren und verstehen`,
-              `Analysiere das aktuelle Projekt gruendlich. Das Ziel des Users ist: "${onboardResult.goalText}". ` +
-              `Verschaffe dir einen Ueberblick ueber die Codebase, Architektur, Dependencies und wichtige Dateien. ` +
-              `Stelle dich dem User kurz als ${finalName} vor und berichte was du gefunden hast.`,
+              `Analyze and understand project`,
+              `Analyze the current project thoroughly. The user's goal is: "${onboardResult.goalText}". ` +
+              `Get an overview of the codebase, architecture, dependencies and important files. ` +
+              `Briefly introduce yourself to the user as ${finalName} and report what you found.`,
             );
             renderInfo(chalk.hex('#ff00ff')(`  \u2714 Auto-Task #${autoTask.id}: ${autoTask.title}`));
           }

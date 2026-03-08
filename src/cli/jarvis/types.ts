@@ -660,7 +660,7 @@ export interface SentimentReading {
   sentiment: UserSentiment;
   confidence: number;     // 0.0-1.0
   timestamp: number;
-  trigger?: string;       // Welches Keyword/Muster hat ausgeloest
+  trigger?: string;       // Which keyword/pattern was triggered
 }
 
 export interface MoodAnalysis {

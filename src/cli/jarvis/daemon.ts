@@ -119,23 +119,8 @@ export async function runJarvisDaemon(
 ): Promise<number> {
   let completedCount = 0;
 
-  const d = chalk.dim;
-  const j = chalk.hex('#ff00ff');
-  const g = chalk.hex('#FFB800');
-
-  const identityName = callbacks.getIdentityName?.() || 'JARVIS';
-  const displayName = identityName.toUpperCase() + ' AGI';
-  const namePad = Math.max(0, 34 - displayName.length);
-
-  process.stdout.write('\n');
-  process.stdout.write(d('\u256D\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E') + '\n');
-  process.stdout.write(d('\u2502  ') + g('\u{1F31F}') + ' ' + j(displayName) + d(' '.repeat(namePad) + '\u2502') + '\n');
-  process.stdout.write(d('\u2502') + d('                                             \u2502') + '\n');
-  process.stdout.write(d('\u2502  ') + 'Autonomous agent — thinking, learning,' + d('     \u2502') + '\n');
-  process.stdout.write(d('\u2502  ') + 'proposing, executing tasks' + d('                 \u2502') + '\n');
-  process.stdout.write(d('\u2502') + d('                                             \u2502') + '\n');
-  process.stdout.write(d('\u2502  ') + d('/jarvis stop or ESC to stop') + d('             \u2502') + '\n');
-  process.stdout.write(d('\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F') + '\n\n');
+  // NOTE: Startup banner is rendered in chat.ts startDaemon() via screen.writeOutput()
+  // to ensure it lands in the scroll region, not the input frame.
 
   queue.setDaemonState('running');
   callbacks.updateStatus();
@@ -296,7 +281,8 @@ export async function runJarvisDaemon(
 
   if (callbacks.isAborted()) {
     process.stdout.write('\n');
-    renderInfo(chalk.yellow(`  \u23F9 ${identityName} stopped after ${completedCount} tasks.`));
+    const stopName = callbacks.getIdentityName?.() || 'JARVIS';
+    renderInfo(chalk.yellow(`  \u23F9 ${stopName} stopped after ${completedCount} tasks.`));
     process.stdout.write('\n');
   }
 

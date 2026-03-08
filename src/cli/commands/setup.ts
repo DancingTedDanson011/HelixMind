@@ -184,7 +184,14 @@ export async function showModelSwitcher(
   const ollamaLiveModels = await fetchOllamaModels();
   const ollamaDetected = ollamaLiveModels.length > 0;
 
-  // Show registered cloud providers first (skip ollama — handled separately below)
+  // "Add new provider" at the top for quick access
+  menuItems.push({ label: chalk.hex('#00d4ff').bold('\u2795 Add new provider / API key'), description: 'Configure a new model provider' });
+  options.push({ provider: '__add__', model: '' });
+  const addProviderIdx = 0;
+  menuItems.push({ label: '', disabled: true });
+  options.push({ provider: '', model: '' });
+
+  // Show registered cloud providers (skip ollama — handled separately below)
   for (const p of providers) {
     if (p.name === 'ollama') continue; // Handled in local section
     for (const model of p.entry.models) {
@@ -200,10 +207,8 @@ export async function showModelSwitcher(
 
   // Show locally installed Ollama models
   if (ollamaDetected) {
-    if (menuItems.length > 0) {
-      menuItems.push({ label: '', disabled: true });
-      options.push({ provider: '', model: '' });
-    }
+    menuItems.push({ label: '', disabled: true });
+    options.push({ provider: '', model: '' });
     menuItems.push({ label: chalk.hex('#00ff88').bold(`\u{1F4BB} Local Models (Ollama \u2014 ${ollamaLiveModels.length} installed)`), disabled: true });
     options.push({ provider: '', model: '' });
 
@@ -218,15 +223,6 @@ export async function showModelSwitcher(
       });
     }
   }
-
-  // Always add "Add new provider" option at the end
-  if (menuItems.length > 0) {
-    menuItems.push({ label: '', disabled: true });
-    options.push({ provider: '', model: '' });
-  }
-  const addProviderIdx = options.length;
-  menuItems.push({ label: chalk.hex('#00d4ff').bold('\u2795 Add new provider / API key'), description: 'Configure a new model provider' });
-  options.push({ provider: '__add__', model: '' });
 
   if (options.length === 1) {
     // Only the "add" option exists — no models configured
