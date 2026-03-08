@@ -5209,10 +5209,15 @@ async function handleSlashCommand(
         // Onboarding: first run → interactive setup; returning → short greeting
         const identity = jarvisCtx.identity.getIdentity();
         if (!identity.customized) {
+          // Deactivate screen so onboarding questions render directly
+          // (rl.question output goes to devNull; onboarding uses process.stdout)
+          chrome?.deactivate();
+          rl.pause();
           const onboardResult = await runOnboarding(
             jarvisCtx.identity, rl,
             jarvisCtx.getScope(),
           );
+          rl.resume();
           // Apply scope selection from onboarding
           if (onboardResult.scope && onboardResult.scope !== jarvisCtx.getScope()) {
             jarvisCtx.setScope(onboardResult.scope);

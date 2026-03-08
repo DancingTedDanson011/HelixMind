@@ -3,6 +3,7 @@
  * Subsequent starts show a short returning greeting.
  */
 import chalk from 'chalk';
+import * as readline from 'node:readline';
 import type { Interface as ReadlineInterface } from 'node:readline';
 import type { JarvisIdentityManager } from './identity.js';
 import type { JarvisIdentity } from './types.js';
@@ -16,11 +17,33 @@ export interface OnboardingResult {
   goalText?: string;
 }
 
-function askQuestion(rl: ReadlineInterface, question: string): Promise<string> {
+/**
+ * Ask a text question using a temporary readline.
+ * The main readline has output:devNull, so rl.question() prompts would be invisible.
+ * Instead we create a short-lived readline with output:stdout + terminal:false.
+ */
+function askQuestion(_rl: ReadlineInterface, question: string): Promise<string> {
+  // Ensure stdin is not in raw mode so the temp readline can read line-buffered input
+  const wasRaw = process.stdin.isTTY && process.stdin.isRaw;
+  if (wasRaw) process.stdin.setRawMode(false);
+
+  const tempRl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: false,
+  });
+
   return new Promise(resolve => {
-    rl.question(question, (answer) => {
+    let resolved = false;
+    function done(answer: string): void {
+      if (resolved) return;
+      resolved = true;
+      tempRl.close();
+      if (wasRaw) process.stdin.setRawMode(true);
       resolve(answer.trim());
-    });
+    }
+    tempRl.once('SIGINT', () => done(''));
+    tempRl.question(question, (answer) => done(answer));
   });
 }
 
