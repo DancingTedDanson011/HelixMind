@@ -18,11 +18,28 @@ interface DemoData {
   demoPositions: [number, number, number][];
 }
 
+interface BrainInnerProps {
+  /** External brain data from CLI (if provided, skips demo loading) */
+  externalNodes?: DemoNode[];
+  externalEdges?: DemoEdge[];
+}
+
 /** Shared inner Three.js scene — used by BrainScene (demo) and InteractiveBrainCanvas (landing) */
-export function BrainInner() {
+export function BrainInner({ externalNodes, externalEdges }: BrainInnerProps) {
   const [data, setData] = useState<DemoData | null>(null);
 
   useEffect(() => {
+    // If external data provided, use it
+    if (externalNodes && externalNodes.length > 0) {
+      const positions = generatePositions(externalNodes.length);
+      setData({
+        demoNodes: externalNodes,
+        demoEdges: externalEdges || [],
+        demoPositions: positions,
+      });
+      return;
+    }
+    // Otherwise load demo data
     import('./brain-demo-data').then((m) => {
       setData({
         demoNodes: m.demoNodes,
@@ -30,13 +47,29 @@ export function BrainInner() {
         demoPositions: m.demoPositions,
       });
     });
-  }, []);
+  }, [externalNodes, externalEdges]);
 
   if (!data) {
     return <BackgroundStars />;
   }
 
   return <BrainInnerLoaded data={data} />;
+}
+
+/** Generate random positions for brain nodes */
+function generatePositions(count: number): [number, number, number][] {
+  const positions: [number, number, number][] = [];
+  for (let i = 0; i < count; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 500 + Math.random() * 1500;
+    positions.push([
+      r * Math.sin(phi) * Math.cos(theta),
+      r * Math.sin(phi) * Math.sin(theta),
+      r * Math.cos(phi),
+    ]);
+  }
+  return positions;
 }
 
 function BrainInnerLoaded({ data }: { data: DemoData }) {
