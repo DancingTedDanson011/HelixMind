@@ -2690,26 +2690,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       return;
     }
 
-    if (agentRunning) {
-      // Queue the paste as a single type-ahead entry (with current input if any)
-      const combined = existingInput.trim()
-        ? `${existingInput.trim()}\n${trimmed}` : trimmed;
-      typeAheadBuffer.push(combined);
-      const lineCount = trimmed.split('\n').length;
-      replaceReadlineInput('');
-      process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${existingInput.trim() ? chalk.dim(existingInput.trim() + ' ') : ''}${chalk.cyan(`[pasted text ${lineCount} lines]`)}\n`);
-      inputMgr.prompt();
-    } else {
-      // Restore existing input at original cursor position, then set paste block.
-      // Do NOT call inputMgr.prompt() — user is already at the prompt.
-      // rl.prompt() resets cursor to 0, which would undo our cursor restore.
-      if (existingInput) {
-        replaceReadlineInput(existingInput);
-        (rl as any).cursor = Math.min(existingCursor, existingInput.length);
-      }
-      inputMgr.setPasteBlock(trimmed);
-      pendingPasteText = inputMgr.pendingPaste;
+    // Always show paste as badge in input field — even during agent work.
+    // Queuing happens on Enter (via rl.on('line') → type-ahead buffer).
+    if (existingInput) {
+      replaceReadlineInput(existingInput);
+      (rl as any).cursor = Math.min(existingCursor, existingInput.length);
     }
+    inputMgr.setPasteBlock(trimmed);
+    pendingPasteText = inputMgr.pendingPaste;
   }
 
   // Build Jarvis identity context for system prompt injection (when daemon is active)
