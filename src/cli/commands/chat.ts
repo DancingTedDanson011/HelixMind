@@ -439,7 +439,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   // Terminal + Screen (replaces BottomChrome with framed input area)
   const terminal = new Terminal();
-  const screen = new Screen(terminal);
+  // Live cursor getter — set once InputManager is created (after rl exists)
+  let _liveReadlineCursor: (() => number) | null = null;
+  const screen = new Screen(terminal, {
+    getLiveInputCursor: () => _liveReadlineCursor?.() ?? 0,
+  });
   // Alias for backward compat with code that references 'chrome'
   const chrome = screen;
 
@@ -2101,6 +2105,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Expose readline for legacy code (PermissionManager, rl.question, etc.)
   const rl = inputMgr.readline;
 
+  // Connect live cursor getter now that readline exists
+  _liveReadlineCursor = () => inputMgr.cursorPos;
+
   // Load persistent prompt history into readline
   const promptHistory = new PromptHistory(configDir);
   const savedHistory = await promptHistory.load();
@@ -2689,10 +2696,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${existingInput.trim() ? chalk.dim(existingInput.trim() + ' ') : ''}${chalk.cyan(`[pasted text ${lineCount} lines]`)}\n`);
       inputMgr.prompt();
     } else {
-      // Restore existing input, then set paste block
+      // Restore existing input, then set paste block + re-render prompt
       if (existingInput) replaceReadlineInput(existingInput);
       inputMgr.setPasteBlock(trimmed);
       pendingPasteText = inputMgr.pendingPaste;
+      inputMgr.prompt();
     }
   }
 
@@ -3816,9 +3824,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${chalk.cyan(`[pasted text ${lineCount} lines]`)}\n`);
           inputMgr.prompt();
         } else {
-          // Use InputManager's paste block system
+          // Use InputManager's paste block system — restore prompt state first
+          isAtPrompt = true;
+          chrome.promptActive = true;
           inputMgr.setPasteBlock(assembled);
           pendingPasteText = inputMgr.pendingPaste;
+          inputMgr.prompt();
         }
       }, PASTE_THRESHOLD_MS);
       return;

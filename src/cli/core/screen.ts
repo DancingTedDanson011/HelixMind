@@ -57,6 +57,9 @@ export interface ScreenOptions {
   onOutputWrite?: (data: string) => void;
   /** Frame border color (default: #00d4ff) */
   frameColor?: string;
+  /** Live cursor position callback — returns current cursor col offset within the input line.
+   *  Used by stdout hook and chrome redraws to restore cursor accurately during user typing. */
+  getLiveInputCursor?: () => number;
 }
 
 // ─── Screen Class ────────────────────────────────────────────────────────────
@@ -96,11 +99,13 @@ export class Screen {
 
   // Callbacks
   private _onOutputWrite: ((data: string) => void) | null;
+  private _getLiveInputCursor: (() => number) | null;
   private _frameColor: string;
 
   constructor(terminal: Terminal, options: ScreenOptions = {}) {
     this.terminal = terminal;
     this._onOutputWrite = options.onOutputWrite ?? null;
+    this._getLiveInputCursor = options.getLiveInputCursor ?? null;
     this._frameColor = options.frameColor ?? '#00d4ff';
   }
 
@@ -244,6 +249,11 @@ export class Screen {
 
   get inputActive(): boolean {
     return this._inputActive;
+  }
+
+  /** Get current input cursor position — live from readline if available, else cached. */
+  private _liveInputCursorPos(): number {
+    return this._getLiveInputCursor?.() ?? this._inputCursorPos;
   }
 
   // ─── Output Zone (scrollable) ──────────────────────────────────────────
@@ -702,7 +712,7 @@ export class Screen {
     // Position cursor: at input row when user is typing, at scroll region when agent is running
     if (this._inputActive) {
       const cRow = iRow + this._inputCursorLine;
-      const cursorCol = 5 + Math.min(this._inputCursorPos, maxContent);
+      const cursorCol = 5 + Math.min(this._liveInputCursorPos(), maxContent);
       buf += moveTo(cRow, cursorCol) + ANSI.SHOW_CURSOR;
     } else {
       buf += moveTo(this.scrollEnd, 1) + ANSI.SHOW_CURSOR;
@@ -805,7 +815,7 @@ export class Screen {
       if (self._active && self._inputActive && data && !isFrame) {
         const scrollEnd = self.scrollEnd;
         const inputRow = self.inputRow;
-        const cursorCol = 5 + self._inputCursorPos;
+        const cursorCol = 5 + self._liveInputCursorPos();
         // Move to scroll region → write → restore cursor to input
         self._originalWrite!(
           ANSI.HIDE_CURSOR +
@@ -893,7 +903,7 @@ export class Screen {
     // When input is NOT active (agent running), position cursor in scroll region
     // so that concurrent stdout writes (agent output, Done line) go to the right place.
     const cursorRow = this._inputActive ? this.inputRow : this.scrollEnd;
-    const cursorCol = this._inputActive ? 5 + this._inputCursorPos : 1;
+    const cursorCol = this._inputActive ? 5 + this._liveInputCursorPos() : 1;
 
     this._rawWrite(
       ANSI.HIDE_CURSOR +
@@ -913,7 +923,7 @@ export class Screen {
     const padding = Math.max(0, cols - 4 - visibleLength(content));
 
     const cursorRow = this._inputActive ? this.inputRow : this.scrollEnd;
-    const cursorCol = this._inputActive ? 5 + this._inputCursorPos : 1;
+    const cursorCol = this._inputActive ? 5 + this._liveInputCursorPos() : 1;
 
     this._rawWrite(
       ANSI.HIDE_CURSOR +
