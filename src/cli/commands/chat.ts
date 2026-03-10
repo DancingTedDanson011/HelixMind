@@ -2141,7 +2141,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   };
 
   permissions.setReadline(rl);
-  permissions.setPromptCallback((active) => { isAtPrompt = active; });
+  permissions.setPromptCallback((active) => {
+    isAtPrompt = active;
+    // Deactivate/activate bottom chrome so permission select menu renders cleanly
+    if (active) {
+      chrome.deactivate();
+    } else {
+      chrome.activate();
+    }
+  });
 
   // Shift+Tab → cycle permission mode: safe → skip → yolo → safe
   inputMgr.on('shift-tab', () => {

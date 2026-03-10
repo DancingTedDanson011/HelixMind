@@ -360,22 +360,23 @@ export class PermissionManager {
       },
     ];
 
-    // Add YOLO option for dangerous operations
-    if (level === 'dangerous') {
-      items.push({
-        label: '🔥 YOLO mode',
-        description: 'Disable ALL confirmations (dangerous!)',
-        key: '!',
-      });
-    }
+    // YOLO option always available
+    items.push({
+      label: '🔥 YOLO mode',
+      description: 'Disable ALL confirmations (use with care!)',
+      key: '!',
+      danger: level === 'dangerous',
+    });
 
     process.stdout.write('\n');
+    this.onPromptActive?.(true);
     this.rl?.pause();
     const idx = await selectMenu(items, {
       title: 'Permission Required',
       cancelLabel: 'Deny',
     });
     this.rl?.resume();
+    this.onPromptActive?.(false);
 
     // Handle selection
     switch (idx) {
@@ -389,7 +390,7 @@ export class PermissionManager {
         this.skipPermissionsMode = true;
         process.stdout.write(chalk.yellow('\n  ⚡ Skip-permissions enabled for this session\n'));
         return { approved: true, mode: 'session' };
-      case 4: // YOLO mode (only for dangerous)
+      case 4: // YOLO mode
         this.yoloMode = true;
         process.stdout.write(chalk.red('\n  🔥 YOLO mode enabled — no more confirmations\n'));
         return { approved: true, mode: 'yolo' };
