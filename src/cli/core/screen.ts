@@ -709,15 +709,11 @@ export class Screen {
       this._prevChromeContent[i] = this._chromeContent[i];
     }
 
-    // Position cursor: at input row when user is typing, hidden when agent is running.
-    // During agent work the cursor must stay in the scroll region for output to land
-    // there, but it should be HIDDEN so it doesn't blink above the input frame.
-    if (this._inputActive) {
+    // Always park cursor in the input frame — visible for both typing and type-ahead.
+    {
       const cRow = iRow + this._inputCursorLine;
       const cursorCol = 5 + Math.min(this._liveInputCursorPos(), maxContent);
       buf += moveTo(cRow, cursorCol) + ANSI.SHOW_CURSOR;
-    } else {
-      buf += moveTo(this.scrollEnd, 1) + ANSI.HIDE_CURSOR;
     }
 
     this._rawWrite(buf);
@@ -811,14 +807,13 @@ export class Screen {
         return true;
       }
 
-      // When user is at the prompt and something writes to stdout
-      // (e.g. async daemon events like Jarvis autonomy), redirect
-      // the write into the scroll region so it doesn't pollute the input frame.
-      if (self._active && self._inputActive && data && !isFrame) {
+      // Redirect all non-frame output to the scroll region when screen is active.
+      // After writing, park cursor in the input frame (visible for type-ahead).
+      if (self._active && data && !isFrame) {
         const scrollEnd = self.scrollEnd;
         const inputRow = self.inputRow;
         const cursorCol = 5 + self._liveInputCursorPos();
-        // Move to scroll region → write → restore cursor to input
+        // Move to scroll region → write → restore cursor to input frame
         self._originalWrite!(
           ANSI.HIDE_CURSOR +
           `\x1b[${scrollEnd};1H` +
@@ -830,6 +825,10 @@ export class Screen {
         if (self._onOutputWrite) {
           self._onOutputWrite(data);
         }
+        // Schedule chrome redraw on newlines
+        if (!self._redrawScheduled && data.includes('\n')) {
+          self._scheduleRedraw();
+        }
         return true;
       }
 
@@ -838,13 +837,6 @@ export class Screen {
       // Stream to web app
       if (data && self._onOutputWrite && !isFrame) {
         self._onOutputWrite(data);
-      }
-
-      // Schedule chrome redraw on newlines (protects against terminals ignoring DECSTBM)
-      if (self._active && !self._redrawScheduled && !self._inputActive) {
-        if (data.includes('\n')) {
-          self._scheduleRedraw();
-        }
       }
 
       return result;
@@ -901,18 +893,15 @@ export class Screen {
     // Chrome rows 1-3 = hints/statusbar (1 space indent)
     const prefix = index === 0 ? '' : ' ';
 
-    // When input is active (user typing), show cursor at input row.
-    // When agent is running, keep cursor hidden in scroll region.
-    const cursorRow = this._inputActive ? this.inputRow : this.scrollEnd;
-    const cursorCol = this._inputActive ? 5 + this._liveInputCursorPos() : 1;
-    const cursorVis = this._inputActive ? ANSI.SHOW_CURSOR : ANSI.HIDE_CURSOR;
+    // Always restore cursor to input frame after chrome update
+    const cursorCol = 5 + this._liveInputCursorPos();
 
     this._rawWrite(
       ANSI.HIDE_CURSOR +
       `\x1b[${row};1H${ANSI.CLEAR_LINE}` +
       prefix + content +
-      moveTo(cursorRow, cursorCol) +
-      cursorVis,
+      moveTo(this.inputRow, cursorCol) +
+      ANSI.SHOW_CURSOR,
     );
   }
 
@@ -924,16 +913,15 @@ export class Screen {
     const content = this._suggestionContent[index] || '';
     const padding = Math.max(0, cols - 4 - visibleLength(content));
 
-    const cursorRow = this._inputActive ? this.inputRow : this.scrollEnd;
-    const cursorCol = this._inputActive ? 5 + this._liveInputCursorPos() : 1;
-    const cursorVis = this._inputActive ? ANSI.SHOW_CURSOR : ANSI.HIDE_CURSOR;
+    // Always restore cursor to input frame
+    const cursorCol = 5 + this._liveInputCursorPos();
 
     this._rawWrite(
       ANSI.HIDE_CURSOR +
       `\x1b[${sRow};1H${ANSI.CLEAR_LINE}` +
       fc(FRAME.VERTICAL) + ' ' + content + ' '.repeat(padding) + ' ' + fc(FRAME.VERTICAL) +
-      moveTo(cursorRow, cursorCol) +
-      cursorVis,
+      moveTo(this.inputRow, cursorCol) +
+      ANSI.SHOW_CURSOR,
     );
   }
 
