@@ -2700,14 +2700,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${existingInput.trim() ? chalk.dim(existingInput.trim() + ' ') : ''}${chalk.cyan(`[pasted text ${lineCount} lines]`)}\n`);
       inputMgr.prompt();
     } else {
-      // Restore existing input at original cursor position, then set paste block
+      // Restore existing input at original cursor position, then set paste block.
+      // Do NOT call inputMgr.prompt() — user is already at the prompt.
+      // rl.prompt() resets cursor to 0, which would undo our cursor restore.
       if (existingInput) {
         replaceReadlineInput(existingInput);
         (rl as any).cursor = Math.min(existingCursor, existingInput.length);
       }
       inputMgr.setPasteBlock(trimmed);
       pendingPasteText = inputMgr.pendingPaste;
-      inputMgr.prompt();
     }
   }
 
