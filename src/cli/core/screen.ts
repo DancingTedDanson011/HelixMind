@@ -309,6 +309,8 @@ export class Screen {
 
     // Build input line: │ ❯ content[badge]          │
     const maxContent = cols - 6; // 2 border + space + ❯ + space + right border
+    const visLen = visibleLength(line);
+    const displayOffset = visLen > maxContent ? visLen - maxContent : 0;
     const displayLine = line.length > maxContent ? line.slice(line.length - maxContent) : line;
     const badgeVisLen = this._inputBadge ? visibleLength(this._inputBadge) : 0;
     const padding = Math.max(0, maxContent - visibleLength(displayLine) - badgeVisLen);
@@ -321,11 +323,12 @@ export class Screen {
       ' '.repeat(padding) +
       ' ' + fc(FRAME.VERTICAL);
 
+    // Cursor position adjusted for truncation offset
+    const adjustedCursorPos = Math.max(0, cursorPos - displayOffset);
+    const cursorCol = 5 + Math.min(adjustedCursorPos, maxContent);
+
     // Only redraw if changed
     if (inputLineStr !== this._prevInputLine) {
-      // Cursor position based on user text only — badge is after cursor
-      const cursorCol = 5 + Math.min(cursorPos, maxContent);
-
       this._rawWrite(
         ANSI.HIDE_CURSOR +
         `\x1b[${row};1H${ANSI.CLEAR_LINE}` +
@@ -337,7 +340,6 @@ export class Screen {
       this._prevInputLine = inputLineStr;
     } else {
       // Content unchanged — just position cursor
-      const cursorCol = 5 + Math.min(cursorPos, maxContent);
       this._rawWrite(`\x1b[${row};${cursorCol}H${ANSI.SHOW_CURSOR}`);
     }
   }

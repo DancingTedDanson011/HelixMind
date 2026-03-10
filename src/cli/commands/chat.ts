@@ -2257,8 +2257,6 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     },
     () => {
       inputMgr.unmute();
-      // Clear type-ahead preview from input row when unmuting
-      if (screen.isActive) screen.writeAtInputRow('');
     },
   );
 
@@ -3877,27 +3875,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
   }
 
-  // Show user's type-ahead at the prompt row (N-3) during LLM streaming
-  // (when readline echo is muted). During tool execution / permission prompts,
-  // readline echo is active and the user sees input at the normal prompt row.
-  process.stdin.on('keypress', () => {
-    if (!agentRunning || !chrome.isActive || !activity.isAnimating) return;
-    // Defer to let readline update rl.line first
-    setImmediate(() => {
-      if (!agentRunning || !chrome.isActive || !activity.isAnimating) return;
-      const userInput = inputMgr.currentLine;
-      if (userInput) {
-        const maxLen = Math.max(20, (process.stdout.columns || 80) - 8);
-        const display = userInput.length > maxLen
-          ? '\u2026' + userInput.slice(-(maxLen - 1))
-          : userInput;
-        const gt = chalk.hex('#00d4ff').bold('\u276F');
-        chrome.writeAtPromptRow(`  ${gt} ${chalk.dim(display)}`);
-      } else {
-        chrome.writeAtPromptRow('');
-      }
-    });
-  });
+  // Type-ahead during LLM streaming is handled by InputManager._renderCurrentLine()
+  // (muted path renders dim text with proper cursor positioning via renderInput).
 
   rl.on('close', async () => {
     clearInterval(footerTimer);

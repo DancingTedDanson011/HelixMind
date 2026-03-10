@@ -480,12 +480,12 @@ export class InputManager extends EventEmitter {
     const cursor = this.cursorPos;
 
     if (this._muted) {
-      // Type-ahead preview (dim)
-      if (line) {
-        this.screen.writeAtInputRow(chalk.dim(line));
-      } else {
-        this.screen.writeAtInputRow('');
-      }
+      // Type-ahead preview (dim) with proper cursor positioning
+      // eslint-disable-next-line no-control-regex
+      const visibleLine = line.replace(/\x01\d+:/g, '[').replace(/\x02/g, ']');
+      const visibleCursor = this._rawToVisibleCursor(line, cursor);
+      const styledLine = visibleLine ? chalk.dim(visibleLine) : '';
+      this.screen.renderInput(styledLine, visibleCursor);
       return;
     }
 
