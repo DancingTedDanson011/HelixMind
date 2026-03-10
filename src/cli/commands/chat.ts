@@ -2673,8 +2673,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // receives the raw bytes and fires duplicate line events for each \n.
     drainUntil = Date.now() + 150;
 
-    // Save the user's already-typed input before clearing leaked paste bytes
+    // Save the user's already-typed input AND cursor position before clearing leaked paste bytes
     const existingInput = inputMgr.currentLine;
+    const existingCursor = inputMgr.cursorPos;
 
     // Clear any characters that leaked into readline buffer before suppression kicked in
     replaceReadlineInput('');
@@ -2682,7 +2683,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     const trimmed = text.trim();
     if (!trimmed) {
       // Restore existing input if paste was empty
-      if (existingInput) replaceReadlineInput(existingInput);
+      if (existingInput) {
+        replaceReadlineInput(existingInput);
+        (rl as any).cursor = Math.min(existingCursor, existingInput.length);
+      }
       return;
     }
 
@@ -2696,8 +2700,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       process.stdout.write(`\x1b[2K\r  ${theme.dim('\u23F3 Queued:')} ${existingInput.trim() ? chalk.dim(existingInput.trim() + ' ') : ''}${chalk.cyan(`[pasted text ${lineCount} lines]`)}\n`);
       inputMgr.prompt();
     } else {
-      // Restore existing input, then set paste block + re-render prompt
-      if (existingInput) replaceReadlineInput(existingInput);
+      // Restore existing input at original cursor position, then set paste block
+      if (existingInput) {
+        replaceReadlineInput(existingInput);
+        (rl as any).cursor = Math.min(existingCursor, existingInput.length);
+      }
       inputMgr.setPasteBlock(trimmed);
       pendingPasteText = inputMgr.pendingPaste;
       inputMgr.prompt();
