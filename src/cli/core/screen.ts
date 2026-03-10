@@ -709,13 +709,15 @@ export class Screen {
       this._prevChromeContent[i] = this._chromeContent[i];
     }
 
-    // Position cursor: at input row when user is typing, at scroll region when agent is running
+    // Position cursor: at input row when user is typing, hidden when agent is running.
+    // During agent work the cursor must stay in the scroll region for output to land
+    // there, but it should be HIDDEN so it doesn't blink above the input frame.
     if (this._inputActive) {
       const cRow = iRow + this._inputCursorLine;
       const cursorCol = 5 + Math.min(this._liveInputCursorPos(), maxContent);
       buf += moveTo(cRow, cursorCol) + ANSI.SHOW_CURSOR;
     } else {
-      buf += moveTo(this.scrollEnd, 1) + ANSI.SHOW_CURSOR;
+      buf += moveTo(this.scrollEnd, 1) + ANSI.HIDE_CURSOR;
     }
 
     this._rawWrite(buf);
@@ -899,18 +901,18 @@ export class Screen {
     // Chrome rows 1-3 = hints/statusbar (1 space indent)
     const prefix = index === 0 ? '' : ' ';
 
-    // When input is active (user typing), position cursor at input row for readline.
-    // When input is NOT active (agent running), position cursor in scroll region
-    // so that concurrent stdout writes (agent output, Done line) go to the right place.
+    // When input is active (user typing), show cursor at input row.
+    // When agent is running, keep cursor hidden in scroll region.
     const cursorRow = this._inputActive ? this.inputRow : this.scrollEnd;
     const cursorCol = this._inputActive ? 5 + this._liveInputCursorPos() : 1;
+    const cursorVis = this._inputActive ? ANSI.SHOW_CURSOR : ANSI.HIDE_CURSOR;
 
     this._rawWrite(
       ANSI.HIDE_CURSOR +
       `\x1b[${row};1H${ANSI.CLEAR_LINE}` +
       prefix + content +
       moveTo(cursorRow, cursorCol) +
-      ANSI.SHOW_CURSOR,
+      cursorVis,
     );
   }
 
@@ -924,13 +926,14 @@ export class Screen {
 
     const cursorRow = this._inputActive ? this.inputRow : this.scrollEnd;
     const cursorCol = this._inputActive ? 5 + this._liveInputCursorPos() : 1;
+    const cursorVis = this._inputActive ? ANSI.SHOW_CURSOR : ANSI.HIDE_CURSOR;
 
     this._rawWrite(
       ANSI.HIDE_CURSOR +
       `\x1b[${sRow};1H${ANSI.CLEAR_LINE}` +
       fc(FRAME.VERTICAL) + ' ' + content + ' '.repeat(padding) + ' ' + fc(FRAME.VERTICAL) +
       moveTo(cursorRow, cursorCol) +
-      ANSI.SHOW_CURSOR,
+      cursorVis,
     );
   }
 
