@@ -82,8 +82,6 @@ registerTool({
         if (stdout.length < MAX_BUFFER) {
           stdout += text.slice(0, MAX_BUFFER - stdout.length);
         }
-        // Stream to user's terminal
-        process.stdout.write(text);
       });
 
       proc.stderr.on('data', (data: Buffer) => {
@@ -91,7 +89,6 @@ registerTool({
         if (stderr.length < MAX_BUFFER) {
           stderr += text.slice(0, MAX_BUFFER - stderr.length);
         }
-        process.stderr.write(text);
       });
 
       proc.on('close', (code) => {
