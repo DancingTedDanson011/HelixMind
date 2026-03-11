@@ -3311,6 +3311,18 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             startTelegramBot();
 
             (async () => {
+              // Create daemon-specific permissions based on Jarvis autonomy level.
+              // L3+ = skipPermissions (auto-allow writes, ask for dangerous)
+              // L5  = yolo (auto-allow everything including shell commands)
+              const daemonPermissions = new PermissionManager();
+              daemonPermissions.setReadline(rl);
+              const aLevel = jarvisAutonomy.getLevel();
+              if (aLevel >= 5) {
+                daemonPermissions.setYolo(true);
+              } else if (aLevel >= 3) {
+                daemonPermissions.setSkipPermissions(true);
+              }
+
               try {
                 await runJarvisDaemon(jarvisQueue, {
                   sendMessage: async (prompt) => {
@@ -3319,7 +3331,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     bgSession.buffer.onSummary = (t) => { rth.text = t; };
                     await sendAgentMessage(
                       prompt, bgSession.history, provider, project, spiralEngine, config,
-                      permissions, bgSession.undoStack, checkpointStore,
+                      daemonPermissions, bgSession.undoStack, checkpointStore,
                       bgSession.controller, new ActivityIndicator(), bgSession.buffer,
                       (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
                       () => { sessionToolCalls++; },
