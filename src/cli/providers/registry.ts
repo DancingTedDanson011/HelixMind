@@ -55,7 +55,7 @@ export const KNOWN_PROVIDERS: Record<string, {
   },
   zai: {
     type: 'openai-compatible',
-    baseURL: 'https://api.z.ai/api/paas/v4',
+    baseURL: 'https://api.z.ai/api/coding/paas/v4',
     models: [
       // Premium
       'glm-5',
