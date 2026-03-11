@@ -18,32 +18,65 @@ export interface OnboardingResult {
 }
 
 /**
- * Ask a text question using a temporary readline.
- * The main readline has output:devNull, so rl.question() prompts would be invisible.
- * Instead we create a short-lived readline with output:stdout + terminal:false.
+ * Ask a text question using raw-mode input with ESC support.
+ * ESC / double-ESC cancels (returns ''). Enter submits.
+ * 80ms settling phase to discard stale stdin data from type-ahead.
  */
 function askQuestion(_rl: ReadlineInterface, question: string): Promise<string> {
-  // Ensure stdin is not in raw mode so the temp readline can read line-buffered input
-  const wasRaw = process.stdin.isTTY && process.stdin.isRaw;
-  if (wasRaw) process.stdin.setRawMode(false);
-
-  const tempRl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false,
-  });
-
   return new Promise(resolve => {
-    let resolved = false;
-    function done(answer: string): void {
-      if (resolved) return;
-      resolved = true;
-      tempRl.close();
-      if (wasRaw) process.stdin.setRawMode(true);
-      resolve(answer.trim());
+    const stdin = process.stdin;
+    const wasRaw = stdin.isTTY ? stdin.isRaw : undefined;
+    if (stdin.isTTY) stdin.setRawMode(true);
+    stdin.resume();
+
+    let settling = true;
+    setTimeout(() => { settling = false; }, 80);
+
+    let buffer = '';
+
+    process.stdout.write(question);
+
+    function cleanup(result: string): void {
+      stdin.removeListener('data', onData);
+      if (stdin.isTTY && wasRaw !== undefined) stdin.setRawMode(wasRaw);
+      process.stdout.write('\n');
+      resolve(result.trim());
     }
-    tempRl.once('SIGINT', () => done(''));
-    tempRl.question(question, (answer) => done(answer));
+
+    function onData(data: Buffer): void {
+      if (settling) return;
+
+      const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      const key = data.toString();
+
+      // ESC or double-ESC → cancel
+      if (bytes[0] === 0x1b) { cleanup(''); return; }
+
+      // Ctrl+C → cancel
+      if (key === '\x03') { cleanup(''); return; }
+
+      // Enter → submit
+      if (key === '\r' || key === '\n') { cleanup(buffer); return; }
+
+      // Backspace
+      if (key === '\x7f' || key === '\x08') {
+        if (buffer.length > 0) {
+          buffer = buffer.slice(0, -1);
+          process.stdout.write('\b \b');
+        }
+        return;
+      }
+
+      // Printable characters
+      for (const ch of key) {
+        if (ch.charCodeAt(0) >= 32) {
+          buffer += ch;
+          process.stdout.write(ch);
+        }
+      }
+    }
+
+    stdin.on('data', onData);
   });
 }
 

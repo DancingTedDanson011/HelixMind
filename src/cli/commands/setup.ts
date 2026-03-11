@@ -20,61 +20,66 @@ const PROVIDER_LIST = Object.entries(KNOWN_PROVIDERS).map(([name, info]) => ({
 }));
 
 /**
- * Ask a single text question. Uses readline.question() which handles stdin
- * correctly across platforms (especially Windows after selectMenu raw-mode cycles).
- * When an existing rl is provided, it is temporarily resumed for the question.
- * When no rl is provided (e.g. first-time setup), a temporary readline is created.
+ * Ask a single text question using raw-mode input.
+ * Supports ESC / double-ESC to cancel (returns '').
+ * Shows typed characters, handles backspace, Enter to submit.
+ * Includes 80ms settling phase to discard stale stdin data.
  */
-function askText(prompt: string, rl?: readline.Interface): Promise<string> {
-  const ownRl = !rl;
-  let wasRaw = false;
-  let useRl: readline.Interface;
-
-  if (ownRl) {
-    // Create a new readline instance with terminal:false to avoid raw mode issues
-    useRl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      terminal: false, // Avoid raw mode issues on Windows
-    });
-    // Ensure stdin is not in raw mode (Windows)
-    wasRaw = process.stdin.isTTY && process.stdin.isRaw;
-    if (wasRaw) {
-      process.stdin.setRawMode(false);
-    }
-  } else {
-    // Use the provided readline instance, assume caller manages raw mode
-    useRl = rl!;
-  }
-
+function askText(prompt: string): Promise<string> {
   return new Promise(resolve => {
-    let resolved = false;
+    const stdin = process.stdin;
+    const wasRaw = stdin.isTTY ? stdin.isRaw : undefined;
+    if (stdin.isTTY) stdin.setRawMode(true);
+    stdin.resume();
 
-    function done(answer: string): void {
-      if (resolved) return;
-      resolved = true;
-      useRl.removeListener('SIGINT', onSigint);
-      if (ownRl) {
-        useRl.close();
-        // Restore raw mode if we changed it
-        if (wasRaw) {
-          process.stdin.setRawMode(true);
-        }
-      } else {
-        useRl.pause();
-      }
-      resolve(answer);
-    }
+    let settling = true;
+    setTimeout(() => { settling = false; }, 80);
 
-    function onSigint(): void {
+    let buffer = '';
+
+    process.stdout.write(prompt);
+
+    function cleanup(result: string): void {
+      stdin.removeListener('data', onData);
+      if (stdin.isTTY && wasRaw !== undefined) stdin.setRawMode(wasRaw);
       process.stdout.write('\n');
-      done('');
+      resolve(result);
     }
 
-    useRl.once('SIGINT', onSigint);
-    if (!ownRl) useRl.resume();
+    function onData(data: Buffer): void {
+      if (settling) return;
 
-    useRl.question(prompt, (answer) => done(answer));
+      const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      const key = data.toString();
+
+      // ESC or double-ESC → cancel
+      if (bytes[0] === 0x1b) { cleanup(''); return; }
+
+      // Ctrl+C → cancel
+      if (key === '\x03') { cleanup(''); return; }
+
+      // Enter → submit
+      if (key === '\r' || key === '\n') { cleanup(buffer); return; }
+
+      // Backspace (0x7f on Unix, 0x08 on Windows)
+      if (key === '\x7f' || key === '\x08') {
+        if (buffer.length > 0) {
+          buffer = buffer.slice(0, -1);
+          process.stdout.write('\b \b');
+        }
+        return;
+      }
+
+      // Printable characters (including pasted text)
+      for (const ch of key) {
+        if (ch.charCodeAt(0) >= 32) {
+          buffer += ch;
+          process.stdout.write(ch);
+        }
+      }
+    }
+
+    stdin.on('data', onData);
   });
 }
 
@@ -320,9 +325,7 @@ export async function showKeyManagement(
     const selected = PROVIDER_LIST[idx];
 
     if (selected.needsKey) {
-      // Call askText WITHOUT rl — the main readline has output:devNull,
-      // so rl.question() prompts would be invisible. askText creates its
-      // own temp readline with output:stdout when no rl is passed.
+      // askText uses raw-mode input with ESC support — no readline needed.
       const key = await askText(theme.primary(`\n  ${selected.label} API Key: `));
       if (key.trim()) {
         store.addProvider(selected.name, key.trim());
