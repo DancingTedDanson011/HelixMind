@@ -119,6 +119,13 @@ export function selectMenu(
     // interfering with arrow-key navigation (Windows Terminal issue)
     process.stdout.write(MOUSE_OFF);
 
+    // Settling phase: discard stale stdin data for a short period.
+    // After readline questions or type-ahead, buffered keystrokes may remain
+    // in stdin. Without this, those stale bytes would be processed as menu
+    // navigation (arrow keys → flickering, Enter → instant selection of first item).
+    let settling = true;
+    setTimeout(() => { settling = false; }, 80);
+
     let prevLineCount = 0;
 
     function draw(): void {
@@ -159,6 +166,9 @@ export function selectMenu(
     }
 
     function onData(data: Buffer): void {
+      // Discard stale input during settling phase
+      if (settling) return;
+
       const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data);
       const key = data.toString();
 
@@ -282,6 +292,10 @@ export async function multiSelectMenu(
     stdin.resume();
     process.stdout.write(MOUSE_OFF);
 
+    // Settling phase: discard stale stdin data (see selectMenu for rationale)
+    let settling = true;
+    setTimeout(() => { settling = false; }, 80);
+
     let prevLineCount = 0;
 
     function draw(): void {
@@ -306,6 +320,9 @@ export async function multiSelectMenu(
     }
 
     function onData(data: Buffer): void {
+      // Discard stale input during settling phase
+      if (settling) return;
+
       const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data);
       const key = data.toString();
 

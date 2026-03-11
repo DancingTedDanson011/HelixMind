@@ -5228,8 +5228,9 @@ async function handleSlashCommand(
           ];
           rl.pause();
           process.stdout.write(`\n  ${chalk.hex('#ff00ff').bold('\u{1F916}')} ${chalk.white.bold('Autonomy Level')}\n`);
-          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: 'Default (L2)', pageSize: 6, bottomAnchored: true });
+          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: 'Default (L2)', pageSize: 6 });
           rl.resume();
+          chrome?.activate(); // Re-activate chrome that was deactivated at onboarding start
           const chosenLevel = (levelIdx >= 0 ? levelIdx : 2) as import('../jarvis/types.js').AutonomyLevel;
           jarvisCtx.autonomy.setLevel(chosenLevel);
           jarvisCtx.identity.setAutonomyLevel(chosenLevel);
@@ -5264,7 +5265,7 @@ async function handleSlashCommand(
           autonomyItems[currentLevel].marker = '\u25C0 current';
           rl.pause();
           process.stdout.write(`\n  ${chalk.hex('#ff00ff').bold('\u{1F916}')} ${chalk.white.bold('Autonomy Level')}\n`);
-          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: `Keep L${currentLevel}`, pageSize: 6, bottomAnchored: true });
+          const levelIdx = await chromeSelect(autonomyItems, { cancelLabel: `Keep L${currentLevel}`, pageSize: 6 });
           rl.resume();
           const chosenLevel = (levelIdx >= 0 ? levelIdx : currentLevel) as import('../jarvis/types.js').AutonomyLevel;
           jarvisCtx.autonomy.setLevel(chosenLevel);
