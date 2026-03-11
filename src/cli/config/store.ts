@@ -93,20 +93,31 @@ export class ConfigStore {
     try {
       const raw = JSON.parse(readFileSync(this.configPath, 'utf-8'));
 
-      // Auto-merge: add new default models to existing providers
+      // Auto-merge & migrations
+      let migrated = false;
       if (raw.providers) {
+        // Auto-merge: add new default models to existing providers
         for (const [name, defaults] of Object.entries(DEFAULT_MODELS)) {
           const stored = raw.providers[name] as ProviderEntry | undefined;
           if (stored?.models) {
             const existing = new Set(stored.models);
             for (const m of defaults) {
-              if (!existing.has(m)) stored.models.push(m);
+              if (!existing.has(m)) { stored.models.push(m); migrated = true; }
             }
+          }
+        }
+
+        // Migrate: update provider base URLs when defaults change
+        for (const [name, url] of Object.entries(DEFAULT_BASE_URLS)) {
+          const stored = raw.providers[name] as ProviderEntry | undefined;
+          if (stored && stored.baseURL && stored.baseURL !== url) {
+            stored.baseURL = url;
+            migrated = true;
           }
         }
       }
 
-      return {
+      const result = {
         ...DEFAULT_CONFIG,
         ...raw,
         providers: raw.providers ?? {},
@@ -114,6 +125,11 @@ export class ConfigStore {
         relay: raw.relay ?? undefined,
         voice: raw.voice ?? undefined,
       };
+
+      // Persist migrations immediately so URL changes take effect
+      if (migrated) this.save(result);
+
+      return result;
     } catch {
       return { ...DEFAULT_CONFIG, providers: {}, spiral: { ...DEFAULT_CONFIG.spiral } };
     }
