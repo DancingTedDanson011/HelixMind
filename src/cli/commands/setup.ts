@@ -262,42 +262,32 @@ export async function showModelSwitcher(
  */
 export async function showKeyManagement(
   store: ConfigStore,
-  rl?: readline.Interface,
+  _rl?: readline.Interface,
 ): Promise<void> {
   const providers = store.getProviders();
 
   process.stdout.write('\n');
   process.stdout.write(theme.bold('  \u{1F511} API Key Management') + '\n');
-  process.stdout.write(theme.separator + '\n\n');
+  process.stdout.write(theme.separator + '\n');
 
-  // Show stored keys
-  if (providers.length > 0) {
-    process.stdout.write('  Stored providers:\n');
-    for (const p of providers) {
-      const marker = p.active ? chalk.green(' \u25C0 active') : '';
-      const url = p.entry.baseURL ? chalk.dim(` (${p.entry.baseURL})`) : '';
-      process.stdout.write(`    ${theme.primary(p.name.padEnd(12))} ${chalk.dim(ConfigStore.maskKey(p.entry.apiKey))}${url}${marker}\n`);
-    }
-    process.stdout.write('\n');
-  } else {
-    process.stdout.write(chalk.dim('  No providers configured yet.\n\n'));
-  }
-
-  // Build menu items
+  // Build menu items — show masked key + active marker inline (no separate list)
   const menuItems = PROVIDER_LIST.map(p => {
     const existing = providers.find(ep => ep.name === p.name);
-    return {
-      label: p.label,
-      description: existing ? 'update' : undefined,
-    };
+    let description: string | undefined;
+    let marker: string | undefined;
+    if (existing) {
+      description = ConfigStore.maskKey(existing.entry.apiKey);
+      if (existing.active) marker = chalk.green('\u25C0 active');
+    }
+    return { label: p.label, description, marker };
   });
 
   // Add delete + back options
   if (providers.length > 0) {
-    menuItems.push({ label: 'Delete a provider', description: undefined });
+    menuItems.push({ label: 'Delete a provider', description: undefined, marker: undefined });
   }
 
-  const idx = await selectMenu(menuItems, { title: 'Add a Provider', cancelLabel: 'Back' });
+  const idx = await selectMenu(menuItems, { title: 'Select Provider', cancelLabel: 'Back' });
 
   if (idx < 0) return;
 
@@ -325,12 +315,15 @@ export async function showKeyManagement(
     return;
   }
 
-  // Add provider by index
+  // Add/update provider by index
   if (idx >= 0 && idx < PROVIDER_LIST.length) {
     const selected = PROVIDER_LIST[idx];
 
     if (selected.needsKey) {
-      const key = await askText(theme.primary(`\n  ${selected.label} API Key: `), rl);
+      // Call askText WITHOUT rl — the main readline has output:devNull,
+      // so rl.question() prompts would be invisible. askText creates its
+      // own temp readline with output:stdout when no rl is passed.
+      const key = await askText(theme.primary(`\n  ${selected.label} API Key: `));
       if (key.trim()) {
         store.addProvider(selected.name, key.trim());
         store.switchProvider(selected.name);
