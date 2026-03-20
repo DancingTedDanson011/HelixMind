@@ -196,16 +196,33 @@ export async function showModelSwitcher(
   menuItems.push({ label: '', disabled: true });
   options.push({ provider: '', model: '' });
 
-  // Show registered cloud providers (skip ollama — handled separately below)
-  for (const p of providers) {
-    if (p.name === 'ollama') continue; // Handled in local section
-    for (const model of p.entry.models) {
-      const isCurrent = p.name === config.provider && model === config.model;
-      const freeTag = isModelFree(model) ? chalk.green(' [FREE]') : '';
-      options.push({ provider: p.name, model });
+  // Show ALL known cloud providers — registered ones with models, unregistered with setup option
+  const registeredNames = new Set(providers.map(p => p.name));
+
+  for (const [name, info] of Object.entries(KNOWN_PROVIDERS)) {
+    if (name === 'ollama') continue; // Handled in local section
+
+    const label = PROVIDER_LABELS[name] ?? name.charAt(0).toUpperCase() + name.slice(1);
+
+    if (registeredNames.has(name)) {
+      // Registered provider — show all its models
+      const p = providers.find(pp => pp.name === name)!;
+      for (const model of p.entry.models) {
+        const isCurrent = p.name === config.provider && model === config.model;
+        const freeTag = isModelFree(model) ? chalk.green(' [FREE]') : '';
+        options.push({ provider: p.name, model });
+        menuItems.push({
+          label: `${p.name} / ${model}${freeTag}`,
+          marker: isCurrent ? chalk.green('\u25C0 current') : undefined,
+        });
+      }
+    } else {
+      // Unregistered provider — show as configurable with top models preview
+      const models = info.models.slice(0, 3).join(', ');
+      options.push({ provider: `__setup_${name}`, model: '' });
       menuItems.push({
-        label: `${p.name} / ${model}${freeTag}`,
-        marker: isCurrent ? chalk.green('\u25C0 current') : undefined,
+        label: `${label}`,
+        description: chalk.dim(models) + chalk.yellow(' \u{1F511} configure'),
       });
     }
   }
@@ -243,12 +260,34 @@ export async function showModelSwitcher(
   }
 
   const selected = options[idx];
-  if (!selected.model && selected.provider !== '__add__') return null; // Header/separator row
+  if (!selected.model && !selected.provider.startsWith('__')) return null; // Header/separator row
 
   // "Add new provider" selected — open key management
   if (selected.provider === '__add__') {
-    await showKeyManagement(store, rl);
-    return null;
+    const result = await showKeyManagement(store, rl);
+    return result;
+  }
+
+  // Inline setup for unconfigured provider — ask for API key directly
+  if (selected.provider.startsWith('__setup_')) {
+    const providerName = selected.provider.replace('__setup_', '');
+    const providerInfo = KNOWN_PROVIDERS[providerName];
+    const provLabel = PROVIDER_LABELS[providerName] ?? providerName;
+
+    if (!providerInfo) return null;
+
+    const key = await askText(theme.primary(`\n  ${provLabel} API Key: `));
+    const trimmed = key.trim();
+    if (!trimmed) {
+      process.stdout.write(chalk.dim('\n  Cancelled.\n\n'));
+      return null;
+    }
+
+    store.addProvider(providerName, trimmed, providerInfo.baseURL);
+    store.switchProvider(providerName);
+    const newConfig = store.getAll();
+    process.stdout.write(chalk.green(`\n  \u2713 ${provLabel} configured \u2014 switched to ${providerName} / ${newConfig.model}\n\n`));
+    return { provider: providerName, model: newConfig.model };
   }
 
   if (selected.provider === 'ollama') {
@@ -268,7 +307,7 @@ export async function showModelSwitcher(
 export async function showKeyManagement(
   store: ConfigStore,
   _rl?: readline.Interface,
-): Promise<void> {
+): Promise<{ provider: string; model: string } | null> {
   const providers = store.getProviders();
 
   process.stdout.write('\n');
@@ -294,7 +333,7 @@ export async function showKeyManagement(
 
   const idx = await selectMenu(menuItems, { title: 'Select Provider', cancelLabel: 'Back' });
 
-  if (idx < 0) return;
+  if (idx < 0) return null;
 
   // Delete action
   if (providers.length > 0 && idx === PROVIDER_LIST.length) {
@@ -317,7 +356,7 @@ export async function showKeyManagement(
       }
     }
     process.stdout.write('\n');
-    return;
+    return null;
   }
 
   // Add/update provider by index
@@ -330,14 +369,21 @@ export async function showKeyManagement(
       if (key.trim()) {
         store.addProvider(selected.name, key.trim());
         store.switchProvider(selected.name);
-        process.stdout.write(chalk.green(`  \u2713 ${selected.label} key saved \u2014 switched to ${selected.name} / ${store.getAll().model}\n`));
+        const newConfig = store.getAll();
+        process.stdout.write(chalk.green(`  \u2713 ${selected.label} key saved \u2014 switched to ${selected.name} / ${newConfig.model}\n`));
+        process.stdout.write('\n');
+        return { provider: selected.name, model: newConfig.model };
       }
     } else {
       store.addProvider(selected.name, 'ollama');
       store.switchProvider(selected.name);
+      const newConfig = store.getAll();
       process.stdout.write(chalk.green(`  \u2713 ${selected.label} configured (local) \u2014 switched to ${selected.name}\n`));
+      process.stdout.write('\n');
+      return { provider: selected.name, model: newConfig.model };
     }
   }
 
   process.stdout.write('\n');
+  return null;
 }

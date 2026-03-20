@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // We test the menu logic by simulating stdin data events.
 // selectMenu puts stdin in raw mode and listens for 'data' events.
+// Keys must be sent AFTER the 80ms settling phase to be processed.
+
+/** Wait for selectMenu's 80ms settling phase to complete */
+const waitForSettling = () => new Promise(r => setTimeout(r, 100));
 
 describe('selectMenu', () => {
   let dataListeners: ((data: Buffer) => void)[];
@@ -58,7 +62,8 @@ describe('selectMenu', () => {
       { label: 'Option C' },
     ]);
 
-    // Default cursor is at 0 — press Enter
+    // Wait for settling phase, then press Enter
+    await waitForSettling();
     sendKey('\r');
     const result = await promise;
     expect(result).toBe(0);
@@ -72,7 +77,7 @@ describe('selectMenu', () => {
       { label: 'Option B' },
     ]);
 
-    // Arrow down then Enter
+    await waitForSettling();
     sendKey('\x1b[B'); // down
     sendKey('\r');      // enter
     const result = await promise;
@@ -86,6 +91,7 @@ describe('selectMenu', () => {
       { label: 'Option A' },
     ]);
 
+    await waitForSettling();
     sendKey('\x1b');
     const result = await promise;
     expect(result).toBe(-1);
@@ -98,6 +104,7 @@ describe('selectMenu', () => {
       { label: 'Option A' },
     ]);
 
+    await waitForSettling();
     sendKey('\x03');
     const result = await promise;
     expect(result).toBe(-1);
@@ -110,6 +117,7 @@ describe('selectMenu', () => {
       { label: 'Option A' },
     ]);
 
+    await waitForSettling();
     sendKey('q');
     const result = await promise;
     expect(result).toBe(-1);
@@ -123,6 +131,7 @@ describe('selectMenu', () => {
       { label: 'Delete', key: 'd' },
     ]);
 
+    await waitForSettling();
     sendKey('d');
     const result = await promise;
     expect(result).toBe(1);
@@ -137,6 +146,7 @@ describe('selectMenu', () => {
       { label: 'C' },
     ]);
 
+    await waitForSettling();
     // Down from A should skip B and land on C
     sendKey('\x1b[B');
     sendKey('\r');
@@ -152,6 +162,7 @@ describe('selectMenu', () => {
       { label: 'B' },
     ]);
 
+    await waitForSettling();
     // Press down 5 times — should clamp to last item
     sendKey('\x1b[B');
     sendKey('\x1b[B');
@@ -171,9 +182,7 @@ describe('selectMenu', () => {
       { label: 'Beta' },
     ]);
 
-    // Give it a tick to render
-    await new Promise(r => setTimeout(r, 10));
-
+    await waitForSettling();
     sendKey('\r');
     await promise;
 

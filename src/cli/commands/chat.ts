@@ -2924,7 +2924,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         permissions, undoStack, checkpointStore, sessionBuffer,
         { input: sessionTokensInput, output: sessionTokensOutput },
         sessionToolCalls,
-        (newProvider) => { provider = newProvider; config = store.getAll(); },
+        (newProvider) => {
+          provider = newProvider;
+          config = store.getAll();
+          // Clear type-ahead buffer on provider switch — prevents buffered
+          // messages from being sent to the wrong model after switching.
+          typeAheadBuffer.length = 0;
+        },
         async (newScope) => {
           // Switch brain scope
           if (spiralEngine) {
@@ -4548,6 +4554,13 @@ async function handleSlashCommand(
         const configBefore = store.getAll();
         const result = await showModelSwitcher(store, rl);
         chrome?.activate();
+        // Flush stale stdin bytes BEFORE resuming readline to prevent
+        // phantom line events (API key leaking as chat message).
+        // Pause stdin briefly to discard any buffered data from sub-menus.
+        if (process.stdin.isTTY) {
+          process.stdin.pause();
+          process.stdin.resume();
+        }
         rl.resume();
         // Always refresh provider if config changed (covers "Add new provider" path too)
         const newConfig = store.getAll();
@@ -4578,6 +4591,11 @@ async function handleSlashCommand(
       chrome?.deactivate();
       await showKeyManagement(store, rl);
       chrome?.activate();
+      // Flush stale stdin bytes BEFORE resuming readline
+      if (process.stdin.isTTY) {
+        process.stdin.pause();
+        process.stdin.resume();
+      }
       rl.resume();
       // Refresh provider after key changes
       const newConfig = store.getAll();
