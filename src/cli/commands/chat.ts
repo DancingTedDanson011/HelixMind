@@ -481,9 +481,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           pushFindingsToBrainFn(session);
         }
 
+        // Refresh statusbar (tab bar, session counts) — safe during typing
+        // because setRow() saves/restores cursor position.
         updateStatusBar();
-        // Re-prompt if user is idle — use showPrompt() for full separator+hint+statusbar
-        if (!agentRunning) {
+
+        // Only redraw full prompt if user is NOT actively typing.
+        // Calling showPrompt() while typing causes readline.prompt() to
+        // reset the cursor position (jumps to column 1).
+        if (!agentRunning && !isAtPrompt) {
           showPrompt();
         }
       }
