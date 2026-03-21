@@ -2742,7 +2742,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // Prepend tab bar to status line 1 when background sessions exist
     let line1 = statusLine1;
     if (sessionMgr.all.length > 1) {
-      const tabBar = truncateBar(sessionMgr.renderTabs(), Math.floor(w / 2));
+      const tabBar = sessionMgr.renderTabs(Math.floor(w / 2));
       line1 = `${tabBar}  ${statusLine1}`;
     }
 

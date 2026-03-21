@@ -214,9 +214,9 @@ export class SessionManager {
     return this.running.length > 0;
   }
 
-  /** Render the tab bar */
-  renderTabs(): string {
-    return renderTabBar(this.all, this._activeId);
+  /** Render the tab bar. Pass maxWidth to enable collapsed view when tabs overflow. */
+  renderTabs(maxWidth?: number): string {
+    return renderTabBar(this.all, this._activeId, maxWidth);
   }
 
   /** Get summary of all sessions for display */

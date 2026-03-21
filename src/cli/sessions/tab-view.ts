@@ -10,10 +10,13 @@ import { getAgentIdentity, renderAgentTag } from '../ui/agent-display.js';
  * Render a tab bar showing all sessions.
  * Active tab is highlighted, background tabs show status indicators.
  *
- * Example output:
- * ┌─ 💬 Chat ─┐  🔒 Security ⟳  🔄 Auto ✓
+ * When maxWidth is provided and tabs don't fit, switches to a collapsed
+ * view showing the active tab + a summary counter (e.g. "+3 ⟳").
+ *
+ * Example full:      ┌─ 💬 Chat ─┐  🔒 Security ⟳  🔄 Auto ✓
+ * Example collapsed: ┌─ 💬 Chat ─┐  +3 ⟳
  */
-export function renderTabBar(sessions: Session[], activeId: string): string {
+export function renderTabBar(sessions: Session[], activeId: string, maxWidth?: number): string {
   if (sessions.length <= 1) return '';
 
   const parts: string[] = [];
@@ -48,7 +51,43 @@ export function renderTabBar(sessions: Session[], activeId: string): string {
     }
   }
 
-  return parts.join(chalk.dim('  '));
+  const fullBar = parts.join(chalk.dim('  '));
+
+  // If no width constraint or fits → show full bar
+  if (!maxWidth || stripAnsi(fullBar).length <= maxWidth) {
+    return fullBar;
+  }
+
+  // Collapsed view: active tab + summary of background sessions
+  const bgSessions = sessions.filter(s => s.id !== activeId);
+  const running = bgSessions.filter(s => s.status === 'running').length;
+  const done = bgSessions.filter(s => s.status === 'done').length;
+  const errored = bgSessions.filter(s => s.status === 'error').length;
+
+  // Build active tab part
+  const activeSession = sessions.find(s => s.id === activeId);
+  let activeTab = '';
+  if (activeSession) {
+    const identity = getAgentIdentity(activeSession.name);
+    const color = chalk.hex(identity.color);
+    activeTab = color('\u250C\u2500 ') + color.bold(`${activeSession.icon} ${identity.name}`) + color(' \u2500\u2510');
+  }
+
+  // Build compact summary: +N ⟳ ✓ ✗
+  const counts: string[] = [];
+  if (running > 0) counts.push(chalk.yellow(`${running}\u21BB`));
+  if (done > 0) counts.push(chalk.green(`${done}\u2713`));
+  if (errored > 0) counts.push(chalk.red(`${errored}\u2717`));
+
+  const summary = chalk.dim('+') + counts.join(chalk.dim('/'));
+
+  return activeTab + chalk.dim('  ') + summary;
+}
+
+/** Strip ANSI escape codes to measure visible width */
+function stripAnsi(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1b\[[0-9;]*m/g, '').replace(/\x1b\].*?\x07/g, '');
 }
 
 /**
