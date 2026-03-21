@@ -5310,7 +5310,13 @@ async function handleSlashCommand(
             renderInfo(chalk.hex('#ff00ff')(`  \u2714 Auto-Task #${autoTask.id}: ${autoTask.title}`));
           }
         } else {
-          showReturningGreeting(identity);
+          // Use chrome.writeOutput for greeting so it renders in scroll region
+          // (direct process.stdout.write gets eaten by stdout hook during screen transition)
+          if (chrome?.isActive) {
+            chrome.writeOutput(showReturningGreeting(identity));
+          } else {
+            process.stdout.write(showReturningGreeting(identity));
+          }
 
           // Autonomy level selection
           const currentLevel = jarvisCtx.autonomy.getLevel();
@@ -5627,7 +5633,7 @@ async function handleSlashCommand(
       } else {
         renderInfo(`Usage: /jarvis [start|task|tasks|status|stop|pause|resume|clear|delete|local|global|name|telegram|skills|autonomy|learnings]`);
       }
-      break;
+      return 'drain'; // Jarvis uses sub-menus (selectMenu) that need drain
     }
 
     case '/monitor': {

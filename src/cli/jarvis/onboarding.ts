@@ -168,20 +168,17 @@ export async function runOnboarding(
 }
 
 /**
- * Show a short greeting for returning users.
- * Minimal one-line — daemon box shows the full AGI banner with icon.
+ * Build a short greeting string for returning users.
+ * Returns the greeting text (caller writes it via screen.writeOutput).
  */
 export function showReturningGreeting(
   identity: JarvisIdentity,
   projectName?: string,
-): void {
+): string {
   const name = identity.name;
   const tasks = identity.trust.totalTasksCompleted;
   const level = identity.autonomyLevel;
   const proj = projectName ? ` (${projectName})` : '';
 
-  // Minimal one-line greeting — daemon box will show the full AGI banner
-  process.stdout.write(
-    d(`  ${name} here${proj} \u2014 ${tasks} Tasks, L${level}`) + '\n',
-  );
+  return d(`  ${name} here${proj} \u2014 ${tasks} Tasks, L${level}`) + '\n';
 }
