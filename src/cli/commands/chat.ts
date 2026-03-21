@@ -2444,53 +2444,23 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Command suggestions are now handled by InputManager's built-in _interceptTtyWrite.
       // The panel opens/updates/closes automatically as the user types slash commands.
 
-      // === ESC detection ===
+      // === ESC detection (single ESC = stop for normal agents) ===
       // Double-ESC (rewind browser) is handled by the raw data listener below.
       // Skip if a full-screen browser (Rewind/Plan) is open — it handles ESC itself.
       // Skip if ESC was used to close the suggestion panel (panelJustClosed flag)
       //
-      // Special modes (Jarvis daemon, autonomous) require DELIBERATE double-ESC
-      // with >1s gap to stop — prevents accidental kills. Quick double-ESC (<800ms)
-      // opens Rewind instead. Single ESC is ignored for special modes.
+      // Special modes (Jarvis, autonomous): ESC is handled ENTIRELY by the raw
+      // data listener below — the keypress handler does NOTHING for them.
+      // This prevents conflicts between the two handlers and avoids cursor jumps
+      // from hint messages. See raw data listener for: quick double-ESC → Rewind,
+      // deliberate double-ESC (>1s gap) → stop special mode.
       if (key.name === 'escape' && !fullScreenBrowserOpen && !panelJustClosed) {
         const jarvisRunning = jarvisDaemonSession && jarvisDaemonSession.status === 'running';
         const specialMode = jarvisRunning || autonomousMode;
         const normalRunning = agentRunning || sessionMgr.hasBackgroundTasks;
 
-        if (specialMode) {
-          // Special modes: single ESC is ignored.
-          // Stopping requires deliberate double-ESC (>1s gap) — handled below.
-          const now = Date.now();
-          if (lastSpecialEscTime > 0 && (now - lastSpecialEscTime) >= 1000) {
-            // Deliberate double-ESC (>1s gap) → STOP special mode
-            lastSpecialEscTime = 0;
-            closeSuggestionPanel();
-            activity.stop('Stopped');
-            agentController.abort();
-            sessionMgr.abortAll();
-            if (activeSwarm) { activeSwarm.abort(); activeSwarm = null; }
-            autonomousMode = false;
-
-            if (jarvisRunning) {
-              jarvisDaemonSession!.abort();
-              jarvisDaemonSession = null;
-              jarvisQueue.setDaemonState('stopped');
-              jarvisPaused = false;
-              releaseJarvisSlot();
-            }
-
-            typeAheadBuffer.length = 0;
-            agentRunning = false;
-
-            process.stdout.write('\n');
-            renderInfo(chalk.red('\u23F9 STOPPED') + chalk.dim(' \u2014 Special mode exited (deliberate double-ESC).'));
-            showPrompt();
-          } else {
-            // First ESC or too fast — record time, show hint
-            lastSpecialEscTime = now;
-            screen.writeOutput(chalk.dim('  \u23F8 ESC registered \u2014 press ESC again after 1s to stop, or quick double-ESC for Rewind\n'));
-          }
-        } else if (normalRunning) {
+        // Special modes: skip entirely — raw data handler manages ESC
+        if (!specialMode && normalRunning) {
           // Normal agent work: single ESC = immediate stop (unchanged)
           closeSuggestionPanel();
           activity.stop('Stopped');
@@ -2578,21 +2548,65 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Bare ESC = exactly 1 byte: \x1b
       // Double ESC = exactly 2 bytes: \x1b\x1b
       // Anything else starting with \x1b is an ANSI escape sequence → ignore
+
+      // Detect special mode (Jarvis/autonomous) — ESC handling is done entirely here
+      const isSpecialMode = !!(jarvisDaemonSession && jarvisDaemonSession.status === 'running') || autonomousMode;
+
       if (bytes.length === 2 && bytes[0] === 0x1b && bytes[1] === 0x1b) {
-        // Double-ESC in one chunk → open rewind immediately
+        // Double-ESC in one chunk → open rewind immediately (all modes)
         lastRawEscTime = 0;
+        lastSpecialEscTime = 0;
         await openRewindBrowser();
         return;
       }
 
       if (bytes.length === 1 && bytes[0] === 0x1b) {
-        // Single bare ESC — check timing for double-ESC
         const now = Date.now();
+
+        // Quick double-ESC detection (<800ms) → Rewind (all modes)
         if (now - lastRawEscTime < RAW_ESC_THRESHOLD && lastRawEscTime > 0) {
           lastRawEscTime = 0;
+          lastSpecialEscTime = 0;
           await openRewindBrowser();
-        } else {
-          lastRawEscTime = now;
+          return;
+        }
+
+        // Special mode: deliberate double-ESC (>1s gap) → stop
+        if (isSpecialMode && lastSpecialEscTime > 0 && (now - lastSpecialEscTime) >= 1000) {
+          lastSpecialEscTime = 0;
+          lastRawEscTime = 0;
+
+          activity.stop('Stopped');
+          agentController.abort();
+          sessionMgr.abortAll();
+          if (activeSwarm) { activeSwarm.abort(); activeSwarm = null; }
+          autonomousMode = false;
+
+          const jarvisRunning = jarvisDaemonSession && jarvisDaemonSession.status === 'running';
+          if (jarvisRunning) {
+            jarvisDaemonSession!.abort();
+            jarvisDaemonSession = null;
+            jarvisQueue.setDaemonState('stopped');
+            jarvisPaused = false;
+            releaseJarvisSlot();
+          }
+
+          typeAheadBuffer.length = 0;
+          agentRunning = false;
+
+          renderInfo(chalk.red('\u23F9 STOPPED') + chalk.dim(' \u2014 Special mode exited.'));
+          showPrompt();
+          return;
+        }
+
+        // Record ESC time for next detection
+        lastRawEscTime = now;
+        if (isSpecialMode) {
+          lastSpecialEscTime = now;
+          // Brief hint via chrome row (no scroll region write = no cursor jump)
+          chrome.setRow(0, chalk.dim('\u23F8 ESC \u2014 double-ESC: Rewind | wait 1s + ESC: stop'));
+          // Auto-restore chrome row 0 after 2 seconds
+          setTimeout(() => { chrome.drawFrameBottom(); }, 2000);
         }
         return;
       }
