@@ -471,7 +471,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     onSessionComplete: (session) => {
       // Show notification in the terminal when a background session finishes
       if (session.id !== 'main') {
-        process.stdout.write(renderSessionNotification(session));
+        // Use screen.writeOutput() instead of process.stdout.write() to prevent
+        // cursor jump: direct stdout writes corrupt the cursor position when the
+        // user is actively typing in the input field.
+        screen.writeOutput(renderSessionNotification(session));
 
         // Push findings to brain visualization (if browser is open)
         if (session.result?.text && pushFindingsToBrainFn) {
