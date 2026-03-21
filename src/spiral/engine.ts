@@ -58,11 +58,14 @@ export class SpiralEngine {
   }
 
   /**
-   * Start the engine. Loads embedding model eagerly.
+   * Start the engine. Embedding model is now lazy-loaded on first query
+   * instead of blocking startup (saves 2-5s).
    */
   async initialize(): Promise<void> {
-    await this.embeddings.initialize();
-    logger.info('SpiralEngine initialized');
+    // Embeddings load lazily on first embed() call — no blocking here.
+    // Start background preload without awaiting it.
+    this.embeddings.initialize().catch(() => {});
+    logger.info('SpiralEngine initialized (embeddings: lazy)');
   }
 
   /**

@@ -25,7 +25,7 @@ export const LEVEL_NAMES: Record<SpiralLevel, string> = {
   5: 'Deep Archive',
 };
 
-export type EmbeddingStatus = 'loaded' | 'loading' | 'fallback';
+export type EmbeddingStatus = 'idle' | 'loaded' | 'loading' | 'fallback';
 
 export interface NodeMetadata {
   file?: string;

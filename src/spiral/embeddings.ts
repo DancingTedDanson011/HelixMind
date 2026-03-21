@@ -18,6 +18,7 @@ export class EmbeddingService {
 
   constructor(model: string) {
     this.model = model;
+    this._status = 'idle';
   }
 
   get status(): EmbeddingStatus {
@@ -25,13 +26,23 @@ export class EmbeddingService {
   }
 
   /**
-   * Start loading the model eagerly. Call this at server startup.
+   * Start loading the model. Now lazy by default — the model is loaded
+   * on the first embed() call rather than blocking CLI startup.
+   * Calling initialize() explicitly still works for eager preloading.
    */
   async initialize(): Promise<void> {
     if (this.loading) return this.loading;
 
     this.loading = this.loadModel();
     return this.loading;
+  }
+
+  /** Ensure the model is loaded (lazy init on first use) */
+  private async ensureLoaded(): Promise<void> {
+    if (this.pipeline) return;
+    if (this._status === 'fallback') return;
+    if (this.loading) { await this.loading; return; }
+    await this.initialize();
   }
 
   private async loadModel(): Promise<void> {
@@ -76,9 +87,8 @@ export class EmbeddingService {
    * Returns null if embeddings are not available.
    */
   async embed(text: string): Promise<Float32Array | null> {
-    if (this._status === 'loading') {
-      await this.loading;
-    }
+    // Lazy-load: initialize on first embed() call instead of blocking startup
+    await this.ensureLoaded();
 
     if (!this.pipeline) {
       return null;

@@ -383,11 +383,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
   });
 
-  // Initialize agent tools
-  await initializeTools();
-
-  // Analyze project context
-  const project = await analyzeProject(process.cwd());
+  // Initialize agent tools + analyze project IN PARALLEL (saves ~100-200ms)
+  const [, project] = await Promise.all([
+    initializeTools(),
+    analyzeProject(process.cwd()),
+  ]);
 
   // Conversation history (for agent loop, we use ToolMessage format)
   const messages: ChatMessage[] = [];
