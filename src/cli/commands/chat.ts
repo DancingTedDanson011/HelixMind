@@ -455,6 +455,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let agentRunning = false;
   let autonomousMode = false;
   let fullScreenBrowserOpen = false;  // Guards ESC/stop events while Rewind or Plan browser is active
+  let lastSpecialEscTime = 0;         // Timestamp of last ESC in special mode (Jarvis/autonomous)
 
   // Forward-declared findings handler (reassigned by control protocol if active)
   let pushFindingsToBrainFn: ((session: import('../sessions/session.js').Session) => void) | null = null;
@@ -2443,44 +2444,65 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       // Command suggestions are now handled by InputManager's built-in _interceptTtyWrite.
       // The panel opens/updates/closes automatically as the user types slash commands.
 
-      // === ESC detection (single ESC = stop) ===
+      // === ESC detection ===
       // Double-ESC (rewind browser) is handled by the raw data listener below.
       // Skip if a full-screen browser (Rewind/Plan) is open — it handles ESC itself.
       // Skip if ESC was used to close the suggestion panel (panelJustClosed flag)
+      //
+      // Special modes (Jarvis daemon, autonomous) require DELIBERATE double-ESC
+      // with >1s gap to stop — prevents accidental kills. Quick double-ESC (<800ms)
+      // opens Rewind instead. Single ESC is ignored for special modes.
       if (key.name === 'escape' && !fullScreenBrowserOpen && !panelJustClosed) {
         const jarvisRunning = jarvisDaemonSession && jarvisDaemonSession.status === 'running';
-        const anythingRunning = agentRunning || sessionMgr.hasBackgroundTasks || autonomousMode || jarvisRunning;
+        const specialMode = jarvisRunning || autonomousMode;
+        const normalRunning = agentRunning || sessionMgr.hasBackgroundTasks;
 
-        if (anythingRunning) {
-          // Close suggestion panel if open
+        if (specialMode) {
+          // Special modes: single ESC is ignored.
+          // Stopping requires deliberate double-ESC (>1s gap) — handled below.
+          const now = Date.now();
+          if (lastSpecialEscTime > 0 && (now - lastSpecialEscTime) >= 1000) {
+            // Deliberate double-ESC (>1s gap) → STOP special mode
+            lastSpecialEscTime = 0;
+            closeSuggestionPanel();
+            activity.stop('Stopped');
+            agentController.abort();
+            sessionMgr.abortAll();
+            if (activeSwarm) { activeSwarm.abort(); activeSwarm = null; }
+            autonomousMode = false;
+
+            if (jarvisRunning) {
+              jarvisDaemonSession!.abort();
+              jarvisDaemonSession = null;
+              jarvisQueue.setDaemonState('stopped');
+              jarvisPaused = false;
+              releaseJarvisSlot();
+            }
+
+            typeAheadBuffer.length = 0;
+            agentRunning = false;
+
+            process.stdout.write('\n');
+            renderInfo(chalk.red('\u23F9 STOPPED') + chalk.dim(' \u2014 Special mode exited (deliberate double-ESC).'));
+            showPrompt();
+          } else {
+            // First ESC or too fast — record time, show hint
+            lastSpecialEscTime = now;
+            screen.writeOutput(chalk.dim('  \u23F8 ESC registered \u2014 press ESC again after 1s to stop, or quick double-ESC for Rewind\n'));
+          }
+        } else if (normalRunning) {
+          // Normal agent work: single ESC = immediate stop (unchanged)
           closeSuggestionPanel();
-
-          // IMMEDIATE STOP — single ESC press
           activity.stop('Stopped');
           agentController.abort();
           sessionMgr.abortAll();
           if (activeSwarm) { activeSwarm.abort(); activeSwarm = null; }
-          autonomousMode = false;
 
-          // Stop Jarvis daemon if running
-          if (jarvisRunning) {
-            jarvisDaemonSession!.abort();
-            jarvisDaemonSession = null;
-            jarvisQueue.setDaemonState('stopped');
-            jarvisPaused = false;
-            releaseJarvisSlot();
-          }
-
-          // Clear type-ahead buffer to prevent agent restarting after abort
           typeAheadBuffer.length = 0;
-
-          // Reset agent state immediately (don't wait for async propagation)
           agentRunning = false;
 
           process.stdout.write('\n');
           renderInfo(chalk.red('\u23F9 STOPPED') + chalk.dim(' \u2014 All agents interrupted.'));
-
-          // Restore prompt so user can type again
           showPrompt();
         }
       }
