@@ -4,9 +4,12 @@ import type { BugJournal } from '../../bugs/journal.js';
 import type { BrowserController } from '../../browser/controller.js';
 import type { VisionProcessor } from '../../browser/vision.js';
 import type { LearningJournal } from '../../jarvis/learning.js';
+import type { SkillManager } from '../../jarvis/skills.js';
+import type { WorktreeHandle } from '../../worktree/types.js';
 
 export interface ToolContext {
   projectRoot: string;
+  executionRoot: string;
   undoStack: UndoStack;
   spiralEngine?: any;
   bugJournal?: BugJournal;
@@ -14,8 +17,10 @@ export interface ToolContext {
   visionProcessor?: VisionProcessor;
   onBrowserScreenshot?: (info: { url: string; title?: string; imageBase64?: string; analysis?: string }) => void;
   learningJournal?: LearningJournal;
+  skillManager?: SkillManager;
   lockFile?: (path: string) => boolean;
   unlockFile?: (path: string) => void;
+  worktree?: WorktreeHandle;
 }
 
 export interface ToolHandler {

@@ -48,4 +48,10 @@ describe('config commands logic', () => {
     expect(apiEntry!.value).toContain('...');
     expect(apiEntry!.value).not.toBe('sk-ant-api03-very-long-key-here');
   });
+
+  it('should expose worktree and shell defaults', () => {
+    expect(store.get('worktree.mode')).toBe('auto');
+    expect(store.get('worktree.cleanup')).toBe('keep');
+    expect(store.get('shell.defaultTimeoutSec')).toBe(60);
+  });
 });

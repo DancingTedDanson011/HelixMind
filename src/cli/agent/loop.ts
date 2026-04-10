@@ -19,6 +19,30 @@ import type { TaskStep } from '../ui/activity.js';
 import type { SessionBuffer } from '../context/session-buffer.js';
 import { isRateLimitError, handleRateLimitError, detectCreditsExhausted } from '../providers/rate-limiter.js';
 import { trimConversation, estimateTokens } from '../context/trimmer.js';
+import type { SkillToolDef } from '../jarvis/types.js';
+
+function toToolDefinition(def: SkillToolDef): ToolDefinition {
+  const properties: Record<string, unknown> = {};
+  const required: string[] = [];
+
+  for (const [name, value] of Object.entries(def.parameters ?? {})) {
+    properties[name] = {
+      type: value.type,
+      description: value.description,
+    };
+    if (value.required) required.push(name);
+  }
+
+  return {
+    name: def.name,
+    description: def.description,
+    input_schema: {
+      type: 'object',
+      properties,
+      required: required.length > 0 ? required : undefined,
+    },
+  };
+}
 
 /** Produce a targeted recovery hint based on the error content. */
 function getErrorHint(errorResult: string): string {
@@ -125,9 +149,14 @@ export async function runAgentLoop(
 
   // In plan mode, filter to read-only tools only
   const allTools = getAllToolDefinitions();
+  const skillTools = !planMode && toolContext.skillManager
+    ? Array.from(toolContext.skillManager.getAllSkillTools().values())
+        .map((entry) => toToolDefinition(entry.def))
+        .filter((entry) => !allTools.some((tool) => tool.name === entry.name))
+    : [];
   const tools = planMode
     ? allTools.filter(t => PLAN_MODE_TOOLS.has(t.name))
-    : allTools;
+    : allTools.concat(skillTools);
   resetToolCounter();
   const messages: ToolMessage[] = [...conversationHistory];
 
@@ -302,9 +331,9 @@ export async function runAgentLoop(
           const pathInput = (block.input.path as string | undefined);
           if (pathInput && FILE_DIR_TOOLS.has(block.name)) {
             try {
-              const { external } = validatePathEx(pathInput, toolContext.projectRoot);
+              const { external } = validatePathEx(pathInput, toolContext.executionRoot);
               if (external) {
-                const absPath = resolve(toolContext.projectRoot, pathInput);
+                const absPath = resolve(toolContext.executionRoot, pathInput);
                 const extAllowed = await permissions.checkExternalAccess(
                   block.name,
                   absPath,
@@ -330,7 +359,7 @@ export async function runAgentLoop(
           }
 
           const snapshots = checkpointStore
-            ? captureFileSnapshots(block.name, block.input, toolContext.projectRoot)
+            ? captureFileSnapshots(block.name, block.input, toolContext.executionRoot)
             : undefined;
 
           // Check file locks for write operations
@@ -351,6 +380,7 @@ export async function runAgentLoop(
           }
 
           const tool = getTool(block.name);
+          const skillTool = !tool ? toolContext.skillManager?.getSkillTool(block.name) : undefined;
           let result: string;
           let stepStatus: 'done' | 'error' = 'done';
           let stepError: string | undefined;
@@ -366,9 +396,15 @@ export async function runAgentLoop(
             }
           }
 
-          if (tool) {
+          if (tool || skillTool) {
             try {
-              result = await tool.execute(block.input, toolContext);
+              if (tool) {
+                result = await tool.execute(block.input, toolContext);
+              } else {
+                toolContext.skillManager?.recordUsage(skillTool!.skillName);
+                result = await skillTool!.handler(block.input);
+                toolContext.skillManager?.recordOutcome(skillTool!.skillName, true, 0);
+              }
 
               // Reinforce successful learnings that were relevant
               if (toolContext.learningJournal && learningHintIds.length > 0) {
@@ -384,6 +420,9 @@ export async function runAgentLoop(
               errors.push(`${block.name}: ${errMsg}`);
               consecutiveErrors++;
               sessionBuffer?.addToolError(block.name, errMsg);
+              if (skillTool) {
+                toolContext.skillManager?.recordOutcome(skillTool.skillName, false, 0);
+              }
 
               // Track error for potential learning (error→success detection)
               if (toolContext.learningJournal) {

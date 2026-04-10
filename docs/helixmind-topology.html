@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HelixMind v0.6.3 — System Topology & API Architecture</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg: #06060c;
+      --surface: #0d0d16;
+      --surface2: #141422;
+      --surface3: #1c1c30;
+      --border: #252540;
+      --border-light: #35355a;
+      --text: #e4e4f0;
+      --text-dim: #7a7a9a;
+      --text-muted: #4e4e6e;
+      --accent: #00ff88;
+      --accent-dim: rgba(0,255,136,0.12);
+      --purple: #7c5cfc;
+      --purple-dim: rgba(124,92,252,0.12);
+      --orange: #ff8a3c;
+      --orange-dim: rgba(255,138,60,0.1);
+      --red: #ff4470;
+      --red-dim: rgba(255,68,112,0.1);
+      --blue: #4c8dff;
+      --blue-dim: rgba(76,141,255,0.1);
+      --yellow: #ffd24c;
+      --yellow-dim: rgba(255,210,76,0.1);
+      --cyan: #00d4ff;
+      --cyan-dim: rgba(0,212,255,0.1);
+      --pink: #ff6cb5;
+      --teal: #2dd4bf;
+      --radius: 14px;
+      --mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+      --sans: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══ CENTERING WRAPPER ═══ */
+    .page-center {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    /* ═══ HERO ═══ */
+    .hero {
+      position: relative;
+      padding: 80px 28px 64px;
+      text-align: center;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 600px 400px at 30% 40%, rgba(124,92,252,0.1) 0%, transparent 70%),
+        radial-gradient(ellipse 500px 350px at 70% 60%, rgba(0,255,136,0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 300px 300px at 50% 20%, rgba(0,212,255,0.05) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 16px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--accent);
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .hero-badge::before {
+      content: '';
+      width: 7px; height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent);
+    }
+    .hero h1 {
+      font-size: 3.2rem;
+      font-weight: 900;
+      letter-spacing: -2px;
+      position: relative;
+      background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+    }
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--text-dim);
+      margin-top: 12px;
+      position: relative;
+      font-weight: 400;
+    }
+    .hero-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      position: relative;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ═══ STATS BAR ═══ */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 48px auto;
+    }
+    .stat {
+      background: var(--surface);
+      padding: 22px 16px;
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 1.8rem;
+      font-weight: 800;
+      font-family: var(--mono);
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    /* ═══ SECTIONS ═══ */
+    section {
+      margin-bottom: 56px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .section-num {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--purple), var(--accent));
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .section-header h2 {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+    section > .section-desc {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+      max-width: 720px;
+    }
+    h3 {
+      font-size: 1rem;
+      color: var(--purple);
+      font-weight: 700;
+      margin: 32px 0 14px;
+      padding-left: 14px;
+      border-left: 3px solid var(--purple);
+      letter-spacing: -0.3px;
+    }
+
+    /* ═══ ASCII TOPOLOGY ═══ */
+    .topo-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 32px;
+      overflow-x: auto;
+      position: relative;
+    }
+    .topo-box::before {
+      content: 'SYSTEM TOPOLOGY';
+      position: absolute;
+      top: 12px; right: 16px;
+      font-size: 0.65rem;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      letter-spacing: 1.5px;
+      font-weight: 600;
+    }
+    .topo-box pre {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: var(--text-dim);
+      white-space: pre;
+      margin: 0;
+    }
+    .topo-box .g { color: var(--accent); font-weight: 600; }
+    .topo-box .p { color: var(--purple); font-weight: 600; }
+    .topo-box .o { color: var(--orange); font-weight: 600; }
+    .topo-box .r { color: var(--red); font-weight: 600; }
+    .topo-box .b { color: var(--blue); font-weight: 600; }
+    .topo-box .c { color: var(--cyan); font-weight: 600; }
+    .topo-box .y { color: var(--yellow); font-weight: 600; }
+    .topo-box .w { color: #fff; font-weight: 700; }
+    .topo-box .d { color: #3a3a55; }
+    .topo-box .pk { color: var(--pink); font-weight: 600; }
+    .topo-box .tl { color: var(--teal); font-weight: 600; }
+
+    /* ═══ TABLES ═══ */
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+    thead { background: var(--surface2); }
+    th {
+      text-align: left;
+      padding: 11px 16px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--purple);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(124,92,252,0.03); }
+    td code {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      padding: 1px 7px;
+      border-radius: 5px;
+      color: var(--cyan);
+      white-space: nowrap;
+    }
+
+    /* ═══ TAGS ═══ */
+    .tag {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+    .t-crit { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,68,112,0.25); }
+    .t-high { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(255,138,60,0.25); }
+    .t-med  { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(255,210,76,0.25); }
+    .t-low  { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(76,141,255,0.25); }
+    .t-free { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,255,136,0.2); }
+    .t-none { background: rgba(80,80,120,0.12); color: var(--text-dim); border: 1px solid rgba(80,80,120,0.2); }
+    .t-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(124,92,252,0.25); }
+
+    /* ═══ CARDS ═══ */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .card:hover { border-color: var(--border-light); transform: translateY(-1px); }
+    .card-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      margin-bottom: 12px;
+    }
+    .card h4 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+    .card .card-file {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+    .card .card-cost {
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    /* ═══ FLOW ═══ */
+    .flow {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+    }
+    .flow-step {
+      display: flex;
+      gap: 18px;
+      position: relative;
+      padding-bottom: 8px;
+    }
+    .flow-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 17px;
+      top: 38px;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .flow-dot {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+    .flow-body { padding-bottom: 20px; flex: 1; }
+    .flow-body h4 { font-size: 0.92rem; font-weight: 700; color: #fff; }
+    .flow-body p { font-size: 0.82rem; color: var(--text-dim); margin-top: 2px; }
+    .flow-tag {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 10px;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+    .ft-llm { background: var(--purple-dim); color: var(--purple); }
+    .ft-web { background: var(--cyan-dim); color: var(--cyan); }
+    .ft-local { background: var(--accent-dim); color: var(--accent); }
+    .ft-none { background: rgba(60,60,90,0.2); color: var(--text-muted); }
+    .ft-cost {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.75rem;
+      font-family: var(--mono);
+      font-weight: 600;
+    }
+
+    /* ═══ PROVIDER GRID ═══ */
+    .provider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .prov {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .prov:hover { border-color: var(--border-light); }
+    .prov-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .prov-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .prov-name {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .prov-type {
+      font-size: 0.68rem;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .prov-models {
+      list-style: none;
+      font-size: 0.76rem;
+      font-family: var(--mono);
+      color: var(--text-dim);
+    }
+    .prov-models li { padding: 1px 0; }
+    .prov-models .def { color: var(--accent); }
+    .prov-ctx {
+      margin-top: 8px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* ═══ SPIRAL LEVELS ═══ */
+    .spiral-levels {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .spiral-lvl {
+      display: grid;
+      grid-template-columns: 60px 120px 1fr 100px;
+      align-items: center;
+      gap: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+    .spiral-lvl:hover { border-color: var(--border-light); }
+    .lvl-badge {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-align: center;
+    }
+    .lvl-name {
+      font-weight: 700;
+      font-size: 0.88rem;
+    }
+    .lvl-desc {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .lvl-thresh {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    /* ═══ FOOTER ═══ */
+    footer {
+      text-align: center;
+      padding: 48px 28px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
+    /* ═══ RESPONSIVE ═══ */
+    @media (max-width: 768px) {
+      .hero { padding: 48px 20px 40px; }
+      .hero h1 { font-size: 2rem; }
+      .page-center { padding: 0 16px; }
+      .topo-box { padding: 16px 12px; }
+      .topo-box pre { font-size: 0.62rem; }
+      .cards { grid-template-columns: 1fr; }
+      .provider-grid { grid-template-columns: 1fr 1fr; }
+      .spiral-lvl { grid-template-columns: 50px 90px 1fr; }
+      .lvl-thresh { display: none; }
+    }
+    @media (max-width: 480px) {
+      .provider-grid { grid-template-columns: 1fr; }
+      .stats-bar { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    /* ═══ PRINT ═══ */
+    @media print {
+      body { background: #fff; color: #111; }
+      .hero { background: #f4f4f8; border-bottom-color: #ddd; }
+      .hero h1 { -webkit-text-fill-color: #222; }
+      table, .card, .topo-box, .flow, .prov { background: #fafafa; border-color: #ddd; }
+      td, th, .card p, .flow-body p { color: #333; }
+      .stat-num { -webkit-text-fill-color: #333; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     HERO
+     ══════════════════════════════════════════════════════ -->
+<header class="hero">
+  <div class="hero-badge">v0.6.3</div>
+  <h1>HelixMind</h1>
+  <div class="hero-sub">System Topology &amp; API Architecture</div>
+  <div class="hero-desc">AI Coding CLI mit Persistent Spiral Memory, 8 LLM Providern, 5-Level Wissens-Hierarchie und autonomem Agent-System.</div>
+</header>
+
+<div class="page-center">
+
+<!-- ══════════════════════════════════════════════════════
+     STATS BAR
+     ══════════════════════════════════════════════════════ -->
+<div class="stats-bar">
+  <div class="stat"><div class="stat-num">8</div><div class="stat-label">LLM Provider</div></div>
+  <div class="stat"><div class="stat-num">5+1</div><div class="stat-label">Spiral Levels</div></div>
+  <div class="stat"><div class="stat-num">22</div><div class="stat-label">Agent Tools</div></div>
+  <div class="stat"><div class="stat-num">41</div><div class="stat-label">Slash Commands</div></div>
+  <div class="stat"><div class="stat-num">~30</div><div class="stat-label">API Endpoints</div></div>
+  <div class="stat"><div class="stat-num">1-200</div><div class="stat-label">LLM Calls / Turn</div></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     1. TOPOLOGY
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <h2>System-Topologie</h2>
+  </div>
+  <p class="section-desc">Vollstaendige Architektur aller Komponenten, Datenfluss und Verbindungen.</p>
+
+  <div class="topo-box"><pre>
+<span class="d">                            ┌──────────────────────────────────────────┐</span>
+<span class="d">                            │</span>            <span class="w">USER INPUT (Terminal)</span>             <span class="d">│</span>
+<span class="d">                            │</span>   <span class="d">helixmind chat · hx · helix</span>              <span class="d">│</span>
+<span class="d">                            └────────────────────┬─────────────────────┘</span>
+<span class="d">                                                 │</span>
+<span class="d">                                                 ▼</span>
+<span class="d">                  ┌──────────────────────────────────────────────────────┐</span>
+<span class="d">                  │</span>                <span class="w">CLI ENTRY POINT</span>                        <span class="d">│</span>
+<span class="d">                  │</span>   <span class="c">src/cli/index.ts</span> → <span class="c">commands/chat.ts</span>                <span class="d">│</span>
+<span class="d">                  │</span>   Commander.js · --yolo · --skip-permissions         <span class="d">│</span>
+<span class="d">                  └───────┬──────────────────┬──────────────────┬──────┘</span>
+<span class="d">                          │                  │                  │</span>
+<span class="d">              ┌───────────▼───────┐  ┌──────▼───────────┐  ┌──▼──────────────────┐</span>
+<span class="d">              │</span> <span class="p">DIRECTIVE PARSER</span>  <span class="d">│  │</span> <span class="b">SESSION MANAGER</span> <span class="d">│  │</span> <span class="o">JARVIS DAEMON</span>        <span class="d">│</span>
+<span class="d">              │</span> /plan /fast /swarm<span class="d">│  │</span> Multi-Session   <span class="d">│  │</span> Autonomous Agent    <span class="d">│</span>
+<span class="d">              │</span> /yolo /auto /stop <span class="d">│  │</span> Tab-Switching   <span class="d">│  │</span> Scheduler+Triggers  <span class="d">│</span>
+<span class="d">              │</span> turn-directives.ts<span class="d">│  │</span> ESC ESC Abort   <span class="d">│  │</span> <span class="o">Telegram/Email/WH</span>   <span class="d">│</span>
+<span class="d">              └────────┬──────────┘  └───────┬──────────┘  │</span> <span class="o">ElevenLabs Voice</span>    <span class="d">│</span>
+<span class="d">                       │                    │              └─────────┬──────────────┘</span>
+<span class="d">                       └────────┬───────────┘                        │</span>
+<span class="d">                                ▼                                    │</span>
+<span class="d">            ┌───────────────────────────────────────────┐            │</span>
+<span class="d">            │</span>       <span class="g">CONTEXT ASSEMBLY PIPELINE</span>              <span class="d">│            │</span>
+<span class="d">            │</span>       <span class="c">src/cli/context/assembler.ts</span>            <span class="d">│            │</span>
+<span class="d">            │</span>                                               <span class="d">│            │</span>
+<span class="d">            │</span>  <span class="c">Project Context</span>  ·  <span class="p">Spiral L1-L5</span>              <span class="d">│            │</span>
+<span class="d">            │</span>  <span class="o">Bug Journal</span>      ·  <span class="y">Session Buffer</span>            <span class="d">│            │</span>
+<span class="d">            │</span>  <span class="b">Learning Memory</span>  ·  <span class="pk">Jarvis Identity</span>           <span class="d">│            │</span>
+<span class="d">            │</span>  <span class="tl">Plan Instructions</span> ·  <span class="c">Environment</span>              <span class="d">│            │</span>
+<span class="d">            │</span>                                               <span class="d">│            │</span>
+<span class="d">            │</span>  <span class="r">~ 2.200 - 5.600 Tokens Kontext / Turn</span>      <span class="d">│            │</span>
+<span class="d">            └──────────────────────┬────────────────────┘            │</span>
+<span class="d">                                   │                                 │</span>
+<span class="d">                                   ▼                                 │</span>
+<span class="d">     ┌══════════════════════════════════════════════════════════┐      │</span>
+<span class="d">     ║</span>               <span class="w">AGENT LOOP (Herzstueck)</span>                     <span class="d">║      │</span>
+<span class="d">     ║</span>            <span class="c">src/cli/agent/loop.ts:202</span>                     <span class="d">║      │</span>
+<span class="d">     ║</span>                                                          <span class="d">║      │</span>
+<span class="d">     ║</span>   <span class="r">LLM CALL</span> ──→ Parse Response ──→ Tool Execution        <span class="d">║      │</span>
+<span class="d">     ║</span>       <span class="d">↑</span>              <span class="d">↓</span>                                  <span class="d">║      │</span>
+<span class="d">     ║</span>       <span class="d">└───── Tool Results ─────┘</span>                        <span class="d">║      │</span>
+<span class="d">     ║</span>                                                          <span class="d">║      │</span>
+<span class="d">     ║</span>   Max <span class="o">200 Iterationen</span> · <span class="r">1 LLM API Call pro Iteration</span>    <span class="d">║      │</span>
+<span class="d">     ║</span>   Trimming ab 85% Context-Limit · AbortController        <span class="d">║      │</span>
+<span class="d">     └══════════╤═══════════════════════════════════════════════┘      │</span>
+<span class="d">                │                                                      │</span>
+<span class="d">     ┌──────────┼──────────────┬────────────────┐                      │</span>
+<span class="d">     ▼          ▼              ▼                ▼                      │</span>
+<span class="d"> ┌──────────┐┌──────────┐┌───────────┐┌────────────────┐              │</span>
+<span class="d"> │</span><span class="p">TOOL REG. </span><span class="d">││</span><span class="b">PERMISSION</span><span class="d">││</span><span class="o"> SANDBOX   </span><span class="d">││</span><span class="tl">UNDO / CHECKPTS </span><span class="d">│              │</span>
+<span class="d"> │</span>22 Tools  <span class="d">││</span>auto/ask/ <span class="d">││</span>Path valid.<span class="d">││</span>File Snapshots  <span class="d">│              │</span>
+<span class="d"> │</span>registry  <span class="d">││</span>dangerous <span class="d">││</span>Cmd class. <span class="d">││</span>Chat Revert     <span class="d">│              │</span>
+<span class="d"> │</span>          <span class="d">││</span>safe/skip/<span class="d">││</span>           <span class="d">││</span>ESC ESC Browse  <span class="d">│              │</span>
+<span class="d"> │</span>          <span class="d">││</span>yolo/plan <span class="d">││</span>           <span class="d">││</span>                <span class="d">│              │</span>
+<span class="d"> └──────────┘└──────────┘└───────────┘└────────────────┘              │</span>
+<span class="d">     │                                                                 │</span>
+<span class="d">     ├─── </span><span class="g">read_file · write_file · edit_file</span>                           <span class="d">│</span>
+<span class="d">     ├─── </span><span class="g">list_directory · search_files · find_files</span>                    <span class="d">│</span>
+<span class="d">     ├─── </span><span class="o">run_command</span> <span class="d">(sandboxed, klassifiziert)</span>                        <span class="d">│</span>
+<span class="d">     ├─── </span><span class="b">git_status · git_diff · git_commit · git_log</span>                 <span class="d">│</span>
+<span class="d">     ├─── </span><span class="p">spiral_store · spiral_query</span>                                   <span class="d">│</span>
+<span class="d">     ├─── </span><span class="c">web_research</span> <span class="d">→ DuckDuckGo (gratis, kein API-Key)</span>             <span class="d">│</span>
+<span class="d">     ├─── </span><span class="y">browser_open · _navigate · _screenshot · _click · _type · _close</span>
+<span class="d">     └─── </span><span class="o">bug_report · bug_list</span>                                        <span class="d">│</span>
+<span class="d">                │                                                      │</span>
+<span class="d">                ▼                                                      │</span>
+<span class="d">     ┌──────────────────────────────────────────┐                      │</span>
+<span class="d">     │</span>       <span class="p">VALIDATION MATRIX</span>                    <span class="d">│                      │</span>
+<span class="d">     │</span>  Phase 1: <span class="g">Static Checks</span>  <span class="d">(0 Tokens)</span>      <span class="d">│                      │</span>
+<span class="d">     │</span>  Phase 2: <span class="r">Dynamic Checks</span> <span class="d">(LLM, Fast)</span>    <span class="d">│                      │</span>
+<span class="d">     │</span>  Phase 3: <span class="p">Spiral Checks</span>  <span class="d">(0 Tokens)</span>      <span class="d">│                      │</span>
+<span class="d">     │</span>  Phase 4: <span class="o">Autofix Loop</span>   <span class="d">(max 3x)</span>       <span class="d">│                      │</span>
+<span class="d">     │</span>  <span class="r">~ 900 - 3.600 Tokens (wenn aktiv)</span>      <span class="d">│                      │</span>
+<span class="d">     └──────────────────────────────────────────┘                      │</span>
+<span class="d">                                                                       │</span>
+<span class="d">══════════════════════════════════════════════════════════════════════════</span>
+<span class="d">                   </span><span class="w">PROVIDER ABSTRACTION LAYER</span>
+<span class="d">                2 Klassen · 8 Provider · OpenAI-compat Pattern</span>
+<span class="d">══════════════════════════════════════════════════════════════════════════</span>
+<span class="d">                                                                        </span>
+<span class="d"> ┌──────────┐┌──────────┐┌──────────┐┌──────────┐┌──────────┐┌──────────┐</span>
+<span class="d"> │</span><span class="p">ANTHROPIC</span> <span class="d">││</span><span class="b">OPENAI</span>    <span class="d">││</span><span class="c">DEEPSEEK</span>  <span class="d">││</span><span class="o">GROQ</span>      <span class="d">││</span><span class="tl">TOGETHER</span>  <span class="d">││</span><span class="pk">Z.AI</span>      <span class="d">│</span>
+<span class="d"> │</span>Sonnet4.6 <span class="d">││</span>GPT-4o    <span class="d">││</span>Chat      <span class="d">││</span>Llama3.3  <span class="d">││</span>Llama3.3  <span class="d">││</span>GLM-5     <span class="d">│</span>
+<span class="d"> │</span>Opus 4.6  <span class="d">││</span>o1/o3-mini<span class="d">││</span>Reasoner  <span class="d">││</span>Llama3.1  <span class="d">││</span>Mixtral   <span class="d">││</span>GLM-4.7   <span class="d">│</span>
+<span class="d"> │</span>Haiku 4.5 <span class="d">││</span>4o-mini   <span class="d">││</span>          <span class="d">││</span>Mixtral   <span class="d">││</span>          <span class="d">││</span>GLM-4.5   <span class="d">│</span>
+<span class="d"> │</span><span class="r">200K ctx</span>  <span class="d">││</span><span class="r">128-200K</span> <span class="d">││</span><span class="r">64K ctx</span>  <span class="d">││</span><span class="r">128K ctx</span> <span class="d">││</span><span class="r">128K ctx</span> <span class="d">││</span><span class="r">128K ctx</span> <span class="d">│</span>
+<span class="d"> │</span><span class="y">Native SDK</span><span class="d">││</span><span class="y">Native SDK</span><span class="d">││</span><span class="g">OAI-compat</span><span class="d">││</span><span class="g">OAI-compat</span><span class="d">││</span><span class="g">OAI-compat</span><span class="d">││</span><span class="g">OAI-compat</span><span class="d">│</span>
+<span class="d"> └──────────┘└──────────┘└──────────┘└──────────┘└──────────┘└──────────┘</span>
+<span class="d">              ┌──────────┐┌──────────┐</span>
+<span class="d">              │</span><span class="g">OLLAMA</span>    <span class="d">││</span><span class="y">OPENROUTER</span><span class="d">│    Alle OpenAI-compat Provider nutzen</span>
+<span class="d">              │</span>Qwen-Coder<span class="d">││</span>Claude    <span class="d">│    </span><span class="g">OpenAIProvider</span><span class="d"> Klasse mit anderer baseURL.</span>
+<span class="d">              │</span>DeepSeek  <span class="d">││</span>GPT-4o    <span class="d">│    Nur Anthropic + OpenAI haben eigene Klasse.</span>
+<span class="d">              │</span>Llama3.3  <span class="d">││</span>Gemini    <span class="d">│</span>
+<span class="d">              │</span><span class="g">LOKAL 0.-</span> <span class="d">││</span>Any Model <span class="d">│</span>
+<span class="d">              │</span><span class="g">OAI-compat</span><span class="d">││</span><span class="g">OAI-compat</span><span class="d">│</span>
+<span class="d">              └──────────┘└──────────┘</span>
+<span class="d">                                                                        </span>
+<span class="d">══════════════════════════════════════════════════════════════════════════</span>
+<span class="d">                   </span><span class="c">HINTERGRUND-SYSTEME (nicht-blockierend)</span>
+<span class="d">══════════════════════════════════════════════════════════════════════════</span>
+<span class="d">                                                                        </span>
+<span class="d"> ┌────────────────────────┐  ┌────────────────────────────────────┐</span>
+<span class="d"> │</span>  <span class="c">WEB KNOWLEDGE ENRICHER</span><span class="d">│  │</span>  <span class="p">BRAIN VISUALIZATION</span>                <span class="d">│</span>
+<span class="d"> │</span>  Topic Detection       <span class="d">│  │</span>  WebSocket Server :9420-9440       <span class="d">│</span>
+<span class="d"> │</span>  DuckDuckGo Search     <span class="d">│  │</span>  3D Helix Rendering (Three.js)    <span class="d">│</span>
+<span class="d"> │</span>  HTML Content Parse    <span class="d">│  │</span>  Live Agent Events + Findings     <span class="d">│</span>
+<span class="d"> │</span>  → Spiral L2 Storage   <span class="d">│  │</span>  Relay → Web Dashboard (optional) <span class="d">│</span>
+<span class="d"> │</span>  Max 2 Topics/Msg      <span class="d">│  │</span>  Ollama Proxy (Modell-Management) <span class="d">│</span>
+<span class="d"> │</span>  <span class="g">0 LLM Tokens</span>         <span class="d">│  │</span>  <span class="g">0 LLM Tokens</span>                    <span class="d">│</span>
+<span class="d"> └────────────────────────┘  └────────────────────────────────────┘</span>
+<span class="d">                                                                        </span>
+<span class="d"> ┌────────────────────────┐  ┌────────────────────────────────────┐</span>
+<span class="d"> │</span>  <span class="y">BROWSER CONTROL</span>       <span class="d">│  │</span>  <span class="tl">CHECKPOINT SYSTEM</span>                 <span class="d">│</span>
+<span class="d"> │</span>  Puppeteer-Core        <span class="d">│  │</span>  File Snapshots bei jedem Tool    <span class="d">│</span>
+<span class="d"> │</span>  Chrome-Finder          <span class="d">│  │</span>  Chat History Snapshots           <span class="d">│</span>
+<span class="d"> │</span>  6 Browser Tools        <span class="d">│  │</span>  ESC ESC → Browse & Revert       <span class="d">│</span>
+<span class="d"> │</span>  VisionProcessor        <span class="d">│  │</span>  Code + Chat Revert moeglich     <span class="d">│</span>
+<span class="d"> │</span>  <span class="r">1 LLM Call / Screenshot</span><span class="d">│  │</span>  <span class="g">0 LLM Tokens</span>                    <span class="d">│</span>
+<span class="d"> └────────────────────────┘  └────────────────────────────────────┘</span></pre></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     2. PROVIDER
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <h2>8 LLM Provider</h2>
+  </div>
+  <p class="section-desc">2 native SDK-Klassen (AnthropicProvider, OpenAIProvider) + 6 OpenAI-kompatible Provider ueber baseURL-Routing. Definiert in <code>src/cli/providers/registry.ts</code>.</p>
+
+  <div class="provider-grid">
+    <!-- Anthropic -->
+    <div class="prov">
+      <div class="prov-head"><div class="prov-dot" style="background:var(--purple)"></div><div class="prov-name">Anthropic</div></div>
+      <div class="prov-type">Native SDK &middot; @anthropic-ai/sdk</div>
+      <ul class="prov-models">
+        <li class="def">claude-sonnet-4-6 (default)</li>
+        <li>claude-opus-4-6</li>
+        <li>claude-haiku-4-5-20251001</li>
+      </ul>
+      <div class="prov-ctx">Context: 200K Tokens &middot; Max Output: 8192</div>
+    </div>
+    <!-- OpenAI -->
+    <div class="prov">
+      <div class="prov-head"><div class="prov-dot" style="background:var(--blue)"></div><div class="prov-name">OpenAI</div></div>
+      <div class="prov-type">Native SDK &middot; openai</div>
+      <ul class="prov-models">
+        <li class="def">gpt-4o (default)</li>
+        <li>gpt-4o-mini</li>
+        <li>gpt-4-turbo</li>
+        <li>o1 &middot; o1-mini &middot; o3-mini</li>
+      </ul>
+      <div class="prov-ctx">Context: 128K (GPT-4o) / 200K (o1, o3-mini)</div>
+    </div>
+    <!-- DeepSeek -->
+    <div class="prov">
+      <div class="prov-head"><div class="prov-dot" style="background:var(--cyan)"></div><div class="prov-name">DeepSeek</div></div>
+      <div class="prov-type">OpenAI-compat &middot; api.deepseek.com</div>
+      <ul class="prov-models">
+        <li class="def">deepseek-chat (default)</li>
+        <li>deepseek-reasoner (CoT)</li>
+      </ul>
+      <div class="prov-ctx">Context: 64K Tokens</div>
+    </div>
+    <!-- Groq -->
+    <div class="prov">
+      <div class="prov-head"><div class="prov-dot" style="background:var(--orange)"></div><div class="prov-name">Groq</div></div>
+      <div class="prov-type">OpenAI-compat &middot; api.groq.com</div>
+      <ul class="prov-models">
+        <li class="def">llama-3.3-70b-versatile (default)</li>
+        <li>llama-3.1-8b-instant</li>
+        <li>mixtral-8x7b-32768</li>
+      </ul>
+      <div class="prov-ctx">Context: 128K / 32K (Mixtral)</div>
+    </div>
+    <!-- Together -->
+    <div class="prov">
+      <div class="prov-head"><div class="prov-dot" style="background:var(--teal)"></div><div class="prov-name">Together AI</div></div>
+      <div class="prov-type">OpenAI-compat &middot; api.together.xyz</div>
+      <ul class="prov-models">
+        <li class="def">Llama-3.3-70B-Turbo (default)</li>
+        <li>Mixtral-8x22B-Instruct</li>
+      </ul>
+      <div class="prov-ctx">Context: 128K Tokens</div>
+    </div>
+    <!-- Z.AI -->
+    <div class="prov">
+      <div class="prov-head"><div class="prov-dot" style="background:var(--pink)"></div><div class="prov-name">Z.AI (ZhipuAI)</div></div>
+      <div class="prov-type">OpenAI-compat &middot; api.z.ai</div>
+      <ul class="prov-models">
+        <li class="def">glm-5 (default)</li>
+        <li>glm-5-code &middot; glm-4.7 &middot; glm-4.6</li>
+        <li>glm-4.5 &middot; glm-4.5-air &middot; glm-4.5-x</li>
+        <li style="color:var(--accent)">glm-4.7-flash (gratis)</li>
+        <li style="color:var(--accent)">glm-4.5-flash (gratis)</li>
+      </ul>
+      <div class="prov-ctx">Context: 128K / 8K (Air)</div>
+    </div>
+    <!-- Ollama -->
+    <div class="prov">
+      <div class="prov-head"><div class="prov-dot" style="background:var(--accent)"></div><div class="prov-name">Ollama (Lokal)</div></div>
+      <div class="prov-type">OpenAI-compat &middot; localhost:11434</div>
+      <ul class="prov-models">
+        <li class="def">qwen2.5-coder:32b (default)</li>
+        <li>qwen3-coder:30b &middot; qwen2.5-coder:14b/7b</li>
+        <li>deepseek-r1:32b/14b</li>
+        <li>deepseek-coder-v2:16b</li>
+        <li>llama3.3 &middot; codellama:34b</li>
+      </ul>
+      <div class="prov-ctx">Context: 32K &middot; <strong style="color:var(--accent)">0.&ndash; Kosten</strong></div>
+    </div>
+    <!-- OpenRouter -->
+    <div class="prov">
+      <div class="prov-head"><div class="prov-dot" style="background:var(--yellow)"></div><div class="prov-name">OpenRouter</div></div>
+      <div class="prov-type">OpenAI-compat &middot; openrouter.ai</div>
+      <ul class="prov-models">
+        <li class="def">claude-sonnet-4 (default)</li>
+        <li>openai/gpt-4o</li>
+        <li>google/gemini-2.0-flash-exp</li>
+        <li style="color:var(--text-muted)">+ jedes Modell auf OpenRouter</li>
+      </ul>
+      <div class="prov-ctx">Context: modellabhaengig</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     3. SPIRAL LEVELS
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <h2>5 Spiral Memory Levels + Web Knowledge</h2>
+  </div>
+  <p class="section-desc">Hierarchische Wissens-Spirale mit Evolution &amp; Decay. Definiert in <code>src/types.ts:17</code> als <code>SpiralLevel = 1 | 2 | 3 | 4 | 5</code>. Web Knowledge wird als virtuelles L6 gezaehlt, lebt aber als getaggte L2-Nodes.</p>
+
+  <div class="spiral-levels">
+    <div class="spiral-lvl" style="border-left: 4px solid var(--accent);">
+      <div class="lvl-badge" style="color:var(--accent)">L1</div>
+      <div class="lvl-name" style="color:var(--accent)">Focus</div>
+      <div class="lvl-desc">Hoechste Relevanz. Aktiver Arbeitskontext. Voller Inhalt wird in System-Prompt injiziert. Semantik 45%, Recency 30%, Connection 15%, Type 10%.</div>
+      <div class="lvl-thresh">Score &ge; 0.7</div>
+    </div>
+    <div class="spiral-lvl" style="border-left: 4px solid var(--purple);">
+      <div class="lvl-badge" style="color:var(--purple)">L2</div>
+      <div class="lvl-name" style="color:var(--purple)">Active</div>
+      <div class="lvl-desc">Moderate Relevanz. Aktueller Projektkontext. Summary oder voller Inhalt. Web Knowledge Nodes landen hier (Tag: web_knowledge).</div>
+      <div class="lvl-thresh">Score &ge; 0.5</div>
+    </div>
+    <div class="spiral-lvl" style="border-left: 4px solid var(--blue);">
+      <div class="lvl-badge" style="color:var(--blue)">L3</div>
+      <div class="lvl-name" style="color:var(--blue)">Reference</div>
+      <div class="lvl-desc">Niedrigere Relevanz. Hintergrundwissen. Content summarized, erste 200 Zeichen in Context.</div>
+      <div class="lvl-thresh">Score &ge; 0.3</div>
+    </div>
+    <div class="spiral-lvl" style="border-left: 4px solid var(--orange);">
+      <div class="lvl-badge" style="color:var(--orange)">L4</div>
+      <div class="lvl-name" style="color:var(--orange)">Archive</div>
+      <div class="lvl-desc">Minimale Relevanz. Stark komprimiert, erste 100 Zeichen. Historisches Wissen.</div>
+      <div class="lvl-thresh">Score &ge; 0.1</div>
+    </div>
+    <div class="spiral-lvl" style="border-left: 4px solid var(--red);">
+      <div class="lvl-badge" style="color:var(--red)">L5</div>
+      <div class="lvl-name" style="color:var(--red)">Deep Archive</div>
+      <div class="lvl-desc">Tiefste Ebene. Nur Metadata + Kurz-Summary, erste 50 Zeichen. Wird nie geloescht, bleibt abrufbar.</div>
+      <div class="lvl-thresh">Score &lt; 0.1</div>
+    </div>
+    <div class="spiral-lvl" style="border-left: 4px solid var(--cyan); border-style: dashed;">
+      <div class="lvl-badge" style="color:var(--cyan)">~L6</div>
+      <div class="lvl-name" style="color:var(--cyan)">Web Knowledge</div>
+      <div class="lvl-desc">Virtuelles Level. DuckDuckGo-Suche + HTML-Extraktion im Hintergrund. Gespeichert als L2-Nodes mit <code>web_knowledge</code> Tag. 0 LLM Tokens, rein regelbasiert.</div>
+      <div class="lvl-thresh" style="color:var(--cyan)">virtuell</div>
+    </div>
+  </div>
+
+  <h3>Evolution &amp; Decay Pfad</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Transition</th>
+          <th>Was passiert</th>
+          <th>Quelle</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>L1 &rarr; L2</td><td>Relevanz-Demotion, kein Content-Verlust</td><td><code>compression.ts:22</code></td></tr>
+        <tr><td>L2 &rarr; L3</td><td>Content wird summarized</td><td><code>compression.ts:23</code></td></tr>
+        <tr><td>L3 &rarr; L4</td><td>Content stark komprimiert</td><td><code>compression.ts:24</code></td></tr>
+        <tr><td>L4 &rarr; L5</td><td>Nur Metadata + Short Summary bleibt</td><td><code>compression.ts:25-26</code></td></tr>
+        <tr><td>L5 &rarr; &empty;</td><td>Nodes werden <strong>nie geloescht</strong> &mdash; bleiben im Deep Archive</td><td>&mdash;</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     4. API CALLS
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <h2>Alle API-Calls im Detail</h2>
+  </div>
+  <p class="section-desc">Jeder verifizierte externe API-Aufruf mit exakter Datei, Zeilennummer und Haeufigkeit.</p>
+
+  <h3>LLM Provider Calls (kostenpflichtig)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Datei : Zeile</th><th>API</th><th>Methode</th><th>Ausloeser</th><th>Frequenz / Turn</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>agent/loop.ts:202</code></td>
+          <td>Aktiver Provider</td>
+          <td><code>chatWithTools()</code></td>
+          <td>Jede Agent-Iteration</td>
+          <td><span class="tag t-crit">1-200x Haupt-Kostentreiber</span></td>
+        </tr>
+        <tr>
+          <td><code>providers/anthropic.ts:39</code></td>
+          <td>Anthropic</td>
+          <td><code>messages.stream()</code></td>
+          <td>Text-Streaming</td>
+          <td><span class="tag t-crit">1x pro Iteration</span></td>
+        </tr>
+        <tr>
+          <td><code>providers/anthropic.ts:98</code></td>
+          <td>Anthropic</td>
+          <td><code>messages.create()</code></td>
+          <td>Tool-Calling (5x Retry)</td>
+          <td><span class="tag t-crit">1x pro Iteration</span></td>
+        </tr>
+        <tr>
+          <td><code>providers/openai.ts:54</code></td>
+          <td>OpenAI + alle OAI-compat</td>
+          <td><code>completions.create(stream)</code></td>
+          <td>Text-Streaming</td>
+          <td><span class="tag t-crit">1x pro Iteration</span></td>
+        </tr>
+        <tr>
+          <td><code>providers/openai.ts:204</code></td>
+          <td>OpenAI + alle OAI-compat</td>
+          <td><code>completions.create()</code></td>
+          <td>Tool-Calling (5x Retry)</td>
+          <td><span class="tag t-crit">1x pro Iteration</span></td>
+        </tr>
+        <tr>
+          <td><code>validation/dynamic-checks.ts:25</code></td>
+          <td>Fast Model *</td>
+          <td><code>provider.stream()</code></td>
+          <td>Code-Validierung</td>
+          <td><span class="tag t-high">1-3x pro Check</span></td>
+        </tr>
+        <tr>
+          <td><code>commands/chat.ts:2009</code></td>
+          <td>Aktiver Provider</td>
+          <td><code>provider.stream()</code></td>
+          <td>Plan-Decomposition (Swarm)</td>
+          <td><span class="tag t-low">1x bei /plan oder /swarm</span></td>
+        </tr>
+        <tr>
+          <td><code>commands/chat.ts:4082</code></td>
+          <td>Aktiver Provider</td>
+          <td><code>provider.stream()</code></td>
+          <td>Plan-Decomposition (Auto)</td>
+          <td><span class="tag t-low">1x bei /auto</span></td>
+        </tr>
+        <tr>
+          <td><code>browser/vision.ts:96</code></td>
+          <td>Aktiver Provider</td>
+          <td><code>chatWithTools()</code></td>
+          <td>Screenshot-Analyse (Vision)</td>
+          <td><span class="tag t-med">1x pro Screenshot</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:8px; font-size:0.8rem; color:var(--text-muted);">* Fast Model: Haiku (Anthropic), gpt-4o-mini (OpenAI), llama-3.1-8b-instant (Groq) &mdash; konfiguriert in <code>validation/model.ts</code></p>
+
+  <h3>Web Search &amp; Enrichment (gratis, kein API-Key)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Datei : Zeile</th><th>Ziel</th><th>Methode</th><th>Ausloeser</th><th>Frequenz / Turn</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>cloud/search-provider.ts:28</code></td>
+          <td>DuckDuckGo Lite</td>
+          <td><code>fetch()</code> GET</td>
+          <td>Web-Suche (kein JS, kein API-Key)</td>
+          <td><span class="tag t-free">0-2x</span></td>
+        </tr>
+        <tr>
+          <td><code>cloud/search-provider.ts:149</code></td>
+          <td>Webseiten</td>
+          <td><code>fetch()</code> GET</td>
+          <td>Seiteninhalte laden (SSRF-geschuetzt)</td>
+          <td><span class="tag t-free">0-5x</span></td>
+        </tr>
+        <tr>
+          <td><code>cloud/web-enricher.ts:111</code></td>
+          <td>DuckDuckGo</td>
+          <td><code>webSearch()</code></td>
+          <td>Hintergrund-Anreicherung (max 2 Topics/Msg)</td>
+          <td><span class="tag t-free">0-2x Background</span></td>
+        </tr>
+        <tr>
+          <td><code>cloud/web-enricher.ts:122</code></td>
+          <td>Webseiten</td>
+          <td><code>fetchPageContent()</code></td>
+          <td>Content-Extraktion (max 8000 Zeichen)</td>
+          <td><span class="tag t-free">0-4x Background</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Ollama Lokale Verwaltung (gratis)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Datei : Zeile</th><th>Endpoint</th><th>Zweck</th><th>Wann</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>providers/ollama.ts:54</code></td><td><code>/api/version</code></td><td>Health Check</td><td>Startup / Model Selection</td></tr>
+        <tr><td><code>providers/ollama.ts:86</code></td><td><code>/api/tags</code></td><td>Installierte Modelle auflisten</td><td>Model Selection UI</td></tr>
+        <tr><td><code>providers/ollama.ts:127</code></td><td><code>/api/pull</code></td><td>Modell herunterladen (Streaming)</td><td>On-Demand</td></tr>
+        <tr><td><code>brain/server.ts:75</code></td><td><code>/api/ollama/*</code></td><td>Proxy fuer Brain Web-UI</td><td>Brain Dashboard</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Auth, Sync &amp; Infrastruktur</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Datei</th><th>API / Endpoint</th><th>Zweck</th><th>Wann</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>auth/login.ts:71,112,236</code></td><td>HelixMind Web <code>/api/auth/cli/*</code></td><td>Login / Device Auth / Polling</td><td>1x bei Login</td></tr>
+        <tr><td><code>auth/feature-gate.ts:211</code></td><td><code>/api/auth/cli/verify</code></td><td>Feature-Gate Pruefung</td><td>Startup</td></tr>
+        <tr><td><code>license/validator.ts:37</code></td><td><code>/api/license/validate</code></td><td>Lizenz-Validierung</td><td>Startup</td></tr>
+        <tr><td><code>brain/relay-client.ts:49</code></td><td>WebSocket <code>/api/relay/cli</code></td><td>Persistent Relay zum Web-Dashboard</td><td>Always-on + Heartbeat 30s</td></tr>
+        <tr><td><code>brain/sync.ts:93,126,154</code></td><td><code>/api/brain/sync/*</code></td><td>Brain Cloud Sync (Push/Pull/Status)</td><td>On-Demand</td></tr>
+        <tr><td><code>jarvis/notifications.ts:192</code></td><td>Resend <code>api.resend.com/emails</code></td><td>Email-Benachrichtigung</td><td>On-Demand</td></tr>
+        <tr><td><code>jarvis/notifications.ts:229</code></td><td>Telegram Bot API</td><td>Telegram-Nachricht</td><td>On-Demand</td></tr>
+        <tr><td><code>jarvis/notifications.ts:158,173</code></td><td>Custom Webhooks</td><td>Webhook-Benachrichtigung</td><td>On-Demand</td></tr>
+        <tr><td><code>jarvis/voice-bridge.ts:204</code></td><td>ElevenLabs TTS</td><td>Sprach-Output / Voice Clone</td><td>On-Demand</td></tr>
+        <tr><td><code>jarvis/telemetry.ts:138,157</code></td><td>Telemetry Server</td><td>Usage-Tracking / Community</td><td>On-Demand</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     5. DATA FLOW
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <h2>Datenfluss &mdash; Ein User-Turn</h2>
+  </div>
+  <p class="section-desc">Schritt-fuer-Schritt was passiert von User-Input bis Antwort, mit Markierung wo API-Calls stattfinden.</p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-dot" style="background:var(--surface3); border:2px solid var(--border-light);">1</div>
+      <div class="flow-body">
+        <h4>User Input</h4>
+        <p>Nachricht im Terminal. Directive-Parsing: /plan, /fast, /swarm, /yolo, /auto etc.</p>
+        <span class="flow-tag ft-none">KEIN API CALL</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot" style="background:var(--surface3); border:2px solid var(--border-light);">2</div>
+      <div class="flow-body">
+        <h4>Task-Klassifizierung</h4>
+        <p>Bestimmt Kategorie (11 Kategorien in <code>classifier.ts</code>) und ob Validation noetig ist (<code>policy.ts</code>).</p>
+        <span class="flow-tag ft-none">KEIN API CALL</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot" style="background:var(--accent);">3</div>
+      <div class="flow-body">
+        <h4>Context Assembly</h4>
+        <p>System-Prompt bauen: Environment + Project Context + Spiral L1-L5 + Bug Journal + Learning Memory + Session Buffer + Jarvis Identity + Plan Instructions. Bis zu 10 bedingte Sektionen.</p>
+        <span class="flow-tag ft-local">LOKAL &mdash; SQLite Vector DB (Embeddings: MiniLM-L6-v2, 384d)</span>
+        <span class="ft-cost" style="color:var(--orange);">~ 2.200 &ndash; 5.600 Tokens Kontext</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot" style="background:var(--red);">4</div>
+      <div class="flow-body">
+        <h4>Agent Loop &mdash; LLM Call</h4>
+        <p><code>provider.chatWithTools(messages, systemPrompt, tools, signal)</code> in <code>loop.ts:202</code>.<br>
+        Sendet gesamte Konversation + System-Prompt + 22 Tool-Definitionen an die aktive LLM API.</p>
+        <span class="flow-tag ft-llm">LLM API CALL &mdash; Aktiver Provider (einer von 8)</span>
+        <span class="ft-cost" style="color:var(--red);">Groesster Kostentreiber &mdash; 1x pro Iteration, max 200x pro Turn</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot" style="background:var(--accent);">5</div>
+      <div class="flow-body">
+        <h4>Tool Execution</h4>
+        <p>LLM waehlt Tools: read_file, run_command, web_research, browser_* etc.<br>
+        Permission-Check (auto/ask/dangerous) &rarr; Sandbox-Validierung &rarr; Ausfuehrung &rarr; Result zurueck an Loop.</p>
+        <span class="flow-tag ft-local">LOKAL (meistens)</span>
+        <span class="flow-tag ft-web" style="margin-left:4px;">WEB bei web_research</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot" style="background:var(--orange);">6</div>
+      <div class="flow-body">
+        <h4>Loop-Entscheidung</h4>
+        <p><code>stop_reason === 'tool_use'</code> &rarr; zurueck zu Schritt 4 (naechste Iteration).<br>
+        <code>stop_reason === 'end_turn'</code> &rarr; weiter zu Schritt 7.<br>
+        <code>stop_reason === 'max_tokens'</code> &rarr; Error (Anthropic: 8192 Output-Limit).</p>
+        <span class="flow-tag ft-none">KEIN API CALL</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot" style="background:var(--yellow);">7</div>
+      <div class="flow-body">
+        <h4>Validation Matrix (optional, konfigurierbar)</h4>
+        <p>Phase 1: Static Checks &mdash; 15+ algorithmische Pruefungen (0 Tokens).<br>
+        Phase 2: Dynamic Checks &mdash; LLM-Call mit Fast Model (Haiku / gpt-4o-mini / llama-3.1-8b).<br>
+        Phase 3: Spiral Checks &mdash; Wissensbasierte Pruefungen (0 Tokens).<br>
+        Phase 4: Autofix-Loop &mdash; max 3 Durchlaeufe.</p>
+        <span class="flow-tag ft-llm">LLM API CALL &mdash; Fast Model (guenstig)</span>
+        <span class="ft-cost" style="color:var(--orange);">~ 900 &ndash; 3.600 Tokens</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot" style="background:var(--teal);">8</div>
+      <div class="flow-body">
+        <h4>Speichern &amp; Antwort rendern</h4>
+        <p>Checkpoint erstellen (File Snapshots) &rarr; Session History updaten &rarr; Spiral Memory anreichern &rarr; Markdown-Antwort rendern.</p>
+        <span class="flow-tag ft-local">LOKAL</span>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-dot" style="background:var(--cyan);">BG</div>
+      <div class="flow-body">
+        <h4>Web Enrichment (parallel, nicht-blockierend)</h4>
+        <p>Topic Detection &rarr; DuckDuckGo Suche &rarr; HTML parsen &rarr; Wissen in Spiral L2 speichern (Tag: <code>web_knowledge</code>).<br>
+        Max 2 Topics pro Nachricht, 10min Cooldown pro Topic, max 8000 Zeichen pro Seite.</p>
+        <span class="flow-tag ft-web">WEB FETCH &mdash; DuckDuckGo + Webseiten (gratis)</span>
+        <span class="ft-cost" style="color:var(--accent);">0 LLM Tokens &mdash; rein regelbasiert</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     6. TOKEN COSTS
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <h2>Token-Verbrauch pro Turn</h2>
+  </div>
+  <p class="section-desc">Geschaetzter Verbrauch fuer typische Interaktionen. Basiert auf Code-Analyse der Context-Assembly und Loop-Logik.</p>
+
+  <div class="cards" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+    <div class="card">
+      <h4>System Prompt</h4>
+      <div class="card-file">context/assembler.ts:72-132</div>
+      <p>10 bedingte Sektionen: Environment, Projekt, Spiral L1-L5, Bugs, Learning, Jarvis, Plan.</p>
+      <div class="card-cost" style="color:var(--orange)">~ 2.200 &ndash; 5.600 Tk</div>
+    </div>
+    <div class="card">
+      <h4>Agent Loop</h4>
+      <div class="card-file">agent/loop.ts</div>
+      <p>Pro Iteration wird volle History + neue Tool-Results gesendet. Trimming ab 85% Context.</p>
+      <div class="card-cost" style="color:var(--red)">~ 1.500 &ndash; 3.000 Tk</div>
+    </div>
+    <div class="card">
+      <h4>Tool Results</h4>
+      <div class="card-file">agent/tools/*</div>
+      <p>File-Contents, Command-Output, Search-Results zurueck an LLM.</p>
+      <div class="card-cost" style="color:var(--orange)">~ 500 &ndash; 1.000 Tk</div>
+    </div>
+    <div class="card">
+      <h4>Validation</h4>
+      <div class="card-file">validation/dynamic-checks.ts</div>
+      <p>Separater LLM-Call mit Fast Model. Max 3 concurrent, max 3 Autofix-Loops.</p>
+      <div class="card-cost" style="color:var(--yellow)">~ 900 &ndash; 3.600 Tk</div>
+    </div>
+    <div class="card">
+      <h4>Web Enrichment</h4>
+      <div class="card-file">spiral/cloud/web-enricher.ts</div>
+      <p>DuckDuckGo + HTML-Parsing. Rein regelbasiert, kein LLM.</p>
+      <div class="card-cost" style="color:var(--accent)">0 LLM Tokens</div>
+    </div>
+    <div class="card">
+      <h4>Browser Vision</h4>
+      <div class="card-file">browser/vision.ts:96</div>
+      <p>Screenshot &rarr; Base64 &rarr; Vision-Analyse via aktiven Provider.</p>
+      <div class="card-cost" style="color:var(--yellow)">~ 500 &ndash; 1.500 Tk</div>
+    </div>
+  </div>
+
+  <h3>Gesamt-Schaetzung nach Szenario</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Szenario</th><th>Loop-Iterationen</th><th>LLM Tokens (I/O)</th><th>Validation</th><th>Total</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Einfache Frage (chat-only)</td>
+          <td>1</td>
+          <td>~ 3K &ndash; 5K</td>
+          <td>Aus</td>
+          <td><strong>~ 3K &ndash; 5K</strong></td>
+        </tr>
+        <tr>
+          <td>Code-Bearbeitung (normal)</td>
+          <td>3 &ndash; 8</td>
+          <td>~ 5K &ndash; 11K</td>
+          <td>~ 1K &ndash; 2K</td>
+          <td><strong>~ 6K &ndash; 13K</strong></td>
+        </tr>
+        <tr>
+          <td>Komplexes Feature (/plan)</td>
+          <td>10 &ndash; 30</td>
+          <td>~ 15K &ndash; 40K</td>
+          <td>~ 2K &ndash; 4K</td>
+          <td><strong>~ 17K &ndash; 44K</strong></td>
+        </tr>
+        <tr>
+          <td>Swarm Mode (parallel Workers)</td>
+          <td>10 &ndash; 50 / Worker</td>
+          <td>~ 30K &ndash; 100K+</td>
+          <td>~ 3K &ndash; 8K</td>
+          <td><strong>~ 33K &ndash; 108K+</strong></td>
+        </tr>
+        <tr>
+          <td>Theoretical Max (200 Iterations)</td>
+          <td>200</td>
+          <td>~ 100K+</td>
+          <td>~ 4K</td>
+          <td><strong>~ 104K+</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     7. 22 TOOLS
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <h2>22 Agent Tools</h2>
+  </div>
+  <p class="section-desc">Alle Tools registriert in <code>src/cli/agent/tools/registry.ts</code>. Jedes Tool hat eine eigene Datei unter <code>src/cli/agent/tools/</code>.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Tool Name</th><th>Kategorie</th><th>Permission</th><th>Datei</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td><code>read_file</code></td><td>Datei</td><td><span class="tag t-free">auto</span></td><td>read-file.ts</td></tr>
+        <tr><td>2</td><td><code>write_file</code></td><td>Datei</td><td><span class="tag t-med">ask</span></td><td>write-file.ts</td></tr>
+        <tr><td>3</td><td><code>edit_file</code></td><td>Datei</td><td><span class="tag t-med">ask</span></td><td>edit-file.ts</td></tr>
+        <tr><td>4</td><td><code>list_directory</code></td><td>Datei</td><td><span class="tag t-free">auto</span></td><td>list-dir.ts</td></tr>
+        <tr><td>5</td><td><code>find_files</code></td><td>Datei</td><td><span class="tag t-free">auto</span></td><td>find.ts</td></tr>
+        <tr><td>6</td><td><code>search_files</code></td><td>Suche</td><td><span class="tag t-free">auto</span></td><td>search.ts</td></tr>
+        <tr><td>7</td><td><code>spiral_query</code></td><td>Wissen</td><td><span class="tag t-free">auto</span></td><td>spiral-query.ts</td></tr>
+        <tr><td>8</td><td><code>spiral_store</code></td><td>Wissen</td><td><span class="tag t-free">auto</span></td><td>spiral-store.ts</td></tr>
+        <tr><td>9</td><td><code>web_research</code></td><td>Internet</td><td><span class="tag t-med">ask</span></td><td>web-research.ts</td></tr>
+        <tr><td>10</td><td><code>git_status</code></td><td>Git</td><td><span class="tag t-free">auto</span></td><td>git-status.ts</td></tr>
+        <tr><td>11</td><td><code>git_diff</code></td><td>Git</td><td><span class="tag t-free">auto</span></td><td>git-diff.ts</td></tr>
+        <tr><td>12</td><td><code>git_log</code></td><td>Git</td><td><span class="tag t-free">auto</span></td><td>git-log.ts</td></tr>
+        <tr><td>13</td><td><code>git_commit</code></td><td>Git</td><td><span class="tag t-med">ask</span></td><td>git-commit.ts</td></tr>
+        <tr><td>14</td><td><code>run_command</code></td><td>Shell</td><td><span class="tag t-med">ask / dangerous</span></td><td>run-command.ts</td></tr>
+        <tr><td>15</td><td><code>bug_report</code></td><td>Debug</td><td><span class="tag t-free">auto</span></td><td>bug-report.ts</td></tr>
+        <tr><td>16</td><td><code>bug_list</code></td><td>Debug</td><td><span class="tag t-free">auto</span></td><td>bug-list.ts</td></tr>
+        <tr><td>17</td><td><code>browser_open</code></td><td>Browser</td><td><span class="tag t-med">ask</span></td><td>browser-open.ts</td></tr>
+        <tr><td>18</td><td><code>browser_navigate</code></td><td>Browser</td><td><span class="tag t-med">ask</span></td><td>browser-navigate.ts</td></tr>
+        <tr><td>19</td><td><code>browser_screenshot</code></td><td>Browser</td><td><span class="tag t-med">ask</span></td><td>browser-screenshot.ts</td></tr>
+        <tr><td>20</td><td><code>browser_click</code></td><td>Browser</td><td><span class="tag t-med">ask</span></td><td>browser-click.ts</td></tr>
+        <tr><td>21</td><td><code>browser_type</code></td><td>Browser</td><td><span class="tag t-med">ask</span></td><td>browser-type.ts</td></tr>
+        <tr><td>22</td><td><code>browser_close</code></td><td>Browser</td><td><span class="tag t-free">auto</span></td><td>browser-close.ts</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     8. COMPONENTS
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <h2>Komponenten-Uebersicht</h2>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <h4 style="color:var(--red)">Agent Loop</h4>
+      <div class="card-file">src/cli/agent/loop.ts</div>
+      <p>Herzstueck: LLM &rarr; Tool &rarr; Result &rarr; Repeat. Max 200 Iterationen. Trimming ab 85% Context. AbortController.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--purple)">Provider Layer</h4>
+      <div class="card-file">src/cli/providers/</div>
+      <p>8 Provider, 2 Klassen. AnthropicProvider (native) + OpenAIProvider (native + 6x baseURL-Routing). Rate-Limiter mit Exponential Backoff.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent)">Spiral Memory Engine</h4>
+      <div class="card-file">src/spiral/engine.ts</div>
+      <p>5 Levels (Focus &rarr; Deep Archive). SQLite + sqlite-vec. HuggingFace Embeddings (384d). Evolution &amp; Decay. Nie loeschen.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--cyan)">Web Knowledge Enricher</h4>
+      <div class="card-file">src/spiral/cloud/</div>
+      <p>Hintergrund: Topic Detection &rarr; DuckDuckGo &rarr; HTML Parse &rarr; Spiral L2. 0 LLM Tokens. 10min Cooldown.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--blue)">Context Assembler</h4>
+      <div class="card-file">src/cli/context/assembler.ts</div>
+      <p>10 bedingte Sektionen. Trimmer haelt Konversation unter Context-Limit. Session Buffer fuer Short-Term.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--orange)">Validation Matrix</h4>
+      <div class="card-file">src/cli/validation/</div>
+      <p>4 Phasen: Static (15+ Checks) &rarr; Dynamic (LLM) &rarr; Spiral &rarr; Autofix (3x). 9 Module. Eigener Fast-Model.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--pink)">Brain Visualization</h4>
+      <div class="card-file">src/cli/brain/</div>
+      <p>HTTP + WebSocket Server (:9420-9440). 3D Helix (Three.js). Live Events. Findings Panel. Relay zum Web-Dashboard.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--teal)">Session Manager</h4>
+      <div class="card-file">src/cli/sessions/</div>
+      <p>Multi-Session: /security und /auto im Hintergrund. Tab-Bar. Eigene History + Controller + Undo pro Session.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--orange)">Jarvis Daemon</h4>
+      <div class="card-file">src/cli/jarvis/</div>
+      <p>Autonomer Agent: Scheduler, Triggers, Orchestrator, Skill-Builder, Learning. Notifications: Telegram, Email, Webhooks, ElevenLabs Voice.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--yellow)">Browser Control</h4>
+      <div class="card-file">src/cli/browser/</div>
+      <p>Puppeteer-Core + Chrome-Finder. 6 Tools: open, navigate, screenshot, click, type, close. VisionProcessor fuer Analyse.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--blue)">Plan &amp; Swarm Engine</h4>
+      <div class="card-file">src/cli/agent/plan-*.ts, swarm.ts</div>
+      <p>Plan Lifecycle + Step Execution. Swarm: Task Decomposition &rarr; Parallel Workers mit File Lock.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent)">Checkpoint System</h4>
+      <div class="card-file">src/cli/checkpoints/</div>
+      <p>Auto-Snapshots bei jedem Tool-Call. ESC ESC &rarr; Browse &amp; Revert. Chat + Code Revert. Memory-Management.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     9. TECH STACK
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <h2>Tech Stack</h2>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Bereich</th><th>Technologie</th><th>Details</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Runtime</td><td>Node.js + TypeScript</td><td>ES2022, ESM, strict mode</td></tr>
+        <tr><td>LLM SDK</td><td>@anthropic-ai/sdk</td><td>v0.78.0 (native Anthropic)</td></tr>
+        <tr><td>LLM SDK</td><td>openai</td><td>v4.73.0 (native + 6 OAI-compat)</td></tr>
+        <tr><td>Embeddings</td><td>@huggingface/transformers</td><td>v3.8.x &middot; Xenova/all-MiniLM-L6-v2 &middot; q8 &middot; 384d</td></tr>
+        <tr><td>Vector DB</td><td>better-sqlite3 + sqlite-vec</td><td>KNN mit JS Fallback</td></tr>
+        <tr><td>CLI Framework</td><td>commander.js</td><td>+ chalk, figlet, gradient-string</td></tr>
+        <tr><td>Browser</td><td>puppeteer-core</td><td>Optional &middot; chrome-finder</td></tr>
+        <tr><td>Web Search</td><td>DuckDuckGo Lite</td><td>Kein API-Key &middot; HTML Scraping</td></tr>
+        <tr><td>Voice</td><td>ElevenLabs</td><td>Optional &middot; TTS + Voice Clone</td></tr>
+        <tr><td>Notifications</td><td>Resend + Telegram Bot API</td><td>Optional &middot; + Custom Webhooks</td></tr>
+        <tr><td>MCP</td><td>@modelcontextprotocol/sdk</td><td>v1.27.1 &middot; STDIO Transport</td></tr>
+        <tr><td>Archive</td><td>adm-zip</td><td>Export/Import</td></tr>
+        <tr><td>Markdown</td><td>marked + marked-terminal</td><td>Terminal Rendering</td></tr>
+        <tr><td>Lizenz</td><td>AGPL-3.0</td><td>&mdash;</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     10. RATE LIMITING
+     ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-num">10</div>
+    <h2>Rate Limiting &amp; Error Handling</h2>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Kontext</th><th>Max Retries</th><th>Backoff-Strategie</th><th>Spezial-Verhalten</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Anthropic Provider</td>
+          <td>5</td>
+          <td>Exponential (aus Response-Header)</td>
+          <td>Rate-Limit Warnung im Terminal</td>
+        </tr>
+        <tr>
+          <td>OpenAI Provider (+ alle OAI-compat)</td>
+          <td>5</td>
+          <td>Exponential</td>
+          <td>Credits erschoepft &rarr; Sofort-Abbruch + Free-Model Hinweis</td>
+        </tr>
+        <tr>
+          <td>Ollama Lokal</td>
+          <td>1</td>
+          <td>2-5s Timeout</td>
+          <td>Graceful Fallback wenn nicht erreichbar</td>
+        </tr>
+        <tr>
+          <td>Agent Loop (loop.ts)</td>
+          <td>4 (Rate Limit) / 2 (API Error)</td>
+          <td>Exponential</td>
+          <td>AbortController fuer Ctrl+C / ESC ESC</td>
+        </tr>
+        <tr>
+          <td>Web Fetch (search-provider.ts)</td>
+          <td>5 (Redirects)</td>
+          <td>10s Hard Timeout</td>
+          <td>SSRF-Schutz: blockiert private IPs, localhost, Metadata-Services</td>
+        </tr>
+        <tr>
+          <td>Relay WebSocket</td>
+          <td>&infin; (Auto-Reconnect)</td>
+          <td>1s initial, max 30s</td>
+          <td>Heartbeat alle 30s</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Permission-Modi</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Modus</th><th>auto-Tools</th><th>ask-Tools</th><th>dangerous-Tools</th><th>Aktivierung</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>safe</strong> (Default)</td>
+          <td><span class="tag t-free">erlaubt</span></td>
+          <td><span class="tag t-med">User-Prompt</span></td>
+          <td><span class="tag t-crit">User-Prompt (erzwungen)</span></td>
+          <td>Standard</td>
+        </tr>
+        <tr>
+          <td><strong>skip</strong></td>
+          <td><span class="tag t-free">erlaubt</span></td>
+          <td><span class="tag t-free">auto-erlaubt</span></td>
+          <td><span class="tag t-crit">User-Prompt (erzwungen)</span></td>
+          <td><code>--skip-permissions</code> / <code>/skip-permissions</code></td>
+        </tr>
+        <tr>
+          <td><strong>yolo</strong></td>
+          <td><span class="tag t-free">erlaubt</span></td>
+          <td><span class="tag t-free">auto-erlaubt</span></td>
+          <td><span class="tag t-free">auto-erlaubt</span></td>
+          <td><code>--yolo</code> / <code>/yolo</code></td>
+        </tr>
+        <tr>
+          <td><strong>plan</strong></td>
+          <td><span class="tag t-free">nur read-only</span></td>
+          <td><span class="tag t-crit">silent deny</span></td>
+          <td><span class="tag t-crit">silent deny</span></td>
+          <td><code>/plan</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div><!-- /page-center -->
+
+<!-- ══════════════════════════════════════════════════════
+     FOOTER
+     ══════════════════════════════════════════════════════ -->
+<footer>
+  <strong style="color:var(--accent)">HelixMind v0.6.3</strong> &mdash; System Topology &amp; API Architecture<br>
+  Generiert am 10. April 2026 &mdash; Alle Daten verifiziert gegen Quellcode<br>
+  <span style="color:var(--text-muted); font-size:0.7rem; margin-top:4px; display:inline-block;">
+    8 Provider &middot; 5+1 Spiral Levels &middot; 22 Tools &middot; 41 Slash Commands &middot; TypeScript ESM
+  </span>
+</footer>
+
+</body>
+</html>

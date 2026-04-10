@@ -118,6 +118,7 @@ export async function runSingleTask(
 
     const toolContext: ToolContext = {
       projectRoot: repoDir,
+      executionRoot: repoDir,
       undoStack,
       spiralEngine: spiralEngine ?? undefined,
     };

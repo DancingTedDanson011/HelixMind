@@ -21,9 +21,9 @@ registerTool({
 
   async execute(input, ctx) {
     try {
-      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ctx.executionRoot, encoding: 'utf-8', stdio: 'pipe' });
     } catch {
-      return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git.`;
+      return `Not a git repository. The current directory (${ctx.executionRoot}) is not tracked by git.`;
     }
 
     try {
@@ -33,25 +33,25 @@ registerTool({
       // Stage files (use execFileSync to prevent shell injection via file names)
       if (files && files.length > 0) {
         for (const file of files) {
-          execFileSync('git', ['add', '--', file], { cwd: ctx.projectRoot });
+          execFileSync('git', ['add', '--', file], { cwd: ctx.executionRoot });
         }
       } else {
-        execFileSync('git', ['add', '-A'], { cwd: ctx.projectRoot });
+        execFileSync('git', ['add', '-A'], { cwd: ctx.executionRoot });
       }
 
       // Check if there's anything staged
-      const staged = execFileSync('git', ['diff', '--cached', '--stat'], { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
+      const staged = execFileSync('git', ['diff', '--cached', '--stat'], { cwd: ctx.executionRoot, encoding: 'utf-8' }).trim();
       if (!staged) {
         return 'Nothing to commit (no staged changes).';
       }
 
       // Commit (use execFileSync to prevent shell injection via commit message)
       execFileSync('git', ['commit', '-m', message], {
-        cwd: ctx.projectRoot,
+        cwd: ctx.executionRoot,
         encoding: 'utf-8',
       });
 
-      const hash = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
+      const hash = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ctx.executionRoot, encoding: 'utf-8' }).trim();
       return `Committed: ${hash} — ${message}\n\n${staged}`;
     } catch (err) {
       return `Error: ${err}`;

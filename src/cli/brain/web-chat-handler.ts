@@ -146,6 +146,7 @@ export async function handleWebChat(
         permissions,
         toolContext: {
           projectRoot: process.cwd(),
+          executionRoot: process.cwd(),
           undoStack: session.undoStack,
           spiralEngine,
           bugJournal,

@@ -28,7 +28,7 @@ describe('guard — choice UI structure', () => {
   });
 
   it('lists all gated features for Login option', () => {
-    expect(guardSource).toContain('Jarvis AGI');
+    expect(guardSource).toContain('Jarvis Assistant');
     expect(guardSource).toContain('Validation Matrix');
     expect(guardSource).toContain('Security Monitor');
     expect(guardSource).toContain('Autonomous Mode');

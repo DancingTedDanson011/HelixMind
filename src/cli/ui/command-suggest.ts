@@ -12,6 +12,8 @@ const COMMANDS: CommandDef[] = [
   { cmd: '/clear', description: 'Clear conversation history' },
   { cmd: '/model', description: 'Switch LLM model' },
   { cmd: '/keys', description: 'Manage API keys' },
+  { cmd: '/fast', description: 'Low-latency one-turn execution' },
+  { cmd: '/swarm', description: 'Force multi-agent swarm for one turn' },
   { cmd: '/brain', description: 'Brain scope & 3D visualization' },
   { cmd: '/brain local', description: 'Switch to project-local brain' },
   { cmd: '/brain global', description: 'Switch to global brain' },

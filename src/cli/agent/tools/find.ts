@@ -1,5 +1,4 @@
 import fg from 'fast-glob';
-import { relative } from 'node:path';
 import { registerTool } from './registry.js';
 import { validatePathEx } from '../sandbox.js';
 
@@ -18,7 +17,7 @@ registerTool({
   },
 
   async execute(input, ctx) {
-    const { resolved: baseDir } = validatePathEx((input.path as string) || '.', ctx.projectRoot);
+    const { resolved: baseDir } = validatePathEx((input.path as string) || '.', ctx.executionRoot);
     const pattern = input.pattern as string;
 
     const files = await fg(pattern, {

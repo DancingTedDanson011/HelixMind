@@ -9,6 +9,7 @@ import {
   isLoggedIn,
   getBrainLimitsForPlan,
   getJarvisLimitsForPlan,
+  getLoginCTA,
   FeatureGateError,
   type Feature,
 } from '../../../src/cli/auth/feature-gate.js';
@@ -193,6 +194,15 @@ describe('FeatureGate', () => {
 
     it('should return Infinity for ENTERPRISE', () => {
       expect(getJarvisLimitsForPlan('ENTERPRISE')).toBe(Infinity);
+    });
+  });
+
+  describe('getLoginCTA', () => {
+    it('uses grounded Jarvis copy for login prompts', () => {
+      expect(getLoginCTA('jarvis')).toContain('Jarvis Assistant');
+      expect(getLoginCTA('jarvis')).not.toContain('AGI');
+      expect(getLoginCTA('brain')).toContain('Jarvis Assistant');
+      expect(getLoginCTA('brain')).not.toContain('AGI');
     });
   });
 });

@@ -1,17 +1,18 @@
 import { spawn } from 'node:child_process';
 import { platform } from 'node:os';
 import { registerTool } from './registry.js';
-import { validatePath, isBlockedCommand } from '../sandbox.js';
+import { validatePath } from '../sandbox.js';
+import { classifyShellCommand } from '../shell/classifier.js';
 
 registerTool({
   definition: {
     name: 'run_command',
-    description: 'Execute a shell command. Uses cmd.exe on Windows, bash on Unix. Each call runs in the project root — cd does NOT persist. Prefer built-in tools (read_file, list_directory, search_files) over run_command when possible.',
+    description: 'Execute a shell command. Uses cmd.exe on Windows and bash on Unix. Each call runs in the current execution root; cd does not persist. Prefer built-in tools over run_command when possible.',
     input_schema: {
       type: 'object',
       properties: {
         command: { type: 'string', description: 'The shell command to execute' },
-        working_dir: { type: 'string', description: 'Working directory (default: project root)' },
+        working_dir: { type: 'string', description: 'Working directory (default: execution root)' },
         timeout: { type: 'number', description: 'Timeout in seconds (default: 60)' },
       },
       required: ['command'],
@@ -21,14 +22,15 @@ registerTool({
   async execute(input, ctx) {
     const command = input.command as string;
     const timeoutSec = (input.timeout as number) ?? 60;
+    const classification = classifyShellCommand(command);
 
-    if (isBlockedCommand(command)) {
-      return 'Error: This command is blocked for safety reasons.';
+    if (classification.risk === 'blocked') {
+      return `Error: This command is blocked for safety reasons. ${classification.summary}.`;
     }
 
     const cwd = input.working_dir
-      ? validatePath(input.working_dir as string, ctx.projectRoot)
-      : ctx.projectRoot;
+      ? validatePath(input.working_dir as string, ctx.executionRoot)
+      : ctx.executionRoot;
 
     return new Promise<string>((resolve) => {
       let stdout = '';
@@ -38,7 +40,7 @@ registerTool({
       const shell = isWindows ? 'cmd.exe' : '/bin/bash';
       const shellArgs = isWindows ? ['/c', command] : ['-c', command];
 
-      // Filter sensitive environment variables — whitelist approach for maximum safety
+      // Filter sensitive environment variables using a strict allowlist.
       const SAFE_ENV_KEYS = new Set([
         'PATH', 'HOME', 'USERPROFILE', 'SHELL', 'TERM', 'LANG', 'LC_ALL',
         'NODE_ENV', 'NODE_PATH', 'NPM_CONFIG_PREFIX',
@@ -67,27 +69,29 @@ registerTool({
 
       const timer = setTimeout(() => {
         proc.kill('SIGTERM');
-        // Fallback SIGKILL after 5s if SIGTERM is ignored (Unix only)
         setTimeout(() => {
-          try { proc.kill('SIGKILL'); } catch { /* already dead */ }
+          try {
+            proc.kill('SIGKILL');
+          } catch {
+            // Process already exited.
+          }
         }, 5000);
         resolve(`Command timed out after ${timeoutSec}s.\n\nPartial stdout:\n${stdout}\n\nPartial stderr:\n${stderr}`);
       }, timeoutSec * 1000);
 
-      // Cap buffer size to prevent OOM on commands with huge output
-      const MAX_BUFFER = 5 * 1024 * 1024; // 5MB
+      const maxBuffer = 5 * 1024 * 1024;
 
       proc.stdout.on('data', (data: Buffer) => {
         const text = data.toString();
-        if (stdout.length < MAX_BUFFER) {
-          stdout += text.slice(0, MAX_BUFFER - stdout.length);
+        if (stdout.length < maxBuffer) {
+          stdout += text.slice(0, maxBuffer - stdout.length);
         }
       });
 
       proc.stderr.on('data', (data: Buffer) => {
         const text = data.toString();
-        if (stderr.length < MAX_BUFFER) {
-          stderr += text.slice(0, MAX_BUFFER - stderr.length);
+        if (stderr.length < maxBuffer) {
+          stderr += text.slice(0, maxBuffer - stderr.length);
         }
       });
 
@@ -95,12 +99,10 @@ registerTool({
         clearTimeout(timer);
         const exitCode = code ?? 1;
 
-        // Truncate very long output
         const maxLen = 10000;
         const outTruncated = stdout.length > maxLen
           ? stdout.slice(0, maxLen) + `\n... (${stdout.length - maxLen} chars truncated)`
           : stdout;
-
         const errTruncated = stderr.length > maxLen
           ? stderr.slice(0, maxLen) + `\n... (${stderr.length - maxLen} chars truncated)`
           : stderr;

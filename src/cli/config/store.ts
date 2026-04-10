@@ -1,5 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
+import { registerModelContextLength } from '../providers/model-limits.js';
+import { registerFreeModel } from '../providers/registry.js';
 
 export interface ProviderEntry {
   apiKey: string;
@@ -7,11 +9,17 @@ export interface ProviderEntry {
   baseURL?: string;
 }
 
+export interface ModelMeta {
+  contextLength?: number;
+  free?: boolean;
+}
+
 export interface HelixMindConfig {
   provider: string;
   apiKey: string;
   model: string;
   providers: Record<string, ProviderEntry>;
+  modelMeta?: Record<string, ModelMeta>;
   spiral: {
     enabled: boolean;
     autoStore: boolean;
@@ -33,6 +41,17 @@ export interface HelixMindConfig {
     clonedVoiceId?: string;
     whisperModel?: string;
     vadSensitivity?: number;
+  };
+  worktree: {
+    mode: 'off' | 'auto' | 'force';
+    cleanup: 'remove' | 'keep';
+    maxAgeHours: number;
+    branchPrefix: string;
+  };
+  shell: {
+    backgroundLongRunning: boolean;
+    defaultTimeoutSec: number;
+    maxOutputBytes: number;
   };
 }
 
@@ -72,6 +91,17 @@ const DEFAULT_CONFIG: HelixMindConfig = {
     enabled: true,
     autoStore: true,
     maxTokensBudget: 40000,
+  },
+  worktree: {
+    mode: 'auto',
+    cleanup: 'keep',
+    maxAgeHours: 72,
+    branchPrefix: 'helix',
+  },
+  shell: {
+    backgroundLongRunning: false,
+    defaultTimeoutSec: 60,
+    maxOutputBytes: 5 * 1024 * 1024,
   },
 };
 
@@ -124,10 +154,20 @@ export class ConfigStore {
         spiral: { ...DEFAULT_CONFIG.spiral, ...(raw.spiral ?? {}) },
         relay: raw.relay ?? undefined,
         voice: raw.voice ?? undefined,
+        worktree: { ...DEFAULT_CONFIG.worktree, ...(raw.worktree ?? {}) },
+        shell: { ...DEFAULT_CONFIG.shell, ...(raw.shell ?? {}) },
       };
 
       // Persist migrations immediately so URL changes take effect
       if (migrated) this.save(result);
+
+      // Register custom model metadata into runtime registries
+      if (result.modelMeta) {
+        for (const [model, meta] of Object.entries(result.modelMeta)) {
+          if (meta.contextLength) registerModelContextLength(model, meta.contextLength);
+          if (meta.free) registerFreeModel(model);
+        }
+      }
 
       return result;
     } catch {
@@ -287,6 +327,52 @@ export class ConfigStore {
       delete this.config.relay.loginAt;
     }
     this.save(this.config);
+  }
+
+  // --- Custom model management ---
+
+  /** Add a custom model to a provider's model list (with optional metadata) */
+  addModel(provider: string, model: string, meta?: ModelMeta): void {
+    const entry = this.config.providers[provider];
+    if (!entry) return;
+
+    // Don't duplicate
+    if (!entry.models.includes(model)) {
+      entry.models.push(model);
+    }
+
+    // Store metadata if provided
+    if (meta) {
+      if (!this.config.modelMeta) this.config.modelMeta = {};
+      this.config.modelMeta[model] = meta;
+    }
+
+    this.save(this.config);
+  }
+
+  /** Remove a custom model from a provider's model list (and clean up metadata) */
+  removeModel(provider: string, model: string): boolean {
+    const entry = this.config.providers[provider];
+    if (!entry) return false;
+
+    const idx = entry.models.indexOf(model);
+    if (idx >= 0) entry.models.splice(idx, 1);
+
+    // Clean up metadata
+    if (this.config.modelMeta?.[model]) {
+      delete this.config.modelMeta[model];
+      if (Object.keys(this.config.modelMeta).length === 0) {
+        delete this.config.modelMeta;
+      }
+    }
+
+    this.save(this.config);
+    return true;
+  }
+
+  /** Get metadata for a model (contextLength, free) */
+  getModelMeta(model: string): ModelMeta | undefined {
+    return this.config.modelMeta?.[model];
   }
 
   listFlat(): Array<{ key: string; value: unknown }> {

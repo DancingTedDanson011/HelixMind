@@ -24,6 +24,7 @@ describe('ConfigStore', () => {
     expect(config.provider).toBe('anthropic');
     expect(config.model).toBe('claude-sonnet-4-6');
     expect(config.spiral.enabled).toBe(true);
+    expect(config.worktree.mode).toBe('auto');
   });
 
   it('should persist config to disk', () => {
@@ -205,5 +206,77 @@ describe('ConfigStore - Provider Management', () => {
     const store2 = new ConfigStore(testDir);
     const providers = store2.getProviders();
     expect(providers.length).toBe(2);
+  });
+});
+
+describe('ConfigStore - Custom Model Management', () => {
+  let testDir: string;
+  let store: ConfigStore;
+
+  beforeEach(() => {
+    testDir = join(tmpdir(), `helixmind-config-test-${randomUUID()}`);
+    mkdirSync(testDir, { recursive: true });
+    store = new ConfigStore(testDir);
+    store.addProvider('zai', 'zai-test-key');
+    store.addProvider('anthropic', 'sk-ant-key');
+  });
+
+  afterEach(() => {
+    try { rmSync(testDir, { recursive: true, force: true }); } catch { /* EBUSY */ }
+  });
+
+  it('should add a custom model to an existing provider', () => {
+    store.addModel('zai', 'glm-5.1');
+    const models = store.getModels('zai');
+    expect(models).toContain('glm-5.1');
+  });
+
+  it('should not duplicate an already existing model', () => {
+    store.addModel('zai', 'glm-5');
+    const models = store.getModels('zai');
+    const count = models.filter(m => m === 'glm-5').length;
+    expect(count).toBe(1);
+  });
+
+  it('should store model metadata (contextLength, free)', () => {
+    store.addModel('zai', 'glm-5.1', { contextLength: 256_000, free: false });
+    const meta = store.getModelMeta('glm-5.1');
+    expect(meta).toEqual({ contextLength: 256_000, free: false });
+  });
+
+  it('should return undefined for unknown model meta', () => {
+    expect(store.getModelMeta('nonexistent-model')).toBeUndefined();
+  });
+
+  it('should remove a custom model from provider', () => {
+    store.addModel('zai', 'glm-5.1');
+    store.removeModel('zai', 'glm-5.1');
+    const models = store.getModels('zai');
+    expect(models).not.toContain('glm-5.1');
+  });
+
+  it('should clean up model metadata on remove', () => {
+    store.addModel('zai', 'glm-5.1', { contextLength: 128_000 });
+    store.removeModel('zai', 'glm-5.1');
+    expect(store.getModelMeta('glm-5.1')).toBeUndefined();
+  });
+
+  it('should return false when removing from non-existent provider', () => {
+    expect(store.removeModel('nonexistent', 'glm-5.1')).toBe(false);
+  });
+
+  it('should persist custom models across reloads', () => {
+    store.addModel('zai', 'glm-5.1', { contextLength: 256_000, free: true });
+    const store2 = new ConfigStore(testDir);
+    const models = store2.getModels('zai');
+    expect(models).toContain('glm-5.1');
+    expect(store2.getModelMeta('glm-5.1')).toEqual({ contextLength: 256_000, free: true });
+  });
+
+  it('should add model to provider even without metadata', () => {
+    store.addModel('anthropic', 'claude-next-gen');
+    const models = store.getModels('anthropic');
+    expect(models).toContain('claude-next-gen');
+    expect(store.getModelMeta('claude-next-gen')).toBeUndefined();
   });
 });

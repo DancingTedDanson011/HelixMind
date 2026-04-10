@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -16,6 +16,7 @@ function createMockProvider(responses: ToolResponse[]): LLMProvider {
   return {
     name: 'mock',
     model: 'mock-model',
+    maxContextLength: 200000,
     async *stream() { yield { type: 'done' as const, content: 'mock' }; },
     async chatWithTools(messages, systemPrompt, tools): Promise<ToolResponse> {
       const response = responses[callIdx] ?? {
@@ -55,7 +56,7 @@ describe('Agent Loop', () => {
       provider,
       systemPrompt: 'You are helpful',
       permissions: new PermissionManager(),
-      toolContext: { projectRoot: testDir, undoStack: new UndoStack() },
+      toolContext: { projectRoot: testDir, executionRoot: testDir, undoStack: new UndoStack() },
     });
 
     expect(result.text).toContain('Hello, I can help you!');
@@ -91,7 +92,7 @@ describe('Agent Loop', () => {
       provider,
       systemPrompt: 'You are helpful',
       permissions: new PermissionManager(),
-      toolContext: { projectRoot: testDir, undoStack: new UndoStack() },
+      toolContext: { projectRoot: testDir, executionRoot: testDir, undoStack: new UndoStack() },
     });
 
     expect(result.toolCalls).toBe(1);
@@ -128,7 +129,7 @@ describe('Agent Loop', () => {
       provider,
       systemPrompt: 'You are helpful',
       permissions: new PermissionManager(),
-      toolContext: { projectRoot: testDir, undoStack: new UndoStack() },
+      toolContext: { projectRoot: testDir, executionRoot: testDir, undoStack: new UndoStack() },
     });
 
     expect(result.toolCalls).toBe(2);
@@ -155,7 +156,7 @@ describe('Agent Loop', () => {
       provider: infiniteProvider,
       systemPrompt: 'test',
       permissions: new PermissionManager(),
-      toolContext: { projectRoot: testDir, undoStack: new UndoStack() },
+      toolContext: { projectRoot: testDir, executionRoot: testDir, undoStack: new UndoStack() },
       maxIterations: 3,
     });
 
@@ -175,7 +176,7 @@ describe('Agent Loop', () => {
       provider,
       systemPrompt: 'test',
       permissions: new PermissionManager(),
-      toolContext: { projectRoot: testDir, undoStack: new UndoStack() },
+      toolContext: { projectRoot: testDir, executionRoot: testDir, undoStack: new UndoStack() },
     });
 
     expect(result.tokensUsed.input).toBe(100);
@@ -205,7 +206,7 @@ describe('Agent Loop', () => {
       provider,
       systemPrompt: 'test',
       permissions: new PermissionManager(),
-      toolContext: { projectRoot: testDir, undoStack: new UndoStack() },
+      toolContext: { projectRoot: testDir, executionRoot: testDir, undoStack: new UndoStack() },
       checkpointStore,
     });
 
@@ -213,5 +214,75 @@ describe('Agent Loop', () => {
     const cp = checkpointStore.getAll()[0];
     expect(cp.type).toBe('tool_read');
     expect(cp.toolName).toBe('read_file');
+  });
+
+  it('should expose active skill tools to the agent loop and execute them', async () => {
+    const seenTools: string[][] = [];
+    const skillHandler = vi.fn().mockResolvedValue('Jira issue ENG-1 loaded');
+    const recordUsage = vi.fn();
+    const recordOutcome = vi.fn();
+    const skillTool = {
+      def: {
+        name: 'jira_lookup',
+        description: 'Look up a Jira issue',
+        parameters: {
+          ticket: { type: 'string', required: true, description: 'Issue key' },
+        },
+      },
+      handler: skillHandler,
+      skillName: 'jira-helper',
+    };
+    const skillManager = {
+      getAllSkillTools: () => new Map([['jira_lookup', skillTool]]),
+      getSkillTool: (name: string) => name === 'jira_lookup' ? skillTool : undefined,
+      recordUsage,
+      recordOutcome,
+    };
+
+    const provider: LLMProvider = {
+      name: 'mock',
+      model: 'mock-model',
+      maxContextLength: 200000,
+      async *stream() { yield { type: 'done' as const, content: 'mock' }; },
+      async chatWithTools(_messages, _systemPrompt, tools): Promise<ToolResponse> {
+        seenTools.push(tools.map((tool) => tool.name));
+        if (seenTools.length === 1) {
+          return {
+            content: [{
+              type: 'tool_use',
+              id: 'skill_1',
+              name: 'jira_lookup',
+              input: { ticket: 'ENG-1' },
+            }],
+            stop_reason: 'tool_use',
+          };
+        }
+        return {
+          content: [{ type: 'text', text: 'Loaded via skill.' }],
+          stop_reason: 'end_turn',
+        };
+      },
+    };
+    const permissions = new PermissionManager();
+    permissions.setYolo(true);
+
+    const result = await runAgentLoop('Load ENG-1', [], {
+      provider,
+      systemPrompt: 'test',
+      permissions,
+      toolContext: {
+        projectRoot: testDir,
+        executionRoot: testDir,
+        undoStack: new UndoStack(),
+        skillManager: skillManager as any,
+      },
+    });
+
+    expect(seenTools[0]).toContain('jira_lookup');
+    expect(skillHandler).toHaveBeenCalledWith({ ticket: 'ENG-1' });
+    expect(recordUsage).toHaveBeenCalledWith('jira-helper');
+    expect(recordOutcome).toHaveBeenCalledWith('jira-helper', true, 0);
+    expect(result.toolCalls).toBe(1);
+    expect(result.text).toContain('Loaded via skill.');
   });
 });

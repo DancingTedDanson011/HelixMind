@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
-import { mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -18,6 +18,7 @@ beforeEach(() => {
   mkdirSync(testDir, { recursive: true });
   ctx = {
     projectRoot: testDir,
+    executionRoot: testDir,
     undoStack: new UndoStack(),
   };
 });
@@ -91,6 +92,26 @@ describe('read_file', () => {
     const tool = getTool('read_file')!;
     await expect(tool.execute({ path: '../../etc/passwd' }, ctx)).rejects.toThrow();
   });
+
+  it('should resolve reads against executionRoot', async () => {
+    const mainRoot = join(testDir, 'main');
+    const worktreeRoot = join(testDir, 'worktree');
+    mkdirSync(mainRoot, { recursive: true });
+    mkdirSync(worktreeRoot, { recursive: true });
+    writeFileSync(join(mainRoot, 'test.ts'), 'main root', 'utf-8');
+    writeFileSync(join(worktreeRoot, 'test.ts'), 'worktree root', 'utf-8');
+
+    ctx = {
+      projectRoot: mainRoot,
+      executionRoot: worktreeRoot,
+      undoStack: new UndoStack(),
+    };
+
+    const tool = getTool('read_file')!;
+    const result = await tool.execute({ path: 'test.ts' }, ctx);
+    expect(result).toContain('worktree root');
+    expect(result).not.toContain('main root');
+  });
 });
 
 describe('write_file', () => {
@@ -119,6 +140,25 @@ describe('write_file', () => {
     const tool = getTool('write_file')!;
     await tool.execute({ path: 'undo-test.ts', content: 'content' }, ctx);
     expect(ctx.undoStack.size).toBe(1);
+  });
+
+  it('should write into executionRoot instead of projectRoot', async () => {
+    const mainRoot = join(testDir, 'main');
+    const worktreeRoot = join(testDir, 'worktree');
+    mkdirSync(mainRoot, { recursive: true });
+    mkdirSync(worktreeRoot, { recursive: true });
+
+    ctx = {
+      projectRoot: mainRoot,
+      executionRoot: worktreeRoot,
+      undoStack: new UndoStack(),
+    };
+
+    const tool = getTool('write_file')!;
+    await tool.execute({ path: 'isolated.ts', content: 'isolated' }, ctx);
+
+    expect(readFileSync(join(worktreeRoot, 'isolated.ts'), 'utf-8')).toBe('isolated');
+    expect(existsSync(join(mainRoot, 'isolated.ts'))).toBe(false);
   });
 });
 
@@ -241,6 +281,26 @@ describe('run_command', () => {
     // Fork bomb is blocked
     const result = await tool.execute({ command: ':(){ :|:& };' }, ctx);
     expect(result).toContain('blocked');
+  });
+
+  it('should execute commands inside executionRoot', async () => {
+    const mainRoot = join(testDir, 'main');
+    const worktreeRoot = join(testDir, 'worktree');
+    mkdirSync(mainRoot, { recursive: true });
+    mkdirSync(worktreeRoot, { recursive: true });
+
+    ctx = {
+      projectRoot: mainRoot,
+      executionRoot: worktreeRoot,
+      undoStack: new UndoStack(),
+    };
+
+    const tool = getTool('run_command')!;
+    const result = await tool.execute({ command: 'echo hello > marker.txt' }, ctx);
+
+    expect(result).toContain('Exit code: 0');
+    expect(readFileSync(join(worktreeRoot, 'marker.txt'), 'utf-8')).toContain('hello');
+    expect(existsSync(join(mainRoot, 'marker.txt'))).toBe(false);
   });
 });
 

@@ -19,6 +19,7 @@ const GRADIENT = [
 ];
 
 const PULSE_SYMBOLS = ['\u27E1', '\u25C6', '\u27E1', '\u25C7'];
+const ANIMATION_INTERVAL_MS = 120;
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -92,7 +93,7 @@ export class ActivityIndicator {
     this.interval = setInterval(() => {
       this.frame++;
       this.render();
-    }, 80);
+    }, ANIMATION_INTERVAL_MS);
     this.render();
   }
 
@@ -118,10 +119,12 @@ export class ActivityIndicator {
     this.stepNum = num;
     this.totalSteps = num;
     this.stepLabel = label;
+    if (this.isAnimating) this.render();
   }
 
   setError(): void {
     this.errors++;
+    if (this.isAnimating) this.render();
   }
 
   /** Set plan execution progress — shown alongside the step indicator */
@@ -129,6 +132,7 @@ export class ActivityIndicator {
     this._planCurrent = current;
     this._planTotal = total;
     this._planLabel = label;
+    if (this.isAnimating) this.render();
   }
 
   /** Clear plan progress (after plan completes) */
@@ -136,6 +140,7 @@ export class ActivityIndicator {
     this._planCurrent = 0;
     this._planTotal = 0;
     this._planLabel = '';
+    if (this.isAnimating) this.render();
   }
 
   /**
@@ -223,6 +228,7 @@ export class ActivityIndicator {
 
   private render(): void {
     if (!this.interval) return;
+    if (this.chrome?.isActive === false) return;
 
     // Pulsing symbol
     const symbolIdx = Math.floor(this.frame / 4) % PULSE_SYMBOLS.length;

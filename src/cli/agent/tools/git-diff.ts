@@ -17,9 +17,9 @@ registerTool({
 
   async execute(input, ctx) {
     try {
-      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ctx.executionRoot, encoding: 'utf-8', stdio: 'pipe' });
     } catch {
-      return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git.`;
+      return `Not a git repository. The current directory (${ctx.executionRoot}) is not tracked by git.`;
     }
 
     try {
@@ -28,7 +28,7 @@ registerTool({
       if (input.staged) args.push('--cached');
       if (input.path) args.push('--', String(input.path));
 
-      const diff = execFileSync('git', args, { cwd: ctx.projectRoot, encoding: 'utf-8', maxBuffer: 1024 * 1024 }).trim();
+      const diff = execFileSync('git', args, { cwd: ctx.executionRoot, encoding: 'utf-8', maxBuffer: 1024 * 1024 }).trim();
 
       if (!diff) {
         return input.staged ? 'No staged changes.' : 'No unstaged changes.';

@@ -31,7 +31,7 @@ registerTool({
   },
 
   async execute(input, ctx) {
-    const { resolved: searchDir } = validatePathEx((input.path as string) || '.', ctx.projectRoot);
+    const { resolved: searchDir } = validatePathEx((input.path as string) || '.', ctx.executionRoot);
     const maxResults = (input.max_results as number) ?? 20;
     const includePattern = input.include as string | undefined;
 
@@ -83,7 +83,7 @@ registerTool({
               if (results.length >= maxResults) break;
               regex.lastIndex = 0;
               if (regex.test(lines[i])) {
-                const relPath = relative(ctx.projectRoot, fullPath);
+                const relPath = relative(ctx.executionRoot, fullPath);
                 const lineNum = i + 1;
                 results.push(`${relPath}:${lineNum}  │ ${lines[i].trim()}`);
               }

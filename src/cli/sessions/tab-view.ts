@@ -150,6 +150,13 @@ export function renderSessionList(sessions: Session[], activeId: string): string
 
     lines.push(`  ${marker} ${statusColor(session.icon + ' ' + session.name)} ${statusIcon}${elapsed} ${id}`);
 
+    if (session.worktree) {
+      const shortRoot = session.worktree.root.length > 72
+        ? '...' + session.worktree.root.slice(-69)
+        : session.worktree.root;
+      lines.push(chalk.dim(`    isolated ${session.worktree.reason}: ${shortRoot}`));
+    }
+
     // Show result summary for completed sessions
     if (session.result) {
       const steps = session.result.steps.length;

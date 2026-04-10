@@ -184,13 +184,13 @@ export class FeatureGateError extends Error {
 export function getLoginCTA(context: 'brain' | 'jarvis' | 'nudge' | 'banner'): string {
   switch (context) {
     case 'brain':
-      return 'Brain Management requires login. Run `helixmind login` to unlock 3D visualization, Jarvis AGI, and more.';
+      return 'Brain Management requires login. Run `helixmind login` to unlock 3D visualization, Jarvis Assistant, and more.';
     case 'jarvis':
-      return 'Jarvis AGI requires login. Run `helixmind login` — it\'s free!';
+      return 'Jarvis Assistant requires login. Run `helixmind login` — it\'s free!';
     case 'nudge':
-      return 'Unlock Jarvis AGI + Brain Management → `helixmind login` (free)';
+      return 'Unlock Jarvis Assistant + Brain Management → `helixmind login` (free)';
     case 'banner':
-      return 'Login for Jarvis AGI + Brain Management → helixmind login';
+      return 'Login for Jarvis Assistant + Brain Management → helixmind login';
   }
 }
 

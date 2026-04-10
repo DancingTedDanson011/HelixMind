@@ -1,5 +1,9 @@
 import { resolve, normalize, sep } from 'node:path';
-import { statSync, lstatSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
+import { statSync, lstatSync, realpathSync } from 'node:fs';
+import { SecurityError } from './security.js';
+
+export { SecurityError } from './security.js';
+export { classifyCommand, classifyShellCommand, isBlockedCommand } from './shell/classifier.js';
 
 /** Maximum file size in bytes (10MB) */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -32,46 +36,6 @@ const BLOCKED_FILES = [
   // Database files that may contain sensitive data
   '.pgpass', '.my.cnf',
 ];
-
-/** Dangerous command patterns that require extra confirmation */
-const DANGEROUS_PATTERNS = [
-  /\brm\s+(-rf?|--recursive)/,
-  /\bsudo\b/,
-  /\bchmod\b.*777/,
-  /\bdd\b\s/,
-  /\b>\s*\/dev\//,
-  /\bcurl\b.*\|\s*(ba)?sh/,
-  /\bwget\b.*\|\s*(ba)?sh/,
-  /\bnpm\s+publish/,
-  /\bgit\s+push\s+.*--force/,
-  /\bdrop\s+(database|table)/i,
-  /\btruncate\s+table/i,
-  /\bformat\s+[a-z]:/i,
-  /\bdel\s+\/[sq]/i,
-  /\brmdir\s+\/s/i,
-  // Network tools (reverse shells, data exfiltration)
-  /\b(nc|ncat|netcat)\s.*-[el]/,
-  /\b(curl|wget)\b.*-[oO]\s/,
-  // Package manager installs (supply chain risk)
-  /\bnpm\s+install\s+-g/,
-  /\b(pnpm|yarn)\s+(add\s+-g|global\s+add)/,
-  /\bpip3?\s+install\b/,
-  /\bpipx\s+install\b/,
-  // Docker privileged / host mounts
-  /\bdocker\s+run\b.*--privileged/,
-  /\bdocker\s+run\b.*-v\s*\/:/,
-  // crontab modification
-  /\bcrontab\s+-[re]/,
-  // SSH connections (lateral movement)
-  /\bssh\b.*@/,
-];
-
-export class SecurityError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SecurityError';
-  }
-}
 
 export interface PathValidation {
   resolved: string;    // Resolved absolute path
@@ -228,80 +192,3 @@ export function validatePath(requestedPath: string, projectRoot: string): string
   return resolved;
 }
 
-/**
- * Classify a shell command's danger level.
- */
-export function classifyCommand(cmd: string): 'safe' | 'ask' | 'dangerous' {
-  const trimmed = cmd.trim();
-
-  if (!trimmed || trimmed.length === 0) {
-    throw new SecurityError('Command cannot be empty');
-  }
-
-  if (trimmed.length > 10000) {
-    throw new SecurityError('Command too long');
-  }
-
-  // Check for blocked commands on the ORIGINAL command (not sanitized)
-  if (isBlockedCommand(trimmed)) {
-    throw new SecurityError('This command is blocked');
-  }
-
-  // Detect shell metacharacter abuse (backticks, $(), $VAR, heredocs, aliases, BASH_ENV)
-  if (/`[^`]+`/.test(trimmed) || /\$\([^)]+\)/.test(trimmed)) return 'dangerous';
-  if (/\$[A-Za-z_]/.test(trimmed)) return 'dangerous'; // bare variable expansion
-  if (/<<<?\s/.test(trimmed)) return 'dangerous'; // heredoc/herestring
-  if (/\b(alias|export\s+\w+=)/.test(trimmed)) return 'dangerous'; // alias/export injection
-  if (/\b(BASH_ENV|ENV|BASH_FUNC_)=/.test(trimmed)) return 'dangerous'; // env injection
-
-  // Check for dangerous patterns on the ORIGINAL command
-  if (DANGEROUS_PATTERNS.some(p => p.test(trimmed))) return 'dangerous';
-
-  // PowerShell-specific dangerous patterns (Windows)
-  if (/powershell|pwsh/i.test(trimmed)) return 'dangerous';
-  if (/Remove-Item\s.*-Recurse/i.test(trimmed)) return 'dangerous';
-  if (/Invoke-(WebRequest|Expression|RestMethod)/i.test(trimmed)) return 'dangerous';
-  if (/Set-ExecutionPolicy/i.test(trimmed)) return 'dangerous';
-
-  // Additional blocked system commands
-  if (/\b(shutdown|reboot)\b/.test(trimmed)) return 'dangerous';
-  if (/\btaskkill\s+\/f/i.test(trimmed)) return 'dangerous';
-
-  // Language interpreter code execution (bypass vector for shell sandbox)
-  if (/\b(python3?|ruby|perl|lua)\s+-[ce]\b/.test(trimmed)) return 'dangerous';
-  if (/\bnode\s+-e\b/.test(trimmed)) return 'dangerous';
-  if (/\beval\s/.test(trimmed)) return 'dangerous';
-
-  // Encoded/obfuscated payload execution
-  if (/base64\s.*\|\s*(ba)?sh/i.test(trimmed)) return 'dangerous';
-  if (/powershell.*-e(nc(odedcommand)?)?/i.test(trimmed)) return 'dangerous';
-  if (/\[Net\.WebClient\]|\[System\.Net\.WebClient\]/i.test(trimmed)) return 'dangerous';
-
-  // Windows system commands
-  if (/\bwmic\b.*\bdelete\b/i.test(trimmed)) return 'dangerous';
-  if (/\breg\s+delete/i.test(trimmed)) return 'dangerous';
-  if (/\bsc\s+delete/i.test(trimmed)) return 'dangerous';
-
-  // Check for potentially dangerous operations
-  if (/\brm\s/.test(trimmed) || /\bmv\s/.test(trimmed) || /\bgit\s+push/.test(trimmed)) return 'ask';
-
-  return 'safe';
-}
-
-/**
- * Check if a command is blocked entirely (should never run).
- * These are hard-blocked even in YOLO mode.
- */
-export function isBlockedCommand(cmd: string): boolean {
-  const blocked = [
-    /\bformat\s+c:/i,
-    /:\(\)\s*\{[^}]*\|\s*:.*&\s*\}\s*;/,  // fork bomb
-    /\brm\s+(-rf?|--recursive)\s+\/(\s|$)/,   // rm -rf / (root, with or without trailing flags)
-    /\bdd\b.*of=\/dev\/[sh]d/,              // overwrite disk devices
-    /\bmkfs\b/,                              // format filesystems
-    /\bfdisk\b/,                             // partition table modification
-    /\bbcdedit\b/i,                          // Windows boot config
-    /\bdiskpart\b/i,                         // Windows disk partition
-  ];
-  return blocked.some(p => p.test(cmd));
-}

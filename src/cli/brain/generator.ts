@@ -20,6 +20,9 @@ const BRAIN_POLL_INTERVAL_MS = 5000;
 /** Active brain server instance (singleton per process) */
 let activeBrainServer: BrainServer | null = null;
 let updateInterval: ReturnType<typeof setInterval> | null = null;
+let activePollEngine: any = null;
+let activePollProjectName: string | null = null;
+let activePollScope: BrainScope | null = null;
 
 /** Pending handlers to register when server starts */
 let pendingVoiceHandler: ((text: string) => void) | null = null;
@@ -31,6 +34,42 @@ let activeRelayClient: { close(): void } | null = null;
 
 /** Cached instance ID for event enrichment */
 let cachedInstanceId: string | null = null;
+
+async function configureBrainPolling(
+  engine: any,
+  projectName: string,
+  brainScope: BrainScope,
+  initialData: BrainExport,
+): Promise<void> {
+  if (updateInterval) {
+    clearInterval(updateInterval);
+    updateInterval = null;
+  }
+
+  activePollEngine = engine;
+  activePollProjectName = projectName;
+  activePollScope = brainScope;
+
+  if (!engine) return;
+
+  const exporterMod = await import('./exporter.js');
+  let lastNodeCount = initialData.meta.totalNodes;
+  let lastEdgeCount = initialData.meta.totalEdges;
+
+  updateInterval = setInterval(() => {
+    try {
+      const freshData = exporterMod.exportBrainData(engine, projectName, brainScope);
+      if (freshData.meta.totalNodes !== lastNodeCount ||
+          freshData.meta.totalEdges !== lastEdgeCount) {
+        lastNodeCount = freshData.meta.totalNodes;
+        lastEdgeCount = freshData.meta.totalEdges;
+        activeBrainServer?.pushUpdate(freshData);
+      }
+    } catch {
+      // Engine may be closed during shutdown. Polling is reconfigured on next startLiveBrain call.
+    }
+  }, BRAIN_POLL_INTERVAL_MS);
+}
 
 /**
  * Start a live brain server that auto-refreshes when spiral data changes.
@@ -66,6 +105,15 @@ export async function startLiveBrain(
   if (activeBrainServer) {
     // Server already running — just push fresh data
     activeBrainServer.pushUpdate(initialData);
+    const shouldReconfigurePolling =
+      engine !== activePollEngine ||
+      projectName !== activePollProjectName ||
+      brainScope !== activePollScope ||
+      (!!engine && !updateInterval) ||
+      (!engine && !!updateInterval);
+    if (shouldReconfigurePolling) {
+      await configureBrainPolling(engine, projectName, brainScope, initialData);
+    }
     return activeBrainServer.url;
   }
 
@@ -83,8 +131,10 @@ export async function startLiveBrain(
     activeBrainServer.onModelActivate(pendingModelActivateHandler);
   }
 
+  await configureBrainPolling(engine, projectName, brainScope, initialData);
+
   // Poll spiral engine for changes every 5 seconds (only if engine exists)
-  if (engine) {
+  if (engine && !updateInterval) {
     const exporterMod = await import('./exporter.js');
     let lastNodeCount = initialData.meta.totalNodes;
     let lastEdgeCount = initialData.meta.totalEdges;
@@ -121,6 +171,9 @@ export function stopLiveBrain(): void {
     activeBrainServer.close();
     activeBrainServer = null;
   }
+  activePollEngine = null;
+  activePollProjectName = null;
+  activePollScope = null;
   // Clear pending handlers when server stops
   pendingVoiceHandler = null;
   pendingScopeSwitchHandler = null;

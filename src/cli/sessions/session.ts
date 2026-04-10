@@ -53,6 +53,11 @@ export class Session {
   swarmId?: string;
   /** Sub-task ID within the swarm */
   swarmTaskId?: number;
+  /** Isolated worktree metadata, when this session ran in a separate execution root */
+  worktree?: {
+    root: string;
+    reason: 'autonomous' | 'plan_execution' | 'swarm_worker';
+  };
 
   constructor(
     id: string,

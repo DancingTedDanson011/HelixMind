@@ -17,9 +17,9 @@ registerTool({
 
   async execute(input, ctx) {
     try {
-      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ctx.executionRoot, encoding: 'utf-8', stdio: 'pipe' });
     } catch {
-      return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git.`;
+      return `Not a git repository. The current directory (${ctx.executionRoot}) is not tracked by git.`;
     }
 
     try {
@@ -29,7 +29,7 @@ registerTool({
       const args = ['log', `-${count}`, '--format=%h  %s  (%ar)  <%an>'];
       if (input.file) args.push('--', String(input.file));
 
-      const log = execFileSync('git', args, { cwd: ctx.projectRoot, encoding: 'utf-8' }).trim();
+      const log = execFileSync('git', args, { cwd: ctx.executionRoot, encoding: 'utf-8' }).trim();
 
       if (!log) {
         return 'No commits found.';

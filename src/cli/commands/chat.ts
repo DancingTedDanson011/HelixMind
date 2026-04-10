@@ -4,7 +4,8 @@ import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { ConfigStore } from '../config/store.js';
-import { createProvider } from '../providers/registry.js';
+import { createProvider, registerFreeModel } from '../providers/registry.js';
+import { registerModelContextLength } from '../providers/model-limits.js';
 import type { LLMProvider, ChatMessage, ToolMessage } from '../providers/types.js';
 import { analyzeProject } from '../context/project.js';
 import { assembleSystemPrompt } from '../context/assembler.js';
@@ -31,6 +32,7 @@ import { showHelixMenu } from './helix-menu.js';
 import { initializeTools } from '../agent/tools/registry.js';
 import { runAgentLoop, AgentController, AgentAbortError } from '../agent/loop.js';
 import { PermissionManager } from '../agent/permissions.js';
+import { parseTurnDirectives, type TurnDirectives } from '../agent/turn-directives.js';
 import { UndoStack } from '../agent/undo.js';
 import { writeStatusBar, renderStatusBar, getGitInfo, truncateBar, visibleLength, type StatusBarData } from '../ui/statusbar.js';
 import { CheckpointStore } from '../checkpoints/store.js';
@@ -58,12 +60,14 @@ import { WorldModelManager } from '../jarvis/world-model.js';
 import { AutonomyManager } from '../jarvis/autonomy.js';
 import { NotificationManager } from '../jarvis/notifications.js';
 import { SkillManager } from '../jarvis/skills.js';
+import { SkillScorer } from '../jarvis/skill-scoring.js';
 import { JarvisTelegramBot, parseTelegramCommand } from '../jarvis/telegram-bot.js';
 import { LearningJournal } from '../jarvis/learning.js';
-import type { ThinkingCallbacks, MoodAnalysis } from '../jarvis/types.js';
+import type { ThinkingCallbacks, MoodAnalysis, ProposalEntry } from '../jarvis/types.js';
 import { SentimentAnalyzer } from '../jarvis/sentiment.js';
 import { acquireJarvisSlot, releaseJarvisSlot } from '../jarvis/instance-lock.js';
 import { buildRuntimeContext } from '../jarvis/runtime-context.js';
+import { buildSkillBuildSpecFromProposal, buildSkillBuildTask, detectSkillBuildFromFailure } from '../jarvis/skill-builder.js';
 import { BrainInstanceManager } from '../brain/instance-manager.js';
 import { BrowserController } from '../browser/controller.js';
 import { VisionProcessor } from '../browser/vision.js';
@@ -71,6 +75,7 @@ import { classifyTask } from '../validation/classifier.js';
 import { generateCriteria } from '../validation/criteria.js';
 import { validationLoop } from '../validation/autofix.js';
 import { getValidationModelConfig, createValidationProvider } from '../validation/model.js';
+import { resolveValidationDecision, type ValidationDecision } from '../validation/policy.js';
 import { renderValidationSummary, renderValidationStart, renderClassification, renderValidationOneLine } from '../validation/reporter.js';
 import { storeValidationResult, getValidationStats, renderValidationStats } from '../validation/stats.js';
 import { isFeatureAvailable, getLoginCTA, getJarvisLimitsForPlan, getBrainLimitsForPlan, isLoggedIn, type Feature } from '../auth/feature-gate.js';
@@ -80,8 +85,10 @@ import { renderPlanReview, runPlanBrowser, renderPlanStepStart, renderPlanStepEn
 import { AGENT_IDENTITIES, resolveAgentIdentity, type PlanModeState } from '../agent/plan-types.js';
 import type { PlanInfo, PlanStepInfo, SwarmInfo, VoiceConfig } from '@helixmind/protocol';
 import { SwarmController } from '../agent/swarm.js';
-import { TaskOrchestrator } from '../jarvis/orchestrator.js';
+import { TaskOrchestrator, type OrchestrationHeuristic } from '../jarvis/orchestrator.js';
 import { ParallelExecutor } from '../jarvis/parallel.js';
+import { WorktreeManager } from '../worktree/manager.js';
+import { prepareExecutionRuntime, type ExecutionRuntime } from '../worktree/runtime.js';
 import chalk from 'chalk';
 
 interface ChatOptions {
@@ -104,6 +111,8 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/clear', label: '/clear', description: 'Clear conversation history' },
       { cmd: '/model', label: '/model', description: 'Switch LLM model' },
       { cmd: '/keys', label: '/keys', description: 'Manage API keys' },
+      { cmd: '/fast [prompt]', label: '/fast', description: 'Low-latency turn (skip validation, no auto-swarm)' },
+      { cmd: '/swarm [prompt]', label: '/swarm', description: 'Force swarm decomposition for one turn' },
       { cmd: '/yolo', label: '/yolo', description: 'Toggle YOLO mode' },
       { cmd: '/skip-permissions', label: '/skip-permissions', description: 'Toggle skip-permissions' },
       { cmd: '/plan', label: '/plan', description: 'Toggle plan mode (read-only → plan → execute)' },
@@ -197,6 +206,8 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/undo', label: '/undo', description: 'Undo file changes' },
       { cmd: '/diff', label: '/diff', description: 'Show uncommitted git changes' },
       { cmd: '/git', label: '/git', description: 'Show git branch & status' },
+      { cmd: '/worktree', label: '/worktree', description: 'Show isolated worktree status' },
+      { cmd: '/worktree auto', label: '/worktree auto', description: 'Enable isolated worktrees for risky runs' },
       { cmd: '/project', label: '/project', description: 'Show project info' },
       { cmd: '/export', label: '/export', description: 'Export spiral as ZIP' },
     ],
@@ -256,6 +267,8 @@ ${chalk.hex('#00d4ff').bold('  Chat & Interaction')}
   ${theme.primary('/clear'.padEnd(22))} ${theme.dim('Clear conversation history')}
   ${theme.primary('/model [name]'.padEnd(22))} ${theme.dim('Switch model (interactive or direct: /model gpt-4o)')}
   ${theme.primary('/keys'.padEnd(22))} ${theme.dim('Add/remove/update API keys')}
+  ${theme.primary('/fast [prompt]'.padEnd(22))} ${theme.dim('One fast turn: skip validation and auto-swarm')}
+  ${theme.primary('/swarm [prompt]'.padEnd(22))} ${theme.dim('Force multi-agent swarm for one request')}
   ${theme.primary('/yolo [on|off]'.padEnd(22))} ${theme.dim('Toggle YOLO mode — auto-approve ALL operations')}
   ${theme.primary('/skip-permissions'.padEnd(22))} ${theme.dim('Toggle skip-permissions (auto-approve safe ops)')}
 
@@ -294,6 +307,8 @@ ${chalk.hex('#8a2be2').bold('  Code & Git')}
   ${theme.primary('/undo [n|list]'.padEnd(22))} ${theme.dim('Undo last n file changes (or list history)')}
   ${theme.primary('/diff'.padEnd(22))} ${theme.dim('Show all uncommitted git changes')}
   ${theme.primary('/git'.padEnd(22))} ${theme.dim('Show git branch & status')}
+  ${theme.primary('/worktree'.padEnd(22))} ${theme.dim('Show isolated worktree status')}
+  ${theme.primary('/worktree auto'.padEnd(22))} ${theme.dim('Enable worktrees for risky agent runs')}
   ${theme.primary('/project'.padEnd(22))} ${theme.dim('Show detected project info')}
   ${theme.primary('/export [dir]'.padEnd(22))} ${theme.dim('Export spiral as ZIP archive')}
 
@@ -308,6 +323,33 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   const configDir = join(homedir(), '.helixmind');
   const store = new ConfigStore(configDir);
   let config = store.getAll();
+  const projectRoot = process.cwd();
+  const createWorktreeManager = () => new WorktreeManager(config.worktree);
+  const activeWorktreeRuntimes = new Map<string, ExecutionRuntime>();
+  const prepareSessionRuntime = async (
+    reason: 'autonomous' | 'plan_execution' | 'swarm_worker',
+    sessionId: string,
+    onStatus?: (message: string) => void,
+  ): Promise<ExecutionRuntime> => {
+    const runtime = await prepareExecutionRuntime(
+      createWorktreeManager(),
+      { reason, sessionId, projectRoot },
+      onStatus,
+    );
+    if (runtime.isolated) {
+      activeWorktreeRuntimes.set(sessionId, runtime);
+    }
+    let released = false;
+    return {
+      ...runtime,
+      release: async () => {
+        if (released) return;
+        released = true;
+        activeWorktreeRuntimes.delete(sessionId);
+        await runtime.release();
+      },
+    };
+  };
 
   // Collect startup banner — written into scroll region AFTER screen activation
   // so content sits directly above the input frame (no gap).
@@ -415,26 +457,29 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   const bugJournal = new BugJournal(process.cwd());
 
   // Jarvis AGI modules — scope-aware init happens below after brainScope detection
-  let jarvisQueue: JarvisQueue;
-  let jarvisIdentity: JarvisIdentityManager;
-  let jarvisProposals: ProposalJournal;
-  let jarvisScheduler: JarvisScheduler;
-  let jarvisTriggers: TriggerManager;
-  let jarvisWorldModel: WorldModelManager;
-  let jarvisAutonomy: AutonomyManager;
-  let jarvisNotifications: NotificationManager;
-  let jarvisSkills: SkillManager;
-  let jarvisSentiment: SentimentAnalyzer;
+  let jarvisQueue!: JarvisQueue;
+  let jarvisIdentity!: JarvisIdentityManager;
+  let jarvisProposals!: ProposalJournal;
+  let jarvisScheduler!: JarvisScheduler;
+  let jarvisTriggers!: TriggerManager;
+  let jarvisWorldModel!: WorldModelManager;
+  let jarvisAutonomy!: AutonomyManager;
+  let jarvisNotifications!: NotificationManager;
+  let jarvisSkills!: SkillManager;
+  let jarvisSkillScorer!: SkillScorer;
+  let jarvisSentiment!: SentimentAnalyzer;
   let jarvisTelegramBot: JarvisTelegramBot | null = null;
-  let jarvisLearning: LearningJournal;
+  let jarvisLearning!: LearningJournal;
   let jarvisScope: BrainScope;
+  let jarvisRuntimeReady = false;
+  let pendingJarvisQueueBinder: (() => void) | null = null;
   let jarvisDaemonSession: import('../sessions/session.js').Session | null = null;
   let jarvisPaused = false;
   const resolveJarvisRoot = (scope: BrainScope) =>
     scope === 'project' ? process.cwd() : join(homedir(), '.spiral-context');
 
-  // Browser controller (always instantiated — launch() is the expensive part)
-  let browserController: BrowserController | undefined = new BrowserController();
+  // Browser controller stays lazy so plain chat startup avoids browser setup work.
+  let browserController: BrowserController | undefined;
   let visionProcessor: VisionProcessor | undefined;
 
   // Terminal + Screen (replaces BottomChrome with framed input area)
@@ -449,6 +494,17 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   // Activity indicator (renders on chrome row 0 during agent work)
   const activity = new ActivityIndicator(chrome as any);
+  const chromeRowCache = new Map<0 | 1 | 2 | 3, string>();
+
+  function invalidateChromeRows(): void {
+    chromeRowCache.clear();
+  }
+
+  function setChromeRow(row: 0 | 1 | 2 | 3, content: string, force = false): void {
+    if (!force && chromeRowCache.get(row) === content) return;
+    chromeRowCache.set(row, content);
+    chrome.setRow(row, content);
+  }
 
   // Agent controller for pause/resume
   const agentController = new AgentController();
@@ -593,29 +649,55 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   }
   // Jarvis scope follows brain scope — init after brainScope detection
   jarvisScope = brainScope;
-  jarvisQueue = new JarvisQueue(resolveJarvisRoot(jarvisScope));
-  jarvisIdentity = new JarvisIdentityManager(resolveJarvisRoot(jarvisScope));
-  jarvisProposals = new ProposalJournal(resolveJarvisRoot(jarvisScope));
-  jarvisScheduler = new JarvisScheduler(resolveJarvisRoot(jarvisScope));
-  jarvisTriggers = new TriggerManager(resolveJarvisRoot(jarvisScope));
-  jarvisWorldModel = new WorldModelManager(resolveJarvisRoot(jarvisScope));
-  jarvisAutonomy = new AutonomyManager(jarvisIdentity.getIdentity().autonomyLevel);
-  jarvisNotifications = new NotificationManager(resolveJarvisRoot(jarvisScope));
-  jarvisSkills = new SkillManager(resolveJarvisRoot(jarvisScope));
-  jarvisSkills.syncRegistry();
-  jarvisLearning = new LearningJournal(resolveJarvisRoot(jarvisScope));
-  jarvisSentiment = new SentimentAnalyzer(resolveJarvisRoot(jarvisScope), {
-    onShift: (from, to, frustrationLevel) => {
-      jarvisIdentity.recordEvent({ type: 'sentiment_shift', from, to, frustrationLevel });
-      import('../brain/generator.js').then(mod => {
-        if (mod.isBrainServerRunning?.()) {
-          mod.pushNeuronFired?.('yellow', '#ff6b6b', 'sentiment');
-        }
-      }).catch(() => {});
-    },
-  });
+
+  function initializeJarvisRuntime(scope: BrainScope = jarvisScope): void {
+    const root = resolveJarvisRoot(scope);
+    jarvisScope = scope;
+    jarvisQueue = new JarvisQueue(root);
+    jarvisIdentity = new JarvisIdentityManager(root);
+    jarvisProposals = new ProposalJournal(root);
+    jarvisScheduler = new JarvisScheduler(root);
+    jarvisTriggers = new TriggerManager(root);
+    jarvisWorldModel = new WorldModelManager(root);
+    jarvisAutonomy = new AutonomyManager(jarvisIdentity.getIdentity().autonomyLevel);
+    jarvisNotifications = new NotificationManager(root);
+    jarvisSkills = new SkillManager(root);
+    jarvisSkillScorer = new SkillScorer(root);
+    jarvisSkills.syncRegistry();
+    jarvisLearning = new LearningJournal(root);
+    jarvisSentiment = new SentimentAnalyzer(root, {
+      onShift: (from, to, frustrationLevel) => {
+        jarvisIdentity.recordEvent({ type: 'sentiment_shift', from, to, frustrationLevel });
+        import('../brain/generator.js').then(mod => {
+          if (mod.isBrainServerRunning?.()) {
+            mod.pushNeuronFired?.('yellow', '#ff6b6b', 'sentiment');
+          }
+        }).catch(() => {});
+      },
+    });
+    jarvisRuntimeReady = true;
+    pendingJarvisQueueBinder?.();
+  }
+
+  function ensureJarvisRuntime(scope: BrainScope = jarvisScope): void {
+    if (jarvisRuntimeReady && jarvisScope === scope) return;
+    initializeJarvisRuntime(scope);
+  }
+
+  function warmJarvisRuntime(scope: BrainScope = jarvisScope): void {
+    if (jarvisRuntimeReady && jarvisScope === scope) return;
+    setTimeout(() => {
+      try {
+        ensureJarvisRuntime(scope);
+      } catch {
+        // Best effort: Jarvis can still initialize on first real use.
+      }
+    }, 0);
+  }
 
   let spiralEngine: any = null;
+  let spiralInitPromise: Promise<any> | null = null;
+  let spiralInitScope: BrainScope | null = null;
 
   async function initSpiralEngine(scope: BrainScope): Promise<any> {
     try {
@@ -631,8 +713,53 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
   }
 
-  if (config.spiral.enabled) {
-    spiralEngine = await initSpiralEngine(brainScope);
+  async function ensureSpiralEngine(scope: BrainScope = brainScope): Promise<any> {
+    if (!config.spiral.enabled) return null;
+    if (spiralEngine && spiralInitScope === scope) return spiralEngine;
+    if (spiralInitPromise && spiralInitScope === scope) return spiralInitPromise;
+
+    spiralInitScope = scope;
+    spiralInitPromise = initSpiralEngine(scope).then(async (engine) => {
+      spiralEngine = engine;
+      spiralInitPromise = null;
+      if (engine && brainUrl) {
+        try {
+          const { startLiveBrain } = await import('../brain/generator.js');
+          await startLiveBrain(engine, project.name || 'HelixMind', scope);
+        } catch {
+          // Dashboard sync is best effort.
+        }
+      }
+      return engine;
+    }).catch((err) => {
+      spiralInitPromise = null;
+      spiralInitScope = null;
+      throw err;
+    });
+
+    return spiralInitPromise;
+  }
+
+  async function getSpiralEngine(scope: BrainScope = brainScope): Promise<any> {
+    if (!config.spiral.enabled) return null;
+    if (spiralEngine && spiralInitScope === scope) return spiralEngine;
+    const engine = await ensureSpiralEngine(scope);
+    spiralEngine = engine;
+    return engine;
+  }
+
+  function warmSpiralEngine(scope: BrainScope = brainScope): void {
+    if (!config.spiral.enabled) return;
+    void ensureSpiralEngine(scope).catch(() => {});
+  }
+
+  function resetSpiralEngine(scope?: BrainScope): void {
+    if (spiralEngine) {
+      try { spiralEngine.close(); } catch { /* best effort */ }
+    }
+    spiralEngine = null;
+    spiralInitPromise = null;
+    spiralInitScope = scope ?? null;
   }
 
   // Register current brain in manager (so limits track it)
@@ -656,6 +783,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   // Build SkillContext for skill activation
   function buildSkillContext(): import('../jarvis/types.js').SkillContext {
+    ensureJarvisRuntime();
     return {
       registerTool: (name, def, handler) => {
         // Skills register tools into the skill manager's registry
@@ -665,9 +793,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       unregisterTool: (_name) => { /* handled by SkillManager.deactivateSkill */ },
       addTask: (title, desc, priority) => jarvisQueue.addTask(title, desc, { priority }),
       querySpiral: async (query) => {
-        if (!spiralEngine) return '';
+        const engine = spiralEngine ?? await ensureSpiralEngine(brainScope);
+        if (!engine) return '';
         try {
-          const results = await spiralEngine.query(query, { maxResults: 10 });
+          const results = await engine.query(query, { maxResults: 10 });
           return results.level_1.concat(results.level_2, results.level_3)
             .map((n: any) => `[${n.type}] ${n.content}`)
             .join('\n')
@@ -675,8 +804,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         } catch { return ''; }
       },
       storeInSpiral: async (content, type, tags) => {
-        if (!spiralEngine) return;
-        try { await spiralEngine.add(content, { type, tags }); } catch {}
+        const engine = spiralEngine ?? await ensureSpiralEngine(brainScope);
+        if (!engine) return;
+        try { await engine.add(content, { type, tags }); } catch {}
       },
       notify: async (title, body, urgency) => {
         await jarvisNotifications.notify(title, body, urgency ?? 'info');
@@ -687,8 +817,66 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     };
   }
 
+  function findOpenSkillBuildTask(skillName: string): import('../jarvis/types.js').JarvisTask | undefined {
+    ensureJarvisRuntime();
+    return jarvisQueue.getAllTasks().find((task) =>
+      task.status !== 'completed' &&
+      task.status !== 'failed' &&
+      task.tags?.includes('skill_build') &&
+      task.tags?.includes(`skill:${skillName}`),
+    );
+  }
+
+  function enqueueProposalTask(proposal: ProposalEntry): import('../jarvis/types.js').JarvisTask {
+    ensureJarvisRuntime();
+    if (proposal.category === 'skill_creation' || proposal.category === 'skill_update') {
+      const spec = buildSkillBuildSpecFromProposal(proposal);
+      const existing = findOpenSkillBuildTask(spec.skillName);
+      if (existing) return existing;
+      const buildTask = buildSkillBuildTask(spec);
+      return jarvisQueue.addTask(buildTask.title, buildTask.description, {
+        priority: buildTask.priority,
+        tags: buildTask.tags,
+      });
+    }
+    return jarvisQueue.addTask(proposal.title, proposal.description, {
+      priority: proposal.impact === 'high' ? 'high' : 'medium',
+    });
+  }
+
+  function queueSkillBuildFromFailure(task: import('../jarvis/types.js').JarvisTask, failure: string): import('../jarvis/types.js').JarvisTask | null {
+    ensureJarvisRuntime();
+    const spec = detectSkillBuildFromFailure({
+      taskTitle: task.title,
+      taskDescription: task.description,
+      failure,
+      existingScores: jarvisSkillScorer.scoreSkills(task.description || task.title, 'skill_gap', jarvisSkills.listSkills()),
+      existingSkillNames: jarvisSkills.listSkills().map((skill) => skill.manifest.name),
+    });
+    if (!spec) return null;
+    const existing = findOpenSkillBuildTask(spec.skillName);
+    if (existing) return existing;
+    const buildTask = buildSkillBuildTask(spec);
+    return jarvisQueue.addTask(buildTask.title, buildTask.description, {
+      priority: buildTask.priority,
+      tags: buildTask.tags.concat('self_improvement'),
+    });
+  }
+
+  async function activateBuiltSkill(task: import('../jarvis/types.js').JarvisTask, skillName: string): Promise<void> {
+    ensureJarvisRuntime();
+    jarvisSkills.syncRegistry();
+    const result = await jarvisSkills.activateSkill(skillName, buildSkillContext());
+    if (result.success) {
+      renderInfo(chalk.green(`Activated skill "${skillName}" after task #${task.id}.`));
+    } else {
+      renderInfo(chalk.yellow(`Built skill "${skillName}" but activation failed: ${result.error || 'unknown error'}`));
+    }
+  }
+
   // Start Telegram bot if configured (called when daemon starts)
   function startTelegramBot(): void {
+    ensureJarvisRuntime();
     if (jarvisTelegramBot?.isRunning) return;
 
     const teleConfig = jarvisNotifications.getConfig().targets.find(t => t.channel === 'telegram');
@@ -736,9 +924,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             const proposal = jarvisProposals.approve(id);
             if (proposal) {
               jarvisIdentity.recordEvent({ type: 'proposal_approved', proposalId: id });
-              const task = jarvisQueue.addTask(proposal.title, proposal.description, {
-                priority: proposal.impact === 'high' ? 'high' : 'medium',
-              });
+              const task = enqueueProposalTask(proposal);
               proposal.convertedTaskId = task.id;
               reply(`\u{1F7E2} Proposal #${id} approved \u2192 Task #${task.id} queued`);
             } else {
@@ -796,7 +982,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           const proposal = jarvisProposals.approve(id);
           if (proposal) {
             jarvisIdentity.recordEvent({ type: 'proposal_approved', proposalId: id });
-            const task = jarvisQueue.addTask(proposal.title, proposal.description, { priority: 'medium' });
+            const task = enqueueProposalTask(proposal);
             proposal.convertedTaskId = task.id;
             jarvisTelegramBot?.send(`\u2705 Approved #${id} \u2192 Task #${task.id}`, { chatId });
           }
@@ -816,6 +1002,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   function buildThinkingCallbacks(
     bgSession: import('../sessions/session.js').Session,
   ): ThinkingCallbacks {
+    ensureJarvisRuntime();
     return {
       sendMessage: async (prompt) => {
         bgSession.controller.reset();
@@ -835,9 +1022,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       isAborted: () => bgSession.controller.isAborted,
       isPaused: () => jarvisPaused,
       querySpiral: async (query, maxTokens) => {
-        if (!spiralEngine) return '';
+        const engine = spiralEngine ?? await ensureSpiralEngine(brainScope);
+        if (!engine) return '';
         try {
-          const results = await spiralEngine.query(query, { maxResults: maxTokens ?? 50 });
+          const results = await engine.query(query, { maxResults: maxTokens ?? 50 });
           return results.level_1.concat(results.level_2, results.level_3)
             .map((n: any) => `[${n.type}] ${n.content}`)
             .join('\n')
@@ -845,11 +1033,27 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         } catch { return ''; }
       },
       storeInSpiral: async (content, type, tags) => {
-        if (!spiralEngine) return;
-        try { await spiralEngine!.add(content, { type: type as any, tags }); } catch {}
+        const engine = spiralEngine ?? await ensureSpiralEngine(brainScope);
+        if (!engine) return;
+        try { await engine.add(content, { type: type as any, tags }); } catch {}
       },
       createProposal: (title, desc, rationale, opts) => {
-        return jarvisProposals.create(title, desc, rationale, opts);
+        const proposal = jarvisProposals.create(title, desc, rationale, opts);
+        if (
+          proposal.category === 'skill_creation' &&
+          proposal.source.startsWith('thinking') &&
+          jarvisAutonomy.getLevel() >= 4
+        ) {
+          const approved = jarvisProposals.approve(proposal.id);
+          if (approved) {
+            jarvisIdentity.recordEvent({ type: 'proposal_approved', proposalId: approved.id });
+            const task = enqueueProposalTask(approved);
+            approved.convertedTaskId = task.id;
+            renderInfo(chalk.dim(`Auto-approved skill proposal #${approved.id} -> Task #${task.id}`));
+            return approved;
+          }
+        }
+        return proposal;
       },
       wouldLikelyBeDenied: (cat, files) => {
         return jarvisProposals.wouldLikelyBeDenied(cat, files);
@@ -893,6 +1097,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           highConfidence: all.filter(e => e.confidence >= 0.8).length,
           topCategories,
         };
+      },
+      getSkillScores: (taskDesc) => {
+        return jarvisSkillScorer.scoreSkills(taskDesc, 'skill_gap', jarvisSkills.listSkills())
+          .map((score) => ({ skillName: score.skillName, totalScore: score.totalScore }));
       },
     };
   }
@@ -1136,6 +1344,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           autonomousMode = true;
           (async () => {
             const completed: string[] = [];
+            const runtime = await prepareSessionRuntime('autonomous', bgSession.id, (message) => {
+              bgSession.capture(message);
+            });
+            if (runtime.worktree) {
+              bgSession.worktree = {
+                root: runtime.executionRoot,
+                reason: runtime.worktree.reason,
+              };
+            }
             try {
               await runAutonomousLoop({
                 sendMessage: async (prompt) => {
@@ -1150,6 +1367,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     () => { sessionToolCalls++; },
                     undefined,
                     { enabled: false, verbose: false, strict: false },
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    runtime,
                   );
                   bgSession.buffer.onSummary = undefined;
                   return resultTextHolder.text;
@@ -1170,6 +1395,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               if (!(err instanceof AgentAbortError)) {
                 bgSession.capture(`Error: ${err}`);
               }
+            } finally {
+              await runtime.release();
             }
             autonomousMode = false;
             sessionMgr.complete(bgSession.id, {
@@ -1313,13 +1540,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   bgSession.controller.reset();
                   const rth = { text: '' };
                   bgSession.buffer.onSummary = (t) => { rth.text = t; };
+                  const activeSpiral = await getSpiralEngine(brainScope);
                   await sendAgentMessage(
-                    prompt, bgSession.history, provider, project, spiralEngine, config,
+                    prompt, bgSession.history, provider, project, activeSpiral, config,
                     permissions, bgSession.undoStack, checkpointStore,
                     bgSession.controller, new ActivityIndicator(), bgSession.buffer,
                     (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
                     () => { sessionToolCalls++; },
                     undefined, { enabled: false, verbose: false, strict: false },
+                    undefined, undefined, undefined, undefined, null, undefined, jarvisLearning, undefined, jarvisSkills,
                   );
                   bgSession.buffer.onSummary = undefined;
                   return rth.text;
@@ -1428,6 +1657,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
 
         startJarvis: () => {
+          ensureJarvisRuntime();
           if (jarvisDaemonSession && jarvisDaemonSession.status === 'running') return jarvisDaemonSession.id;
           // Enforce cross-process Jarvis instance limit
           const plan = (store.get('relay.plan') as string | undefined) ?? 'FREE';
@@ -1491,8 +1721,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   pushSessionUpdate(serializeSession(bgSession));
                 },
                 updateStatus: () => updateStatusBar(),
-                storeInSpiral: spiralEngine ? async (content, type, tags) => {
-                  try { await spiralEngine!.add(content, { type: type as any, tags }); } catch {}
+                storeInSpiral: config.spiral.enabled ? async (content, type, tags) => {
+                  const activeSpiral = await getSpiralEngine(brainScope);
+                  if (!activeSpiral) return;
+                  try { await activeSpiral.add(content, { type: type as any, tags }); } catch {}
                 } : undefined,
                 getIdentityName: () => jarvisIdentity.getIdentity().name,
                 getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
@@ -1501,6 +1733,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                   jarvisLearning.recordLearning(error, solution, category as any, context, ['jarvis_daemon']);
                 },
                 thinkingCallbacks: buildThinkingCallbacks(bgSession),
+                queueSkillBuildTask: queueSkillBuildFromFailure,
+                onSkillBuildComplete: activateBuiltSkill,
               });
             } catch (err) {
               if (!(err instanceof AgentAbortError)) bgSession.capture(`${jName} error: ${err}`);
@@ -1524,6 +1758,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
 
         pauseJarvis: () => {
+          ensureJarvisRuntime();
           if (!jarvisDaemonSession || jarvisPaused) return false;
           jarvisPaused = true;
           jarvisQueue.setDaemonState('paused');
@@ -1531,6 +1766,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
 
         resumeJarvis: () => {
+          ensureJarvisRuntime();
           if (!jarvisDaemonSession || !jarvisPaused) return false;
           jarvisPaused = false;
           jarvisQueue.setDaemonState('running');
@@ -1538,29 +1774,41 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
 
         addJarvisTask: (title, description, opts) => {
+          ensureJarvisRuntime();
           const task = jarvisQueue.addTask(title, description, opts);
           return serializeJarvisTask(task);
         },
 
-        listJarvisTasks: () => jarvisQueue.getAllTasks().map(serializeJarvisTask),
+        listJarvisTasks: () => {
+          ensureJarvisRuntime();
+          return jarvisQueue.getAllTasks().map(serializeJarvisTask);
+        },
 
         deleteJarvisTask: (taskId: number) => {
+          ensureJarvisRuntime();
           return jarvisQueue.removeTask(taskId);
         },
 
-        getJarvisStatus: () => ({
-          ...jarvisQueue.getStatus(),
-          scope: jarvisScope === 'project' ? 'local' : 'global',
-          jarvisName: jarvisIdentity.getIdentity().name,
-        }),
+        getJarvisStatus: () => {
+          ensureJarvisRuntime();
+          return {
+            ...jarvisQueue.getStatus(),
+            scope: jarvisScope === 'project' ? 'local' : 'global',
+            jarvisName: jarvisIdentity.getIdentity().name,
+          };
+        },
 
-        clearJarvisCompleted: () => jarvisQueue.clearCompleted(),
+        clearJarvisCompleted: () => {
+          ensureJarvisRuntime();
+          return jarvisQueue.clearCompleted();
+        },
 
         // Jarvis AGI handlers (stubs — wired when AGI modules are initialized)
         listProposals: () => [],
         approveProposal: () => false,
         denyProposal: () => false,
         setAutonomyLevel: (level: number) => {
+          ensureJarvisRuntime();
           if (level < 0 || level > 5) return false;
           jarvisAutonomy.setLevel(level as import('../jarvis/types.js').AutonomyLevel);
           jarvisIdentity.setAutonomyLevel(level as import('../jarvis/types.js').AutonomyLevel);
@@ -1721,17 +1969,38 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               onStatusChange: () => { updateStatusBar(); },
               runWorkerSession: async (session, prompt, agentIdentity) => {
                 const bgActivity = new ActivityIndicator();
+                const runtime = await prepareSessionRuntime('swarm_worker', session.id, (message) => {
+                  session.capture(message);
+                });
+                if (runtime.worktree) {
+                  session.worktree = {
+                    root: runtime.executionRoot,
+                    reason: runtime.worktree.reason,
+                  };
+                }
                 session.onCapture = (line, index) => { pushOutputLine(session.id, line, index); };
                 pushSessionCreated(serializeSession(session));
-                await sendAgentMessage(
-                  prompt, session.history, provider, project, spiralEngine, config,
-                  permissions, session.undoStack, checkpointStore,
-                  session.controller, bgActivity, session.buffer,
-                  (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
-                  () => { sessionToolCalls++; roundToolCalls++; },
-                  undefined,
-                  { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-                );
+                try {
+                  await sendAgentMessage(
+                    prompt, session.history, provider, project, spiralEngine, config,
+                    permissions, session.undoStack, checkpointStore,
+                    session.controller, bgActivity, session.buffer,
+                    (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                    () => { sessionToolCalls++; roundToolCalls++; },
+                    undefined,
+                    { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    runtime,
+                  );
+                } finally {
+                  await runtime.release();
+                }
                 const text = session.buffer.buildContext();
                 const errors = session.buffer.getRecentErrors().map(e => e.summary);
                 return { text, errors };
@@ -1880,17 +2149,21 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         }
       });
 
-      // Wire Jarvis queue change events to brain server
-      jarvisQueue.setOnChange((event, task) => {
-        const info = serializeJarvisTask(task);
-        if (event === 'task_created') {
-          pushJarvisTaskCreated(info);
-        } else if (event === 'task_removed') {
-          pushJarvisTaskRemoved(task.id);
-        } else {
-          pushJarvisTaskUpdated(info);
-        }
-      });
+      // Wire Jarvis queue change events to brain server when Jarvis runtime exists.
+      pendingJarvisQueueBinder = () => {
+        if (!jarvisRuntimeReady) return;
+        jarvisQueue.setOnChange((event, task) => {
+          const info = serializeJarvisTask(task);
+          if (event === 'task_created') {
+            pushJarvisTaskCreated(info);
+          } else if (event === 'task_removed') {
+            pushJarvisTaskRemoved(task.id);
+          } else {
+            pushJarvisTaskUpdated(info);
+          }
+        });
+      };
+      pendingJarvisQueueBinder();
 
       // Wire browser screenshots to brain server
       pushScreenshotToBrainFn = (info) => {
@@ -1999,6 +2272,40 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     return hints.join(chalk.dim(' \u00B7 '));
   }
 
+  function renderExecutionIntent(
+    directives: TurnDirectives,
+    validationDecision: ValidationDecision,
+    swarmHeuristic: OrchestrationHeuristic,
+    usingSwarm: boolean,
+  ): void {
+    const parts: string[] = [];
+
+    if (usingSwarm) {
+      const reason = swarmHeuristic.reasons.slice(0, 2).join(', ');
+      parts.push(chalk.hex('#ffd700')('swarm'));
+      if (reason) parts.push(chalk.dim(reason));
+    } else {
+      parts.push(chalk.hex('#00d4ff')('single-agent'));
+      if (directives.skipSwarm) {
+        parts.push(chalk.dim('swarm skipped'));
+      } else if (swarmHeuristic.shouldOrchestrate) {
+        parts.push(chalk.dim('swarm available but not used'));
+      }
+    }
+
+    if (validationDecision.enabled) {
+      parts.push(chalk.green('validation on'));
+    } else {
+      parts.push(chalk.yellow(`validation off (${validationDecision.reason})`));
+    }
+
+    if (directives.fastMode) {
+      parts.push(chalk.hex('#ff6600')('fast lane'));
+    }
+
+    renderInfo(chalk.dim('Intent: ') + parts.join(chalk.dim(' · ')));
+  }
+
   /**
    * Show the full prompt area using sticky bottom chrome (4 rows):
    *   ┌──────────────────────────────────────┐  ← chrome row 0 (N-3): top border / activity indicator
@@ -2028,9 +2335,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     // Now set chrome content and draw (screen must be active for these to render)
     screen.drawFrameBottom();
-    chrome.setRow(1, hintLine);
-    chrome.setRow(2, ' ' + statusLine1);
-    chrome.setRow(3, ' ' + statusLine2);
+    setChromeRow(1, hintLine, true);
+    setChromeRow(2, ' ' + statusLine1, true);
+    setChromeRow(3, ' ' + statusLine2, true);
 
     isAtPrompt = true;
     // Suppress stdout hook redraws while InputManager manages the cursor
@@ -2080,6 +2387,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       activeMode: jarvisDaemonSession && jarvisDaemonSession.status === 'running'
         ? 'jarvis' as const
         : autonomousMode ? 'monitor' as const : 'cli' as const,
+      worktree: {
+        mode: config.worktree.mode,
+        active: activeWorktreeRuntimes.size,
+      },
       jarvisName: jarvisDaemonSession && jarvisDaemonSession.status === 'running'
         ? jarvisIdentity.getIdentity().name
         : undefined,
@@ -2128,6 +2439,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Update screen and activity on terminal resize
   process.stdout.on('resize', () => {
     closeSuggestionPanel(); // Close panel on resize (reopens on next keypress)
+    invalidateChromeRows();
     screen.handleResize();
     activity.handleResize();
     if (isAtPrompt) {
@@ -2161,8 +2473,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     isAtPrompt = active;
     // Deactivate/activate bottom chrome so permission select menu renders cleanly
     if (active) {
+      invalidateChromeRows();
       chrome.deactivate();
     } else {
+      invalidateChromeRows();
       chrome.activate();
     }
   });
@@ -2185,7 +2499,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     if (isAtPrompt) {
       const hintLine = buildHintLine();
       activity.setRestoreContent(hintLine);
-      chrome.setRow(1, hintLine);
+      invalidateChromeRows();
       updateStatusBar();
     }
   });
@@ -2377,9 +2691,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     onBrainScopeSwitch(async (newScope) => {
       if (newScope === brainScope) return;
       try {
-        if (spiralEngine) {
-          try { spiralEngine.close(); } catch { /* best effort */ }
-        }
+        resetSpiralEngine();
         brainScope = newScope;
         if (newScope === 'project') {
           const { mkdirSync, existsSync } = await import('node:fs');
@@ -2395,7 +2707,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             }
           }
         }
-        spiralEngine = await initSpiralEngine(newScope);
+        spiralEngine = await ensureSpiralEngine(newScope);
 
         const { exportBrainData } = await import('../brain/exporter.js');
         const { startLiveBrain } = await import('../brain/generator.js');
@@ -2745,6 +3057,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Build Jarvis identity context for system prompt injection (when daemon is active)
   function getJarvisContextForPrompt(): string | null {
     if (!jarvisDaemonSession || jarvisDaemonSession.status !== 'running') return null;
+    ensureJarvisRuntime();
     const sentimentGuidance = jarvisSentiment.getResponseGuidance();
     const identityPrompt = jarvisIdentity.getIdentityPrompt(
       jarvisSkills.getSkillsPrompt() ?? undefined,
@@ -2791,9 +3104,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
 
     // Refresh hint line on row 1 (prevents stale border/status from previous layout)
-    chrome.setRow(1, buildHintLine());
-    chrome.setRow(2, ' ' + line1);
-    chrome.setRow(3, ' ' + (statusLine2 || ''));
+    setChromeRow(1, buildHintLine());
+    setChromeRow(2, ' ' + line1);
+    setChromeRow(3, ' ' + (statusLine2 || ''));
   }
 
   /** Push session findings to brain visualization */
@@ -2866,6 +3179,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   // Content flows bottom-up within the region, sitting just above the input frame.
   screen.writeOutput(startupBannerParts.join(''));
 
+  // Warm optional heavy subsystems after the prompt is already visible.
+  warmJarvisRuntime(jarvisScope);
+  warmSpiralEngine(brainScope);
+
   // Footer timer — redraws statusbar on chrome rows 2+3 during agent work.
   // Skipped when:
   //   - user is at readline prompt (isAtPrompt) — prevents cursor-jumping
@@ -2879,6 +3196,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   /** Process a complete input (single line or assembled paste block) */
   async function processInput(input: string, displayText?: string): Promise<void> {
+    const rawInput = input;
 
     // Clear input frame FIRST — before any renderInfo/process.stdout.write.
     // This ensures the cursor moves out of the input area so all output
@@ -2892,12 +3210,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     // Handle /feed directly here (needs access to inlineProgressActive flag)
     if (input.startsWith('/feed')) {
-      if (spiralEngine) {
+      const activeSpiral = spiralEngine ?? await ensureSpiralEngine(brainScope);
+      if (activeSpiral) {
+        spiralEngine = activeSpiral;
         const feedPath = input.split(/\s+/)[1];
         const rootDir = process.cwd();
         renderInfo('\u{1F300} Feeding project...\n');
         try {
-          const result = await runFeedPipeline(rootDir, spiralEngine, {
+          const result = await runFeedPipeline(rootDir, activeSpiral, {
             targetPath: feedPath,
             onProgress: wrappedFeedProgress,
           });
@@ -2961,8 +3281,27 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       return;
     }
 
+    const turnDirectives = parseTurnDirectives(rawInput);
+    input = turnDirectives.input;
+    const renderedInput = displayText ?? turnDirectives.displayInput;
+
+    if (!input) {
+      if (turnDirectives.fastMode) {
+        renderInfo(chalk.dim('Usage: /fast <prompt>'));
+      } else if (turnDirectives.forceSwarm) {
+        renderInfo(chalk.dim('Usage: /swarm <prompt>'));
+      } else if (turnDirectives.strippedFlags.length > 0) {
+        renderInfo(chalk.dim('Execution flags were provided without a prompt.'));
+      }
+      showPrompt();
+      return;
+    }
+
     // Handle slash commands
-    if (input.startsWith('/')) {
+    if (input.startsWith('/') && !turnDirectives.forceSwarm) {
+      if (/^\/(?:jarvis|del)\b/i.test(input)) {
+        ensureJarvisRuntime();
+      }
       const handled = await handleSlashCommand(
         input, messages, agentHistory, config, spiralEngine, store, rl,
         permissions, undoStack, checkpointStore, sessionBuffer,
@@ -2977,9 +3316,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
         async (newScope) => {
           // Switch brain scope
-          if (spiralEngine) {
-            try { spiralEngine.close(); } catch { /* best effort */ }
-          }
+          resetSpiralEngine();
           brainScope = newScope;
           // Create .helixmind/ dir if switching to project and it doesn't exist
           if (newScope === 'project') {
@@ -3001,9 +3338,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               }
             }
           }
-          spiralEngine = await initSpiralEngine(newScope);
+          spiralEngine = await ensureSpiralEngine(newScope);
         },
         brainScope,
+        (scope) => getSpiralEngine(scope ?? brainScope),
         async (action, goal?) => {
           if (action === 'stop') {
             // Stop all background sessions + autonomous mode
@@ -3208,6 +3546,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             // Run in background — user keeps their prompt
             (async () => {
               const completed: string[] = [];
+              const runtime = await prepareSessionRuntime('autonomous', bgSession.id, (message) => {
+                bgSession.capture(message);
+              });
+              if (runtime.worktree) {
+                bgSession.worktree = {
+                  root: runtime.executionRoot,
+                  reason: runtime.worktree.reason,
+                };
+              }
               try {
                 await runAutonomousLoop({
                   sendMessage: async (prompt) => {
@@ -3245,6 +3592,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 if (!(err instanceof AgentAbortError)) {
                   bgSession.capture(`Error: ${err}`);
                 }
+              } finally {
+                await runtime.release();
               }
 
               autonomousMode = false;
@@ -3301,23 +3650,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           sentiment: jarvisSentiment,
           getScope: () => jarvisScope,
           setScope: (scope: 'project' | 'global') => {
-            jarvisScope = scope;
-            const newRoot = resolveJarvisRoot(scope);
-            jarvisQueue = new JarvisQueue(newRoot);
-            jarvisIdentity = new JarvisIdentityManager(newRoot);
-            jarvisProposals = new ProposalJournal(newRoot);
-            jarvisScheduler = new JarvisScheduler(newRoot);
-            jarvisTriggers = new TriggerManager(newRoot);
-            jarvisWorldModel = new WorldModelManager(newRoot);
-            jarvisNotifications = new NotificationManager(newRoot);
-            jarvisSkills = new SkillManager(newRoot);
-            jarvisSkills.syncRegistry();
-            jarvisSentiment = new SentimentAnalyzer(newRoot, {
-              onShift: (from, to, frustrationLevel) => {
-                jarvisIdentity.recordEvent({ type: 'sentiment_shift', from, to, frustrationLevel });
-              },
-            });
-            jarvisAutonomy = new AutonomyManager(jarvisIdentity.getIdentity().autonomyLevel);
+            initializeJarvisRuntime(scope);
           },
           getSession: () => jarvisDaemonSession,
           setSession: (s) => { jarvisDaemonSession = s; },
@@ -3332,6 +3665,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           startTelegramBot,
           learning: jarvisLearning,
           startDaemon: () => {
+            ensureJarvisRuntime();
             const jName = jarvisIdentity.getIdentity().name;
             const bgSession = sessionMgr.create(jName, '\u{1F916}', agentHistory);
             bgSession.start();
@@ -3343,14 +3677,14 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             const d = chalk.dim;
             const j = chalk.hex('#ff00ff');
             const g = chalk.hex('#FFB800');
-            const displayName = jName.toUpperCase() + ' AGI';
+            const displayName = jName.toUpperCase();
             const namePad = Math.max(0, 34 - displayName.length);
             const banner =
               '\n' +
               d('\u256D' + '\u2500'.repeat(45) + '\u256E') + '\n' +
               d('\u2502  ') + g('\u{1F31F}') + ' ' + j(displayName) + d(' '.repeat(namePad) + '\u2502') + '\n' +
               d('\u2502' + ' '.repeat(45) + '\u2502') + '\n' +
-              d('\u2502  ') + 'Autonomous agent \u2014 thinking, learning,' + d('     \u2502') + '\n' +
+              d('\u2502  ') + 'Autonomous assistant \u2014 thinking,' + d('      \u2502') + '\n' +
               d('\u2502  ') + 'proposing, executing tasks' + d(' '.repeat(17) + '\u2502') + '\n' +
               d('\u2502' + ' '.repeat(45) + '\u2502') + '\n' +
               d('\u2502  ') + d('/jarvis stop or ESC to stop') + d(' '.repeat(13) + '\u2502') + '\n' +
@@ -3379,13 +3713,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     bgSession.controller.reset();
                     const rth = { text: '' };
                     bgSession.buffer.onSummary = (t) => { rth.text = t; };
+                    const activeSpiral = await getSpiralEngine(brainScope);
                     await sendAgentMessage(
-                      prompt, bgSession.history, provider, project, spiralEngine, config,
+                      prompt, bgSession.history, provider, project, activeSpiral, config,
                       daemonPermissions, bgSession.undoStack, checkpointStore,
                       bgSession.controller, new ActivityIndicator(), bgSession.buffer,
                       (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
                       () => { sessionToolCalls++; },
                       undefined, { enabled: false, verbose: false, strict: false },
+                      undefined, undefined, undefined, undefined, null, undefined, jarvisLearning, undefined, jarvisSkills,
                     );
                     bgSession.buffer.onSummary = undefined;
                     return rth.text;
@@ -3421,8 +3757,10 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     }
                   },
                   updateStatus: () => updateStatusBar(),
-                  storeInSpiral: spiralEngine ? async (content, type, tags) => {
-                    try { await spiralEngine!.add(content, { type: type as any, tags }); } catch {}
+                  storeInSpiral: config.spiral.enabled ? async (content, type, tags) => {
+                    const activeSpiral = await getSpiralEngine(brainScope);
+                    if (!activeSpiral) return;
+                    try { await activeSpiral.add(content, { type: type as any, tags }); } catch {}
                   } : undefined,
                   getIdentityName: () => jarvisIdentity.getIdentity().name,
                   getUserGoals: () => jarvisIdentity.getIdentity().userGoals,
@@ -3431,6 +3769,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                     jarvisLearning.recordLearning(error, solution, category as any, context, ['jarvis_daemon']);
                   },
                   thinkingCallbacks: buildThinkingCallbacks(bgSession),
+                  queueSkillBuildTask: queueSkillBuildFromFailure,
+                  onSkillBuildComplete: activateBuiltSkill,
                 });
               } catch (err) {
                 if (!(err instanceof AgentAbortError)) bgSession.capture(`${jName} error: ${err}`);
@@ -3448,6 +3788,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           engine: planEngine,
           getState: () => planModeState,
           setState: (s: PlanModeState) => { planModeState = s; },
+        },
+        {
+          listActive: () => Array.from(activeWorktreeRuntimes.entries()).map(([sessionId, runtime]) => ({
+            sessionId,
+            reason: runtime.worktree?.reason ?? 'unknown',
+            root: runtime.executionRoot,
+          })),
         },
       );
       if (handled === 'exit') {
@@ -3476,12 +3823,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     // Frame was already cleared at processInput entry — render user message
     // Use display text (badge placeholders) if available, full text goes to model
-    renderUserMessage(displayText || input);
+    renderUserMessage(renderedInput);
 
     // Track user message in session buffer
     sessionBuffer.addUserMessage(input);
 
     // Sentiment detection on every user message
+    ensureJarvisRuntime();
     const sentimentReading = jarvisSentiment.detectSentiment(input);
     jarvisSentiment.recordReading(sentimentReading);
 
@@ -3579,8 +3927,19 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           planEngine.approve(plan.id);
           renderInfo(chalk.green('\u2713 Plan approved — executing...'));
           updateStatusBar();
+          const runtime = await prepareSessionRuntime('plan_execution', plan.id, (message) => {
+            renderInfo(chalk.dim(message));
+          });
+          const mainSession = sessionMgr.main;
+          if (runtime.worktree) {
+            mainSession.worktree = {
+              root: runtime.executionRoot,
+              reason: runtime.worktree.reason,
+            };
+          }
 
-          await executePlan({
+          try {
+            await executePlan({
             plan,
             planEngine,
             agentLoopOptions: {
@@ -3593,13 +3952,15 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               ),
               permissions,
               toolContext: {
-                projectRoot: process.cwd(),
+                projectRoot,
+                executionRoot: runtime.executionRoot,
                 undoStack,
                 spiralEngine,
                 bugJournal,
                 browserController,
                 visionProcessor,
                 learningJournal: jarvisLearning,
+                worktree: runtime.worktree,
               },
               checkpointStore,
               sessionBuffer,
@@ -3621,7 +3982,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
                 renderPlanComplete(completedPlan);
               },
             },
-          });
+            });
+          } finally {
+            delete mainSession.worktree;
+            await runtime.release();
+          }
 
           if (choice === 'approve_auto') permissions.setSkipPermissions(false);
         } else if (choice === 'reject') {
@@ -3642,10 +4007,24 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     } else {
       // ═══ NORMAL MODE ═══
 
-      // --- Swarm auto-detection: check if multi-task request ---
-      const forceSwarm = input.startsWith('/swarm ');
-      const swarmInput = forceSwarm ? input.slice(7).trim() : input;
-      if (!activeSwarm && (forceSwarm || swarmOrchestrator.shouldOrchestrate(swarmInput))) {
+      if (config.spiral.enabled && !turnDirectives.fastMode) {
+        spiralEngine = await ensureSpiralEngine(brainScope);
+      }
+
+      const effectiveValidation = resolveValidationDecision(
+        input,
+        { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+        turnDirectives,
+      );
+      const swarmHeuristic = swarmOrchestrator.analyze(input);
+      const shouldUseSwarm =
+        !activeSwarm &&
+        !turnDirectives.skipSwarm &&
+        (turnDirectives.forceSwarm || swarmHeuristic.shouldOrchestrate);
+
+      renderExecutionIntent(turnDirectives, effectiveValidation, swarmHeuristic, shouldUseSwarm);
+
+      if (shouldUseSwarm) {
         const { pushSwarmCreated, pushSwarmUpdated, pushSwarmCompleted, pushWorkerStarted, pushWorkerCompleted, pushOutputLine: _pushOutputLine, pushSessionCreated: _pushSessionCreated } = await import('../brain/generator.js');
         const { serializeSession: _serializeSession } = await import('../brain/control-protocol.js');
         const swarm = new SwarmController(swarmOrchestrator, swarmExecutor, sessionMgr, {
@@ -3660,25 +4039,39 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           onStatusChange: (_active, _total) => { updateStatusBar(); },
           runWorkerSession: async (session, prompt, agentIdentity) => {
             const bgActivity = new ActivityIndicator();
+            const runtime = await prepareSessionRuntime('swarm_worker', session.id, (message) => {
+              session.capture(message);
+            });
+            if (runtime.worktree) {
+              session.worktree = {
+                root: runtime.executionRoot,
+                reason: runtime.worktree.reason,
+              };
+            }
             // Wire output streaming to brain
             session.onCapture = (line, index) => {
               _pushOutputLine(session.id, line, index);
             };
             _pushSessionCreated(_serializeSession(session));
 
-            await sendAgentMessage(
-              prompt, session.history, provider, project, spiralEngine, config,
-              permissions, session.undoStack, checkpointStore,
-              session.controller, bgActivity, session.buffer,
-              (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
-              () => { sessionToolCalls++; roundToolCalls++; },
-              undefined,
-              { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-              bugJournal, undefined, undefined, undefined,
-              null,
-              undefined,
-              undefined,
-            );
+            try {
+              await sendAgentMessage(
+                prompt, session.history, provider, project, spiralEngine, config,
+                permissions, session.undoStack, checkpointStore,
+                session.controller, bgActivity, session.buffer,
+                (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
+                () => { sessionToolCalls++; roundToolCalls++; },
+                undefined,
+                effectiveValidation,
+                bugJournal, undefined, undefined, undefined,
+                null,
+                undefined,
+                undefined,
+                runtime,
+              );
+            } finally {
+              await runtime.release();
+            }
 
             const text = session.buffer.buildContext();
             const errors = session.buffer.getRecentErrors().map(e => e.summary);
@@ -3700,9 +4093,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         });
 
         activeSwarm = swarm;
-        renderInfo(chalk.hex('#ffd700')('\u{1F41D} Swarm detected — decomposing into parallel tasks...'));
+        const swarmReason = swarmHeuristic.reasons.slice(0, 2).join(', ');
+        renderInfo(
+          chalk.hex('#ffd700')('\u{1F41D} Swarm engaged') +
+          (swarmReason ? chalk.dim(` — ${swarmReason}`) : ''),
+        );
 
-        const summary = await swarm.run(swarmInput);
+        const summary = await swarm.run(input);
         activeSwarm = null;
 
         if (summary) {
@@ -3717,7 +4114,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
             () => { sessionToolCalls++; roundToolCalls++; },
             () => { isAtPrompt = false; },
-            { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+            effectiveValidation,
             bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
             getJarvisContextForPrompt(),
             (label, tool) => {
@@ -3746,7 +4143,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           // unmute during tool execution so user can answer permission prompts).
           isAtPrompt = false;
         },
-        { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
+        effectiveValidation,
         bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
         getJarvisContextForPrompt(),
         (label, tool) => {
@@ -3769,35 +4166,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     while (typeAheadBuffer.length > 0 && !agentController.isAborted) {
       const buffered = typeAheadBuffer.shift()!;
       if (buffered.trim()) {
-        // Process the buffered input as if user just typed it
-        sessionBuffer.addUserMessage(buffered.trim());
-        checkpointStore.createForChat(buffered.trim(), agentHistory.length);
-
-        roundToolCalls = 0;
-        currentStepLabel = '';
-        currentStepFile = '';
-        agentRunning = true;
-        agentController.reset();
-        updateStatusBar();
-
-        await sendAgentMessage(
-          buffered.trim(), agentHistory, provider, project, spiralEngine, config,
-          permissions, undoStack, checkpointStore, agentController, activity, sessionBuffer,
-          (inp, out) => { sessionTokensInput += inp; sessionTokensOutput += out; },
-          () => { sessionToolCalls++; roundToolCalls++; },
-          () => { showPrompt(); },
-          { enabled: validationEnabled, verbose: validationVerbose, strict: validationStrict },
-          bugJournal, browserController, visionProcessor, pushScreenshotToBrainFn,
-          getJarvisContextForPrompt(),
-          (label, tool) => {
-            currentStepLabel = label;
-            const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
-            currentStepFile = fileTools.has(tool) ? label.replace(/^(reading|writing|editing)\s+/, '') : '';
-          },
-        );
-
-        agentRunning = false;
-        messages.push({ role: 'user', content: buffered.trim() });
+        await processInput(buffered.trim());
       }
     }
 
@@ -4054,14 +4423,17 @@ async function sendAgentMessage(
   jarvisContext?: string | null,
   onStepInfo?: (label: string, tool: string) => void,
   learningJournal?: LearningJournal,
+  runtime?: Pick<ExecutionRuntime, 'executionRoot' | 'worktree'>,
+  skillManager?: SkillManager,
 ): Promise<void> {
   // User message was rendered by renderUserMessage() in the caller before entering here.
+  const executionRoot = runtime?.executionRoot ?? process.cwd();
 
   // Intent Detection: Check if user wants to feed the codebase
   const feedIntent = detectFeedIntent(input);
   if (feedIntent.detected && feedIntent.confidence > 0.7 && spiralEngine) {
     renderInfo('\u{1F300} Analyzing project in the background...\n');
-    const rootDir = process.cwd();
+    const rootDir = executionRoot;
     // Background feed runs silently (no progress output) to avoid colliding
     // with the activity indicator which also writes \r\x1b[K on the same line.
     runFeedPipeline(rootDir, spiralEngine, {
@@ -4165,6 +4537,7 @@ async function sendAgentMessage(
       permissions,
       toolContext: {
         projectRoot: process.cwd(),
+        executionRoot,
         undoStack,
         spiralEngine,
         bugJournal,
@@ -4172,6 +4545,8 @@ async function sendAgentMessage(
         visionProcessor,
         onBrowserScreenshot: onBrowserScreenshot ?? undefined,
         learningJournal,
+        skillManager,
+        worktree: runtime?.worktree,
       },
       checkpointStore,
       sessionBuffer,
@@ -4399,6 +4774,7 @@ async function handleSlashCommand(
   onProviderSwitch?: (provider: LLMProvider) => void,
   onBrainSwitch?: (scope: 'project' | 'global') => Promise<void>,
   currentBrainScope?: 'project' | 'global',
+  resolveSpiralEngine?: (scope?: 'project' | 'global') => Promise<any>,
   onAutonomous?: (action: 'start' | 'stop' | 'security' | 'monitor', goal?: string) => Promise<void>,
   onValidation?: (action: string) => void,
   sessionManager?: SessionManager,
@@ -4433,9 +4809,17 @@ async function handleSlashCommand(
     getState: () => PlanModeState;
     setState: (s: PlanModeState) => void;
   },
+  worktreeCtx?: {
+    listActive: () => Array<{ sessionId: string; reason: string; root: string }>;
+  },
 ): Promise<string | void> {
   const parts = input.split(/\s+/);
   let cmd = parts[0].toLowerCase();
+  const ensureSpiralForScope = async (scope: 'project' | 'global' = currentBrainScope || 'global'): Promise<any> => {
+    if (!resolveSpiralEngine) return spiralEngine;
+    spiralEngine = await resolveSpiralEngine(scope);
+    return spiralEngine;
+  };
 
   // ─── Chrome-aware selectMenu ───────────────────────────
   // Deactivates Screen during interactive menus to prevent
@@ -4543,9 +4927,9 @@ async function handleSlashCommand(
           helpCmds[helpIdx], messages, agentHistory, config, spiralEngine,
           store, rl, permissions, undoStack, checkpointStore, sessionBuffer,
           sessionTokens, sessionToolCalls,
-          onProviderSwitch, onBrainSwitch, currentBrainScope, onAutonomous, onValidation,
+          onProviderSwitch, onBrainSwitch, currentBrainScope, resolveSpiralEngine, onAutonomous, onValidation,
           sessionManager, onRegisterBrainHandlers, onSubPrompt, bugJournal, jarvisCtx,
-          onModeChange, chrome, planCtx,
+          onModeChange, chrome, planCtx, worktreeCtx,
         );
       }
       break;
@@ -4559,6 +4943,38 @@ async function handleSlashCommand(
 
     case '/model': {
       const directModel = parts[1];
+
+      // /model add <provider> <model> [contextLength] [--free]
+      if (directModel === 'add') {
+        const prov = parts[2];
+        const modelName = parts[3];
+        if (!prov || !modelName) {
+          renderError('Usage: /model add <provider> <model> [contextLength] [--free]');
+          break;
+        }
+        const ctxArg = parts[4] && !parts[4].startsWith('-') ? parseInt(parts[4], 10) : undefined;
+        const isFree = parts.includes('--free');
+        const meta = (ctxArg || isFree) ? { contextLength: ctxArg, free: isFree || undefined } : undefined;
+        store.addModel(prov, modelName, meta);
+        if (ctxArg) registerModelContextLength(modelName, ctxArg);
+        if (isFree) registerFreeModel(modelName);
+        renderInfo(`Model added: ${prov} / ${modelName}${ctxArg ? ` (${(ctxArg / 1000).toFixed(0)}K ctx)` : ''}${isFree ? ' [FREE]' : ''}`);
+        break;
+      }
+
+      // /model remove <provider> <model>
+      if (directModel === 'remove') {
+        const prov = parts[2];
+        const modelName = parts[3];
+        if (!prov || !modelName) {
+          renderError('Usage: /model remove <provider> <model>');
+          break;
+        }
+        store.removeModel(prov, modelName);
+        renderInfo(`Model removed: ${prov} / ${modelName}`);
+        break;
+      }
+
       if (directModel) {
         // Check if it looks like an Ollama model (contains ':' or is a known local model pattern)
         const isOllamaModel = directModel.includes(':') || directModel.match(/^(qwen|llama|deepseek|codellama|mistral|phi|gemma|starcoder)/i);
@@ -4658,6 +5074,7 @@ async function handleSlashCommand(
     }
 
     case '/spiral':
+      spiralEngine = await ensureSpiralForScope(currentBrainScope || 'global');
       if (spiralEngine) {
         try {
           const status = spiralEngine.status();
@@ -4673,7 +5090,7 @@ async function handleSlashCommand(
           renderInfo('Spiral engine not available.');
         }
       } else {
-        renderInfo('Spiral engine disabled.');
+        renderInfo(config.spiral.enabled ? 'Spiral engine not available.' : 'Spiral engine disabled.');
       }
       break;
 
@@ -4692,6 +5109,7 @@ async function handleSlashCommand(
           renderInfo(chalk.yellow('  Cannot use local brain here — using global'));
         }
       }
+      spiralEngine = await ensureSpiralForScope('project');
       // Auto-start brain visualization
       if (spiralEngine) {
         try {
@@ -4730,6 +5148,7 @@ async function handleSlashCommand(
           if (isBrainServerRunning()) pushScopeChange('global');
         } catch { /* optional */ }
       }
+      spiralEngine = await ensureSpiralForScope('global');
       // Auto-start brain visualization
       if (spiralEngine) {
         try {
@@ -4810,6 +5229,7 @@ async function handleSlashCommand(
 
       // Open 3D visualization (for /brain or /brain view)
       if (!brainArg || brainArg === 'view') {
+        spiralEngine = await ensureSpiralForScope(currentBrainScope || 'global');
         if (spiralEngine) {
           try {
             const { exportBrainData } = await import('../brain/exporter.js');
@@ -4848,6 +5268,7 @@ async function handleSlashCommand(
       break;
 
     case '/context':
+      spiralEngine = await ensureSpiralForScope(currentBrainScope || 'global');
       if (spiralEngine) {
         const status = spiralEngine.status();
         renderInfo(`Context: ${status.total_nodes} spiral nodes, ${status.total_edges} edges`);
@@ -4870,6 +5291,7 @@ async function handleSlashCommand(
     }
 
     case '/compact':
+      spiralEngine = await ensureSpiralForScope(currentBrainScope || 'global');
       if (spiralEngine) {
         const result = spiralEngine.evolve();
         renderInfo(`Evolution: ${result.promoted} promoted, ${result.demoted} demoted, ${result.summarized} summarized`);
@@ -5113,8 +5535,80 @@ async function handleSlashCommand(
       }
       break;
 
+    case '/worktree': {
+      const arg = parts[1]?.toLowerCase();
+      const cleanupArg = parts[2]?.toLowerCase();
+      const current = store.getAll().worktree;
+      const active = worktreeCtx?.listActive() ?? [];
+
+      const renderWorktreeStatus = (): void => {
+        const modeColor = current.mode === 'force'
+          ? chalk.hex('#FF6600')
+          : current.mode === 'auto'
+            ? chalk.cyan
+            : chalk.dim;
+        renderInfo(
+          `Worktree mode: ${modeColor(current.mode)} | cleanup: ${current.cleanup} | branch prefix: ${current.branchPrefix} | max age: ${current.maxAgeHours}h`,
+        );
+        if (active.length === 0) {
+          renderInfo(chalk.dim('No active isolated runs.'));
+        } else {
+          renderInfo(`Active isolated runs: ${active.length}`);
+          for (const runtime of active.slice(0, 8)) {
+            renderInfo(`  ${runtime.reason} [${runtime.sessionId}] -> ${runtime.root}`);
+          }
+        }
+        renderInfo(chalk.dim('Usage: /worktree [status|auto|force|off|cleanup keep|cleanup remove|list]'));
+      };
+
+      if (!arg || arg === 'status' || arg === 'show') {
+        renderWorktreeStatus();
+        break;
+      }
+
+      if (arg === 'list') {
+        if (active.length === 0) {
+          renderInfo(chalk.dim('No active isolated runs.'));
+        } else {
+          renderInfo(`Active isolated runs: ${active.length}`);
+          for (const runtime of active) {
+            renderInfo(`  ${runtime.reason} [${runtime.sessionId}] -> ${runtime.root}`);
+          }
+        }
+        break;
+      }
+
+      if (arg === 'on') {
+        store.set('worktree.mode', 'auto');
+        renderInfo(chalk.cyan('Worktree mode set to auto') + chalk.dim(' — future /auto, /plan and /swarm runs use isolated worktrees.'));
+        onModeChange?.();
+        break;
+      }
+
+      if (arg === 'off' || arg === 'auto' || arg === 'force') {
+        store.set('worktree.mode', arg);
+        renderInfo(`Worktree mode set to ${arg}.`);
+        onModeChange?.();
+        break;
+      }
+
+      if (arg === 'cleanup') {
+        if (cleanupArg === 'keep' || cleanupArg === 'remove') {
+          store.set('worktree.cleanup', cleanupArg);
+          renderInfo(`Worktree cleanup set to ${cleanupArg}.`);
+        } else {
+          renderInfo('Usage: /worktree cleanup [keep|remove]');
+        }
+        break;
+      }
+
+      renderWorktreeStatus();
+      break;
+    }
+
     case '/export': {
       const outputDir = parts[1] || process.cwd();
+      spiralEngine = await ensureSpiralForScope(currentBrainScope || 'global');
       if (spiralEngine) {
         try {
           const { exportToZip } = await import('../brain/archive.js');
@@ -5230,7 +5724,7 @@ async function handleSlashCommand(
 
     case '/del': {
       // /del task <id> — shorthand for /jarvis delete <id>
-      if (!(await gateCheck('jarvis', 'Jarvis AGI'))) break;
+      if (!(await gateCheck('jarvis', 'Jarvis Assistant'))) break;
       if (!jarvisCtx) { renderInfo('Jarvis not available.'); break; }
       const delTarget = parts[1]?.toLowerCase();
       if (delTarget === 'task') {
@@ -5252,7 +5746,7 @@ async function handleSlashCommand(
     }
 
     case '/jarvis': {
-      if (!(await gateCheck('jarvis', 'Jarvis AGI'))) break;
+      if (!(await gateCheck('jarvis', 'Jarvis Assistant'))) break;
       if (!jarvisCtx) { renderInfo('Jarvis not available.'); break; }
       const sub = parts[1]?.toLowerCase();
       const jq = jarvisCtx.queue;
@@ -5279,7 +5773,7 @@ async function handleSlashCommand(
         if (!identity.customized) {
           // Deactivate screen so onboarding questions render directly
           // (rl.question output goes to devNull; onboarding uses process.stdout)
-          chrome?.deactivate();
+          chrome?.deactivate({ suspend: false });
           rl.pause();
           const onboardResult = await runOnboarding(
             jarvisCtx.identity, rl,
@@ -5933,15 +6427,18 @@ async function handleSlashCommand(
         if (isBrainServerRunning()) {
           const port = getBrainPort();
           process.stdout.write(`  ${theme.success('\u{1F310} Already connected')} on port ${port}\n`);
-        } else if (spiralEngine) {
+        } else {
+          spiralEngine = await ensureSpiralForScope(currentBrainScope || 'project');
+          if (!spiralEngine) {
+            renderError(config.spiral.enabled ? 'No spiral engine available.' : 'Spiral engine is disabled.');
+            break;
+          }
           const { exportBrainData } = await import('../brain/exporter.js');
           exportBrainData(spiralEngine, 'HelixMind Project', currentBrainScope || 'project');
           const url = await startLiveBrain(spiralEngine, 'HelixMind Project', currentBrainScope || 'project');
           if (onRegisterBrainHandlers) await onRegisterBrainHandlers();
           process.stdout.write(`  ${theme.success('\u{1F310} Brain server started:')} ${url}\n`);
           process.stdout.write(`  ${theme.dim('Web dashboard can now connect.')}\n`);
-        } else {
-          renderError('No spiral engine available. Run /helix first.');
         }
       } catch (err) {
         renderError(`Failed to start brain server: ${err}`);

@@ -15,20 +15,20 @@ registerTool({
   async execute(_input, ctx) {
     // Quick check: is this a git repository?
     try {
-      execSync('git rev-parse --is-inside-work-tree', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' });
+      execSync('git rev-parse --is-inside-work-tree', { cwd: ctx.executionRoot, encoding: 'utf-8', stdio: 'pipe' });
     } catch {
-      return `Not a git repository. The current directory (${ctx.projectRoot}) is not tracked by git. Use \`git init\` to initialize one, or navigate to a project that uses git.`;
+      return `Not a git repository. The current directory (${ctx.executionRoot}) is not tracked by git. Use \`git init\` to initialize one, or navigate to a project that uses git.`;
     }
 
     try {
-      const branch = execSync('git branch --show-current', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
-      const status = execSync('git status --short', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
+      const branch = execSync('git branch --show-current', { cwd: ctx.executionRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
+      const status = execSync('git status --short', { cwd: ctx.executionRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
 
       let ahead = '0';
       let behind = '0';
       try {
-        ahead = execSync('git rev-list --count @{upstream}..HEAD', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
-        behind = execSync('git rev-list --count HEAD..@{upstream}', { cwd: ctx.projectRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
+        ahead = execSync('git rev-list --count @{upstream}..HEAD', { cwd: ctx.executionRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
+        behind = execSync('git rev-list --count HEAD..@{upstream}', { cwd: ctx.executionRoot, encoding: 'utf-8', stdio: 'pipe' }).trim();
       } catch {
         // No upstream configured — skip ahead/behind
       }

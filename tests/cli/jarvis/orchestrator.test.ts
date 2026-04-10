@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TaskOrchestrator } from '../../../src/cli/jarvis/orchestrator.js';
+import { TaskOrchestrator, analyzeOrchestrationNeed } from '../../../src/cli/jarvis/orchestrator.js';
 import type { SubTask, OrchestrationPlan } from '../../../src/cli/jarvis/types.js';
 import { ParallelExecutor } from '../../../src/cli/jarvis/parallel.js';
 
@@ -59,6 +59,23 @@ describe('TaskOrchestrator', () => {
       expect(orchestrator.shouldOrchestrate(
         '- Create the migration file\n- Update the model\n- Add tests for the new fields',
       )).toBe(true);
+    });
+
+    it('should stay single-agent for read-only questions', () => {
+      const analysis = analyzeOrchestrationNeed('How does the auth pipeline work?');
+
+      expect(analysis.shouldOrchestrate).toBe(false);
+      expect(analysis.blockers).toContain('read-only request');
+    });
+
+    it('should score explicit parallel work strongly', () => {
+      const analysis = analyzeOrchestrationNeed(
+        'In parallel, update src/api/user.ts, src/api/team.ts, and src/api/audit.ts and add tests',
+      );
+
+      expect(analysis.shouldOrchestrate).toBe(true);
+      expect(analysis.score).toBeGreaterThanOrEqual(3);
+      expect(analysis.reasons).toContain('parallel hint');
     });
   });
 

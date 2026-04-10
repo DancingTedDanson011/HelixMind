@@ -14,6 +14,13 @@ describe('PermissionManager', () => {
     expect(await pm.check('spiral_query', { query: 'test' }, () => {})).toBe(true);
   });
 
+  it('should auto-allow read-only run_command operations', async () => {
+    const pm = new PermissionManager();
+    expect(await pm.check('run_command', { command: 'ls -la' }, () => {})).toBe(true);
+    expect(await pm.check('run_command', { command: 'rg PermissionManager src' }, () => {})).toBe(true);
+    expect(await pm.check('run_command', { command: 'git status' }, () => {})).toBe(true);
+  });
+
   it('should auto-allow write operations in YOLO mode', async () => {
     const pm = new PermissionManager();
     pm.setYolo(true);
@@ -65,6 +72,12 @@ describe('PermissionManager', () => {
     // YOLO mode allows dangerous commands too (no readline = auto-allow as fallback)
     expect(await pm.check('run_command', { command: 'rm -rf /tmp/test' }, () => {})).toBe(true);
     expect(await pm.check('run_command', { command: 'sudo apt install foo' }, () => {})).toBe(true);
+  });
+
+  it('should deny blocked commands even in YOLO mode', async () => {
+    const pm = new PermissionManager();
+    pm.setYolo(true);
+    expect(await pm.check('run_command', { command: 'rm -rf /' }, () => {})).toBe(false);
   });
 
   it('should format write_file detail with line count', () => {

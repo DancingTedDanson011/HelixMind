@@ -160,4 +160,15 @@ describe('Statusbar', () => {
     const bar = renderStatusBar(makeData({ runtime: 45 }), WIDE);
     expect(bar).toContain('45s');
   });
+
+  it('should render worktree mode when enabled', () => {
+    const bar = renderStatusBar(makeData({ worktree: { mode: 'auto', active: 0 } }), WIDE);
+    expect(bar).toContain('WT:');
+    expect(bar).toContain('auto');
+  });
+
+  it('should render active worktree count', () => {
+    const bar = renderStatusBar(makeData({ worktree: { mode: 'force', active: 2 } }), WIDE);
+    expect(bar).toContain('force/2');
+  });
 });

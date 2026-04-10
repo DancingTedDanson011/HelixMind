@@ -114,3 +114,13 @@ export const FREE_MODELS = new Set([
 export function isModelFree(model: string): boolean {
   return FREE_MODELS.has(model);
 }
+
+/** Register a model as free at runtime (e.g. from user config) */
+export function registerFreeModel(model: string): void {
+  FREE_MODELS.add(model);
+}
+
+/** Remove a model from the free set */
+export function unregisterFreeModel(model: string): void {
+  FREE_MODELS.delete(model);
+}

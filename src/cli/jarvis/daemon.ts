@@ -10,6 +10,7 @@ import type { JarvisQueue } from './queue.js';
 import type { JarvisTask, ThinkingCallbacks } from './types.js';
 import { assertCanExecute } from './core-ethics.js';
 import { runThinkingLoop } from './thinking-loop.js';
+import { getSkillNameFromTags } from './skill-builder.js';
 
 export interface JarvisDaemonCallbacks {
   sendMessage: (prompt: string) => Promise<string>;
@@ -30,6 +31,10 @@ export interface JarvisDaemonCallbacks {
   recordLearning?: (error: string, solution: string, category: string, context: string) => void;
   /** Thinking loop callbacks — when provided, enables AGI thinking between tasks */
   thinkingCallbacks?: Partial<ThinkingCallbacks>;
+  /** Queue a self-improvement skill build when a task fails due to missing capabilities */
+  queueSkillBuildTask?: (task: JarvisTask, failure: string) => JarvisTask | null;
+  /** Activate a skill after a skill_build task succeeds */
+  onSkillBuildComplete?: (task: JarvisTask, skillName: string) => Promise<void>;
 }
 
 function buildTaskPrompt(
@@ -41,7 +46,7 @@ function buildTaskPrompt(
 ): string {
   const name = identityName || 'JARVIS';
   const sections = [
-    `You are ${name} — HelixMind's autonomous AGI task executor.`,
+    `You are ${name} — HelixMind's autonomous task assistant.`,
   ];
 
   if (identityPrompt) sections.push(identityPrompt);
@@ -207,6 +212,15 @@ export async function runJarvisDaemon(
         callbacks.onTaskComplete(task, summary);
         renderInfo(chalk.green(`  \u2713 Task #${task.id}: ${summary}`));
 
+        const skillName = getSkillNameFromTags(task.tags);
+        if (skillName && task.tags?.includes('skill_build') && callbacks.onSkillBuildComplete) {
+          try {
+            await callbacks.onSkillBuildComplete(task, skillName);
+          } catch {
+            // Skill activation is best effort and should not flip task success.
+          }
+        }
+
         // Record learning if this was a retry success
         if (task.retries > 0 && task.error && callbacks.recordLearning) {
           callbacks.recordLearning(
@@ -246,6 +260,12 @@ export async function runJarvisDaemon(
             error: summary,
           });
           callbacks.onTaskFailed(task, summary);
+          if (!task.tags?.includes('skill_build')) {
+            const queued = callbacks.queueSkillBuildTask?.(task, summary) ?? null;
+            if (queued) {
+              renderInfo(chalk.cyan(`  \u2699 Queued self-build task #${queued.id}: ${queued.title}`));
+            }
+          }
           renderInfo(chalk.red(`  \u2717 Task #${task.id} failed permanently: ${summary}`));
         }
       }
@@ -269,6 +289,12 @@ export async function runJarvisDaemon(
           error: errorMsg,
         });
         callbacks.onTaskFailed(task, errorMsg);
+        if (!task.tags?.includes('skill_build')) {
+          const queued = callbacks.queueSkillBuildTask?.(task, errorMsg) ?? null;
+          if (queued) {
+            renderInfo(chalk.cyan(`  \u2699 Queued self-build task #${queued.id}: ${queued.title}`));
+          }
+        }
         renderInfo(chalk.red(`  \u2717 Task #${task.id} error: ${errorMsg}`));
       }
     }

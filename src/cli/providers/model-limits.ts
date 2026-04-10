@@ -46,12 +46,29 @@ const MODEL_CONTEXT_LENGTHS: Record<string, number> = {
 const DEFAULT_CONTEXT_LENGTH = 128_000;
 const OLLAMA_DEFAULT_CONTEXT_LENGTH = 32_000;
 
+/** Runtime-extensible overrides (populated by ConfigStore on load) */
+const CUSTOM_CONTEXT_LENGTHS: Map<string, number> = new Map();
+
+/** Register a custom context length for a model (e.g. from user config) */
+export function registerModelContextLength(model: string, length: number): void {
+  CUSTOM_CONTEXT_LENGTHS.set(model, length);
+}
+
+/** Remove a custom context length registration */
+export function unregisterModelContextLength(model: string): void {
+  CUSTOM_CONTEXT_LENGTHS.delete(model);
+}
+
 /**
  * Get the context window size for a model.
- * Falls back to 32k for Ollama models, 128k for everything else.
+ * Priority: custom registration > hardcoded > prefix match > provider default.
  */
 export function getModelContextLength(model: string, provider?: string): number {
-  // Exact match first
+  // Custom overrides first (user-configured models)
+  const custom = CUSTOM_CONTEXT_LENGTHS.get(model);
+  if (custom !== undefined) return custom;
+
+  // Exact match in hardcoded map
   if (MODEL_CONTEXT_LENGTHS[model] !== undefined) {
     return MODEL_CONTEXT_LENGTHS[model];
   }

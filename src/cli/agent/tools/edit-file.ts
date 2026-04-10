@@ -23,7 +23,7 @@ registerTool({
   },
 
   async execute(input, ctx) {
-    const { resolved: filePath } = validatePathEx(input.path as string, ctx.projectRoot);
+    const { resolved: filePath } = validatePathEx(input.path as string, ctx.executionRoot);
     const oldStr = input.old_string as string;
     const newStr = input.new_string as string;
 

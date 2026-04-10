@@ -48,7 +48,7 @@ export async function requireAuth(): Promise<ConfigStore> {
   w(d('  │' + ' '.repeat(76) + '│') + '\n');
   w(d('  │  ') + 'Login — free, unlock everything' + '     ' + 'Open Source — no account needed' + d(' '.repeat(8) + '│') + '\n');
   w(d('  │' + ' '.repeat(76) + '│') + '\n');
-  w(d('  │    ') + g('\u2713') + ' Jarvis AGI' + ' '.repeat(26) + dim('\u2713 AI Agent + 22 Tools') + d(' '.repeat(13) + '│') + '\n');
+  w(d('  │    ') + g('\u2713') + ' Jarvis Assistant' + ' '.repeat(20) + dim('\u2713 AI Agent + 22 Tools') + d(' '.repeat(13) + '│') + '\n');
   w(d('  │    ') + g('\u2713') + ' Validation Matrix' + ' '.repeat(19) + dim('\u2713 Spiral Memory') + d(' '.repeat(19) + '│') + '\n');
   w(d('  │    ') + g('\u2713') + ' Security Monitor' + ' '.repeat(20) + dim('\u2713 Anthropic/OpenAI/Ollama') + d(' '.repeat(9) + '│') + '\n');
   w(d('  │    ') + g('\u2713') + ' Autonomous Mode' + ' '.repeat(21) + chalk.red('\u2717') + dim(' No Jarvis \u00B7 No Validation') + d(' '.repeat(7) + '│') + '\n');
@@ -76,7 +76,7 @@ export async function requireAuth(): Promise<ConfigStore> {
   // Choice 2: Open Source
   w('\n');
   w(d('  ') + p('\u25B8') + d(' Open Source mode — full agent, no limits.\n'));
-  w(d('  Run ') + chalk.white('helixmind login') + d(' anytime to unlock Jarvis AGI + more.\n\n'));
+  w(d('  Run ') + chalk.white('helixmind login') + d(' anytime to unlock Jarvis Assistant + more.\n\n'));
 
   return store;
 }

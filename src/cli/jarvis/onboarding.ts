@@ -98,7 +98,7 @@ export async function runOnboarding(
   process.stdout.write(d('\u256D\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E') + '\n');
   process.stdout.write(d('\u2502  ') + g('\u{1F31F}') + ' ' + j.bold("Hey! I'm Jarvis.") + d('                            \u2502') + '\n');
   process.stdout.write(d('\u2502') + d('                                                  \u2502') + '\n');
-  process.stdout.write(d('\u2502  ') + "I'm your autonomous AGI assistant in" + d('           \u2502') + '\n');
+  process.stdout.write(d('\u2502  ') + "I'm your autonomous assistant in" + d('               \u2502') + '\n');
   process.stdout.write(d('\u2502  ') + 'HelixMind. I can:' + d('                             \u2502') + '\n');
   process.stdout.write(d('\u2502') + d('                                                  \u2502') + '\n');
   process.stdout.write(d('\u2502  ') + chalk.cyan('\u2022') + ' Execute tasks autonomously' + d('                  \u2502') + '\n');

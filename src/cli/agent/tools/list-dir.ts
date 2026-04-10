@@ -19,7 +19,7 @@ registerTool({
   },
 
   async execute(input, ctx) {
-    const { resolved: dirPath } = validatePathEx((input.path as string) || '.', ctx.projectRoot);
+    const { resolved: dirPath } = validatePathEx((input.path as string) || '.', ctx.executionRoot);
     const recursive = (input.recursive as boolean) ?? false;
     const maxDepth = (input.max_depth as number) ?? 2;
 
@@ -30,7 +30,7 @@ registerTool({
         return `Error: "${input.path || '.'}" is not a directory (it's a file). Use read_file instead.`;
       }
     } catch {
-      return `Error: Directory "${input.path || '.'}" does not exist in ${ctx.projectRoot}`;
+      return `Error: Directory "${input.path || '.'}" does not exist in ${ctx.executionRoot}`;
     }
 
     const entries: string[] = [];
@@ -70,7 +70,7 @@ registerTool({
 
     listDir(dirPath, 0, '');
 
-    const relPath = relative(ctx.projectRoot, dirPath) || '.';
+    const relPath = relative(ctx.executionRoot, dirPath) || '.';
     return `Directory: ${relPath}/\n${entries.length} entries\n\n${entries.join('\n')}`;
   },
 });

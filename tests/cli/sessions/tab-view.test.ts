@@ -65,4 +65,17 @@ describe('Tab View', () => {
     expect(list).toContain('[abc]');
     expect(list).toContain('\u25B6'); // Active marker
   });
+
+  it('should show isolated worktree info in session list', () => {
+    const main = new Session('main', 'Chat', '\u{1F4AC}', flags);
+    const bg = new Session('abc', 'Auto', '\u{1F504}', flags);
+    bg.worktree = {
+      root: 'C:\\repo\\.helixmind\\worktrees\\autonomous-abc',
+      reason: 'autonomous',
+    };
+
+    const list = renderSessionList([main, bg], 'main');
+    expect(list).toContain('isolated autonomous');
+    expect(list).toContain('worktrees');
+  });
 });

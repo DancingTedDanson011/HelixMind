@@ -18,7 +18,7 @@ registerTool({
   },
 
   async execute(input, ctx) {
-    const { resolved: filePath } = validatePathEx(input.path as string, ctx.projectRoot);
+    const { resolved: filePath } = validatePathEx(input.path as string, ctx.executionRoot);
     const stat = statSync(filePath);
 
     if (stat.isDirectory()) {

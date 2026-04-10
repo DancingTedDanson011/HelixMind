@@ -1,6 +1,6 @@
 import * as readline from 'node:readline';
 import { randomUUID } from 'node:crypto';
-import { classifyCommand } from './sandbox.js';
+import { classifyShellCommand } from './shell/classifier.js';
 import type { ToolPermissionRequest } from '../brain/control-protocol.js';
 import { selectMenu, type MenuItem } from '../ui/select-menu.js';
 import chalk from 'chalk';
@@ -41,8 +41,8 @@ const TOOL_PERMISSIONS: Record<string, PermissionLevel> = {
   browser_type: 'ask',
   browser_close: 'auto', // Closing is always safe
 
-  // Dangerous (shell execution)
-  run_command: 'ask', // Upgraded to 'dangerous' based on command content
+  // Shell execution - refined dynamically by command semantics
+  run_command: 'ask',
 };
 
 interface PendingRemoteEntry {
@@ -196,11 +196,16 @@ export class PermissionManager {
 
     let level = TOOL_PERMISSIONS[toolName] ?? 'ask';
 
-    // Upgrade run_command based on command content
+    // Refine run_command based on structured command semantics
     if (toolName === 'run_command' && typeof input.command === 'string') {
-      const cmdLevel = classifyCommand(input.command);
-      if (cmdLevel === 'dangerous') level = 'dangerous';
-      else if (cmdLevel === 'ask') level = 'ask';
+      const classification = classifyShellCommand(input.command);
+      if (classification.risk === 'blocked') {
+        displayFn(`\n  ${chalk.red.bold('Blocked command:')} ${classification.summary}\n`);
+        return false;
+      }
+      if (classification.risk === 'dangerous') level = 'dangerous';
+      else if (classification.risk === 'auto') level = 'auto';
+      else level = 'ask';
     }
 
     // Auto-allow
@@ -479,7 +484,12 @@ export class PermissionManager {
       }
       case 'run_command': {
         const cmd = String(input.command || '');
-        return `${chalk.bold('Run command')} ${chalk.yellow(`$ ${cmd}`)}`;
+        try {
+          const classification = classifyShellCommand(cmd);
+          return `${chalk.bold('Run command')} ${chalk.yellow(`$ ${cmd}`)}\n  │   ${chalk.dim(`${classification.summary} [${classification.kind}/${classification.risk}]`)}`;
+        } catch {
+          return `${chalk.bold('Run command')} ${chalk.yellow(`$ ${cmd}`)}`;
+        }
       }
       case 'git_commit': {
         const msg = String(input.message || '');
@@ -516,7 +526,12 @@ export class PermissionManager {
       }
       case 'run_command': {
         const cmd = String(input.command || '');
-        return `Run command: $ ${cmd}`;
+        try {
+          const classification = classifyShellCommand(cmd);
+          return `Run command: $ ${cmd}\n  ${classification.summary} [${classification.kind}/${classification.risk}]`;
+        } catch {
+          return `Run command: $ ${cmd}`;
+        }
       }
       case 'git_commit': {
         const msg = String(input.message || '');

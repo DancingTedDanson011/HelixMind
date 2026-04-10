@@ -19,6 +19,136 @@ const NUMBERED_STEPS = /(?:^|\n)\s*(?:\d+[\.\):]|[-*])\s+\S/gm;
 /** File path pattern (Unix + Windows) */
 const FILE_PATH = /(?:\.\/|\/|[a-zA-Z]:\\|\b(?:src|lib|test|app|components|pages|utils|config|public)\/)\S+\.\w{1,10}/g;
 
+/** Keywords that imply the work is mostly sequential, not parallelizable */
+const SEQUENTIAL_KEYWORDS = /\b(then|after|before|once|finally|first|second|third|zuerst|danach|anschließend)\b/i;
+
+/** Keywords that explicitly invite parallel execution */
+const PARALLEL_KEYWORDS = /\b(parallel|concurrent|concurrently|simultaneous|simultaneously|independent|separate workers|gleichzeitig|parallelisieren|unabhängig)\b/i;
+
+/** Read-only prompts should stay on the cheap single-agent path */
+const READ_ONLY_KEYWORDS = /\b(explain|describe|summarize|review|analyze|compare|how does|what does|why does|warum|wieso|wie funktioniert|erklär|beschreib|analysiere)\b/i;
+
+/** Coordinated actions are a stronger signal than multiple verbs alone */
+const COORDINATION_KEYWORDS = /\b(and|und|also|plus|as well|together with|along with)\b/i;
+
+export interface OrchestrationHeuristic {
+  shouldOrchestrate: boolean;
+  score: number;
+  estimatedTasks: number;
+  reasons: string[];
+  blockers: string[];
+}
+
+/**
+ * Score whether a prompt is worth decomposing into swarm workers.
+ * This stays heuristic-only: cheap, deterministic, and explainable.
+ */
+export function analyzeOrchestrationNeed(userMessage: string): OrchestrationHeuristic {
+  const trimmed = userMessage.trim();
+  if (!trimmed) {
+    return {
+      shouldOrchestrate: false,
+      score: 0,
+      estimatedTasks: 1,
+      reasons: [],
+      blockers: ['empty request'],
+    };
+  }
+
+  let score = 0;
+  const reasons: string[] = [];
+  const blockers: string[] = [];
+
+  const verbs = trimmed.match(ACTION_VERBS) ?? [];
+  const files = trimmed.match(FILE_PATH) ?? [];
+  const steps = trimmed.match(NUMBERED_STEPS) ?? [];
+  const sentences = trimmed
+    .split(/[.;]\s+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+  const actionSentences = sentences.filter(sentence => {
+    ACTION_VERBS.lastIndex = 0;
+    return ACTION_VERBS.test(sentence);
+  });
+
+  if (steps.length >= 2) {
+    score += 3;
+    reasons.push(`${steps.length} explicit steps`);
+  }
+
+  if (verbs.length >= 3) {
+    score += 2;
+    reasons.push(`${verbs.length} action verbs`);
+  } else if (verbs.length >= 2) {
+    score += 1;
+    reasons.push('multiple actions');
+  }
+
+  if (verbs.length >= 2 && COORDINATION_KEYWORDS.test(trimmed)) {
+    score += 2;
+    reasons.push('coordinated actions');
+  }
+
+  if (MULTI_KEYWORDS.test(trimmed)) {
+    score += 2;
+    reasons.push('multi-task wording');
+  }
+
+  if (files.length >= 3) {
+    score += 3;
+    reasons.push(`${files.length} file targets`);
+  } else if (files.length === 2) {
+    score += 1;
+    reasons.push('multiple file targets');
+  }
+
+  if (actionSentences.length >= 2) {
+    score += 1;
+    reasons.push('multiple action sentences');
+  }
+
+  if (PARALLEL_KEYWORDS.test(trimmed)) {
+    score += 2;
+    reasons.push('parallel hint');
+  }
+
+  if (READ_ONLY_KEYWORDS.test(trimmed) && verbs.length === 0) {
+    score -= 3;
+    blockers.push('read-only request');
+  }
+
+  if (SEQUENTIAL_KEYWORDS.test(trimmed) && steps.length < 2) {
+    score -= 1;
+    blockers.push('mostly sequential wording');
+  }
+
+  if (trimmed.includes('?') && verbs.length <= 1 && steps.length === 0) {
+    score -= 2;
+    blockers.push('question-shaped request');
+  }
+
+  if (verbs.length <= 1 && files.length <= 1 && steps.length === 0 && trimmed.length < 120) {
+    score -= 2;
+    blockers.push('small single-focus task');
+  }
+
+  const estimatedTasks = Math.max(
+    1,
+    Math.min(
+      4,
+      steps.length || files.length || (verbs.length >= 2 ? verbs.length : actionSentences.length || 1),
+    ),
+  );
+
+  return {
+    shouldOrchestrate: score >= 3,
+    score,
+    estimatedTasks,
+    reasons,
+    blockers,
+  };
+}
+
 // ─── Orchestrator ────────────────────────────────────────────────────
 
 export class TaskOrchestrator {
@@ -35,32 +165,11 @@ export class TaskOrchestrator {
    * Returns true if the input looks like it contains multiple tasks.
    */
   shouldOrchestrate(userMessage: string): boolean {
-    let score = 0;
+    return analyzeOrchestrationNeed(userMessage).shouldOrchestrate;
+  }
 
-    // Check for "and" between action verbs: "create X and update Y"
-    const verbs = userMessage.match(ACTION_VERBS);
-    if (verbs && verbs.length >= 2) {
-      // Check if "and" or comma separates them
-      if (/\b\w+\b.*\band\b.*\b\w+\b/i.test(userMessage)) score += 2;
-      else score += 1;
-    }
-
-    // File path mentions
-    const files = userMessage.match(FILE_PATH);
-    if (files && files.length >= 3) score += 2;
-
-    // Numbered steps
-    const steps = userMessage.match(NUMBERED_STEPS);
-    if (steps && steps.length >= 2) score += 2;
-
-    // Multi-task keywords
-    if (MULTI_KEYWORDS.test(userMessage)) score += 2;
-
-    // Multiple sentences with imperative verbs (comma/period separated actions)
-    const sentences = userMessage.split(/[.;]\s+/).filter(s => ACTION_VERBS.test(s));
-    if (sentences.length >= 3) score += 1;
-
-    return score >= 2;
+  analyze(userMessage: string): OrchestrationHeuristic {
+    return analyzeOrchestrationNeed(userMessage);
   }
 
   /**

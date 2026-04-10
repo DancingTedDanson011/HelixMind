@@ -36,6 +36,10 @@ export interface StatusBarData {
   sectionTimer?: { section: string; seconds: number };
   totalTimer?: number; // seconds
   orchestration?: { active: number; total: number };
+  worktree?: {
+    mode: 'off' | 'auto' | 'force';
+    active: number;
+  };
   /** Active mode: cli (default), monitor (/auto /security), jarvis (/jarvis) */
   activeMode?: 'cli' | 'monitor' | 'jarvis';
 }
@@ -84,7 +88,20 @@ export function renderStatusBar(data: StatusBarData, maxWidth?: number): string 
   const modelSection = `${chalk.dim(shortenModelName(data.model))} ${permText}${modeText}`;
 
   // === Metrics: Tools + Checkpoints (always with labels) ===
-  const metricsSection = `${chalk.dim('Tools:')}${data.tools.callsThisRound} ${chalk.dim('CP:')}${data.checkpoints ?? 0}`;
+  const metricParts = [
+    `${chalk.dim('Tools:')}${data.tools.callsThisRound}`,
+    `${chalk.dim('CP:')}${data.checkpoints ?? 0}`,
+  ];
+  if (data.worktree && (data.worktree.mode !== 'off' || data.worktree.active > 0)) {
+    const modeColor = data.worktree.mode === 'force'
+      ? chalk.hex('#FF6600')
+      : chalk.cyan;
+    const worktreeValue = data.worktree.active > 0
+      ? `${data.worktree.mode}/${data.worktree.active}`
+      : data.worktree.mode;
+    metricParts.push(`${chalk.dim('WT:')}${modeColor(worktreeValue)}`);
+  }
+  const metricsSection = metricParts.join(' ');
 
   // === Git ===
   let gitSection = '';
