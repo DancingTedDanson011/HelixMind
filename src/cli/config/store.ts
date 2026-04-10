@@ -66,7 +66,7 @@ const DEFAULT_MODELS: Record<string, string[]> = {
   ollama: ['qwen3-coder:30b', 'qwen2.5-coder:32b', 'qwen2.5-coder:14b', 'qwen2.5-coder:7b', 'deepseek-r1:32b', 'deepseek-r1:14b', 'deepseek-coder-v2:16b', 'llama3.3', 'codellama:34b'],
   openrouter: ['anthropic/claude-sonnet-4', 'openai/gpt-4o', 'google/gemini-2.0-flash-exp'],
   zai: [
-    'glm-5', 'glm-5-code',
+    'glm-5.1', 'glm-5', 'glm-5-code',
     'glm-4.7', 'glm-4.7-flashx', 'glm-4.7-flash',
     'glm-4.6',
     'glm-4.5', 'glm-4.5-x', 'glm-4.5-air', 'glm-4.5-airx', 'glm-4.5-flash',

@@ -58,6 +58,7 @@ export const KNOWN_PROVIDERS: Record<string, {
     baseURL: 'https://api.z.ai/api/coding/paas/v4',
     models: [
       // Premium
+      'glm-5.1',
       'glm-5',
       'glm-5-code',
       // Standard
@@ -72,7 +73,7 @@ export const KNOWN_PROVIDERS: Record<string, {
       'glm-4.7-flash',
       'glm-4.5-flash',
     ],
-    defaultModel: 'glm-5',
+    defaultModel: 'glm-5.1',
   },
   openrouter: {
     type: 'openai-compatible',

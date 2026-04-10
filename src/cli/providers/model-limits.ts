@@ -25,6 +25,7 @@ const MODEL_CONTEXT_LENGTHS: Record<string, number> = {
   'deepseek-reasoner': 64_000,
 
   // ZhipuAI (Z.AI)
+  'glm-5.1': 128_000,
   'glm-5': 128_000,
   'glm-5-code': 128_000,
   'glm-4.7': 128_000,
