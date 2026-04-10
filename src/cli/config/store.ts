@@ -163,7 +163,7 @@ export class ConfigStore {
 
       // Register custom model metadata into runtime registries
       if (result.modelMeta) {
-        for (const [model, meta] of Object.entries(result.modelMeta)) {
+        for (const [model, meta] of Object.entries(result.modelMeta as Record<string, ModelMeta>)) {
           if (meta.contextLength) registerModelContextLength(model, meta.contextLength);
           if (meta.free) registerFreeModel(model);
         }
