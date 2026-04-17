@@ -129,6 +129,7 @@ const HELP_CATEGORIES: HelpCategory[] = [
       { cmd: '/context', label: '/context', description: 'Show context size & embeddings' },
       { cmd: '/compact', label: '/compact', description: 'Trigger spiral evolution' },
       { cmd: '/tokens', label: '/tokens', description: 'Show token usage & memory' },
+      { cmd: '/recap', label: '/recap', description: 'Toggle per-turn recap summary (on|off)' },
     ],
   },
   {
@@ -278,6 +279,7 @@ ${chalk.hex('#00ff88').bold('  Spiral Memory')}
   ${theme.primary('/context'.padEnd(22))} ${theme.dim('Show current context size & embeddings')}
   ${theme.primary('/compact'.padEnd(22))} ${theme.dim('Trigger spiral evolution (promote/demote nodes)')}
   ${theme.primary('/tokens'.padEnd(22))} ${theme.dim('Show token usage, checkpoints, memory')}
+  ${theme.primary('/recap [on|off]'.padEnd(22))} ${theme.dim('Toggle short summary line after each agent turn')}
 
 ${chalk.hex('#4169e1').bold('  Visualization & Brain')}
   ${theme.primary('/brain'.padEnd(22))} ${theme.dim('Show brain scope + open 3D visualization')}
@@ -573,6 +575,105 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let roundToolCalls = 0;
   let currentStepLabel = '';
   let currentStepFile = '';
+
+  // Recap tracking — per-round snapshot so we can summarise what just happened.
+  let roundStartTokensIn = 0;
+  let roundStartTokensOut = 0;
+  let roundStartTime = 0;
+  const roundToolCounts = new Map<string, number>();
+  const roundFilesTouched = new Set<string>();
+  let recapEnabled = true; // Can be toggled via /recap
+
+  function recordRoundTool(toolName: string, input: Record<string, unknown> | undefined): void {
+    roundToolCounts.set(toolName, (roundToolCounts.get(toolName) ?? 0) + 1);
+    const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
+    if (fileTools.has(toolName)) {
+      const p = typeof input?.path === 'string' ? input.path : null;
+      if (p) roundFilesTouched.add(p);
+    }
+  }
+
+  function buildRecapLine(): string | null {
+    if (!recapEnabled) return null;
+    const totalTools = [...roundToolCounts.values()].reduce((a, b) => a + b, 0);
+    const tokensIn = sessionTokensInput - roundStartTokensIn;
+    const tokensOut = sessionTokensOutput - roundStartTokensOut;
+    const elapsedMs = Date.now() - roundStartTime;
+    if (totalTools === 0 && tokensIn === 0 && tokensOut === 0) return null;
+
+    const parts: string[] = [];
+
+    // Tool breakdown — compact verbs. Group reads (read_file/list_directory/
+    // search_files/find_files), writes (write_file/edit_file), shell, other.
+    const reads = (roundToolCounts.get('read_file') ?? 0)
+      + (roundToolCounts.get('list_directory') ?? 0)
+      + (roundToolCounts.get('search_files') ?? 0)
+      + (roundToolCounts.get('find_files') ?? 0);
+    const writes = (roundToolCounts.get('write_file') ?? 0)
+      + (roundToolCounts.get('edit_file') ?? 0);
+    const runs = roundToolCounts.get('run_command') ?? 0;
+    const gitOps = [...roundToolCounts.entries()]
+      .filter(([k]) => k.startsWith('git_'))
+      .reduce((sum, [, n]) => sum + n, 0);
+    const spiralOps = [...roundToolCounts.entries()]
+      .filter(([k]) => k.startsWith('spiral_'))
+      .reduce((sum, [, n]) => sum + n, 0);
+    const browserOps = [...roundToolCounts.entries()]
+      .filter(([k]) => k.startsWith('browser_'))
+      .reduce((sum, [, n]) => sum + n, 0);
+
+    if (reads > 0) parts.push(`${reads} read${reads === 1 ? '' : 's'}`);
+    if (writes > 0) {
+      const fileNames = [...roundFilesTouched]
+        .map(p => p.split(/[\/\\]/).pop() ?? p)
+        .slice(0, 2);
+      if (writes === 1 && fileNames.length === 1) {
+        parts.push(`edited ${fileNames[0]}`);
+      } else if (fileNames.length > 0) {
+        const suffix = writes > fileNames.length ? `+${writes - fileNames.length}` : '';
+        parts.push(`edited ${fileNames.join(', ')}${suffix}`);
+      } else {
+        parts.push(`${writes} edit${writes === 1 ? '' : 's'}`);
+      }
+    }
+    if (runs > 0) parts.push(`${runs} shell`);
+    if (gitOps > 0) parts.push(`${gitOps} git`);
+    if (spiralOps > 0) parts.push(`${spiralOps} spiral`);
+    if (browserOps > 0) parts.push(`${browserOps} browser`);
+
+    // Other tools not caught above
+    const known = new Set([
+      'read_file', 'list_directory', 'search_files', 'find_files',
+      'write_file', 'edit_file', 'run_command',
+    ]);
+    const otherTotal = [...roundToolCounts.entries()]
+      .filter(([k]) => !known.has(k) && !k.startsWith('git_') && !k.startsWith('spiral_') && !k.startsWith('browser_'))
+      .reduce((sum, [, n]) => sum + n, 0);
+    if (otherTotal > 0) parts.push(`${otherTotal} other`);
+
+    // Tokens
+    const totalTokens = tokensIn + tokensOut;
+    if (totalTokens >= 1000) {
+      parts.push(`${(totalTokens / 1000).toFixed(1)}k tokens`);
+    } else if (totalTokens > 0) {
+      parts.push(`${totalTokens} tokens`);
+    }
+
+    // Time
+    if (elapsedMs >= 1000) {
+      const secs = Math.round(elapsedMs / 1000);
+      if (secs >= 60) {
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        parts.push(`${m}m${s > 0 ? ` ${s}s` : ''}`);
+      } else {
+        parts.push(`${secs}s`);
+      }
+    }
+
+    if (parts.length === 0) return null;
+    return chalk.dim(`  \u258E Recap: ${parts.join(' \u00B7 ')}`);
+  }
   
   // Timer tracking
   const sessionStartTime = Date.now();
@@ -3219,6 +3320,23 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     // Persist to JSONL history (async, non-blocking)
     promptHistory.add(input, process.cwd()).catch(() => {});
 
+    // Handle /recap here (toggles local recapEnabled state in the closure).
+    const trimmedForRecap = input.trim();
+    if (trimmedForRecap === '/recap' || trimmedForRecap.startsWith('/recap ')) {
+      const arg = trimmedForRecap.split(/\s+/)[1]?.toLowerCase();
+      if (arg === 'on') {
+        recapEnabled = true;
+        renderInfo('Recap enabled \u2014 summary line after every agent turn.');
+      } else if (arg === 'off') {
+        recapEnabled = false;
+        renderInfo('Recap disabled.');
+      } else {
+        renderInfo(`Recap is ${recapEnabled ? 'ON' : 'OFF'}. Use /recap on | off to toggle.`);
+      }
+      showPrompt();
+      return;
+    }
+
     // Handle /feed directly here (needs access to inlineProgressActive flag)
     if (input.startsWith('/feed')) {
       const activeSpiral = spiralEngine ?? await ensureSpiralEngine(brainScope);
@@ -3886,6 +4004,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     roundToolCalls = 0;
     currentStepLabel = '';
     currentStepFile = '';
+    // Recap: snapshot round-start state.
+    roundStartTokensIn = sessionTokensInput;
+    roundStartTokensOut = sessionTokensOutput;
+    roundStartTime = Date.now();
+    roundToolCounts.clear();
+    roundFilesTouched.clear();
     suggestionPanel.close(); // Close suggestions when agent starts
     agentRunning = true;
     chrome.promptActive = false; // Re-enable stdout hook redraws for agent output
@@ -4162,9 +4286,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           sessionTokensInput += inp;
           sessionTokensOutput += out;
         },
-        () => {
+        (toolName?: string) => {
           sessionToolCalls++;
           roundToolCalls++;
+          // Recap: record tool invocation by name.
+          if (typeof toolName === 'string') {
+            recordRoundTool(toolName, undefined);
+          }
         },
         () => {
           // Activity started — readline stays active for type-ahead buffering.
@@ -4178,7 +4306,16 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         (label, tool) => {
           currentStepLabel = label;
           const fileTools = new Set(['read_file', 'write_file', 'edit_file']);
-          currentStepFile = fileTools.has(tool) ? label.replace(/^(reading|writing|editing)\s+/, '') : '';
+          if (fileTools.has(tool)) {
+            const file = label.replace(/^(reading|writing|editing)\s+/, '');
+            currentStepFile = file;
+            // Recap: track files touched so the summary can name them.
+            if (file && (tool === 'write_file' || tool === 'edit_file')) {
+              roundFilesTouched.add(file);
+            }
+          } else {
+            currentStepFile = '';
+          }
         },
         jarvisLearning,
       );
@@ -4186,6 +4323,12 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     }
 
     agentRunning = false;
+
+    // Recap: emit a short summary of what just happened.
+    const recapLine = buildRecapLine();
+    if (recapLine) {
+      process.stdout.write(recapLine + '\n');
+    }
 
     // Keep simple message history for state persistence.
     // FIX: CHATFLOW-001 — also persist the assistant's reply, otherwise
@@ -5364,6 +5507,7 @@ async function handleSlashCommand(
       renderInfo(`Memory (snapshots): ${(checkpointStore.memoryUsage / 1024).toFixed(1)} KB`);
       renderInfo(`Session buffer: ${sessionBuffer.eventCount} events`);
       break;
+
 
     case '/yolo': {
       const arg = parts[1]?.toLowerCase();

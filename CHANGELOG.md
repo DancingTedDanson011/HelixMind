@@ -10,6 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > `AUDIT-cli-web-integration.md`, `AGENT-RESEARCH.md`, etc.) are historical
 > snapshots and may be out of date — treat them as archive, not current state.
 
+## [0.7.2] - 2026-04-17
+
+### Added
+- **`/recap`** — short summary line after every agent turn, Claude-Code-style.
+  Counts reads, writes (with file names), shell, git, spiral, and browser
+  tool calls; reports tokens + elapsed time. Toggle with `/recap on|off`.
+
+## [0.7.1] - 2026-04-17
+
+### Added
+- `<evaluating_this_codebase>` block in the base system prompt — directs
+  agents to `git log` + `CHANGELOG.md` + actual source as authoritative over
+  archived `.md` audit files.
+
+### Changed
+- `CHANGELOG.md` now documents all releases from 0.5.0 → 0.7.1 (was stopped
+  at 0.3.96) with a "source of truth" banner at the top.
+- Seven stale repo-root audit docs now carry an `⚠️ ARCHIVED` banner at the
+  top: `bug-report.md`, `AUDIT-cli-web-integration.md`,
+  `ENTERPRISE-ASSESSMENT.md`, `AGENT-RESEARCH.md`, `CLI-ARCHITECTURE.md`,
+  `CLI-RESEARCH.md`, `RESEARCH.md`. The agent will no longer cite
+  already-fixed bugs from these as current state.
+
 ## [0.7.0] - 2026-04-17
 
 Largest security & correctness release to date. 11-agent UltraThink audit swarm
