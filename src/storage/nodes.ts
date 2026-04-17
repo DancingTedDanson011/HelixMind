@@ -173,6 +173,16 @@ export class NodeStore {
     this.db.raw.prepare('UPDATE nodes SET summary = ?, updated_at = ? WHERE id = ?').run(summary, Date.now(), id);
   }
 
+  /**
+   * Update the stored token_count for a node. Used after summarization so the
+   * reported token_count reflects the compressed content, not the original.
+   * FIX: WIDE-SPIRAL-014
+   */
+  updateTokenCount(id: string, count: number): void {
+    const safe = Math.max(0, Math.floor(Number.isFinite(count) ? count : 0));
+    this.db.raw.prepare('UPDATE nodes SET token_count = ?, updated_at = ? WHERE id = ?').run(safe, Date.now(), id);
+  }
+
   count(): number {
     const row = this.db.raw.prepare('SELECT COUNT(*) as cnt FROM nodes').get() as { cnt: number };
     return row.cnt;

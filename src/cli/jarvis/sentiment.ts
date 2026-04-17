@@ -11,6 +11,11 @@ import type {
 
 const MAX_HISTORY = 200;
 const TREND_WINDOW = 10;
+// FIX: JARVIS-MEDIUM-4 — single readings are too reactive for trait updates.
+// We require CONFIRM_WINDOW_REQUIRED of the last CONFIRM_WINDOW_SIZE readings
+// to agree before flipping the "confirmed" sentiment state.
+const CONFIRM_WINDOW_SIZE = 5;
+const CONFIRM_WINDOW_REQUIRED = 3;
 
 // ─── Keyword Patterns ────────────────────────────────────────────────
 
@@ -75,6 +80,10 @@ export class SentimentAnalyzer {
   private filePath: string;
   private data: SentimentData;
   private onShift?: (from: UserSentiment, to: UserSentiment, frustrationLevel: number) => void;
+  // FIX: JARVIS-MEDIUM-4 — track the last confirmed sentiment separately
+  // from the raw rolling buffer. analyzeMood().current still reports the
+  // latest reading for UI, but trait adjustments should key off this.
+  private lastConfirmedSentiment: UserSentiment = 'neutral';
 
   constructor(
     projectRoot: string,
@@ -117,12 +126,15 @@ export class SentimentAnalyzer {
 
   /**
    * Record a reading and check for sentiment shifts.
+   *
+   * FIX: JARVIS-MEDIUM-4 — only fire onShift (which drives trait updates)
+   * when the new sentiment is *confirmed* by a rolling window: at least
+   * CONFIRM_WINDOW_REQUIRED of the last CONFIRM_WINDOW_SIZE readings must
+   * share the new sentiment. This prevents a single frustrated swear-word
+   * from durably shifting Jarvis' perception of the user's mood.
+   * analyzeMood() still returns the raw latest reading for UI display.
    */
   recordReading(reading: SentimentReading): void {
-    const previous = this.data.history.length > 0
-      ? this.data.history[this.data.history.length - 1]
-      : null;
-
     this.data.history.push(reading);
 
     // Prune to max history
@@ -130,13 +142,35 @@ export class SentimentAnalyzer {
       this.data.history = this.data.history.slice(-MAX_HISTORY);
     }
 
-    // Check for sentiment shift
-    if (previous && previous.sentiment !== reading.sentiment && reading.sentiment !== 'neutral') {
+    // Confirmation check over the rolling window.
+    const window = this.data.history.slice(-CONFIRM_WINDOW_SIZE);
+    const counts = new Map<UserSentiment, number>();
+    for (const r of window) {
+      counts.set(r.sentiment, (counts.get(r.sentiment) || 0) + 1);
+    }
+    let confirmedCandidate: UserSentiment = this.lastConfirmedSentiment;
+    for (const [s, c] of counts) {
+      if (s === 'neutral') continue;
+      if (c >= CONFIRM_WINDOW_REQUIRED) {
+        confirmedCandidate = s;
+        break;
+      }
+    }
+
+    if (confirmedCandidate !== this.lastConfirmedSentiment) {
+      const from = this.lastConfirmedSentiment;
+      this.lastConfirmedSentiment = confirmedCandidate;
       const mood = this.analyzeMood();
-      this.onShift?.(previous.sentiment, reading.sentiment, mood.frustrationLevel);
+      this.onShift?.(from, confirmedCandidate, mood.frustrationLevel);
     }
 
     this.save();
+  }
+
+  /** FIX: JARVIS-MEDIUM-4 — expose confirmed sentiment for callers that
+   * need the stable signal (e.g. trait adjustment) vs the latest reading. */
+  getConfirmedSentiment(): UserSentiment {
+    return this.lastConfirmedSentiment;
   }
 
   /**

@@ -33,10 +33,16 @@ function askQuestion(_rl: ReadlineInterface, question: string): Promise<string> 
     setTimeout(() => { settling = false; }, 80);
 
     let buffer = '';
+    // FIX: JARVIS-LOW-2 — disambiguate bare ESC from arrow keys / ANSI
+    // sequences. An arrow key arrives as three bytes (0x1b '[' 'A').
+    // We defer the ESC decision by 50ms; if another byte arrives in that
+    // window it was part of an escape sequence and we ignore it.
+    let escapePendingTimer: NodeJS.Timeout | null = null;
 
     process.stdout.write(question);
 
     function cleanup(result: string): void {
+      if (escapePendingTimer) { clearTimeout(escapePendingTimer); escapePendingTimer = null; }
       stdin.removeListener('data', onData);
       if (stdin.isTTY && wasRaw !== undefined) stdin.setRawMode(wasRaw);
       process.stdout.write('\n');
@@ -49,8 +55,32 @@ function askQuestion(_rl: ReadlineInterface, question: string): Promise<string> 
       const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data);
       const key = data.toString();
 
-      // ESC or double-ESC → cancel
-      if (bytes[0] === 0x1b) { cleanup(''); return; }
+      // FIX: JARVIS-LOW-2 — ESC handling:
+      //   - chunk length > 1 starting with ESC = CSI/SS3 sequence (arrows,
+      //     F-keys). Swallow, do not cancel.
+      //   - chunk length === 1 = bare ESC candidate. Wait 50ms in case a
+      //     follow-up chunk arrives (xterm/Windows Terminal may split the
+      //     sequence across read() calls). If no follow-up, treat as cancel.
+      if (bytes[0] === 0x1b) {
+        if (bytes.length > 1) {
+          // Part of an escape sequence — ignore whole chunk.
+          return;
+        }
+        if (escapePendingTimer) clearTimeout(escapePendingTimer);
+        escapePendingTimer = setTimeout(() => {
+          escapePendingTimer = null;
+          cleanup('');
+        }, 50);
+        return;
+      }
+
+      // Any byte following a pending ESC means it was an escape sequence —
+      // cancel the pending ESC timer and swallow this chunk.
+      if (escapePendingTimer) {
+        clearTimeout(escapePendingTimer);
+        escapePendingTimer = null;
+        return;
+      }
 
       // Ctrl+C → cancel
       if (key === '\x03') { cleanup(''); return; }

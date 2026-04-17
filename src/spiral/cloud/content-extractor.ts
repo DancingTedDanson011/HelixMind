@@ -26,10 +26,12 @@ export function extractKnowledge(
   sourceUrl: string,
   topic: string,
 ): ExtractedKnowledge {
-  const codeExamples = extractCodeBlocks(content);
-  const keyPoints = extractKeyPoints(content, topic);
-  const summary = buildSummary(content, topic, keyPoints);
-  const quality = assessQuality(content, codeExamples, keyPoints, topic);
+  // FIX: WIDE-SPIRAL-011 — cap input size before regex-heavy passes to block ReDoS.
+  const safeContent = content.slice(0, 200_000);
+  const codeExamples = extractCodeBlocks(safeContent);
+  const keyPoints = extractKeyPoints(safeContent, topic);
+  const summary = buildSummary(safeContent, topic, keyPoints);
+  const quality = assessQuality(safeContent, codeExamples, keyPoints, topic);
 
   return {
     summary,

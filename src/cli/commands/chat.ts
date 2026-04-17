@@ -2449,7 +2449,6 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   // Suggestion panel is now handled by InputManager (built-in arrow navigation, Tab/Enter/ESC)
   // Legacy compat stubs:
-  let panelJustClosed = false;
   function replaceReadlineInput(text: string): void {
     inputMgr.setLine(text);
   }
@@ -2758,15 +2757,11 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       // === ESC detection (single ESC = stop for normal agents) ===
       // Double-ESC (rewind browser) is handled by the raw data listener below.
-      // Skip if a full-screen browser (Rewind/Plan) is open — it handles ESC itself.
-      // Skip if ESC was used to close the suggestion panel (panelJustClosed flag)
-      //
+      // When the slash-suggestion panel is open, InputManager consumes ESC
+      // internally before this handler fires, so no extra guard is needed.
       // Special modes (Jarvis, autonomous): ESC is handled ENTIRELY by the raw
       // data listener below — the keypress handler does NOTHING for them.
-      // This prevents conflicts between the two handlers and avoids cursor jumps
-      // from hint messages. See raw data listener for: quick double-ESC → Rewind,
-      // deliberate double-ESC (>1s gap) → stop special mode.
-      if (key.name === 'escape' && !fullScreenBrowserOpen && !panelJustClosed) {
+      if (key.name === 'escape' && !fullScreenBrowserOpen && !inputMgr.isSuggestionOpen) {
         const jarvisRunning = jarvisDaemonSession && jarvisDaemonSession.status === 'running';
         const specialMode = jarvisRunning || autonomousMode;
         const normalRunning = agentRunning || sessionMgr.hasBackgroundTasks;
@@ -2928,7 +2923,21 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
     });
 
     async function openRewindBrowser(): Promise<void> {
-      if (agentRunning || fullScreenBrowserOpen) return;
+      // Don't re-enter if already open
+      if (fullScreenBrowserOpen) return;
+
+      // If an agent is running (main, swarm, or background), stop it first.
+      // Previous behavior silently refused to open Rewind while agent was
+      // running, which made coalesced ESC-ESC bursts feel broken.
+      if (agentRunning || sessionMgr.hasBackgroundTasks) {
+        activity.stop('Stopped');
+        agentController.abort();
+        sessionMgr.abortAll();
+        if (activeSwarm) { activeSwarm.abort(); activeSwarm = null; }
+        typeAheadBuffer.length = 0;
+        agentRunning = false;
+        autonomousMode = false;
+      }
 
       const allCps = checkpointStore.getAll();
       if (allCps.length === 0) {
@@ -2953,47 +2962,49 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
       let didRevertWithMessage = false;
       try {
-        const browserResult = await runCheckpointBrowser({
-          store: checkpointStore,
-          agentHistory,
-          simpleMessages: messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' })),
-          isPaused: false,
-        });
+        try {
+          const browserResult = await runCheckpointBrowser({
+            store: checkpointStore,
+            agentHistory,
+            simpleMessages: messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' })),
+            isPaused: false,
+          });
 
-        if (browserResult.action === 'revert') {
-          const r = browserResult.result;
-          process.stdout.write('\n');
-          if (r.messagesRemoved > 0) renderInfo(chalk.yellow(`${r.messagesRemoved} message(s) reverted`));
-          if (r.filesReverted > 0) renderInfo(chalk.yellow(`${r.filesReverted} file(s) reverted`));
+          if (browserResult.action === 'revert') {
+            const r = browserResult.result;
+            process.stdout.write('\n');
+            if (r.messagesRemoved > 0) renderInfo(chalk.yellow(`${r.messagesRemoved} message(s) reverted`));
+            if (r.filesReverted > 0) renderInfo(chalk.yellow(`${r.filesReverted} file(s) reverted`));
 
-          if (browserResult.messageText) {
-            inputMgr.setLine(browserResult.messageText);
-            didRevertWithMessage = true;
+            if (browserResult.messageText) {
+              inputMgr.setLine(browserResult.messageText);
+              didRevertWithMessage = true;
+            }
           }
+        } catch (err) {
+          // Surface the error instead of swallowing it silently (CHECK-CHATFLOW-009).
+          renderError(`Rewind failed: ${err instanceof Error ? err.message : String(err)}`);
         }
-      } catch {
-        // Browser closed unexpectedly
-      }
+      } finally {
+        // Guaranteed listener restore, even if the browser or revert threw.
+        for (const listener of savedDataListeners) {
+          process.stdin.on('data', listener as (...args: any[]) => void);
+        }
+        for (const listener of savedKeypressListeners) {
+          process.stdin.on('keypress', listener as (...args: any[]) => void);
+        }
 
-      // Restore all saved stdin data+keypress listeners
-      for (const listener of savedDataListeners) {
-        process.stdin.on('data', listener as (...args: any[]) => void);
-      }
-      for (const listener of savedKeypressListeners) {
-        process.stdin.on('keypress', listener as (...args: any[]) => void);
-      }
+        if (!didRevertWithMessage) {
+          inputMgr.setLine('');
+        }
 
-      // Clear readline buffer unless a revert populated it with the message text
-      if (!didRevertWithMessage) {
-        inputMgr.setLine('');
+        fullScreenBrowserOpen = false;
+        chrome.activate();
+        // Drain phantom line events for 500ms (sub-menu shared stdin)
+        drainUntil = Date.now() + 500;
+        rl.resume();
+        showPrompt();
       }
-
-      fullScreenBrowserOpen = false;
-      chrome.activate();
-      // Drain phantom line events for 500ms (sub-menu shared stdin)
-      drainUntil = Date.now() + 500;
-      rl.resume();
-      showPrompt();
     }
   }
 
@@ -3344,8 +3355,21 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         (scope) => getSpiralEngine(scope ?? brainScope),
         async (action, goal?) => {
           if (action === 'stop') {
-            // Stop all background sessions + autonomous mode
+            // FIX: CHATFLOW-003 — /stop must also interrupt a running main agent.
+            // Previously only background sessions / autonomous mode were stopped,
+            // and a /stop typed during main agent work sat in the type-ahead
+            // queue and fired after the agent finished on its own.
             const running = sessionMgr.running;
+            let stoppedSomething = false;
+            if (agentRunning) {
+              activity.stop('Stopped');
+              agentController.abort();
+              if (activeSwarm) { activeSwarm.abort(); activeSwarm = null; }
+              agentRunning = false;
+              typeAheadBuffer.length = 0;
+              renderInfo(chalk.red('\u23F9 STOPPED') + chalk.dim(' \u2014 Main agent interrupted.'));
+              stoppedSomething = true;
+            }
             if (running.length > 0) {
               for (const s of running) {
                 s.abort();
@@ -3353,12 +3377,16 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
               }
               autonomousMode = false;
               updateStatusBar();
-            } else if (autonomousMode) {
+              stoppedSomething = true;
+            }
+            if (autonomousMode) {
               autonomousMode = false;
               agentController.abort();
               renderInfo('\u23F9 Stopping autonomous mode...');
-            } else {
-              renderInfo('No background sessions running.');
+              stoppedSomething = true;
+            }
+            if (!stoppedSomething) {
+              renderInfo('Nothing running to stop.');
             }
             return;
           }
@@ -3695,17 +3723,18 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
             startTelegramBot();
 
             (async () => {
-              // Create daemon-specific permissions based on Jarvis autonomy level.
-              // L3+ = skipPermissions (auto-allow writes, ask for dangerous)
-              // L5  = yolo (auto-allow everything including shell commands)
+              // FIX: JARVIS-CRITICAL-2 — no longer auto-enable YOLO/skip-permissions
+              // based on autonomy level. Autonomy levels gate WHICH tools Jarvis may
+              // attempt (enforced by core-ethics.assertCanExecute), not whether the
+              // permission prompt fires. Silent auto-approval of writes and shell
+              // commands was a structural safety defect. If a user wants unsupervised
+              // operation, they must explicitly set --yolo / --skip-permissions at
+              // CLI startup; those flags do propagate into daemon permissions below.
               const daemonPermissions = new PermissionManager();
               daemonPermissions.setReadline(rl);
-              const aLevel = jarvisAutonomy.getLevel();
-              if (aLevel >= 5) {
-                daemonPermissions.setYolo(true);
-              } else if (aLevel >= 3) {
-                daemonPermissions.setSkipPermissions(true);
-              }
+              // Inherit ONLY the user's explicit CLI flags, never the autonomy level.
+              if (options.yolo) daemonPermissions.setYolo(true);
+              if (options.skipPermissions) daemonPermissions.setSkipPermissions(true);
 
               try {
                 await runJarvisDaemon(jarvisQueue, {
@@ -4158,8 +4187,29 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     agentRunning = false;
 
-    // Keep simple message history for state persistence
+    // Keep simple message history for state persistence.
+    // FIX: CHATFLOW-001 — also persist the assistant's reply, otherwise
+    // saveState() writes a user-only transcript and checkpoint browser shows
+    // empty agent turns. Extract the last assistant text block from the
+    // updated agentHistory.
     messages.push({ role: 'user', content: input });
+    for (let i = agentHistory.length - 1; i >= 0; i--) {
+      const m = agentHistory[i];
+      if (m.role !== 'assistant') continue;
+      let assistantText = '';
+      if (typeof m.content === 'string') {
+        assistantText = m.content;
+      } else if (Array.isArray(m.content)) {
+        assistantText = m.content
+          .filter((b: any) => b?.type === 'text' && typeof b.text === 'string')
+          .map((b: any) => b.text as string)
+          .join('');
+      }
+      if (assistantText.trim()) {
+        messages.push({ role: 'assistant', content: assistantText });
+      }
+      break;
+    }
 
     // Process any type-ahead input that was buffered during agent work
     // Skip if agent was aborted (ESC already cleared the buffer, but guard against race)
@@ -4292,18 +4342,21 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   });
 
   // Handle Esc to discard paste buffer
+  // NOTE: paste-cancel is stored in a named const so rl.on('close') can
+  // remove it cleanly. Without removal, re-entering the chat command in
+  // the same process would stack this prependListener, causing duplicate
+  // ESC handling and phantom paste-cancels.
+  const pasteCancelListener = (_str: string, key: any): void => {
+    if (key?.name === 'escape' && (pasteBuffer.length > 0 || pendingPasteText || inputMgr.hasPasteBlock)) {
+      pasteBuffer = [];
+      pendingPasteText = null;
+      if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
+      inputMgr.clearPasteBlock();
+      showPrompt();
+    }
+  };
   if (process.stdin.isTTY) {
-    const origKeypress = process.stdin.listeners('keypress') as Array<(...args: any[]) => void>;
-    // Insert paste-cancel before the existing ESC handler
-    process.stdin.prependListener('keypress', (_str: string, key: any) => {
-      if (key?.name === 'escape' && (pasteBuffer.length > 0 || pendingPasteText || inputMgr.hasPasteBlock)) {
-        pasteBuffer = [];
-        pendingPasteText = null;
-        if (pasteTimer) { clearTimeout(pasteTimer); pasteTimer = null; }
-        inputMgr.clearPasteBlock();
-        showPrompt();
-      }
-    });
+    process.stdin.prependListener('keypress', pasteCancelListener);
   }
 
   // Type-ahead during LLM streaming is handled by InputManager._renderCurrentLine()
@@ -4311,6 +4364,9 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   rl.on('close', async () => {
     clearInterval(footerTimer);
+    if (process.stdin.isTTY) {
+      process.stdin.removeListener('keypress', pasteCancelListener);
+    }
     chrome.deactivate();
     if (spiralEngine) {
       // Persist session buffer (goals, entities, decisions) into spiral brain
@@ -4698,10 +4754,11 @@ async function sendAgentMessage(
         process.stdout.write('\n');
         renderError('Rate limit reached. Waiting and retrying automatically next time.');
         renderInfo(chalk.dim('  Tip: Use /compact to reduce spiral nodes, or wait a moment before retrying.'));
-      } else if (errMsg.includes('authentication') || errMsg.includes('401') || errMsg.includes('invalid.*key')) {
+      } else if (/authentication|401|invalid[^a-z]*key/i.test(errMsg)) {
+        // FIX: CHATFLOW-004 — use real regex instead of literal "invalid.*key" substring.
         renderError('Authentication failed. Your API key may be invalid or expired.');
         renderInfo(chalk.dim('  Fix: /keys to update your API key.'));
-      } else if (errMsg.includes('ENOTFOUND') || errMsg.includes('ECONNREFUSED') || errMsg.includes('network')) {
+      } else if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network|fetch failed|offline/i.test(errMsg)) {
         renderError('Network error — cannot reach the API server.');
         renderInfo(chalk.dim('  Check your internet connection and try again.'));
       } else if (errMsg.includes('context_length') || errMsg.includes('too many tokens') || errMsg.includes('maximum context')) {

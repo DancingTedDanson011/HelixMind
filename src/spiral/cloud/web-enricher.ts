@@ -134,13 +134,24 @@ export async function enrichFromWeb(
         const spiralContent = formatForSpiral(knowledge, topic.query);
 
         // Store in spiral brain as L2 (Active) node
+        // FIX: WIDE-SPIRAL-009 — store web content at L2 with reduced relevance (0.5)
+        // and prefix with [web:<domain>] so it is visually distinguishable in context windows.
+        let sourceDomain = 'unknown';
+        try { sourceDomain = new URL(searchResult.url).hostname; } catch { /* keep default */ }
+        const taggedContent = `[web:${sourceDomain}] ${spiralContent}`;
         try {
-          await spiralEngine.store(spiralContent, 'pattern', {
-            tags: ['web_knowledge', topic.category, ...topic.query.split(/\s+/).slice(0, 3)],
-            source: searchResult.url,
-            web_topic: topic.query,
-            quality: knowledge.quality,
-          });
+          await spiralEngine.store(
+            taggedContent,
+            'pattern',
+            {
+              tags: ['web_knowledge', topic.category, ...topic.query.split(/\s+/).slice(0, 3)],
+              source: searchResult.url,
+              web_topic: topic.query,
+              quality: knowledge.quality,
+            },
+            undefined,
+            { level: 2, relevance_score: 0.5 },
+          );
 
           result.nodesStored++;
 

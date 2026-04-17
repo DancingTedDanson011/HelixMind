@@ -118,16 +118,21 @@ export function formatModelSize(bytes: number): string {
 /**
  * Pull (download) an Ollama model. Streams progress.
  * Returns true if successful.
+ * FIX: PROVIDERS-m2 — Added 10-minute abort timeout so a stuck registry
+ * server can't leave the CLI hanging forever on large-model downloads.
  */
 export async function pullOllamaModel(
   modelName: string,
   onProgress?: (status: string, completed?: number, total?: number) => void,
 ): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10 * 60 * 1000);
   try {
     const res = await fetch(`${OLLAMA_BASE}/api/pull`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: modelName, stream: true }),
+      signal: controller.signal,
     });
 
     if (!res.ok || !res.body) return false;
@@ -168,5 +173,7 @@ export async function pullOllamaModel(
   } catch (err) {
     onProgress?.(`Error: ${err instanceof Error ? err.message : String(err)}`);
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }

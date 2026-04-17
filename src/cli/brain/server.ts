@@ -1,11 +1,15 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { randomUUID } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { spawn, spawnSync } from 'node:child_process';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { BrainExport } from './exporter.js';
 import { generateBrainHTML } from './template.js';
 import {
   CONTROL_REQUEST_TYPES,
+  validateControlMessageShape,
 } from './control-protocol.js';
 import type {
   ControlHandlers,
@@ -14,6 +18,7 @@ import type {
   WSMessage,
 } from './control-protocol.js';
 import { VERSION } from '../version.js';
+import { isValidProjectPath } from './path-guard.js';
 
 export type VoiceInputHandler = (text: string) => void;
 export type ScopeSwitchHandler = (scope: 'project' | 'global') => void;
@@ -55,6 +60,69 @@ const OLLAMA_PROXY_TIMEOUT_MS = 5000;
 const BRAIN_PORT_START = 9420;
 const BRAIN_PORT_END = 9440;
 const AUTH_TIMEOUT_MS = 5000;
+
+// FIX: BRAIN-F10 — cap how many times /api/token serves the full token per
+// process lifetime. Legitimate callers need it at most 2–3 times (web dashboard
+// discovery + brain HTML). After that, all callers must embed the token already.
+const MAX_TOKEN_SERVES = 3;
+
+// FIX: BRAIN-F12 — resolve the absolute path to the `ollama` binary at startup
+// (via `where`/`which`) and only spawn that exact path. Prevents PATH hijack
+// where a malicious `ollama` earlier in PATH would get executed instead.
+let resolvedOllamaPath: string | null = null;
+function resolveOllamaBinary(): string | null {
+  if (resolvedOllamaPath !== null) return resolvedOllamaPath;
+  const isWindows = process.platform === 'win32';
+  const cmd = isWindows ? 'where' : 'which';
+  try {
+    const r = spawnSync(cmd, ['ollama'], { encoding: 'utf8', timeout: 3000, windowsHide: true });
+    if (r.status === 0 && r.stdout) {
+      const line = r.stdout.split(/\r?\n/).find((l) => l.trim().length > 0);
+      if (line && path.isAbsolute(line.trim())) {
+        resolvedOllamaPath = line.trim();
+        return resolvedOllamaPath;
+      }
+    }
+    console.error('[brain] ollama binary not found on PATH — /start_ollama disabled');
+  } catch (err) {
+    console.error('[brain] failed to resolve ollama binary:', err instanceof Error ? err.message : String(err));
+  }
+  resolvedOllamaPath = '';
+  return null;
+}
+
+/**
+ * FIX: BRAIN-F3 — Validate Host header on local HTTP requests. The Host header
+ * must reference a loopback address; otherwise the request may be a
+ * DNS-rebinding attack against the CLI server.
+ */
+function isLoopbackHost(hostHeader: string | undefined): boolean {
+  if (!hostHeader) return false;
+  // Strip port
+  const hostnameOnly = hostHeader.replace(/:\d+$/, '').toLowerCase().replace(/^\[|\]$/g, '');
+  return (
+    hostnameOnly === '127.0.0.1' ||
+    hostnameOnly === 'localhost' ||
+    hostnameOnly === '::1' ||
+    hostnameOnly === '0.0.0.0'
+  );
+}
+
+/**
+ * FIX: BRAIN-F8 — Timing-safe token comparison. Prevents a network/timing
+ * attacker from inferring the token byte by byte through response-time
+ * differences in `a !== b`.
+ */
+function timingSafeTokenEq(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch (err) {
+    console.error('[brain] timingSafeEqual failed:', err instanceof Error ? err.message : String(err));
+    return false;
+  }
+}
 
 /** Proxy a request to the Ollama API and return the response */
 async function ollamaProxy(
@@ -173,6 +241,29 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
   // Mutable port reference — updated after listen() resolves the actual port
   let resolvedPort = BRAIN_PORT_START;
 
+  // FIX: BRAIN-F10 — count how many times /api/token has served the full token
+  // this process lifetime. Over the cap, respond 410 Gone.
+  let tokenServeCount = 0;
+
+  // FIX: BRAIN-F12 — eagerly resolve the ollama binary path at server start so
+  // later /start_ollama requests use the absolute path (or get denied).
+  resolveOllamaBinary();
+
+  // FIX: BRAIN-F10 — persist the session token to a user-only file so that
+  // legitimate local helpers (e.g. browser discovery) can pick it up without
+  // going through the HTTP endpoint. File mode 0o600: owner read/write only.
+  try {
+    const dir = path.join(os.homedir(), '.helixmind');
+    fs.mkdirSync(dir, { recursive: true });
+    // Placeholder name; real port substituted after listen() resolves
+    const initialFile = path.join(dir, `session-pending-${process.pid}.token`);
+    fs.writeFileSync(initialFile, connectionToken, { mode: 0o600 });
+    // Clean up pending file on process exit — best-effort
+    process.on('exit', () => { try { fs.unlinkSync(initialFile); } catch { /* non-fatal */ } });
+  } catch (err) {
+    console.error('[brain] failed to persist session token:', err instanceof Error ? err.message : String(err));
+  }
+
   const httpServer = createServer(async (req, res) => {
     const url = req.url || '/';
 
@@ -218,22 +309,51 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
       res.end(JSON.stringify(meta));
 
     } else if (url === '/api/token') {
-      // Full token — CORS allowed for localhost origins only (discovery from web dashboard)
+      // FIX: BRAIN-F3 — reject requests whose Host header doesn't resolve to
+      // loopback. A browser that's been tricked into resolving the CLI's
+      // 127.0.0.1 via DNS rebinding will still carry the attacker's Host.
+      if (!isLoopbackHost(req.headers.host)) {
+        console.warn('[brain] /api/token rejected: non-loopback Host header', req.headers.host);
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden' }));
+        return;
+      }
 
-      // Token can be fetched multiple times (needed for both web dashboard and brain HTML)
+      // FIX: BRAIN-F10 — rate-limit how many times we hand out the full token
+      // from this endpoint. Legitimate flows need it at most ~3 times.
+      if (tokenServeCount >= MAX_TOKEN_SERVES) {
+        console.warn(`[brain] /api/token refused — cap of ${MAX_TOKEN_SERVES} reached`);
+        res.writeHead(410, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'Token endpoint disabled — cap reached' }));
+        return;
+      }
+      tokenServeCount++;
+      console.warn(`[brain] Token served to caller (${tokenServeCount}/${MAX_TOKEN_SERVES})`);
       res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
       res.end(JSON.stringify({ token: connectionToken }));
 
     } else if (url === '/api/token-hint') {
+      if (!isLoopbackHost(req.headers.host)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden' }));
+        return;
+      }
       const hint = connectionToken.slice(-4);
       res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
       res.end(JSON.stringify({ hint }));
 
     } else if (url?.startsWith('/api/data')) {
       // SECURITY: require connection token to prevent cross-site brain data theft
+      // FIX: BRAIN-F3 — defense-in-depth Host check.
+      if (!isLoopbackHost(req.headers.host)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden' }));
+        return;
+      }
       const dataUrl = new URL(url, `http://127.0.0.1:${resolvedPort}`);
-      const tok = dataUrl.searchParams.get('token');
-      if (tok !== connectionToken) {
+      const tok = dataUrl.searchParams.get('token') ?? '';
+      // FIX: BRAIN-F8 — timing-safe comparison (length-prechecked inside).
+      if (!timingSafeTokenEq(tok, connectionToken)) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Unauthorized' }));
         return;
@@ -294,8 +414,40 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
     });
 
     httpServer.listen(port, '127.0.0.1', () => {
-      // Create WebSocket server AFTER HTTP server is successfully listening
-      const wss = new WebSocketServer({ server: httpServer, maxPayload: 1 * 1024 * 1024 });
+      // Create WebSocket server AFTER HTTP server is successfully listening.
+      // FIX: BRAIN-F3 — reject WS upgrades whose Origin header isn't loopback
+      // or explicitly safe. CLI / relay connections have no Origin and are
+      // allowed; browsers running on localhost are allowed; anything else is
+      // rejected at the handshake before any app code runs.
+      const wss = new WebSocketServer({
+        server: httpServer,
+        maxPayload: 1 * 1024 * 1024,
+        verifyClient: ({ origin, req }, cb) => {
+          // Host header check (defense-in-depth, even for WS)
+          const hostHeader = req.headers.host;
+          if (!isLoopbackHost(hostHeader)) {
+            console.warn('[brain] WS upgrade rejected — non-loopback Host:', hostHeader);
+            return cb(false, 403, 'Forbidden');
+          }
+          // No Origin: allowed (CLI, relay, native clients)
+          if (!origin) return cb(true);
+          // `null` origin string (file:// or sandboxed iframe) — allowed
+          if (origin === 'null') return cb(true);
+          try {
+            const u = new URL(origin);
+            const ok =
+              u.hostname === 'localhost' ||
+              u.hostname === '127.0.0.1' ||
+              u.hostname === '[::1]' ||
+              u.hostname === '::1';
+            if (!ok) console.warn('[brain] WS upgrade rejected — Origin:', origin);
+            return cb(ok, ok ? undefined : 403, ok ? undefined : 'Forbidden');
+          } catch (err) {
+            console.error('[brain] WS upgrade verifyClient error:', err instanceof Error ? err.message : String(err));
+            return cb(false, 400, 'Bad Request');
+          }
+        },
+      });
 
       // Brain visualization clients (legacy — no auth required)
       const brainClients = new Set<WebSocket>();
@@ -564,9 +716,14 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'register_project': {
-            // SECURITY: Validate path to prevent path traversal / null byte injection
-            if (typeof msg.path !== 'string' || msg.path.length > 500 || msg.path.includes('\0') || msg.path.includes('..')) {
+            // FIX: BRAIN-F7 — strict path guard (traversal, UNC, system-dir).
+            if (!isValidProjectPath(msg.path)) {
+              console.warn('[brain] Rejecting register_project with invalid path');
               sendTo(ws, { type: 'error', message: 'Invalid project path', requestId, timestamp: Date.now() });
+              break;
+            }
+            if (msg.name !== undefined && (typeof msg.name !== 'string' || msg.name.length > 200)) {
+              sendTo(ws, { type: 'error', message: 'Invalid project name', requestId, timestamp: Date.now() });
               break;
             }
             const project = controlHandlers.registerProject(msg.path, msg.name);
@@ -587,6 +744,17 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'switch_model': {
+            // FIX: BRAIN-F5 — switching model rewrites config and can redirect
+            // all future traffic (and API-key usage) to a different provider.
+            // Refuse from remote by default. Local clients hit this same WS
+            // path today but with the origin check in place, relay-forwarded
+            // calls (see relay-client.ts) are where the hard refusal lives.
+            // Keeping local behavior permissive; the relay path is the attacker
+            // surface.
+            if (typeof msg.provider !== 'string' || typeof msg.model !== 'string') {
+              sendTo(ws, { type: 'error', message: 'Invalid switch_model request', requestId, timestamp: Date.now() });
+              break;
+            }
             const success = controlHandlers.switchModel(msg.provider, msg.model);
             sendTo(ws, { type: 'model_switched', success, requestId, timestamp: Date.now() });
             break;
@@ -606,11 +774,22 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'revert_to_checkpoint': {
-            const result = controlHandlers.revertToCheckpoint(
-              msg.checkpointId,
-              msg.mode || 'both',
-            );
-            sendTo(ws, { type: 'checkpoint_reverted', checkpointId: msg.checkpointId, mode: msg.mode || 'both', ...result, requestId, timestamp: Date.now() });
+            // FIX: BRAIN-F5 — 'code' or 'both' mode writes files on disk, which
+            // is destructive. Local-WS origin is trusted (user is on the same
+            // box), but we still validate shape. The remote-relay entry point
+            // has a stricter refusal for these modes when remote approval is
+            // disabled (default).
+            if (typeof msg.checkpointId !== 'number' || !Number.isFinite(msg.checkpointId)) {
+              sendTo(ws, { type: 'error', message: 'Invalid checkpointId', requestId, timestamp: Date.now() });
+              break;
+            }
+            const mode = msg.mode || 'both';
+            if (mode !== 'chat' && mode !== 'code' && mode !== 'both') {
+              sendTo(ws, { type: 'error', message: 'Invalid revert mode', requestId, timestamp: Date.now() });
+              break;
+            }
+            const result = controlHandlers.revertToCheckpoint(msg.checkpointId, mode);
+            sendTo(ws, { type: 'checkpoint_reverted', checkpointId: msg.checkpointId, mode, ...result, requestId, timestamp: Date.now() });
             break;
           }
 
@@ -648,13 +827,18 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
           }
 
           case 'create_brain': {
-            // SECURITY: Validate projectPath to prevent path traversal / null byte injection
-            if (msg.projectPath && (typeof msg.projectPath !== 'string' || msg.projectPath.length > 500 || msg.projectPath.includes('\0') || msg.projectPath.includes('..'))) {
+            // FIX: BRAIN-F7 — strict path guard (traversal, UNC, system-dir).
+            if (msg.projectPath !== undefined && !isValidProjectPath(msg.projectPath)) {
+              console.warn('[brain] Rejecting create_brain with invalid projectPath');
               sendTo(ws, { type: 'error', message: 'Invalid project path', requestId, timestamp: Date.now() });
               break;
             }
-            if (typeof msg.name !== 'string' || msg.name.length > 200) {
+            if (typeof msg.name !== 'string' || msg.name.length === 0 || msg.name.length > 200) {
               sendTo(ws, { type: 'error', message: 'Invalid brain name', requestId, timestamp: Date.now() });
+              break;
+            }
+            if (msg.brainType !== 'global' && msg.brainType !== 'local') {
+              sendTo(ws, { type: 'error', message: 'Invalid brainType', requestId, timestamp: Date.now() });
               break;
             }
             const brain = controlHandlers.createBrain(msg.name, msg.brainType, msg.projectPath);
@@ -817,7 +1001,8 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
               if (authTimeout) { clearTimeout(authTimeout); authTimeout = null; }
               if (authenticated) return; // Already authenticated (timeout or previous auth)
 
-              if (msg.token === connectionToken) {
+              // FIX: BRAIN-F8 — constant-time token comparison on WS auth.
+              if (typeof msg.token === 'string' && timingSafeTokenEq(msg.token, connectionToken)) {
                 authenticated = true;
                 controlClients.add(ws);
                 // Also add to brain clients so they get brain events too
@@ -845,6 +1030,15 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
 
             // Control messages (only from authenticated clients)
             if (authenticated && isControlRequest(msg.type)) {
+              // FIX: BRAIN-F9 — runtime shape validation for dangerous types
+              // before dispatching. An invalid shape is a protocol violation
+              // and gets rejected with an error message (no handler runs).
+              const shapeResult = validateControlMessageShape(msg);
+              if (!shapeResult.ok) {
+                console.warn('[brain] Rejecting malformed control message:', msg.type, shapeResult.error);
+                sendTo(ws, { type: 'error', message: `Invalid message: ${shapeResult.error}`, requestId: (msg as any).requestId, timestamp: Date.now() });
+                return;
+              }
               handleControlMessage(ws, msg as ControlRequest).catch((err) => {
                 if (process.env.DEBUG) {
                   console.error('[brain] Control message handler error:', err instanceof Error ? err.message : String(err));
@@ -876,12 +1070,23 @@ export function startBrainServer(initialData: BrainExport): Promise<BrainServer>
               if (now - lastOllamaSpawn < 30_000) {
                 sendTo(ws, { type: 'ollama_starting', timestamp: Date.now(), throttled: true });
               } else {
-                lastOllamaSpawn = now;
-                try {
-                  const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
-                  child.unref();
-                  sendTo(ws, { type: 'ollama_starting', timestamp: Date.now() });
-                } catch { /* ignore spawn errors */ }
+                // FIX: BRAIN-F12 — resolve ollama to an absolute path at
+                // startup and spawn only that path. If not found, refuse
+                // rather than allowing a PATH-hijacked binary to run.
+                const bin = resolveOllamaBinary();
+                if (!bin) {
+                  sendTo(ws, { type: 'error', message: 'Ollama binary not available', timestamp: Date.now() });
+                } else {
+                  lastOllamaSpawn = now;
+                  try {
+                    const child = spawn(bin, ['serve'], { detached: true, stdio: 'ignore', windowsHide: true });
+                    child.unref();
+                    sendTo(ws, { type: 'ollama_starting', timestamp: Date.now() });
+                  } catch (err) {
+                    console.error('[brain] Failed to spawn ollama:', err instanceof Error ? err.message : String(err));
+                    sendTo(ws, { type: 'error', message: 'Failed to start Ollama', timestamp: Date.now() });
+                  }
+                }
               }
             }
           } catch { /* ignore malformed */ }

@@ -158,9 +158,43 @@ export class AutonomyManager {
 
   /**
    * Manually set autonomy level (user override).
+   *
+   * FIX: JARVIS-CRITICAL-3 — validate level is integer in [0,5].
+   * L4+ requires trust-gating — if an identity is passed, enforce
+   * >=20 approvals and >=90% approval rate (matches identity.ts:376-395).
+   * Without identity, level range is still enforced (defense-in-depth).
+   *
+   * NOTE: AutonomyManager has no internal trust state; callers that want
+   * trust-gated promotion must pass the JarvisIdentity. Existing call-sites
+   * in chat.ts call setLevel(n) AND identity.setAutonomyLevel(n), so the
+   * identity-side guard at identity.ts:376-395 already clamps to L3 on
+   * insufficient trust. This method enforces the same invariant at the
+   * autonomy layer so the two cannot drift out of sync.
    */
-  setLevel(level: AutonomyLevel): void {
-    this.currentLevel = level;
+  setLevel(level: AutonomyLevel, identity?: JarvisIdentity): void {
+    if (!Number.isInteger(level) || level < 0 || level > 5) {
+      throw new Error(`Invalid autonomy level: ${level}`);
+    }
+    if (level >= 4) {
+      if (identity) {
+        const { trust } = identity;
+        const approvalRate = trust.totalProposals > 0
+          ? trust.totalApproved / trust.totalProposals
+          : 0;
+        const minProposals = level === 5 ? 50 : 20;
+        const minApprovalRate = level === 5 ? 0.9 : 0.9;
+        if (trust.totalProposals < minProposals || approvalRate < minApprovalRate) {
+          throw new Error(
+            `Level ${level} requires ${minProposals}+ approvals and >=${(minApprovalRate * 100).toFixed(0)}% approval rate. ` +
+            `Current: ${trust.totalProposals} proposals, ${(approvalRate * 100).toFixed(1)}% rate`,
+          );
+        }
+      }
+      // TODO(JARVIS-CRITICAL-3): callers that don't pass identity rely on
+      // identity.setAutonomyLevel() clamping separately. Plumb identity
+      // into every call-site so the guard is uniform.
+    }
+    this.currentLevel = level as AutonomyLevel;
   }
 
   /**

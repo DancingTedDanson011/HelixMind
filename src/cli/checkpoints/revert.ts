@@ -1,4 +1,4 @@
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Checkpoint, FileSnapshot } from './store.js';
 import type { CheckpointStore } from './store.js';
@@ -7,8 +7,21 @@ import type { ToolMessage } from '../providers/types.js';
 export interface RevertResult {
   type: 'chat' | 'code' | 'both';
   filesReverted: number;
+  filesNotReverted: number;
+  failures: Array<{ path: string; error: string }>;
   messagesRemoved: number;
   checkpointsRemoved: number;
+}
+
+// FIX: CHECKPOINT-003 — detect binary content via null-byte scan in first 8 KB.
+// Previously every file was read/written as UTF-8, which permanently corrupted
+// any non-text file (images, archives, wasm, compiled artifacts) on revert.
+function isBinaryBuffer(buf: Buffer): boolean {
+  const end = Math.min(buf.length, 8192);
+  for (let i = 0; i < end; i++) {
+    if (buf[i] === 0) return true;
+  }
+  return false;
 }
 
 /**
@@ -22,7 +35,14 @@ export function revertChatOnly(
 ): RevertResult {
   const checkpoint = store.get(checkpointId);
   if (!checkpoint) {
-    return { type: 'chat', filesReverted: 0, messagesRemoved: 0, checkpointsRemoved: 0 };
+    return {
+      type: 'chat',
+      filesReverted: 0,
+      filesNotReverted: 0,
+      failures: [],
+      messagesRemoved: 0,
+      checkpointsRemoved: 0,
+    };
   }
 
   const messageIdx = checkpoint.messageIndex;
@@ -30,7 +50,16 @@ export function revertChatOnly(
   // Truncate chat histories
   const removedMessages = agentHistory.length - messageIdx;
   agentHistory.length = Math.min(agentHistory.length, messageIdx);
-  simpleMessages.length = Math.min(simpleMessages.length, Math.ceil(messageIdx / 2));
+  // FIX: CHECKPOINT-002 — prefer the checkpoint's own simpleMessageIndex when
+  // present. Fall back to Math.ceil(messageIdx/2) for legacy checkpoints so
+  // existing persisted data keeps its prior behavior. New checkpoints that
+  // populate simpleMessageIndex get the exact truncation they asked for.
+  const sIdx = (checkpoint as any).simpleMessageIndex;
+  if (typeof sIdx === 'number' && Number.isInteger(sIdx) && sIdx >= 0) {
+    simpleMessages.length = Math.min(simpleMessages.length, sIdx);
+  } else {
+    simpleMessages.length = Math.min(simpleMessages.length, Math.ceil(messageIdx / 2));
+  }
 
   // Remove checkpoints after this one
   const removedCheckpoints = store.truncateAfter(checkpointId);
@@ -38,6 +67,8 @@ export function revertChatOnly(
   return {
     type: 'chat',
     filesReverted: 0,
+    filesNotReverted: 0,
+    failures: [],
     messagesRemoved: Math.max(0, removedMessages),
     checkpointsRemoved: removedCheckpoints.length,
   };
@@ -52,9 +83,11 @@ export function revertCodeOnly(
 ): RevertResult {
   const checkpointsAfter = store.getFrom(checkpointId);
   let filesReverted = 0;
+  let filesNotReverted = 0;
+  const failures: Array<{ path: string; error: string }> = [];
 
   // Collect all file changes from this checkpoint onwards, in reverse order
-  const revertActions: Array<{ path: string; content: string | null }> = [];
+  const revertActions: Array<{ path: string; content: string | Buffer | null; binary: boolean }> = [];
   const seen = new Set<string>();
 
   // Walk backwards so the earliest "before" state wins for each file
@@ -65,7 +98,12 @@ export function revertCodeOnly(
     for (const snap of cp.fileSnapshots) {
       if (!seen.has(snap.path)) {
         seen.add(snap.path);
-        revertActions.push({ path: snap.path, content: snap.contentBefore });
+        // FIX: CHECKPOINT-003 — honor explicit binary snapshots.
+        const binary = Boolean((snap as any).binary);
+        const content = binary && typeof (snap as any).contentBeforeBase64 === 'string'
+          ? Buffer.from((snap as any).contentBeforeBase64, 'base64')
+          : snap.contentBefore;
+        revertActions.push({ path: snap.path, content, binary });
       }
     }
   }
@@ -74,14 +112,30 @@ export function revertCodeOnly(
   for (const action of revertActions) {
     try {
       if (action.content === null) {
-        // File didn't exist before — for safety, we don't delete, just note it
-        // Don't count as reverted since we didn't actually restore anything
+        // FIX: CHECKPOINT-004 — newly-created files ARE removed on revert so
+        // the user's disk state matches their mental model. Previously these
+        // files silently survived and the user believed everything rolled back.
+        if (existsSync(action.path)) {
+          try {
+            unlinkSync(action.path);
+            filesReverted++;
+          } catch (err) {
+            filesNotReverted++;
+            failures.push({ path: action.path, error: err instanceof Error ? err.message : String(err) });
+          }
+        } else {
+          // File already gone — treat as success (idempotent).
+        }
+      } else if (Buffer.isBuffer(action.content)) {
+        writeFileSync(action.path, action.content);
+        filesReverted++;
       } else {
         writeFileSync(action.path, action.content, 'utf-8');
         filesReverted++;
       }
-    } catch {
-      // Best effort
+    } catch (err) {
+      filesNotReverted++;
+      failures.push({ path: action.path, error: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -91,6 +145,8 @@ export function revertCodeOnly(
   return {
     type: 'code',
     filesReverted,
+    filesNotReverted,
+    failures,
     messagesRemoved: 0,
     checkpointsRemoved: removed.length,
   };
@@ -114,11 +170,19 @@ export function revertBoth(
     const messageIdx = checkpoint.messageIndex;
     const removedMessages = agentHistory.length - messageIdx;
     agentHistory.length = Math.min(agentHistory.length, messageIdx);
-    simpleMessages.length = Math.min(simpleMessages.length, Math.ceil(messageIdx / 2));
+    // FIX: CHECKPOINT-002 — same logic as revertChatOnly.
+    const sIdx = (checkpoint as any).simpleMessageIndex;
+    if (typeof sIdx === 'number' && Number.isInteger(sIdx) && sIdx >= 0) {
+      simpleMessages.length = Math.min(simpleMessages.length, sIdx);
+    } else {
+      simpleMessages.length = Math.min(simpleMessages.length, messageIdx);
+    }
 
     return {
       type: 'both',
       filesReverted: codeResult.filesReverted,
+      filesNotReverted: codeResult.filesNotReverted,
+      failures: codeResult.failures,
       messagesRemoved: Math.max(0, removedMessages),
       checkpointsRemoved: codeResult.checkpointsRemoved,
     };
@@ -127,6 +191,8 @@ export function revertBoth(
   return {
     type: 'both',
     filesReverted: codeResult.filesReverted,
+    filesNotReverted: codeResult.filesNotReverted,
+    failures: codeResult.failures,
     messagesRemoved: 0,
     checkpointsRemoved: codeResult.checkpointsRemoved,
   };
@@ -151,10 +217,20 @@ export function captureFileSnapshots(
 
   const absPath = resolve(projectRoot, relPath);
   let contentBefore: string | null = null;
+  let contentBeforeBase64: string | undefined;
+  let binary = false;
 
   try {
     if (existsSync(absPath)) {
-      contentBefore = readFileSync(absPath, 'utf-8');
+      // FIX: CHECKPOINT-003 — read as Buffer so binary files survive the round-trip.
+      const buf = readFileSync(absPath);
+      if (isBinaryBuffer(buf)) {
+        binary = true;
+        contentBeforeBase64 = buf.toString('base64');
+        contentBefore = ''; // placeholder — real data is in contentBeforeBase64
+      } else {
+        contentBefore = buf.toString('utf-8');
+      }
     }
   } catch {
     // Can't read, that's ok
@@ -165,7 +241,8 @@ export function captureFileSnapshots(
     path: absPath,
     contentBefore,
     contentAfter: '', // placeholder — filled after execution
-  }];
+    ...(binary ? { binary: true, contentBeforeBase64 } : {}),
+  } as FileSnapshot];
 }
 
 /**
@@ -177,7 +254,14 @@ export function fillSnapshotAfter(snapshots: FileSnapshot[] | undefined): void {
   for (const snap of snapshots) {
     try {
       if (existsSync(snap.path)) {
-        snap.contentAfter = readFileSync(snap.path, 'utf-8');
+        const buf = readFileSync(snap.path);
+        if (isBinaryBuffer(buf)) {
+          (snap as any).binary = true;
+          (snap as any).contentAfterBase64 = buf.toString('base64');
+          snap.contentAfter = '';
+        } else {
+          snap.contentAfter = buf.toString('utf-8');
+        }
       }
     } catch {
       // Best effort

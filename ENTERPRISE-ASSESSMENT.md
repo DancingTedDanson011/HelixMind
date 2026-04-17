@@ -1,3 +1,7 @@
+> **⚠️ ARCHIVED — 2026-03-04 SNAPSHOT.** Enterprise-readiness snapshot from
+> before 0.5.x/0.6.x/0.7.0 improvements. Many Critical/High items were
+> resolved in later releases. See `CHANGELOG.md` for current status.
+
 # HelixMind Enterprise Assessment
 
 ## Executive Summary

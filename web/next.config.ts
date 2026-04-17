@@ -10,13 +10,46 @@ const withSerwist = withSerwistInit({
   swDest: 'public/sw.js',
 });
 
+// SECURITY (WIDE-WEB-010): Content-Security-Policy tightened.
+// - Drop 'unsafe-eval' — modern Next.js does not need it in production.
+// - Constrain connect-src to our own origin plus Stripe, instead of the
+//   internet-wide "https:" / "ws:" wildcards that let any script exfiltrate
+//   to arbitrary servers.
+// - Localhost/loopback hosts (helpful for HelixMind CLI bridge during dev)
+//   are only allowed in non-production builds.
+// - 'unsafe-inline' on script-src is intentionally retained for now; moving
+//   to a nonce-based policy is a larger refactor and is tracked separately.
+const isProd = process.env.NODE_ENV === 'production';
+const appOrigin = process.env.NEXT_PUBLIC_APP_URL || 'https://helixmind.dev';
+const wsOrigin = appOrigin.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+const connectSrcParts = [
+  "'self'",
+  wsOrigin,
+  'https://api.stripe.com',
+  'https://m.stripe.com',
+];
+if (!isProd) {
+  connectSrcParts.push('http://127.0.0.1:*', 'ws://127.0.0.1:*', 'http://localhost:*', 'ws://localhost:*');
+}
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  `connect-src ${connectSrcParts.join(' ')}`,
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ') + ';';
+
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-XSS-Protection', value: '0' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-  { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' wss: ws: https: http://127.0.0.1:*; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" },
+  { key: 'Content-Security-Policy', value: csp },
 ];
 
 const nextConfig: NextConfig = {

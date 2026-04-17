@@ -1,6 +1,19 @@
 import type { LLMProvider } from './types.js';
 import { AnthropicProvider } from './anthropic.js';
 import { OpenAIProvider } from './openai.js';
+import { RECOMMENDED_MODELS } from './ollama.js';
+
+// FIX: PROVIDERS-s4 — derive ollama.models from RECOMMENDED_MODELS (single source of truth).
+// Any additional local-only aliases are appended after the recommended list.
+const OLLAMA_EXTRA_MODELS = [
+  'deepseek-r1:14b',
+  'llama3.3',
+  'codellama:34b',
+];
+
+const OLLAMA_DERIVED_MODELS = Array.from(
+  new Set([...RECOMMENDED_MODELS.map((m) => m.name), ...OLLAMA_EXTRA_MODELS]),
+);
 
 /** Known providers with their base URLs and default models */
 export const KNOWN_PROVIDERS: Record<string, {
@@ -11,7 +24,15 @@ export const KNOWN_PROVIDERS: Record<string, {
 }> = {
   anthropic: {
     type: 'anthropic',
-    models: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001'],
+    // FIX: PROVIDERS-M5 — Added opus-4-7 + 1M context variants.
+    models: [
+      'claude-opus-4-7',
+      'claude-opus-4-7-1m',
+      'claude-sonnet-4-6',
+      'claude-sonnet-4-6-1m',
+      'claude-opus-4-6',
+      'claude-haiku-4-5-20251001',
+    ],
     defaultModel: 'claude-sonnet-4-6',
   },
   openai: {
@@ -40,17 +61,8 @@ export const KNOWN_PROVIDERS: Record<string, {
   ollama: {
     type: 'openai-compatible',
     baseURL: 'http://localhost:11434/v1',
-    models: [
-      'qwen3-coder:30b',
-      'qwen2.5-coder:32b',
-      'qwen2.5-coder:14b',
-      'qwen2.5-coder:7b',
-      'deepseek-r1:32b',
-      'deepseek-r1:14b',
-      'deepseek-coder-v2:16b',
-      'llama3.3',
-      'codellama:34b',
-    ],
+    // FIX: PROVIDERS-s4 — single source of truth (RECOMMENDED_MODELS).
+    models: OLLAMA_DERIVED_MODELS,
     defaultModel: 'qwen2.5-coder:32b',
   },
   zai: {

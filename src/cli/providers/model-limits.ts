@@ -7,8 +7,12 @@
 
 const MODEL_CONTEXT_LENGTHS: Record<string, number> = {
   // Anthropic
+  // FIX: PROVIDERS-M5 — Added opus-4-7 and 1M context variants.
+  'claude-opus-4-7': 200_000,
+  'claude-opus-4-7-1m': 1_000_000,
   'claude-opus-4-6': 200_000,
   'claude-sonnet-4-6': 200_000,
+  'claude-sonnet-4-6-1m': 1_000_000,
   'claude-haiku-4-5-20251001': 200_000,
   'claude-haiku-4-5': 200_000,
 
@@ -87,4 +91,45 @@ export function getModelContextLength(model: string, provider?: string): number 
   }
 
   return DEFAULT_CONTEXT_LENGTH;
+}
+
+/**
+ * Per-model output-token caps used by chatWithTools.
+ * FIX: PROVIDERS-M2 — chatWithTools previously hardcoded max_tokens=8192 which
+ * caused truncation for reasoning models with larger output budgets.
+ */
+export const MAX_OUTPUT_TOKENS: Record<string, number> = {
+  // Anthropic
+  'claude-opus-4-7': 32_000,
+  'claude-opus-4-7-1m': 32_000,
+  'claude-opus-4-6': 16_000,
+  'claude-sonnet-4-6': 64_000,
+  'claude-sonnet-4-6-1m': 64_000,
+  'claude-haiku-4-5': 8_192,
+  'claude-haiku-4-5-20251001': 8_192,
+
+  // OpenAI / reasoning
+  'gpt-4o': 16_384,
+  'gpt-4o-mini': 16_384,
+  'o1': 100_000,
+  'o1-mini': 65_536,
+  'o3-mini': 100_000,
+
+  // DeepSeek
+  'deepseek-chat': 8_192,
+  'deepseek-reasoner': 8_192,
+};
+
+const DEFAULT_MAX_OUTPUT_TOKENS = 8_192;
+
+/** Get the recommended max output token budget for a model. */
+export function getMaxOutputTokens(model: string): number {
+  if (MAX_OUTPUT_TOKENS[model] !== undefined) {
+    return MAX_OUTPUT_TOKENS[model];
+  }
+  // Prefix match (e.g. "claude-sonnet-4-6-20250514" → "claude-sonnet-4-6")
+  for (const [key, value] of Object.entries(MAX_OUTPUT_TOKENS)) {
+    if (model.startsWith(key)) return value;
+  }
+  return DEFAULT_MAX_OUTPUT_TOKENS;
 }

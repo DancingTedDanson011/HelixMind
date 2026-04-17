@@ -18,6 +18,36 @@ const DEFAULT_CONFIG: NotificationConfig = {
   minUrgency: 'important',
 };
 
+/**
+ * FIX: JARVIS-HIGH-7 — SSRF guard for webhook URLs.
+ * Only https:// URLs pointing at public hostnames are allowed.
+ * Blocks: http://, localhost, loopback, RFC1918 private ranges,
+ * link-local, and `.local` mDNS names. This prevents Jarvis from being
+ * weaponized to probe internal services (169.254.169.254 IMDS, cluster
+ * admin endpoints, etc.) via a malicious notifications.json.
+ */
+function isValidNotifierUrl(u: string | undefined): boolean {
+  if (!u) return false;
+  try {
+    const url = new URL(u);
+    if (url.protocol !== 'https:') return false;
+    const h = url.hostname.toLowerCase();
+    if (!h) return false;
+    if (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '0.0.0.0') return false;
+    if (/^10\./.test(h)) return false;
+    if (/^192\.168\./.test(h)) return false;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return false;
+    if (/^169\.254\./.test(h)) return false;
+    if (/^127\./.test(h)) return false;
+    if (h.endsWith('.local')) return false;
+    // Reject IPv6 loopback/link-local forms like [::1], [fe80::...]
+    if (h.startsWith('[::') || h.startsWith('[fe80')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export class NotificationManager {
   private config: NotificationConfig;
   private filePath: string;
@@ -153,7 +183,11 @@ export class NotificationManager {
 
       case 'webhook': {
         const url = target.config.url;
-        if (!url) throw new Error('No webhook URL configured');
+        // FIX: JARVIS-HIGH-7 — reject http/loopback/private/link-local URLs.
+        if (!isValidNotifierUrl(url)) {
+          console.warn(`[jarvis] webhook URL rejected by SSRF guard: ${url || '<missing>'}`);
+          return;
+        }
 
         await fetch(url, {
           method: 'POST',
@@ -166,7 +200,11 @@ export class NotificationManager {
 
       case 'slack': {
         const webhookUrl = target.config.webhookUrl;
-        if (!webhookUrl) throw new Error('No Slack webhook URL configured');
+        // FIX: JARVIS-HIGH-7 — even Slack webhooks must be public https.
+        if (!isValidNotifierUrl(webhookUrl)) {
+          console.warn(`[jarvis] slack webhook URL rejected by SSRF guard: ${webhookUrl || '<missing>'}`);
+          return;
+        }
 
         const emoji = urgency === 'critical' ? ':rotating_light:' : urgency === 'important' ? ':warning:' : ':information_source:';
 
@@ -187,9 +225,18 @@ export class NotificationManager {
         // Email via Resend API (already in webapp stack)
         const apiKey = target.config.apiKey;
         const to = target.config.address;
-        if (!apiKey || !to) throw new Error('Email not configured (need apiKey + address)');
+        if (!apiKey || !to) {
+          console.warn('[jarvis] email skipped: missing apiKey or address');
+          return;
+        }
+        // FIX: JARVIS-HIGH-7 — defense-in-depth: the endpoint is hard-coded
+        // to api.resend.com, but still validate before the fetch so a
+        // future refactor cannot accidentally make the URL configurable
+        // without also keeping the SSRF guard.
+        const resendUrl = 'https://api.resend.com/emails';
+        if (!isValidNotifierUrl(resendUrl)) return;
 
-        await fetch('https://api.resend.com/emails', {
+        await fetch(resendUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -222,11 +269,21 @@ export class NotificationManager {
       case 'telegram': {
         const botToken = target.config.botToken;
         const chatId = target.config.chatId;
-        if (!botToken || !chatId) throw new Error('Telegram not configured (need botToken + chatId)');
+        if (!botToken || !chatId) {
+          console.warn('[jarvis] telegram skipped: missing botToken or chatId');
+          return;
+        }
+        // FIX: JARVIS-HIGH-7 — the bot token is opaque but appears in the
+        // URL path. Validate the base URL is the real Telegram API.
+        const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+        if (!isValidNotifierUrl(telegramUrl)) {
+          console.warn('[jarvis] telegram URL rejected by SSRF guard');
+          return;
+        }
 
         const emoji = urgency === 'critical' ? '\u{1F6A8}' : urgency === 'important' ? '\u26A0\uFE0F' : '\u2139\uFE0F';
 
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        await fetch(telegramUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

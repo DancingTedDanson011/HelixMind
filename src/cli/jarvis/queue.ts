@@ -18,10 +18,14 @@ export class JarvisQueue {
     this.data = this.load();
 
     // Crash recovery: reset stale state from previous run
+    // FIX: JARVIS-LOW-1 — also clear startedAt/completedAt so the task
+    // appears truly pending in UI and metrics, not "started N hours ago".
     let needsSave = false;
     for (const task of this.data.tasks) {
       if (task.status === 'running') {
         task.status = 'pending';
+        task.startedAt = undefined;
+        task.completedAt = undefined;
         task.updatedAt = Date.now();
         needsSave = true;
       }
@@ -126,6 +130,11 @@ export class JarvisQueue {
   /**
    * Returns the next task to execute: highest priority pending task
    * whose dependencies (if any) are all completed.
+   *
+   * FIX: JARVIS-MEDIUM-1 — effective priority now includes an age boost
+   * (one step every 10 minutes, capped at +2). Without this, a steady
+   * stream of `high` tasks would starve `medium`/`low` indefinitely.
+   * Ties continue to break by createdAt (FIFO within a priority band).
    */
   getNextTask(): JarvisTask | undefined {
     const pending = this.data.tasks
@@ -138,14 +147,21 @@ export class JarvisQueue {
         });
       });
 
-    pending.sort((a, b) => {
-      if (PRIORITY_ORDER[a.priority] !== PRIORITY_ORDER[b.priority]) {
-        return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      }
-      return a.createdAt - b.createdAt;
+    const now = Date.now();
+    const AGE_BOOST_MS = 10 * 60 * 1000;
+    // Higher score = picked first. Base score: high=3, medium=2, low=1.
+    // Age boost: one point per 10 minutes waited, capped at +2.
+    const scored = pending.map(task => {
+      const baseScore = task.priority === 'high' ? 3 : task.priority === 'medium' ? 2 : 1;
+      const ageBoost = Math.min(2, Math.floor((now - task.createdAt) / AGE_BOOST_MS));
+      return { task, effective: baseScore + ageBoost };
+    });
+    scored.sort((a, b) => {
+      if (a.effective !== b.effective) return b.effective - a.effective;
+      return a.task.createdAt - b.task.createdAt;
     });
 
-    return pending[0];
+    return scored[0]?.task;
   }
 
   getByStatus(status: JarvisTaskStatus): JarvisTask[] {

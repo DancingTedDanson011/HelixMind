@@ -17,7 +17,10 @@ import type { CheckpointStore } from '../checkpoints/store.js';
 import { captureFileSnapshots, fillSnapshotAfter } from '../checkpoints/revert.js';
 import type { TaskStep } from '../ui/activity.js';
 import type { SessionBuffer } from '../context/session-buffer.js';
-import { isRateLimitError, handleRateLimitError, detectCreditsExhausted } from '../providers/rate-limiter.js';
+// FIX: PROVIDERS-C3 — loop no longer retries 429s (provider owns that).
+// We keep isRateLimitError for detection, drop handleRateLimitError import,
+// and use signal-aware sleep for non-rate-limit transient retries.
+import { isRateLimitError, detectCreditsExhausted, sleep } from '../providers/rate-limiter.js';
 import { trimConversation, estimateTokens } from '../context/trimmer.js';
 import type { SkillToolDef } from '../jarvis/types.js';
 
@@ -222,25 +225,27 @@ export async function runAgentLoop(
         throw new Error(`\u274C ${creditsReason}.${freeHint}`);
       }
 
-      // Rate limit errors — smart backoff (provider already retried, but handle edge cases)
-      if (isRateLimitError(apiErr) && iterations < maxIterations && consecutiveErrors < 4) {
-        const waitMs = handleRateLimitError(apiErr);
-        consecutiveErrors++;
-        errors.push(`Rate limited (waiting ${Math.ceil(waitMs / 1000)}s)`);
+      // FIX: PROVIDERS-C3 — Provider owns rate-limit retry (it already retried
+      // up to 5 times with real backoff). If we still see a 429 here, the
+      // provider exhausted its budget — rethrow so the caller sees the real
+      // error instead of amplifying retries and cost.
+      if (isRateLimitError(apiErr)) {
         sessionBuffer?.addToolError('rate_limit', errMsg);
-
-        process.stdout.write(`\r\x1b[K  \u23F3 Rate limited \u2014 waiting ${Math.ceil(waitMs / 1000)}s...\n`);
-        await new Promise(r => setTimeout(r, waitMs));
-        continue;
+        throw apiErr;
       }
 
-      // Other API errors — brief retry
+      // Other API errors — brief retry with signal-aware sleep
       if (iterations < maxIterations && consecutiveErrors < 2) {
         consecutiveErrors++;
         errors.push(`API error (retrying): ${errMsg}`);
         sessionBuffer?.addToolError('api_call', errMsg);
 
-        await new Promise(r => setTimeout(r, 2000));
+        try {
+          // FIX: PROVIDERS-C3 — cancellable sleep so ESC kills retry wait immediately.
+          await sleep(2000, controller?.signal);
+        } catch {
+          throw new AgentAbortError();
+        }
         continue;
       }
       throw apiErr;

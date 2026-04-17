@@ -47,19 +47,69 @@ export async function POST(req: NextRequest) {
       return NextResponse.redirect(new URL('/auth/login?error=saml_validation_failed', req.url));
     }
 
-    // SECURITY: Enforce email domain restriction if configured
-    if (samlConfig.allowedDomains && (samlConfig.allowedDomains as string[]).length > 0) {
-      const emailDomain = profile.email.split('@')[1]?.toLowerCase();
-      if (!emailDomain || !(samlConfig.allowedDomains as string[]).includes(emailDomain)) {
-        return NextResponse.redirect(new URL('/auth/login?error=saml_domain_not_allowed', req.url));
+    // SECURITY (WIDE-WEB-002): allowedDomains MUST be configured and non-empty.
+    // Without this guard, any IdP that can craft a signed assertion could log
+    // in as any existing account whose email happens to match. We refuse the
+    // request when the team has not explicitly pinned the set of domains.
+    const allowedDomains = Array.isArray(samlConfig.allowedDomains)
+      ? (samlConfig.allowedDomains as string[])
+      : null;
+    if (!allowedDomains || allowedDomains.length === 0) {
+      console.error('[SAML] Refused assertion: allowedDomains not configured for team', teamId);
+      return NextResponse.redirect(new URL('/auth/login?error=saml_domain_not_allowed', req.url));
+    }
+    const emailDomain = profile.email.split('@')[1]?.toLowerCase();
+    if (!emailDomain || !allowedDomains.includes(emailDomain)) {
+      return NextResponse.redirect(new URL('/auth/login?error=saml_domain_not_allowed', req.url));
+    }
+
+    // JIT provisioning: find or create user by email.
+    // SECURITY (WIDE-WEB-002): If a user with this email already exists but
+    // was NOT provisioned through this team's SAML (i.e. they have a password
+    // or an OAuth link and are not already a member of this team), refuse to
+    // merge the SAML identity into that account — that would be an account
+    // takeover via a compromised or misconfigured IdP.
+    const existingUser = await prisma.user.findUnique({
+      where: { email: profile.email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        locale: true,
+        passwordHash: true,
+        accounts: { select: { id: true }, take: 1 },
+        teamMembers: {
+          where: { teamId },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (existingUser) {
+      const isAlreadyMember = existingUser.teamMembers.length > 0;
+      const hasOtherCredentials = !!existingUser.passwordHash || existingUser.accounts.length > 0;
+      if (!isAlreadyMember && hasOtherCredentials) {
+        console.error(
+          '[SAML] Refused login: account conflict for email',
+          profile.email,
+          'team',
+          teamId,
+        );
+        return NextResponse.redirect(new URL('/auth/login?error=account_conflict', req.url));
       }
     }
 
-    // JIT provisioning: find or create user by email
-    let user = await prisma.user.findUnique({
-      where: { email: profile.email },
-      select: { id: true, email: true, name: true, role: true, locale: true },
-    });
+    let user = existingUser
+      ? {
+          id: existingUser.id,
+          email: existingUser.email,
+          name: existingUser.name,
+          role: existingUser.role,
+          locale: existingUser.locale,
+        }
+      : null;
 
     if (!user) {
       user = await prisma.user.create({

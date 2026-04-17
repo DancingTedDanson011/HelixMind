@@ -35,6 +35,9 @@ const BLOCKED_FILES = [
   '.vault-token', '.terraform/credentials.tfrc.json',
   // Database files that may contain sensitive data
   '.pgpass', '.my.cnf',
+  // FIX: JARVIS-HIGH-8 — Jarvis notifier configs hold webhook URLs,
+  // Slack tokens, Resend API keys, Telegram bot tokens.
+  '.helixmind/jarvis/notifications.json',
 ];
 
 export interface PathValidation {

@@ -172,6 +172,55 @@ export class Database {
       this.raw.exec('DELETE FROM schema_version');
       this.raw.prepare('INSERT INTO schema_version (version) VALUES (?)').run(4);
     }
+
+    // FIX: WIDE-SPIRAL-006 — Migration v4 → v5: add FK + ON DELETE CASCADE to the
+    // `embeddings` fallback table so deleting a node automatically cleans up its
+    // embedding row. SQLite does not support adding FKs via ALTER TABLE, so we
+    // rewrite the table in-place.
+    const currentVersionAfter3 = (this.raw.prepare(
+      'SELECT version FROM schema_version LIMIT 1',
+    ).get() as { version: number } | undefined)?.version ?? 0;
+
+    if (currentVersionAfter3 < 5) {
+      // Only migrate if the embeddings table exists and lacks the FK.
+      const embeddingsSql = (this.raw.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='embeddings'",
+      ).get() as { sql: string } | undefined)?.sql ?? '';
+
+      const hasTable = embeddingsSql.length > 0;
+      const hasFk = embeddingsSql.includes('REFERENCES nodes');
+
+      if (hasTable && !hasFk) {
+        this.raw.exec('PRAGMA foreign_keys = OFF');
+        this.raw.exec('BEGIN TRANSACTION');
+        try {
+          this.raw.exec(`
+            CREATE TABLE embeddings_new (
+              node_id TEXT PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
+              embedding BLOB NOT NULL,
+              dim INTEGER NOT NULL DEFAULT 0
+            );
+          `);
+          // Copy rows whose node_id still exists in nodes (orphans are dropped).
+          this.raw.exec(`
+            INSERT INTO embeddings_new (node_id, embedding, dim)
+              SELECT e.node_id, e.embedding, 0
+              FROM embeddings e
+              INNER JOIN nodes n ON n.id = e.node_id;
+          `);
+          this.raw.exec('DROP TABLE embeddings');
+          this.raw.exec('ALTER TABLE embeddings_new RENAME TO embeddings');
+          this.raw.exec('COMMIT');
+        } catch (err) {
+          this.raw.exec('ROLLBACK');
+          logger.warn(`embeddings FK migration failed: ${err}`);
+        }
+        this.raw.exec('PRAGMA foreign_keys = ON');
+      }
+
+      this.raw.exec('DELETE FROM schema_version');
+      this.raw.prepare('INSERT INTO schema_version (version) VALUES (?)').run(5);
+    }
   }
 
   close(): void {

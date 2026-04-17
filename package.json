@@ -1,6 +1,6 @@
 {
   "name": "helixmind",
-  "version": "0.6.5",
+  "version": "0.7.1",
   "description": "HelixMind – AI Coding CLI with Persistent Spiral Memory",
   "type": "module",
   "main": "dist/index.js",
@@ -61,7 +61,6 @@
     "adm-zip": "^0.5.16",
     "better-sqlite3": "^11.0.0",
     "chalk": "^5.4.0",
-    "cli-highlight": "^2.1.0",
     "commander": "^13.0.0",
     "fast-glob": "^3.3.0",
     "figlet": "^1.8.0",
@@ -88,6 +87,7 @@
     "vitest": "^2.0.0"
   },
   "optionalDependencies": {
-    "puppeteer-core": "^24.37.5"
+    "puppeteer-core": "^24.37.5",
+    "node-notifier": "^10.0.1"
   }
 }

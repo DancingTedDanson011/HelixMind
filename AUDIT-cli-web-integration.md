@@ -1,3 +1,7 @@
+> **⚠️ ARCHIVED — 2026-03-04 SNAPSHOT.** Many integration issues described
+> here were resolved in 0.5.x–0.7.0. For the current state, see `CHANGELOG.md`
+> and `git log`. Do not treat this file as a description of the current codebase.
+
 # HelixMind CLI-Web Integration Layer -- Production Readiness Audit
 
 **Audit Date:** 2026-03-04

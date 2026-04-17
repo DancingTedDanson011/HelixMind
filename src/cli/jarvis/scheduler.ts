@@ -35,10 +35,12 @@ function matchesCron(expression: string, date: Date): boolean {
 function matchesCronField(field: string, value: number): boolean {
   if (field === '*') return true;
 
-  // Step: */5 means every 5th
+  // FIX: JARVIS-HIGH-5 — hardened step parsing. Rejects NaN / non-positive
+  // steps rather than falling through to the exact-number branch.
   if (field.startsWith('*/')) {
     const step = parseInt(field.slice(2), 10);
-    return !isNaN(step) && step > 0 && value % step === 0;
+    if (!Number.isInteger(step) || step <= 0) return false;
+    return value % step === 0;
   }
 
   // Comma-separated: 1,3,5
@@ -55,6 +57,30 @@ function matchesCronField(field: string, value: number): boolean {
   // Exact number
   const num = parseInt(field, 10);
   return !isNaN(num) && value === num;
+}
+
+/**
+ * FIX: JARVIS-HIGH-5 — compute the next time `cron` will match, starting from `from`.
+ * Returns the Unix-epoch ms of the next match, or undefined if nothing matches within
+ * the look-ahead window (capped at ~1 year so a malformed cron cannot pin the CPU).
+ *
+ * Resolution is one minute — seconds are ignored, matching cron semantics.
+ */
+export function computeNextCronFire(cron: string, from: number): number | undefined {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return undefined;
+
+  const MAX_MINUTES_AHEAD = 366 * 24 * 60; // ~1 year
+  // Start from the next whole minute to avoid matching the current minute twice.
+  const start = new Date(from);
+  start.setSeconds(0, 0);
+  start.setMinutes(start.getMinutes() + 1);
+
+  for (let i = 0; i < MAX_MINUTES_AHEAD; i++) {
+    const candidate = new Date(start.getTime() + i * 60_000);
+    if (matchesCron(cron, candidate)) return candidate.getTime();
+  }
+  return undefined;
 }
 
 export class JarvisScheduler {
@@ -200,8 +226,10 @@ export class JarvisScheduler {
         return !isNaN(ts) && ts > now ? ts : undefined;
       }
       case 'cron':
-        // Approximate: next minute
-        return now + 60_000;
+        // FIX: JARVIS-HIGH-5 — real next-fire computation replaces the
+        // "add 60s" approximation that caused mis-fires for any cron
+        // expression more specific than `* * * * *`.
+        return computeNextCronFire(expression, now);
     }
   }
 }

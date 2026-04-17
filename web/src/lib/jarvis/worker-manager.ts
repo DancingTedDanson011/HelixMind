@@ -211,6 +211,31 @@ export function cleanupStoppedWorkers(maxAgeMs = 3600000): void {
   }
 }
 
+// WIDE-WEB-007: schedule the cleanup on a singleton boot path so stopped
+// workers don't accumulate for the lifetime of the Node process. We guard
+// against double-registration (HMR in dev, re-imports across route bundles)
+// by stashing the interval on globalThis. setInterval().unref() lets the
+// process exit normally even while the timer is pending.
+//
+// NOTE: this is intentionally in-memory only. Under a multi-node deployment
+// each instance cleans its own pool, and plan-limit counting must move to a
+// DB-backed source of truth before we can safely horizontally scale workers.
+type WorkerCleanupGlobal = typeof globalThis & {
+  __helixmindJarvisCleanup?: NodeJS.Timeout;
+};
+const g = globalThis as WorkerCleanupGlobal;
+if (!g.__helixmindJarvisCleanup) {
+  const handle = setInterval(() => {
+    try {
+      cleanupStoppedWorkers();
+    } catch (err) {
+      console.error('[jarvis] cleanupStoppedWorkers failed:', err);
+    }
+  }, 10 * 60 * 1000); // every 10 minutes
+  if (typeof handle.unref === 'function') handle.unref();
+  g.__helixmindJarvisCleanup = handle;
+}
+
 /**
  * Get total active worker count across all users (for monitoring).
  */

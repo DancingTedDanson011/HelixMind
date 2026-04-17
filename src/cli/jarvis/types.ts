@@ -526,6 +526,16 @@ export interface SkillEntry {
   errors: string[];
   path: string;                                    // absolute path to skill directory
   effectiveness?: SkillEffectiveness;
+  /**
+   * FIX: JARVIS-HIGH-1 — LLM-generated skill code must be user-approved
+   * before it can be dynamically imported. `approved` is tracked here (not
+   * in the manifest) because the manifest file itself is written by the
+   * LLM and therefore untrusted. Built-in and already-trusted skills can
+   * skip this gate by having `approved = true` set at install time.
+   */
+  approved?: boolean;
+  /** Timestamp when the user approved the skill. Undefined = not approved. */
+  approvedAt?: number;
 }
 
 export interface SkillRegistryData {

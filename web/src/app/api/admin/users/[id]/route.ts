@@ -107,6 +107,26 @@ export async function PATCH(req: Request, { params }: Params) {
       }
     }
 
+    // SECURITY (WIDE-WEB-001): Admin plan overrides bypass Stripe, so they
+    // must only be allowed under strict conditions. Refuse to mint an
+    // ENTERPRISE plan unless (a) the target has a linked Stripe customer
+    // (i.e. a real billing relationship exists), or (b) the deployment has
+    // explicitly opted into complimentary grants via env flag. Every override
+    // is recorded to the AuditLog for forensic review.
+    if (plan) {
+      const currentSub = await prisma.subscription.findUnique({
+        where: { userId: id },
+        select: { stripeCustomerId: true },
+      });
+      const allowComp = process.env.ALLOW_COMP_PLANS === 'true';
+      if (plan === 'ENTERPRISE' && !currentSub?.stripeCustomerId && !allowComp) {
+        return NextResponse.json(
+          { error: 'Cannot grant ENTERPRISE without a linked Stripe customer. Set ALLOW_COMP_PLANS=true to allow complimentary grants.' },
+          { status: 400 },
+        );
+      }
+    }
+
     // Atomic update: user fields + subscription in a single transaction
     await prisma.$transaction(async (tx) => {
       if (role || name || locale) {
@@ -127,6 +147,29 @@ export async function PATCH(req: Request, { params }: Params) {
           where: { userId: id },
           update: { plan },
           create: { userId: id, plan, status: 'ACTIVE' },
+        });
+        await tx.auditLog.create({
+          data: {
+            actorId: session.user.id,
+            actorEmail: session.user.email ?? null,
+            action: 'ADMIN_PLAN_OVERRIDE',
+            targetType: 'user',
+            targetId: id,
+            metadata: { plan },
+          },
+        });
+      }
+
+      if (role) {
+        await tx.auditLog.create({
+          data: {
+            actorId: session.user.id,
+            actorEmail: session.user.email ?? null,
+            action: 'ADMIN_ROLE_CHANGE',
+            targetType: 'user',
+            targetId: id,
+            metadata: { role },
+          },
         });
       }
     });

@@ -77,6 +77,28 @@ export class PermissionManager {
   // Enterprise: Use select menu instead of text input
   private useSelectMenu = true;
 
+  // FIX: BRAIN-F1 — track origin of permission checks. 'web-chat' origin forces
+  // dangerous/write tools to 'ask' level so remote browsers cannot silently
+  // run read/list/search shell commands (which exfiltrates filesystem data).
+  private _origin: 'local' | 'web-chat' = 'local';
+
+  // FIX: BRAIN-F2 — remote approvals are OFF by default. Must be explicitly
+  // enabled by local CLI (e.g. via setAllowRemoteApproval(true)). When disabled,
+  // remote-approved requests are ignored and the local prompt is the sole
+  // source of truth.
+  private _allowRemoteApproval = false;
+
+  // Tool classes that must never be auto-allowed from a web-chat origin, even
+  // when the classifier rates them as 'auto'. These touch the filesystem,
+  // repo state, or persistent config.
+  private static readonly WEB_CHAT_FORCE_ASK = new Set<string>([
+    'run_command',
+    'write_file',
+    'edit_file',
+    'git_commit',
+    'git_push',
+  ]);
+
   setReadline(rl: readline.Interface): void {
     this.rl = rl;
   }
@@ -127,6 +149,36 @@ export class PermissionManager {
   /** Register remote approval handler (Brain server, Telegram, etc.) */
   setRemoteHandler(opts: RemoteHandlerOpts): void {
     this.remoteHandler = opts;
+  }
+
+  /**
+   * FIX: BRAIN-F1 — set the origin of requests using this PermissionManager.
+   * 'web-chat' origin is strictly more restrictive than 'local'.
+   */
+  setOrigin(origin: 'local' | 'web-chat'): void {
+    this._origin = origin;
+  }
+
+  getOrigin(): 'local' | 'web-chat' {
+    return this._origin;
+  }
+
+  /**
+   * FIX: BRAIN-F2 — gate remote-originated approvals behind an explicit opt-in.
+   * Default is false (deny-by-default). Only the local terminal should be able
+   * to enable this flag, never a remote channel.
+   */
+  setAllowRemoteApproval(enabled: boolean): void {
+    // Never enable remote approval for web-chat origin, regardless of caller
+    if (this._origin === 'web-chat' && enabled) {
+      console.error('[permissions] Refusing to enable remote approval for web-chat origin');
+      return;
+    }
+    this._allowRemoteApproval = enabled;
+  }
+
+  isRemoteApprovalAllowed(): boolean {
+    return this._allowRemoteApproval && this._origin === 'local';
   }
 
   /** Resolve a pending remote permission request (called from WebSocket/Telegram handler) */
@@ -208,14 +260,26 @@ export class PermissionManager {
       else level = 'ask';
     }
 
+    // FIX: BRAIN-F1 — for web-chat origin, force filesystem/shell-affecting
+    // tools to 'ask' so they cannot be silently auto-allowed. Web chats run
+    // without a readline, so this effectively denies them (default-deny),
+    // which is the correct posture until a real remote approval UI exists.
+    if (this._origin === 'web-chat' && PermissionManager.WEB_CHAT_FORCE_ASK.has(toolName)) {
+      if (level === 'auto') level = 'ask';
+    }
+
     // Auto-allow
     if (level === 'auto') return true;
 
-    // YOLO mode: auto-allow everything, even dangerous
-    if (this.yoloMode) return true;
+    // YOLO mode: auto-allow everything, even dangerous.
+    // FIX: BRAIN-F1 — but never honor YOLO for a web-chat origin. YOLO must
+    // only apply to the local terminal that opted in.
+    if (this.yoloMode && this._origin === 'local') return true;
 
     // Skip-permissions mode: auto-allow 'ask' level, still prompt for 'dangerous'
-    if (this.skipPermissionsMode && level !== 'dangerous') return true;
+    // FIX: BRAIN-F1 — same guard for skip-permissions. Remote origins never
+    // inherit the local terminal's skip setting.
+    if (this.skipPermissionsMode && level !== 'dangerous' && this._origin === 'local') return true;
 
     // Ask user with full context about what's being done
     return this.promptUser(toolName, input, level, displayFn);
@@ -227,6 +291,14 @@ export class PermissionManager {
     level: PermissionLevel,
     displayFn: (msg: string) => void,
   ): Promise<boolean> {
+    // FIX: BRAIN-F1 — web-chat origin has no terminal approval flow; deny
+    // immediately rather than falling through to the remote-approval path
+    // (which BRAIN-F2 also blocks by default).
+    if (this._origin === 'web-chat') {
+      displayFn(`\n  ${chalk.red.bold('Denied:')} web-chat origin cannot approve tool "${toolName}"\n`);
+      return false;
+    }
+
     if (!this.rl) return false; // No readline = non-interactive, deny for safety
 
     const defaultYes = level !== 'dangerous';
@@ -244,11 +316,16 @@ export class PermissionManager {
     process.stdout.write(`  │ ${detail}\n`);
     process.stdout.write(chalk.dim('  └─────────────────────────────────────────────────────────────\n'));
 
-    // Create remote permission promise (if remote handler is set)
+    // Create remote permission promise (if remote handler is set).
+    // FIX: BRAIN-F2 — only race the remote channel if remote approvals are
+    // explicitly enabled. Otherwise we still *notify* remote channels (so a
+    // phone can show the request) but the only authoritative approver is the
+    // local terminal. This prevents a compromised/rogue web client from
+    // racing the local user and silently approving a dangerous action.
     let remotePromise: Promise<{ approved: boolean; deniedBy?: 'user' | 'system_timeout' }> | null = null;
     let requestId: string | null = null;
 
-    if (this.remoteHandler) {
+    if (this.remoteHandler && this.isRemoteApprovalAllowed()) {
       const timeoutMs = level === 'dangerous' ? TIMEOUT_DANGER_MS : TIMEOUT_ASK_MS;
       const now = Date.now();
       requestId = randomUUID();

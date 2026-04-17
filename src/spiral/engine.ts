@@ -89,50 +89,91 @@ export class SpiralEngine {
   /**
    * Store new context in the spiral.
    * Deduplicates by content hash — identical content is refreshed, not duplicated.
+   * FIX: WIDE-SPIRAL-009 — added optional opts.level / opts.relevance_score to allow
+   * callers (e.g. web enricher) to store content at a non-L1 level. Defaults preserve
+   * existing behavior (level=1, relevance_score=1.0).
    */
   async store(
     content: string,
     type: ContextType,
     metadata?: NodeMetadata,
     relations?: string[],
+    opts?: { level?: SpiralLevel; relevance_score?: number },
   ): Promise<SpiralStoreResult> {
     const meta = metadata ?? {};
     const contentHash = createHash('sha256').update(content).digest('hex');
+    // FIX: WIDE-SPIRAL-009 — clamp level to [1,5] if provided
+    const clampedLevel = opts?.level !== undefined
+      ? (Math.max(1, Math.min(5, opts.level)) as SpiralLevel)
+      : undefined;
+    const relevanceScore = opts?.relevance_score !== undefined && Number.isFinite(opts.relevance_score)
+      ? Math.max(0, Math.min(1, opts.relevance_score))
+      : undefined;
 
-    // Dedup check: if identical content already exists, refresh it instead of creating a new node
-    const existing = this.nodes.findByContentHash(contentHash);
-    if (existing) {
-      // Merge tags from new metadata into existing
-      const existingMeta = existing.metadata;
-      if (meta.tags && Array.isArray(meta.tags)) {
-        const existingTags = Array.isArray(existingMeta.tags) ? existingMeta.tags as string[] : [];
-        const merged = [...new Set([...existingTags, ...meta.tags as string[]])];
-        existingMeta.tags = merged;
+    // FIX: WIDE-SPIRAL-012 — wrap dedup-check + create in a single transaction to
+    // prevent two concurrent processes from inserting duplicate hashes between the
+    // SELECT and the INSERT.
+    const txnResult = this.db.raw.transaction((): {
+      kind: 'dedup';
+      result: SpiralStoreResult;
+    } | {
+      kind: 'created';
+      nodeId: string;
+      level: SpiralLevel;
+      tokenCount: number;
+    } => {
+      // Dedup check: if identical content already exists, refresh it instead of creating a new node
+      const existing = this.nodes.findByContentHash(contentHash);
+      if (existing) {
+        // Merge tags from new metadata into existing
+        const existingMeta = existing.metadata;
+        if (meta.tags && Array.isArray(meta.tags)) {
+          const existingTags = Array.isArray(existingMeta.tags) ? existingMeta.tags as string[] : [];
+          const merged = [...new Set([...existingTags, ...meta.tags as string[]])];
+          existingMeta.tags = merged;
+        }
+        // Copy over any new metadata keys (except tags, already merged)
+        for (const [key, val] of Object.entries(meta)) {
+          if (key !== 'tags') existingMeta[key] = val;
+        }
+
+        this.nodes.refreshNode(existing.id, content, existingMeta, contentHash);
+        logger.debug(`Dedup: refreshed existing node ${existing.id} (type: ${type})`);
+
+        return {
+          kind: 'dedup',
+          result: {
+            node_id: existing.id,
+            level: existing.level,
+            connections: 0,
+            token_count: existing.token_count,
+            deduplicated: true,
+          },
+        };
       }
-      // Copy over any new metadata keys (except tags, already merged)
-      for (const [key, val] of Object.entries(meta)) {
-        if (key !== 'tags') existingMeta[key] = val;
-      }
 
-      this.nodes.refreshNode(existing.id, content, existingMeta, contentHash);
-      logger.debug(`Dedup: refreshed existing node ${existing.id} (type: ${type})`);
+      // Create the node with content hash
+      const node = this.nodes.create({
+        type,
+        content,
+        metadata: meta,
+        content_hash: contentHash,
+        level: clampedLevel,
+        relevance_score: relevanceScore,
+      });
+      return { kind: 'created', nodeId: node.id, level: node.level, tokenCount: node.token_count };
+    })();
 
-      return {
-        node_id: existing.id,
-        level: existing.level,
-        connections: 0,
-        token_count: existing.token_count,
-        deduplicated: true,
-      };
+    if (txnResult.kind === 'dedup') {
+      return txnResult.result;
     }
 
-    // Create the node with content hash
-    const node = this.nodes.create({
-      type,
-      content,
-      metadata: meta,
-      content_hash: contentHash,
-    });
+    // Reconstruct minimal node info; the row was created inside the transaction.
+    const node = {
+      id: txnResult.nodeId,
+      level: txnResult.level,
+      token_count: txnResult.tokenCount,
+    };
 
     // Generate and store embedding
     const embedding = await this.embeddings.embed(content);
@@ -160,7 +201,8 @@ export class SpiralEngine {
       const similar = this.vectors.search(embedding, 5);
       for (const result of similar) {
         if (result.node_id === node.id) continue;
-        if (result.distance < 0.3) { // Very similar
+        // FIX: WIDE-SPIRAL-008 — lowered threshold 0.3 -> 0.15 for more aggressive auto-edge creation
+        if (result.distance < 0.15) {
           try {
             this.edges.create({
               source_id: node.id,
@@ -169,8 +211,12 @@ export class SpiralEngine {
               weight: 1 - result.distance,
             });
             connectionCount++;
-          } catch {
-            // Duplicate edge, ignore
+          } catch (err) {
+            // FIX: WIDE-SPIRAL-008 — only swallow unique-constraint errors, log everything else
+            const errCode = (err as { code?: string })?.code;
+            if (errCode !== 'SQLITE_CONSTRAINT_UNIQUE') {
+              logger.warn(`Auto-edge creation failed (non-unique-constraint): ${String(err)}`);
+            }
           }
         }
       }
@@ -325,7 +371,9 @@ export class SpiralEngine {
       for (const msg of newMessages) {
         if (msg.role === 'user' || msg.role === 'assistant') {
           try {
-            await this.store(msg.content, 'code', {
+            // FIX: WIDE-SPIRAL-001 — redact secrets before storing conversation content in spiral
+            const safeContent = redactSecrets(msg.content);
+            await this.store(safeContent, 'code', {
               tags: ['conversation', msg.role],
             });
           } catch {
@@ -416,4 +464,16 @@ function buildNodeLabel(node: import('../types.js').ContextNode): string {
   if (node.metadata.file) return node.metadata.file as string;
   const firstLine = node.content.split('\n')[0];
   return firstLine.length > 50 ? firstLine.slice(0, 47) + '...' : firstLine;
+}
+
+// FIX: WIDE-SPIRAL-001 — redact common secret patterns before persisting content to spiral
+function redactSecrets(text: string): string {
+  return text
+    .replace(/\b(sk-[A-Za-z0-9_\-]{20,})/g, '[REDACTED_API_KEY]')
+    .replace(/\b(xoxb-[A-Za-z0-9\-]+)/g, '[REDACTED_SLACK_TOKEN]')
+    .replace(/\b(ghp_[A-Za-z0-9]{36,})/g, '[REDACTED_GITHUB_TOKEN]')
+    .replace(/\b(Bearer\s+[A-Za-z0-9_\-\.]{20,})/gi, 'Bearer [REDACTED]')
+    .replace(/\b(AKIA[0-9A-Z]{16})/g, '[REDACTED_AWS_KEY]')
+    .replace(/-----BEGIN (RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----[\s\S]*?-----END \1?PRIVATE KEY-----/g, '[REDACTED_PRIVATE_KEY]')
+    .replace(/\b(eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,})\b/g, '[REDACTED_JWT]');
 }

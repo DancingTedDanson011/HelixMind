@@ -98,7 +98,14 @@ export async function handleWebChat(
   // Remote users must not bypass security prompts. Tool calls that require
   // user approval will be auto-denied since there is no terminal readline,
   // effectively limiting web chats to read-only + auto-approved tools.
+  //
+  // FIX: BRAIN-F1 — flag this PermissionManager as origin='web-chat' so
+  // PermissionManager.check() additionally forces filesystem/shell-affecting
+  // tools to 'ask' level (and promptUser() then denies because there is no
+  // terminal). This closes the classifier loophole where read/list/search
+  // shell commands were being auto-allowed for remote chats.
   const permissions = new PermissionManager();
+  permissions.setOrigin('web-chat');
 
   // Signal start
   callbacks.onStarted(chatId);

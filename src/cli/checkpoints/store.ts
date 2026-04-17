@@ -14,6 +14,12 @@ export interface FileSnapshot {
   path: string;
   contentBefore: string | null; // null if file didn't exist
   contentAfter: string;
+  // FIX: CHECKPOINT-003 — binary file handling. When `binary` is true, the
+  // *Base64 fields hold the actual bytes and the string fields are empty
+  // placeholders. Reverting decodes base64 → Buffer and writes without UTF-8.
+  binary?: boolean;
+  contentBeforeBase64?: string;
+  contentAfterBase64?: string;
 }
 
 export interface Checkpoint {

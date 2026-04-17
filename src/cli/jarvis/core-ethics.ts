@@ -4,6 +4,10 @@
  * Every tool-call passes through canExecute() before execution.
  */
 import { createHash } from 'node:crypto';
+import * as path from 'node:path';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join, dirname } from 'node:path';
 import { validatePath, classifyCommand } from '../agent/sandbox.js';
 import type {
   AutonomyLevel, EthicsContext, EthicsCheckResult,
@@ -69,14 +73,65 @@ const TOOL_MIN_AUTONOMY: Readonly<Record<string, AutonomyLevel>> = {
   run_command: 5,
 };
 
-const SELF_MODIFY_PATHS = [
-  'core-ethics.ts',
-  'core-ethics.js',
-  'sandbox.ts',
-  'sandbox.js',
-  'permissions.ts',
-  'permissions.js',
-];
+// FIX: JARVIS-HIGH-2 — replaced substring matching with suffix-based matching
+// on normalized POSIX paths. Previous logic would match any file containing
+// "sandbox.ts" anywhere in the string (false positives on e.g. "sandbox.test.ts")
+// and could be bypassed with "./path/sandbox.ts.bak" or "subdir/sandbox.tsx".
+const SELF_MODIFY_ABS_PATHS: ReadonlySet<string> = new Set([
+  'src/cli/jarvis/core-ethics.ts',
+  'src/cli/jarvis/core-ethics.js',
+  'src/cli/jarvis/autonomy.ts',
+  'src/cli/jarvis/autonomy.js',
+  'src/cli/jarvis/identity.ts',
+  'src/cli/jarvis/identity.js',
+  'src/cli/agent/sandbox.ts',
+  'src/cli/agent/sandbox.js',
+  'src/cli/agent/permissions.ts',
+  'src/cli/agent/permissions.js',
+  'src/cli/agent/tools/registry.ts',
+  'src/cli/agent/tools/registry.js',
+]);
+
+function normalizeForMatch(p: string): string {
+  return path.normalize(p).replace(/\\/g, '/').toLowerCase();
+}
+
+/**
+ * Returns true if `target` resolves to a safety-critical file.
+ * FIX: JARVIS-HIGH-2 — suffix match on POSIX-normalized path prevents
+ * both false positives (matching "sandbox.ts" inside "sandbox.test.ts")
+ * and simple bypasses (e.g. "./src/cli/jarvis/sandbox.ts").
+ */
+export function isSelfModifyTarget(target: string): boolean {
+  if (!target) return false;
+  const norm = normalizeForMatch(target);
+  for (const p of SELF_MODIFY_ABS_PATHS) {
+    if (norm === p || norm.endsWith('/' + p)) return true;
+  }
+  return false;
+}
+
+/**
+ * Returns true if the given command string references a safety-critical file.
+ * FIX: JARVIS-HIGH-2 — used by run_command to block e.g.
+ *   `sed -i '' src/cli/jarvis/core-ethics.ts`
+ *   `rm src/cli/agent/sandbox.ts`
+ */
+export function commandMentionsSelfModify(cmd: string): boolean {
+  if (!cmd) return false;
+  const norm = cmd.replace(/\\/g, '/').toLowerCase();
+  for (const p of SELF_MODIFY_ABS_PATHS) {
+    // Require the protected path to appear as a whole token — avoids
+    // matching unrelated text. A protected path is a token if preceded
+    // and followed by a non-alphanumeric (or string boundary).
+    const idx = norm.indexOf(p);
+    if (idx === -1) continue;
+    const before = idx === 0 ? '' : norm[idx - 1];
+    const after = norm[idx + p.length] ?? '';
+    if (!/[a-z0-9]/.test(before) && !/[a-z0-9]/.test(after)) return true;
+  }
+  return false;
+}
 
 // ─── Anomaly Detection Constants ─────────────────────────────────────
 
@@ -90,11 +145,42 @@ const MAX_SAME_FILE_IN_WINDOW = 20;
 const AUDIT_MAX = 500;
 const auditLog: AuditEntry[] = [];
 
+// FIX: JARVIS-MEDIUM-6 — persist audit log to ~/.helixmind/jarvis/audit.jsonl
+// Append-only JSONL survives process crashes and provides forensic trail.
+// In-memory ring buffer kept as a hot cache to avoid disk I/O on every read.
+const AUDIT_LOG_PATH = join(homedir(), '.helixmind', 'jarvis', 'audit.jsonl');
+let auditDirReady = false;
+function ensureAuditDir(): void {
+  if (auditDirReady) return;
+  try {
+    const dir = dirname(AUDIT_LOG_PATH);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    auditDirReady = true;
+  } catch {
+    // Filesystem unavailable — fall back to in-memory only. Non-fatal.
+  }
+}
+
+function persistAudit(entry: AuditEntry): void {
+  try {
+    ensureAuditDir();
+    appendFileSync(AUDIT_LOG_PATH, JSON.stringify(entry) + '\n', 'utf-8');
+  } catch {
+    // Never let audit persistence failure block an ethics check.
+    // (If disk is full, we still want synchronous allow/deny to run.)
+  }
+}
+
 function recordAudit(entry: AuditEntry): void {
   auditLog.push(entry);
   if (auditLog.length > AUDIT_MAX) {
     auditLog.splice(0, auditLog.length - AUDIT_MAX);
   }
+  persistAudit(entry);
+}
+
+export function getAuditLogPath(): string {
+  return AUDIT_LOG_PATH;
 }
 
 export function getRecentAudit(windowMs: number = ANOMALY_WINDOW_MS): AuditEntry[] {
@@ -127,7 +213,8 @@ export function canExecute(context: EthicsContext): EthicsCheckResult {
   }
 
   // Rule: Never modify own safety files
-  if (target && SELF_MODIFY_PATHS.some(p => target.toLowerCase().includes(p))) {
+  // FIX: JARVIS-HIGH-2 — path-aware suffix match, not substring include
+  if (target && isSelfModifyTarget(target)) {
     if (toolName === 'write_file' || toolName === 'edit_file') {
       return { allowed: false, reason: 'Cannot modify safety-critical files', rule: IMMUTABLE_RULES[4] };
     }
@@ -135,6 +222,17 @@ export function canExecute(context: EthicsContext): EthicsCheckResult {
 
   // Rule: Dangerous commands require L5
   if (toolName === 'run_command' && target) {
+    // FIX: JARVIS-HIGH-2 — block commands that touch safety-critical files
+    // (sed, rm, mv, cp, etc.) regardless of autonomy level. No sandbox
+    // classifier can catch this because `sed file` and `sed other-file`
+    // both look equally benign at the tokens level.
+    if (commandMentionsSelfModify(target)) {
+      return {
+        allowed: false,
+        reason: 'Command references a safety-critical file',
+        rule: IMMUTABLE_RULES[4],
+      };
+    }
     try {
       const level = classifyCommand(target);
       if (level === 'dangerous' && autonomyLevel < 5) {

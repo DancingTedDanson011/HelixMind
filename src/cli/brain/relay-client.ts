@@ -3,9 +3,22 @@
  * Forwards brain events and handles control messages from remote browsers.
  */
 import WebSocket from 'ws';
-import { CONTROL_REQUEST_TYPES } from './control-protocol.js';
+import { CONTROL_REQUEST_TYPES, validateControlMessageShape } from './control-protocol.js';
 import type { ControlHandlers, ControlRequest, InstanceMeta } from './control-protocol.js';
 import type { BrainServer } from './server.js';
+import { isValidProjectPath } from './path-guard.js';
+
+// FIX: BRAIN-F2/BRAIN-F5 — remote destructive actions are disabled by default.
+// This is a module-level flag, because relay-client is created per-connection
+// and we want a single source of truth that the CLI can flip.
+let allowRemoteDestructive = false;
+export function setRelayAllowDestructive(enabled: boolean): void {
+  allowRemoteDestructive = enabled;
+  if (enabled) console.warn('[relay] Remote destructive actions ENABLED');
+}
+export function isRelayDestructiveAllowed(): boolean {
+  return allowRemoteDestructive;
+}
 
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
@@ -105,6 +118,13 @@ export function createRelayClient(
 
         // Handle control messages from relay (forwarded from browser)
         if (authenticated && isControlRequest(msg.type)) {
+          // FIX: BRAIN-F9 — validate shape of dangerous types before dispatch.
+          const shapeResult = validateControlMessageShape(msg);
+          if (!shapeResult.ok) {
+            console.warn('[relay] Rejecting malformed control message:', msg.type, shapeResult.error);
+            sendRelay({ type: 'error', message: `Invalid message: ${shapeResult.error}`, requestId: msg.requestId, timestamp: Date.now() });
+            return;
+          }
           handleControlMessage(msg as ControlRequest).catch((err) => {
             if (process.env.DEBUG) {
               console.error('[relay] Control message handler error:', err instanceof Error ? err.message : String(err));
@@ -365,9 +385,14 @@ export function createRelayClient(
       }
 
       case 'register_project': {
-        // SECURITY: Validate path from remote to prevent path traversal / null byte injection
-        if (typeof msg.path !== 'string' || msg.path.length > 500 || msg.path.includes('\0') || msg.path.includes('..')) {
+        // FIX: BRAIN-F7 — strict path guard (traversal, UNC, system-dir).
+        if (!isValidProjectPath(msg.path)) {
+          console.warn('[relay] Rejecting register_project with invalid path');
           sendRelay({ type: 'error', message: 'Invalid project path', requestId, timestamp: Date.now() });
+          break;
+        }
+        if (msg.name !== undefined && (typeof msg.name !== 'string' || msg.name.length > 200)) {
+          sendRelay({ type: 'error', message: 'Invalid project name', requestId, timestamp: Date.now() });
           break;
         }
         const project = handlers.registerProject(msg.path, msg.name);
@@ -409,13 +434,18 @@ export function createRelayClient(
       }
 
       case 'create_brain': {
-        // SECURITY: Validate projectPath from remote to prevent path traversal / null byte injection
-        if (msg.projectPath && (typeof msg.projectPath !== 'string' || msg.projectPath.length > 500 || msg.projectPath.includes('\0') || msg.projectPath.includes('..'))) {
+        // FIX: BRAIN-F7 — strict path guard (traversal, UNC, system-dir).
+        if (msg.projectPath !== undefined && !isValidProjectPath(msg.projectPath)) {
+          console.warn('[relay] Rejecting create_brain with invalid projectPath');
           sendRelay({ type: 'error', message: 'Invalid project path', requestId, timestamp: Date.now() });
           break;
         }
-        if (typeof msg.name !== 'string' || msg.name.length > 200) {
+        if (typeof msg.name !== 'string' || msg.name.length === 0 || msg.name.length > 200) {
           sendRelay({ type: 'error', message: 'Invalid brain name', requestId, timestamp: Date.now() });
+          break;
+        }
+        if (msg.brainType !== 'global' && msg.brainType !== 'local') {
+          sendRelay({ type: 'error', message: 'Invalid brainType', requestId, timestamp: Date.now() });
           break;
         }
         const brain = handlers.createBrain(msg.name, msg.brainType, msg.projectPath);
@@ -435,6 +465,14 @@ export function createRelayClient(
       }
 
       case 'switch_model': {
+        // FIX: BRAIN-F5 — swapping provider/model rewrites persisted config and
+        // can silently redirect all future LLM traffic (and API-key usage) to
+        // an attacker-controlled endpoint. Refuse from remote by default.
+        if (!isRelayDestructiveAllowed()) {
+          console.warn('[relay] Refusing remote switch_model (destructive actions disabled)');
+          sendRelay({ type: 'model_switched', success: false, error: 'Remote destructive actions disabled', requestId, timestamp: Date.now() });
+          break;
+        }
         const success = handlers.switchModel(msg.provider, msg.model);
         sendRelay({ type: 'model_switched', success, requestId, timestamp: Date.now() });
         break;
@@ -454,11 +492,20 @@ export function createRelayClient(
       }
 
       case 'revert_to_checkpoint': {
-        const result = handlers.revertToCheckpoint(
-          msg.checkpointId,
-          msg.mode || 'both',
-        );
-        sendRelay({ type: 'checkpoint_reverted', checkpointId: msg.checkpointId, mode: msg.mode || 'both', ...result, requestId, timestamp: Date.now() });
+        // FIX: BRAIN-F5 — 'code' and 'both' modes write files on disk (lose
+        // work). Refuse from remote when destructive actions are disabled.
+        const mode = msg.mode || 'both';
+        if ((mode === 'code' || mode === 'both') && !isRelayDestructiveAllowed()) {
+          console.warn('[relay] Refusing remote revert_to_checkpoint mode=%s (destructive actions disabled)', mode);
+          sendRelay({ type: 'error', message: 'Remote destructive actions disabled', requestId, timestamp: Date.now() });
+          break;
+        }
+        if (typeof msg.checkpointId !== 'number' || !Number.isFinite(msg.checkpointId)) {
+          sendRelay({ type: 'error', message: 'Invalid checkpointId', requestId, timestamp: Date.now() });
+          break;
+        }
+        const result = handlers.revertToCheckpoint(msg.checkpointId, mode);
+        sendRelay({ type: 'checkpoint_reverted', checkpointId: msg.checkpointId, mode, ...result, requestId, timestamp: Date.now() });
         break;
       }
 

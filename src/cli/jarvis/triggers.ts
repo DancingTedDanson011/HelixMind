@@ -12,6 +12,19 @@ import type {
 
 const EMPTY_DATA: TriggerData = { version: 1, nextId: 1, triggers: [] };
 
+// FIX: JARVIS-HIGH-3 — only these actions are permitted. 'execute' is
+// explicitly disallowed: triggers must never autonomously execute code
+// without going through the proposal/approval flow.
+const ALLOWED_TRIGGER_ACTIONS: ReadonlySet<string> = new Set(['propose', 'notify']);
+const DEFAULT_TRIGGER_ACTION = 'propose';
+
+// FIX: JARVIS-HIGH-4 — limits to prevent regex-bomb DoS via user-supplied
+// glob patterns. MAX_WILDCARDS=20 prevents pathological `*` expansion;
+// MAX_PATTERN_LENGTH caps the input size before regex compilation.
+const MAX_PATTERN_LENGTH = 256;
+const MAX_PATH_LENGTH = 4096;
+const MAX_WILDCARDS = 20;
+
 export class TriggerManager {
   private data: TriggerData;
   private filePath: string;
@@ -44,15 +57,39 @@ export class TriggerManager {
     source: TriggerSource,
     name: string,
     pattern: string,
-    action: string = 'propose',
+    action: string = DEFAULT_TRIGGER_ACTION,
     taskTemplate?: { title: string; description: string; priority: JarvisTaskPriority },
   ): TriggerConfig {
+    // FIX: JARVIS-HIGH-3 — enforce action whitelist. Anything other than
+    // 'propose' or 'notify' is rejected; 'execute' is explicitly banned.
+    const normalizedAction = typeof action === 'string' ? action.trim().toLowerCase() : '';
+    if (!ALLOWED_TRIGGER_ACTIONS.has(normalizedAction)) {
+      throw new Error(
+        `Trigger action "${action}" is not allowed. Permitted actions: ${[...ALLOWED_TRIGGER_ACTIONS].join(', ')}`,
+      );
+    }
+
+    // FIX: JARVIS-HIGH-3 + HIGH-4 — reject oversized patterns before they
+    // reach regex compilation in matchGlob().
+    if (typeof pattern !== 'string' || pattern.length === 0) {
+      throw new Error('Trigger pattern must be a non-empty string');
+    }
+    if (pattern.length > MAX_PATTERN_LENGTH) {
+      throw new Error(`Trigger pattern exceeds max length (${MAX_PATTERN_LENGTH})`);
+    }
+    const wildcardCount = (pattern.match(/\*/g) || []).length;
+    if (wildcardCount > MAX_WILDCARDS) {
+      throw new Error(
+        `Trigger pattern has too many wildcards (${wildcardCount} > ${MAX_WILDCARDS})`,
+      );
+    }
+
     const trigger: TriggerConfig = {
       id: this.data.nextId++,
       source,
       name,
       pattern,
-      action,
+      action: normalizedAction,
       taskTemplate,
       enabled: true,
       fireCount: 0,
@@ -159,8 +196,27 @@ export class TriggerManager {
 /**
  * Simple glob matching for file paths.
  * Supports: * (any segment), ** (any depth), exact match.
+ *
+ * FIX: JARVIS-HIGH-4 — caps on pattern length, path length and wildcard
+ * count to prevent catastrophic regex compilation. Caller input is
+ * additionally validated in registerTrigger; this layer is defense-in-depth
+ * so persisted patterns from a stale triggers.json can't bypass the limits.
+ *
+ * TODO(JARVIS-HIGH-4): true runtime enforcement on regex execution would
+ * require a worker thread (MAX_RUNTIME_MS=50ms). Synchronous JS cannot be
+ * interrupted. Consider adopting `picomatch` (non-backtracking) in a
+ * future pass.
  */
 function matchGlob(filePath: string, pattern: string): boolean {
+  if (typeof filePath !== 'string' || typeof pattern !== 'string') return false;
+  if (filePath.length === 0 || pattern.length === 0) return false;
+  if (filePath.length > MAX_PATH_LENGTH) return false;
+  if (pattern.length > MAX_PATTERN_LENGTH) return false;
+
+  // Count wildcards before any transformation to keep the check robust.
+  const wildcardCount = (pattern.match(/\*/g) || []).length;
+  if (wildcardCount > MAX_WILDCARDS) return false;
+
   // Normalize separators
   const normalized = filePath.replace(/\\/g, '/');
   const normalizedPattern = pattern.replace(/\\/g, '/');
@@ -170,15 +226,22 @@ function matchGlob(filePath: string, pattern: string): boolean {
     return normalized.includes(normalizedPattern);
   }
 
-  // Convert glob to regex
-  const regexStr = normalizedPattern
-    .replace(/\*\*/g, '{{DOUBLE_STAR}}')
-    .replace(/\*/g, '[^/]*')
-    .replace(/{{DOUBLE_STAR}}/g, '.*')
-    .replace(/\./g, '\\.');
+  // Escape regex metacharacters other than `*` (which we expand below).
+  // Without this, patterns like `.(*)` would produce unintended matches.
+  const escapeNonStar = (s: string): string =>
+    s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+
+  // Convert glob to regex — escape first, then expand the protected `*` tokens.
+  const protectedPattern = normalizedPattern
+    .replace(/\*\*/g, '\u0000DS\u0000')
+    .replace(/\*/g, '\u0000SS\u0000');
+  const regexStr = escapeNonStar(protectedPattern)
+    .replace(/\u0000DS\u0000/g, '.*')
+    .replace(/\u0000SS\u0000/g, '[^/]*');
 
   try {
-    return new RegExp(regexStr).test(normalized);
+    return new RegExp('^' + regexStr + '$').test(normalized)
+      || new RegExp(regexStr).test(normalized);
   } catch {
     return false;
   }

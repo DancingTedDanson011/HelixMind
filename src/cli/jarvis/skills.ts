@@ -16,6 +16,71 @@ import type {
 
 const EMPTY_REGISTRY: SkillRegistryData = { version: 1, skills: [] };
 
+/**
+ * FIX: JARVIS-HIGH-1 — Static code review for LLM-generated skills.
+ * These patterns are hard-blocks before a skill can ever be approved.
+ * Even "approved" skills should not contain these — if the user approves
+ * anyway, they must deliberately edit the file.
+ *
+ * This is explicitly NOT a general sandboxing solution — once the code
+ * is imported, Node can do anything. The guard exists to stop the most
+ * obvious prompt-injection-to-RCE paths (spawn a shell, eval() a string,
+ * scribble outside the skills directory).
+ */
+const DANGEROUS_CODE_PATTERNS: { pattern: RegExp; reason: string }[] = [
+  { pattern: /require\(\s*['"]child_process['"]\s*\)/, reason: 'imports child_process (spawn/exec)' },
+  { pattern: /from\s+['"]child_process['"]/, reason: 'imports child_process (spawn/exec)' },
+  { pattern: /require\(\s*['"]node:child_process['"]\s*\)/, reason: 'imports node:child_process' },
+  { pattern: /from\s+['"]node:child_process['"]/, reason: 'imports node:child_process' },
+  { pattern: /\beval\s*\(/, reason: 'uses eval()' },
+  { pattern: /\bnew\s+Function\s*\(/, reason: 'uses new Function()' },
+  { pattern: /require\(\s*['"]vm['"]\s*\)/, reason: 'imports vm module' },
+  { pattern: /from\s+['"]vm['"]/, reason: 'imports vm module' },
+  { pattern: /require\(\s*['"]node:vm['"]\s*\)/, reason: 'imports node:vm' },
+  { pattern: /from\s+['"]node:vm['"]/, reason: 'imports node:vm' },
+  // Arbitrary dlopen / native bindings
+  { pattern: /process\.dlopen\s*\(/, reason: 'calls process.dlopen' },
+];
+
+export interface SkillStaticCheckResult {
+  safe: boolean;
+  reasons: string[];
+}
+
+/**
+ * FIX: JARVIS-HIGH-1 — scans the generated JS entry point for dangerous
+ * patterns and for writes outside the skill directory.
+ */
+export function staticallyValidateSkillCode(
+  code: string,
+  skillDir: string,
+): SkillStaticCheckResult {
+  const reasons: string[] = [];
+  for (const { pattern, reason } of DANGEROUS_CODE_PATTERNS) {
+    if (pattern.test(code)) reasons.push(reason);
+  }
+
+  // Additionally block any require('fs')/fs-extra write path that targets
+  // a location outside .helixmind/jarvis/skills/. We can't fully parse
+  // arbitrary JS, but writeFileSync/appendFileSync with literal strings
+  // is the common vector — check those.
+  const writeCallPattern = /\b(writeFileSync|appendFileSync|writeFile|appendFile|createWriteStream|mkdirSync)\s*\(\s*(['"`])([^'"`]+)\2/g;
+  const skillDirNorm = skillDir.replace(/\\/g, '/').toLowerCase();
+  let m: RegExpExecArray | null;
+  while ((m = writeCallPattern.exec(code)) !== null) {
+    const target = m[3].replace(/\\/g, '/').toLowerCase();
+    // Allow relative paths — they resolve against process.cwd() at
+    // runtime which is project-root. The sandbox will catch those.
+    // Only flag absolute-looking paths that don't land in the skills dir.
+    const looksAbsolute = /^[a-z]:\//.test(target) || target.startsWith('/');
+    if (looksAbsolute && !target.includes('.helixmind/jarvis/skills/') && !target.startsWith(skillDirNorm)) {
+      reasons.push(`writes outside skills dir: ${m[3]}`);
+    }
+  }
+
+  return { safe: reasons.length === 0, reasons };
+}
+
 export class SkillManager {
   private registry: SkillRegistryData;
   private registryPath: string;
@@ -162,10 +227,27 @@ export class SkillManager {
 
   /**
    * Activate a skill — load its code and register tools.
+   *
+   * FIX: JARVIS-HIGH-1 — LLM-generated skills (origin='jarvis_created')
+   * cannot be dynamically imported until the user has approved them.
+   * Until approved, activateSkill() returns { success: false } and emits
+   * a 'skill_pending_review' event via onChange so the UI can prompt the
+   * user. Built-in skills (origin='builtin') skip the gate.
    */
   async activateSkill(name: string, ctx: SkillContext): Promise<{ success: boolean; error?: string }> {
     const entry = this.getSkill(name);
     if (!entry) return { success: false, error: `Skill "${name}" not found` };
+
+    // FIX: JARVIS-HIGH-1 — approval gate for jarvis-created skills.
+    const origin = entry.manifest.origin;
+    const requiresApproval = origin === 'jarvis_created' || origin === 'user';
+    if (requiresApproval && !entry.approved) {
+      const reason = `Skill "${name}" requires user approval before activation (origin: ${origin}).`;
+      entry.errors.push(reason);
+      this.save();
+      this.onChange?.('skill_pending_review', entry);
+      return { success: false, error: reason };
+    }
 
     // Install first if needed
     if (entry.status === 'available') {
@@ -176,6 +258,29 @@ export class SkillManager {
     const entryPoint = join(this.skillsDir, name, entry.manifest.main);
     if (!existsSync(entryPoint)) {
       return { success: false, error: `Entry point not found: ${entry.manifest.main}` };
+    }
+
+    // FIX: JARVIS-HIGH-1 — defense-in-depth: even an approved skill is
+    // re-scanned at load time. If the on-disk code has been swapped to
+    // something dangerous between approval and activation, we refuse.
+    if (requiresApproval) {
+      try {
+        const code = readFileSync(entryPoint, 'utf-8');
+        const skillDir = join(this.skillsDir, name);
+        const check = staticallyValidateSkillCode(code, skillDir);
+        if (!check.safe) {
+          const reason = `Skill "${name}" rejected by static check: ${check.reasons.join(', ')}`;
+          entry.status = 'error';
+          entry.errors.push(reason);
+          entry.approved = false;           // revoke stale approval
+          entry.approvedAt = undefined;
+          this.save();
+          this.onChange?.('skill_rejected', entry);
+          return { success: false, error: reason };
+        }
+      } catch (err) {
+        return { success: false, error: `Could not read skill code: ${err instanceof Error ? err.message : String(err)}` };
+      }
     }
 
     try {
@@ -240,6 +345,56 @@ export class SkillManager {
       this.save();
       this.onChange?.('skill_deactivated', entry);
     }
+  }
+
+  // ─── Approval (FIX: JARVIS-HIGH-1) ───────────────────────────────────
+
+  /**
+   * Run the static safety check against a skill's current on-disk code.
+   * Used by the UI "approve" flow to show what the user is about to trust.
+   */
+  reviewSkill(name: string): { ok: boolean; reasons: string[]; codePath?: string } {
+    const entry = this.getSkill(name);
+    if (!entry) return { ok: false, reasons: [`Skill "${name}" not found`] };
+    const codePath = join(this.skillsDir, name, entry.manifest.main);
+    if (!existsSync(codePath)) return { ok: false, reasons: [`Entry point missing: ${entry.manifest.main}`] };
+    try {
+      const code = readFileSync(codePath, 'utf-8');
+      const check = staticallyValidateSkillCode(code, join(this.skillsDir, name));
+      return { ok: check.safe, reasons: check.reasons, codePath };
+    } catch (err) {
+      return { ok: false, reasons: [err instanceof Error ? err.message : String(err)], codePath };
+    }
+  }
+
+  /**
+   * Mark a skill as user-approved. Runs the static check first and refuses
+   * if the code contains any dangerous patterns — user cannot approve code
+   * that imports child_process, uses eval(), etc.
+   */
+  approveSkill(name: string): { success: boolean; error?: string } {
+    const review = this.reviewSkill(name);
+    if (!review.ok) {
+      return { success: false, error: `Cannot approve: ${review.reasons.join(', ')}` };
+    }
+    const entry = this.getSkill(name);
+    if (!entry) return { success: false, error: `Skill "${name}" not found` };
+    entry.approved = true;
+    entry.approvedAt = Date.now();
+    this.save();
+    this.onChange?.('skill_approved', entry);
+    return { success: true };
+  }
+
+  /** Revoke approval — user-facing undo. */
+  revokeSkillApproval(name: string): boolean {
+    const entry = this.getSkill(name);
+    if (!entry) return false;
+    entry.approved = false;
+    entry.approvedAt = undefined;
+    this.save();
+    this.onChange?.('skill_approval_revoked', entry);
+    return true;
   }
 
   // ─── Create (Jarvis Self-Building) ───────────────────────────────────

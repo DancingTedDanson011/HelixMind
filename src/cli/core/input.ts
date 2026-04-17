@@ -35,7 +35,6 @@ import type { CommandDef } from '../ui/command-suggest.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const ESC_DOUBLE_THRESHOLD = 300;     // ms between two ESCs for double-ESC
 const PASTE_THRESHOLD_MS = 100;       // ms to detect multi-line paste
 const MAX_SUGGESTIONS = 6;
 
@@ -74,7 +73,6 @@ export class InputManager extends EventEmitter {
   // State
   private _muted = false;
   private _isPrompting = false;
-  private _lastEscTime = 0;
   private _ctrlCCount = 0;
   private _ctrlCTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -817,6 +815,13 @@ export class InputManager extends EventEmitter {
       }
 
       // ── ESC detection ──
+      // ESC ownership: chat.ts's raw-data and keypress handlers own the
+      // application-level ESC policy (single ESC stops agent, double ESC
+      // opens Rewind). InputManager only handles LOCAL editor concerns:
+      // clearing an active multi-line buffer and clearing an active paste
+      // block. The prior timer-based emission of 'escape'/'double-escape'
+      // events had no listeners and its 300ms debounce raced against
+      // chat.ts's 800ms threshold, causing double-ESC glitches.
       if (bytes.length === 1 && bytes[0] === 0x1b) {
         // ESC clears multi-line first
         if (this._multiLines.length > 1) {
@@ -826,26 +831,12 @@ export class InputManager extends EventEmitter {
           this._renderCurrentLine();
           return;
         }
-        // ESC clears paste block (before triggering escape/double-escape)
+        // ESC clears paste block
         if (this._pasteBlock) {
           this.clearPasteBlock();
           return;
         }
-
-        const now = Date.now();
-        if (now - this._lastEscTime < ESC_DOUBLE_THRESHOLD) {
-          this._lastEscTime = 0;
-          this.emit('double-escape');
-          return;
-        }
-        this._lastEscTime = now;
-        // Delay to check for double-ESC
-        setTimeout(() => {
-          if (this._lastEscTime === now) {
-            this.emit('escape');
-          }
-        }, ESC_DOUBLE_THRESHOLD);
-        // Don't consume — let readline handle ESC for its own purposes
+        // Anything else: don't consume — chat.ts owns ESC policy.
       }
     });
 

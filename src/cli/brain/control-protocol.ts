@@ -265,6 +265,82 @@ export interface VoiceConfigResponse extends WSMessage { type: 'voice_config'; c
 export interface VoiceCloneResultEvent extends WSMessage { type: 'voice_clone_result'; success: boolean; voiceId?: string; error?: string }
 export interface VoiceErrorEvent extends WSMessage { type: 'voice_error'; error: string; utteranceId?: string }
 
+/**
+ * FIX: BRAIN-F9 — runtime shape validation for dangerous control-message types.
+ *
+ * We do NOT pull in Zod here (keeps dependency surface narrow — this file is
+ * used on both CLI and relay paths). Instead, each dangerous type gets a
+ * minimal shape guard. Guards return true only when the required fields are
+ * present AND of the right type. Anything else → reject in the dispatcher.
+ *
+ * Tools that already validate internally (e.g. register_project via
+ * isValidProjectPath) are still listed here so a structural check runs first.
+ */
+export function validateControlMessageShape(msg: unknown): { ok: true } | { ok: false; error: string } {
+  if (!msg || typeof msg !== 'object') return { ok: false, error: 'Message must be an object' };
+  const m = msg as Record<string, unknown>;
+  const t = m.type;
+  if (typeof t !== 'string') return { ok: false, error: 'Missing message type' };
+
+  // Shape guards only for dangerous / privileged types.
+  switch (t) {
+    case 'start_ollama':
+      // No extra fields — accept.
+      return { ok: true };
+
+    case 'register_project':
+      if (typeof m.path !== 'string') return { ok: false, error: 'register_project.path must be string' };
+      if (m.name !== undefined && typeof m.name !== 'string') return { ok: false, error: 'register_project.name must be string' };
+      return { ok: true };
+
+    case 'create_brain':
+      if (typeof m.name !== 'string') return { ok: false, error: 'create_brain.name must be string' };
+      if (m.brainType !== 'global' && m.brainType !== 'local') return { ok: false, error: 'create_brain.brainType must be global|local' };
+      if (m.projectPath !== undefined && typeof m.projectPath !== 'string') return { ok: false, error: 'create_brain.projectPath must be string' };
+      return { ok: true };
+
+    case 'switch_model':
+      if (typeof m.provider !== 'string') return { ok: false, error: 'switch_model.provider must be string' };
+      if (typeof m.model !== 'string') return { ok: false, error: 'switch_model.model must be string' };
+      if (m.provider.length > 64 || m.model.length > 200) return { ok: false, error: 'switch_model fields too long' };
+      return { ok: true };
+
+    case 'revert_to_checkpoint':
+      if (typeof m.checkpointId !== 'number' || !Number.isFinite(m.checkpointId)) {
+        return { ok: false, error: 'revert_to_checkpoint.checkpointId must be number' };
+      }
+      if (m.mode !== undefined && m.mode !== 'chat' && m.mode !== 'code' && m.mode !== 'both') {
+        return { ok: false, error: 'revert_to_checkpoint.mode must be chat|code|both' };
+      }
+      return { ok: true };
+
+    case 'set_autonomy_level':
+      if (typeof m.level !== 'number' || !Number.isFinite(m.level)) {
+        return { ok: false, error: 'set_autonomy_level.level must be number' };
+      }
+      return { ok: true };
+
+    case 'abort_session':
+      if (typeof m.sessionId !== 'string' || m.sessionId.length === 0 || m.sessionId.length > 128) {
+        return { ok: false, error: 'abort_session.sessionId must be non-empty string' };
+      }
+      return { ok: true };
+
+    case 'send_chat':
+      if (typeof m.text !== 'string') return { ok: false, error: 'send_chat.text must be string' };
+      if (m.text.length > 100_000) return { ok: false, error: 'send_chat.text too long' };
+      if (m.chatId !== undefined && typeof m.chatId !== 'string') return { ok: false, error: 'send_chat.chatId must be string' };
+      if (m.mode !== undefined && m.mode !== 'normal' && m.mode !== 'skip-permissions') {
+        return { ok: false, error: 'send_chat.mode invalid' };
+      }
+      return { ok: true };
+
+    default:
+      // For non-privileged types we don't enforce a schema here.
+      return { ok: true };
+  }
+}
+
 /** All valid control request type strings — derived from the ControlRequest union. */
 export const CONTROL_REQUEST_TYPES = new Set<string>([
   'list_sessions', 'start_auto', 'start_security', 'start_monitor', 'stop_monitor',

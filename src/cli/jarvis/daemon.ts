@@ -212,12 +212,20 @@ export async function runJarvisDaemon(
         callbacks.onTaskComplete(task, summary);
         renderInfo(chalk.green(`  \u2713 Task #${task.id}: ${summary}`));
 
+        // FIX: JARVIS-HIGH-1 — a skill_build task produces LLM-generated JS.
+        // onSkillBuildComplete historically triggered immediate activation;
+        // SkillManager.activateSkill() now refuses jarvis_created skills
+        // until the user explicitly approves them. We still call the
+        // callback so the UI can surface "Skill ready for review: <name>",
+        // but we deliberately do NOT treat activation failure as a task
+        // failure — pending-approval is the expected new steady state.
         const skillName = getSkillNameFromTags(task.tags);
         if (skillName && task.tags?.includes('skill_build') && callbacks.onSkillBuildComplete) {
           try {
             await callbacks.onSkillBuildComplete(task, skillName);
           } catch {
             // Skill activation is best effort and should not flip task success.
+            // Pending-approval gate triggers this path in the common case.
           }
         }
 

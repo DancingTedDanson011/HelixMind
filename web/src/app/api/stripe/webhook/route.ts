@@ -38,12 +38,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  // Idempotency: skip already-processed events
+  // Idempotency: skip already-processed events (only if we finished them).
+  // SECURITY (WIDE-WEB-008): we must NOT consider an event processed just
+  // because a row exists — a prior attempt may have crashed inside the DB
+  // transaction. Only rows with processed=true block the retry.
   const existing = await prisma.stripeWebhookEvent.findUnique({
     where: { id: event.id },
   });
-  if (existing) {
+  if (existing?.processed) {
     return NextResponse.json({ received: true, duplicate: true });
+  }
+
+  // SECURITY (WIDE-WEB-008): record the event OUTSIDE the work transaction
+  // so that a failure during plan handling does not roll the record back and
+  // let a replay slip through with different (possibly attacker-chosen) data.
+  // We upsert to tolerate a prior crashed attempt that already wrote the row.
+  try {
+    await prisma.stripeWebhookEvent.upsert({
+      where: { id: event.id },
+      update: {}, // retain original row on retry
+      create: { id: event.id, type: event.type, processed: false },
+    });
+  } catch (err) {
+    console.error('Webhook event record failed:', err);
+    return NextResponse.json({ error: 'Failed to record event' }, { status: 500 });
   }
 
   // Phase 1: Stripe API calls (outside transaction)
@@ -58,16 +76,19 @@ export async function POST(req: Request) {
   // Phase 2: DB writes in transaction (idempotent)
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.stripeWebhookEvent.create({
-        data: { id: event.id, type: event.type },
-      });
-
       switch (event.type) {
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
           if (checkoutSub && session.metadata?.userId) {
             const priceId = checkoutSub.items.data[0]?.price.id;
             const plan = getPlanFromPriceId(priceId);
+            if (!plan) {
+              // Unknown price — log and noop. Do NOT throw: we still want to
+              // mark the event processed so Stripe stops retrying it. Manual
+              // investigation is needed via logs.
+              console.error(`[STRIPE] checkout.session.completed with unknown price ${priceId} — skipping update`);
+              break;
+            }
             const period = checkoutSub.items.data[0]?.price.recurring?.interval === 'year' ? 'YEARLY' : 'MONTHLY';
 
             await tx.subscription.update({
@@ -100,6 +121,12 @@ export async function POST(req: Request) {
           break;
         }
       }
+    });
+
+    // Mark processed AFTER the work transaction commits successfully.
+    await prisma.stripeWebhookEvent.update({
+      where: { id: event.id },
+      data: { processed: true, error: null },
     });
 
     // Send billing notifications (fire-and-forget, outside transaction)
@@ -164,6 +191,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true, duplicate: true });
     }
     console.error('Webhook processing error:', error);
+    // SECURITY (WIDE-WEB-008): record the failure on the event row so ops can
+    // see what happened and the retry path is explicit.
+    try {
+      await prisma.stripeWebhookEvent.update({
+        where: { id: event.id },
+        data: {
+          processed: false,
+          error: (error instanceof Error ? error.message : String(error)).slice(0, 2000),
+        },
+      });
+    } catch (recordErr) {
+      console.error('Failed to record webhook error state:', recordErr);
+    }
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   }
 }
@@ -174,14 +214,29 @@ async function handleSubscriptionUpdated(tx: Tx, event: Stripe.Event) {
   const priceId = sub.items.data[0]?.price.id;
   const plan = getPlanFromPriceId(priceId);
 
+  // SECURITY (WIDE-WEB-008): when Stripe references a price we do not know,
+  // do NOT overwrite the stored plan — leave it untouched and log. Refusing
+  // to map silently downgrades us to FREE which is user-visible damage.
+  const baseData = {
+    status: mapStripeStatus(sub.status),
+    cancelAtPeriodEnd: sub.cancel_at_period_end,
+    currentPeriodStart: new Date(sub.current_period_start * 1000),
+    currentPeriodEnd: new Date(sub.current_period_end * 1000),
+  };
+  if (!plan) {
+    console.error(`[STRIPE] customer.subscription.updated with unknown price ${priceId} — status/period updated, plan left unchanged`);
+    await tx.subscription.updateMany({
+      where: { stripeCustomerId: customerId },
+      data: baseData,
+    });
+    return;
+  }
+
   await tx.subscription.updateMany({
     where: { stripeCustomerId: customerId },
     data: {
+      ...baseData,
       plan,
-      status: mapStripeStatus(sub.status),
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
-      currentPeriodStart: new Date(sub.current_period_start * 1000),
-      currentPeriodEnd: new Date(sub.current_period_end * 1000),
     },
   });
 }
@@ -210,7 +265,12 @@ async function handlePaymentFailed(tx: Tx, event: Stripe.Event) {
   });
 }
 
-function getPlanFromPriceId(priceId: string): 'FREE' | 'PRO' | 'TEAM' | 'ENTERPRISE' {
+// SECURITY (WIDE-WEB-008): returning null for unknown prices keeps the
+// webhook idempotent. Throwing here rolls back the work transaction, which
+// (combined with the old in-tx event record) used to let Stripe retry the
+// same event with a different plan mapping — a path to plan drift.
+function getPlanFromPriceId(priceId: string | undefined): 'FREE' | 'PRO' | 'TEAM' | 'ENTERPRISE' | null {
+  if (!priceId) return null;
   const priceMap: Record<string, 'PRO' | 'TEAM'> = {};
   if (process.env.STRIPE_PRO_MONTHLY_PRICE_ID) priceMap[process.env.STRIPE_PRO_MONTHLY_PRICE_ID] = 'PRO';
   if (process.env.STRIPE_PRO_YEARLY_PRICE_ID) priceMap[process.env.STRIPE_PRO_YEARLY_PRICE_ID] = 'PRO';
@@ -218,8 +278,8 @@ function getPlanFromPriceId(priceId: string): 'FREE' | 'PRO' | 'TEAM' | 'ENTERPR
   if (process.env.STRIPE_TEAM_YEARLY_PRICE_ID) priceMap[process.env.STRIPE_TEAM_YEARLY_PRICE_ID] = 'TEAM';
   const plan = priceMap[priceId];
   if (!plan) {
-    console.error(`[CRITICAL] Unknown Stripe price ID: ${priceId} — refusing to map to a plan`);
-    throw new Error(`Unknown price ID: ${priceId}`);
+    console.error(`[STRIPE] Unknown price ID: ${priceId} — caller must decide how to proceed`);
+    return null;
   }
   return plan;
 }

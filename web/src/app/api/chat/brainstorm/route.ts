@@ -67,6 +67,7 @@ export async function POST(req: Request) {
   // Create SSE stream
   const encoder = new TextEncoder();
   let fullText = '';
+  const userContent = content.trim();
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -94,22 +95,29 @@ export async function POST(req: Request) {
           encoder.encode(`data: ${JSON.stringify({ type: 'done', fullText })}\n\n`)
         );
 
-        // Save assistant message to DB
-        await prisma.chatMessage.create({
-          data: { chatId, role: 'assistant', content: fullText },
-        });
-
-        // Update chat timestamp
-        await prisma.chat.update({
-          where: { id: chatId },
-          data: { updatedAt: new Date() },
-        });
+        // SECURITY (WIDE-WEB-006): persist both the user turn and the assistant
+        // reply atomically so the chat transcript can never diverge from what
+        // the model actually saw. Update chat timestamp in the same tx.
+        await prisma.$transaction([
+          prisma.chatMessage.create({
+            data: { chatId, role: 'user', content: userContent },
+          }),
+          prisma.chatMessage.create({
+            data: { chatId, role: 'assistant', content: fullText },
+          }),
+          prisma.chat.update({
+            where: { id: chatId },
+            data: { updatedAt: new Date() },
+          }),
+        ]);
 
         controller.close();
       } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
+        // SECURITY (WIDE-WEB-005): Do not echo upstream provider errors to the
+        // SSE stream — they can leak API keys, account IDs, or internal URLs.
+        console.error('Brainstorm stream error:', err instanceof Error ? err.message : String(err));
         controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({ type: 'error', error: errMsg })}\n\n`)
+          encoder.encode(`data: ${JSON.stringify({ type: 'error', error: 'Stream failed' })}\n\n`)
         );
         controller.close();
       }

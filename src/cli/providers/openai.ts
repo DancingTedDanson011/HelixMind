@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-import { randomUUID } from 'node:crypto';
 import type {
   LLMProvider,
   ChatMessage,
@@ -10,13 +9,31 @@ import type {
   ContentBlock,
 } from './types.js';
 import {
-  waitIfNeeded,
-  reportSuccess,
-  handleRateLimitError,
+  RateLimiter,
   isRateLimitError,
   detectCreditsExhausted,
+  sleep,
 } from './rate-limiter.js';
-import { getModelContextLength } from './model-limits.js';
+import { getModelContextLength, getMaxOutputTokens } from './model-limits.js';
+
+/**
+ * Normalize reasoning_content that may arrive as a string, an array of blocks,
+ * or an object with a `.text` field (OpenAI Responses API, DeepSeek variants).
+ * FIX: PROVIDERS-M6 — never stringify [object Object] into the history.
+ */
+function normalizeReasoningContent(x: unknown): string {
+  if (x === null || x === undefined) return '';
+  if (typeof x === 'string') return x;
+  if (Array.isArray(x)) {
+    return x
+      .map((b: any) => (typeof b === 'string' ? b : (b?.text ?? '')))
+      .join('');
+  }
+  if (typeof x === 'object') {
+    return (x as any).text ?? JSON.stringify(x);
+  }
+  return String(x);
+}
 
 export class OpenAIProvider implements LLMProvider {
   readonly name: string;
@@ -24,6 +41,8 @@ export class OpenAIProvider implements LLMProvider {
   readonly maxContextLength: number;
   private client: OpenAI;
   private systemRole: 'developer' | 'system';
+  // FIX: PROVIDERS-C2 — Each provider instance owns a RateLimiter.
+  private readonly _rateLimiter: RateLimiter;
 
   constructor(apiKey: string, model: string = 'gpt-4o', baseURL?: string, providerName?: string) {
     this.model = model;
@@ -36,6 +55,12 @@ export class OpenAIProvider implements LLMProvider {
       ...(baseURL ? { baseURL } : {}),
       timeout: 120_000, // 2 minute timeout — prevents infinite hang on slow/unresponsive APIs
     });
+    this._rateLimiter = new RateLimiter(this.name);
+  }
+
+  /** Access the provider's rate limiter. */
+  get rateLimiter(): RateLimiter {
+    return this._rateLimiter;
   }
 
   /** Check if the current model is a reasoning model (DeepSeek-R1 etc.) */
@@ -47,32 +72,40 @@ export class OpenAIProvider implements LLMProvider {
   async *stream(
     messages: ChatMessage[],
     systemPrompt: string,
+    signal?: AbortSignal,
   ): AsyncGenerator<StreamEvent> {
     let fullText = '';
 
     try {
-      const stream = await this.client.chat.completions.create({
-        model: this.model,
-        stream: true,
-        messages: [
-          { role: this.systemRole, content: systemPrompt },
-          ...messages.map(m => ({
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-          })),
-        ],
-      });
+      // FIX: PROVIDERS-C1 — pass signal to request options.
+      const stream = await this.client.chat.completions.create(
+        {
+          model: this.model,
+          stream: true,
+          messages: [
+            { role: this.systemRole, content: systemPrompt },
+            ...messages.map((m) => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+            })),
+          ],
+        },
+        signal ? { signal } : undefined,
+      );
 
       for await (const chunk of stream) {
+        if (signal?.aborted) return;
         const content = chunk.choices?.[0]?.delta?.content;
         if (content) {
           fullText += content;
           yield { type: 'text', content };
+          if (signal?.aborted) return;
         }
       }
 
       yield { type: 'done', content: fullText };
     } catch (err) {
+      if (signal?.aborted) return;
       yield {
         type: 'error',
         content: err instanceof Error ? err.message : String(err),
@@ -137,7 +170,7 @@ export class OpenAIProvider implements LLMProvider {
               // Text-only content blocks
               const text = msg.content
                 .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-                .map(b => b.text)
+                .map((b) => b.text)
                 .join('');
               if (text) openaiMessages.push({ role: 'user', content: text });
             }
@@ -149,12 +182,12 @@ export class OpenAIProvider implements LLMProvider {
         } else if (Array.isArray(msg.content)) {
           const textParts = msg.content
             .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-            .map(b => b.text)
+            .map((b) => b.text)
             .join('');
 
           const toolCalls = msg.content
             .filter((b): b is { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } => b.type === 'tool_use')
-            .map(b => ({
+            .map((b) => ({
               id: b.id,
               type: 'function' as const,
               function: {
@@ -166,7 +199,8 @@ export class OpenAIProvider implements LLMProvider {
           // Restore reasoning_content for DeepSeek-R1 models
           const reasoningBlocks = msg.content
             .filter((b): b is { type: 'reasoning'; text: string } => b.type === 'reasoning');
-          const reasoningParts = reasoningBlocks.map(b => b.text).join('');
+          // FIX: PROVIDERS-M6 — normalize so array/object reasoning blocks don't stringify wrong on write-back.
+          const reasoningParts = reasoningBlocks.map((b) => normalizeReasoningContent(b.text)).join('');
 
           const assistantMsg: any = {
             role: 'assistant',
@@ -187,7 +221,7 @@ export class OpenAIProvider implements LLMProvider {
       }
     }
 
-    const openaiTools: OpenAI.ChatCompletionTool[] = tools.map(t => ({
+    const openaiTools: OpenAI.ChatCompletionTool[] = tools.map((t) => ({
       type: 'function' as const,
       function: {
         name: t.name,
@@ -199,17 +233,19 @@ export class OpenAIProvider implements LLMProvider {
     let response;
     const maxRetries = 5;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      await waitIfNeeded(signal);
+      await this._rateLimiter.waitIfNeeded(signal);
       try {
         response = await this.client.chat.completions.create(
           {
             model: this.model,
             messages: openaiMessages,
             tools: openaiTools,
+            // FIX: PROVIDERS-M2 — per-model output cap in tool-call path.
+            max_tokens: getMaxOutputTokens(this.model),
           },
           signal ? { signal } : undefined,
         );
-        reportSuccess();
+        this._rateLimiter.reportSuccess();
         break;
       } catch (err) {
         if (signal?.aborted) throw err;
@@ -224,13 +260,18 @@ export class OpenAIProvider implements LLMProvider {
         }
 
         if (isRateLimitError(err)) {
-          const waitMs = handleRateLimitError(err);
+          const waitMs = this._rateLimiter.handleRateLimitError(err);
           if (attempt < maxRetries) {
-            process.stdout.write(`\r\x1b[K  \u23F3 Rate limited \u2014 waiting ${Math.ceil(waitMs / 1000)}s (attempt ${attempt + 1}/${maxRetries})...`);
-            await new Promise<void>((resolve, reject) => {
-              const timer = setTimeout(resolve, waitMs);
-              signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('Aborted')); }, { once: true });
-            });
+            process.stdout.write(
+              `\r\x1b[K  \u23F3 Rate limited \u2014 waiting ${Math.ceil(waitMs / 1000)}s (attempt ${attempt + 1}/${maxRetries})...`,
+            );
+            // FIX: PROVIDERS-C3 — signal-aware sleep; propagates abort cleanly.
+            try {
+              await sleep(waitMs, signal);
+            } catch {
+              process.stdout.write('\r\x1b[K');
+              throw err;
+            }
             process.stdout.write('\r\x1b[K');
             continue;
           }
@@ -247,7 +288,8 @@ export class OpenAIProvider implements LLMProvider {
     // Must capture even empty strings — DeepSeek requires this field on ALL assistant messages
     const rawMessage = choice.message as any;
     if (rawMessage.reasoning_content !== undefined && rawMessage.reasoning_content !== null) {
-      content.push({ type: 'reasoning', text: String(rawMessage.reasoning_content) });
+      // FIX: PROVIDERS-M6 — reasoning_content may be string | array | object.
+      content.push({ type: 'reasoning', text: normalizeReasoningContent(rawMessage.reasoning_content) });
     } else if (this.isReasonerModel()) {
       // Reasoner models MUST have this field — insert empty marker
       content.push({ type: 'reasoning', text: '' });
@@ -261,7 +303,13 @@ export class OpenAIProvider implements LLMProvider {
       for (const tc of choice.message.tool_calls) {
         // v5 types include a union — narrow to function calls
         const fn = (tc as any).function as { name: string; arguments: string } | undefined;
-        if (!fn) continue;
+        // FIX: PROVIDERS-M3 — preserve unsupported tool_call variants as text
+        // so conversation history stays consistent (previously we silently dropped them).
+        if (!fn) {
+          const variant = (tc as any).type ?? 'unknown';
+          content.push({ type: 'text', text: `[unsupported tool_call type: ${variant}]` });
+          continue;
+        }
         let input: Record<string, unknown>;
         try {
           input = JSON.parse(fn.arguments);

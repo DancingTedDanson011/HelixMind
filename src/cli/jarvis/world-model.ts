@@ -21,10 +21,20 @@ export class WorldModelManager {
   private projectRoot: string;
   private lastProjectState: ProjectModel | null = null;
   private userModel: UserModel;
+  // FIX: JARVIS-MEDIUM-3 — rolling buffer of the last git failures so
+  // silent swallowing no longer hides "permission denied" / "not a git
+  // repo" / "cmd timeout" from debug tools. Not emitted to user output.
+  private _gitErrors: string[] = [];
+  private static readonly MAX_GIT_ERRORS = 20;
 
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.userModel = { ...DEFAULT_USER, preferredCategories: {} as Record<ProposalCategory, number> };
+  }
+
+  /** FIX: JARVIS-MEDIUM-3 — expose recent git failures for diagnostics. */
+  getGitErrors(): string[] {
+    return [...this._gitErrors];
   }
 
   /**
@@ -237,7 +247,20 @@ export class WorldModelManager {
         timeout: 5000,
         stdio: ['pipe', 'pipe', 'pipe'],
       }).trim();
-    } catch {
+    } catch (err) {
+      // FIX: JARVIS-MEDIUM-3 — previously swallowed silently. Record
+      // the failure so diagnostics can distinguish "no output" (empty
+      // return from git status on clean repo) from "git failed".
+      const msg = err instanceof Error ? err.message : String(err);
+      const entry = `[${new Date().toISOString()}] git ${args}: ${msg.slice(0, 300)}`;
+      this._gitErrors.push(entry);
+      if (this._gitErrors.length > WorldModelManager.MAX_GIT_ERRORS) {
+        this._gitErrors.splice(0, this._gitErrors.length - WorldModelManager.MAX_GIT_ERRORS);
+      }
+      if (process.env.HELIXMIND_DEBUG_GIT) {
+        // eslint-disable-next-line no-console
+        console.debug(entry);
+      }
       return '';
     }
   }

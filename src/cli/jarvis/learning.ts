@@ -302,11 +302,27 @@ export class LearningJournal {
 
   /**
    * Normalize error patterns — strip paths, line numbers, timestamps.
+   *
+   * FIX: JARVIS-MEDIUM-2 — keep the last path segment (basename + ext) as
+   * a feature. The previous implementation stripped the entire path,
+   * collapsing unrelated errors like "Cannot find module 'foo.ts'" and
+   * "Cannot find module 'bar.ts'" into the same normalized pattern. The
+   * basename is a high-signal discriminator without leaking full paths.
    */
   private normalizeError(error: string): string {
-    return error
-      .replace(/\/[\w\-./]+/g, '<path>')           // Unix paths
-      .replace(/[A-Z]:\\[\w\-.\\/]+/gi, '<path>')  // Windows paths
+    // Replace Unix paths but preserve the basename + extension.
+    // /abc/def/file.ts → <path>/file.ts
+    const unixPathRe = /(?:\/[\w\-.]+)+\/([\w\-.]+\.\w+)/g;
+    const withBasenameUnix = error.replace(unixPathRe, '<path>/$1');
+    // Then bare directory paths (no trailing .ext) → <path>
+    const withNoExtUnix = withBasenameUnix.replace(/\/[\w\-./]+/g, '<path>');
+
+    // Windows paths: C:\foo\bar\file.ts → <path>\file.ts, else <path>
+    const winPathRe = /[A-Z]:\\(?:[\w\-.]+\\)+([\w\-.]+\.\w+)/gi;
+    const withBasenameWin = withNoExtUnix.replace(winPathRe, '<path>\\$1');
+    const withNoExtWin = withBasenameWin.replace(/[A-Z]:\\[\w\-.\\/]+/gi, '<path>');
+
+    return withNoExtWin
       .replace(/:\d+:\d+/g, ':<line>')             // line:col
       .replace(/\b\d{10,13}\b/g, '<timestamp>')    // timestamps
       .replace(/\s+/g, ' ')                        // normalize whitespace

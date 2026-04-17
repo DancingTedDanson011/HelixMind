@@ -53,7 +53,10 @@ export async function webSearch(
  * Parse DuckDuckGo Lite HTML results.
  * The Lite version returns a simple table-based layout.
  */
-function parseDuckDuckGoLite(html: string, maxResults: number): SearchResult[] {
+function parseDuckDuckGoLite(rawHtml: string, maxResults: number): SearchResult[] {
+  // FIX: WIDE-SPIRAL-011 — cap HTML input size to prevent catastrophic backtracking
+  // on adversarial or pathological input.
+  const html = rawHtml.slice(0, 200_000);
   const results: SearchResult[] = [];
 
   // DDG Lite puts results in table rows with class "result-link" or similar
@@ -192,7 +195,9 @@ export async function fetchPageContent(
  * Extract the main readable content from HTML.
  * Focuses on article body, code blocks, and paragraphs.
  */
-function extractMainContent(html: string): string {
+function extractMainContent(rawHtml: string): string {
+  // FIX: WIDE-SPIRAL-011 — cap HTML input size to prevent catastrophic backtracking.
+  const html = rawHtml.slice(0, 200_000);
   // Remove script, style, nav, header, footer
   let text = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')

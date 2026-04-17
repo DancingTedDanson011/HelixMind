@@ -29,17 +29,25 @@ export async function POST(req: Request) {
       where: { token: parsed.data.token },
     });
 
+    // SECURITY (WIDE-WEB-009): collapse all failure cases into one generic
+    // response so attackers cannot enumerate which tokens exist, which have
+    // expired, which belong to a different address, or which target someone
+    // who is already a member. We ALSO do not auto-delete expired invites
+    // here — deletion on read is a gadget for side-channel enumeration via
+    // timing and database state; expired invites should be cleaned up by a
+    // scheduled job, not by anonymous POSTs against this endpoint.
+    const INVALID = NextResponse.json({ error: 'Invalid invite' }, { status: 400 });
+
     if (!invite) {
-      return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
+      return INVALID;
     }
 
     if (invite.expiresAt < new Date()) {
-      await prisma.teamInvite.delete({ where: { id: invite.id } });
-      return NextResponse.json({ error: 'Invite has expired' }, { status: 410 });
+      return INVALID;
     }
 
     if (invite.email !== session.user.email) {
-      return NextResponse.json({ error: 'Invite is for a different email' }, { status: 403 });
+      return INVALID;
     }
 
     // Check if already a member
@@ -47,8 +55,7 @@ export async function POST(req: Request) {
       where: { teamId_userId: { teamId: invite.teamId, userId: session.user.id } },
     });
     if (existing) {
-      await prisma.teamInvite.delete({ where: { id: invite.id } });
-      return NextResponse.json({ error: 'Already a team member' }, { status: 409 });
+      return INVALID;
     }
 
     // Create member and delete invite in transaction

@@ -2,7 +2,15 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import AdmZip from 'adm-zip';
 import type { SpiralEngine } from '../../spiral/engine.js';
+import type { ContextType, SpiralLevel } from '../../types.js';
 import { exportBrainData } from './exporter.js';
+
+// FIX: WIDE-SPIRAL-003 — whitelist of valid ContextType enum values for import validation.
+// Keep in sync with src/types.ts ContextType.
+const VALID_CONTEXT_TYPES: readonly ContextType[] = [
+  'code', 'decision', 'error', 'pattern', 'architecture', 'module', 'summary',
+] as const;
+const MAX_CONTENT_BYTES = 1024 * 1024; // 1 MB
 
 const ARCHIVE_VERSION = 1;
 const SUPPORTED_VERSIONS = [1];
@@ -97,15 +105,9 @@ export async function importFromZip(
   let skipped = 0;
   const errors: string[] = [];
 
-  // Get existing content hashes for dedup in merge mode
-  const existingHashes = new Set<string>();
-  if (mode === 'merge') {
-    const existingData = exportBrainData(engine);
-    for (const node of existingData.nodes) {
-      existingHashes.add(contentHash(node.content));
-    }
-  }
-
+  // FIX: WIDE-SPIRAL-002 — removed MD5 pre-dedup. engine.importNode already dedupes
+  // with SHA-256 content_hash and returns { deduplicated: true } on hits, so we rely
+  // on that single source of truth instead of maintaining a parallel MD5 index.
   if (mode === 'replace') {
     // Clear all existing data
     const status = engine.status();
@@ -117,21 +119,53 @@ export async function importFromZip(
   const idMap = new Map<string, string>(); // old id → new id
   for (const node of nodes) {
     try {
-      const hash = contentHash(node.content);
-      if (mode === 'merge' && existingHashes.has(hash)) {
-        skipped++;
+      // FIX: WIDE-SPIRAL-003 — validate and sanitize imported node fields.
+      // Untrusted ZIP input must never be passed directly to the engine.
+      if (typeof node?.content !== 'string') {
+        errors.push(`Skipping node ${node?.id ?? '?'}: missing or non-string content`);
         continue;
+      }
+
+      // Validate type — must be a known ContextType, else skip
+      if (!VALID_CONTEXT_TYPES.includes(node.type)) {
+        errors.push(`Skipping node ${node.id}: invalid type "${String(node.type)}"`);
+        continue;
+      }
+
+      // Clamp level to [1, 5]
+      let safeLevel: SpiralLevel | undefined;
+      if (typeof node.level === 'number') {
+        const clamped = Math.max(1, Math.min(5, Math.floor(node.level)));
+        safeLevel = clamped as SpiralLevel;
+      }
+
+      // Default relevanceScore to 0.5 if missing/non-finite
+      const safeRelevance = Number.isFinite(node.relevanceScore)
+        ? Math.max(0, Math.min(1, node.relevanceScore))
+        : 0.5;
+
+      // Truncate oversized content with marker
+      let safeContent = node.content;
+      // Compare byte length (Buffer.byteLength) for multi-byte safe limit enforcement
+      if (Buffer.byteLength(safeContent, 'utf-8') > MAX_CONTENT_BYTES) {
+        // Slice by characters then re-check; good enough for enforcing an upper bound
+        safeContent = safeContent.slice(0, MAX_CONTENT_BYTES) + '...[truncated]';
       }
 
       const result = await engine.importNode({
         type: node.type,
-        content: node.content,
-        level: node.level,
-        relevanceScore: node.relevanceScore,
+        content: safeContent,
+        level: safeLevel,
+        relevanceScore: safeRelevance,
         metadata: {},
       });
       idMap.set(node.id, result.node_id);
-      imported++;
+      // FIX: WIDE-SPIRAL-002 — count skip/import based on the engine's dedup flag.
+      if (result.deduplicated) {
+        skipped++;
+      } else {
+        imported++;
+      }
     } catch (err) {
       errors.push(`Failed to import node ${node.id}: ${String(err)}`);
     }
@@ -217,6 +251,6 @@ function computeChecksum(nodesJson: string, edgesJson: string): string {
   return hash.digest('hex');
 }
 
-function contentHash(content: string): string {
-  return createHash('md5').update(content).digest('hex');
-}
+// FIX: WIDE-SPIRAL-002 — removed MD5 contentHash() helper. The engine uses SHA-256 via
+// engine.importNode() and returns { deduplicated: boolean } — relying on that single
+// source of truth avoids hash-algorithm mismatches.

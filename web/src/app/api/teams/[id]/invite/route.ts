@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { requireTeamRole } from '@/lib/team-auth';
 import { createNotification } from '@/lib/notifications';
@@ -6,6 +7,12 @@ import { sendTeamInviteEmail } from '@/lib/email';
 import { checkRateLimit, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { validateId } from '@/lib/validation';
 import { z } from 'zod';
+
+// SECURITY (WIDE-WEB-009): invite tokens must be cryptographically random and
+// URL-safe. cuid() is predictable enough that tokens can be enumerated.
+function generateInviteToken(): string {
+  return randomBytes(32).toString('base64url');
+}
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -106,12 +113,15 @@ export async function POST(
     const [invite, team] = await Promise.all([
       prisma.teamInvite.upsert({
         where: { teamId_email: { teamId: id, email: parsed.data.email } },
-        update: { role: parsed.data.role, expiresAt },
+        // SECURITY (WIDE-WEB-009): rotate the token on re-invite so the old
+        // one (which may have leaked) no longer accepts new members.
+        update: { role: parsed.data.role, expiresAt, token: generateInviteToken() },
         create: {
           teamId: id,
           email: parsed.data.email,
           role: parsed.data.role,
           expiresAt,
+          token: generateInviteToken(),
         },
       }),
       prisma.team.findUnique({ where: { id }, select: { name: true } }),
